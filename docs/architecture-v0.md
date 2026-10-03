@@ -1,4 +1,4 @@
-# Kaban: архитектура MVP (черновик v0.11)
+# Kaban: архитектура MVP (черновик v0.11.1)
 
 Автор: Kaban Architector Bot · 3 октября 2026 · статус: на обсуждение, до утверждения Артёмом
 
@@ -51,23 +51,24 @@ flowchart LR
 - **cursor-agent** — внешний процесс на каждую попытку стадии, свой process group, cwd = клон задачи, запуск внутри профиля Seatbelt.
 - `kabanctl` — CLI поверх того же XPC, для отладки и скриптов, с первого дня.
 
-## 2. Swift-пакет `KabanKit`
+## 2. Swift-пакет `Kaban` (репозиторий, `Package.swift` в корне)
 
-| Модуль | Что внутри | Платформа |
-|---|---|---|
-| `KabanModel` | Task, Stage, Pipeline, Run, статусы, причины; чистые функции: валидатор пайплайна, итоговая git-политика стадии, генератор маскота | macOS + Linux |
-| `KabanStateMachine` | `reduce(state, command) -> (state, [effect])`, WIP, лимиты возвратов, ретраи | macOS + Linux |
-| `KabanProtocol` | XPC: команды, ответы, снимок, события с `seq` | macOS + Linux (Codable) |
-| `KabanStore` | GRDB: схема, миграции, журнал | macOS + Linux |
-| `KabanScheduler` | цикл планировщика, справедливый обход проектов, с фейковым драйвером | macOS + Linux |
-| `KabanAgentDrivers` | `AgentDriver` + `CursorCLIDriver` (аргументы, парсер stream-json → `AgentEvent`) | macOS + Linux |
-| `KabanHTTP` | loopback-сервер: MCP доски и `/git/check` | macOS + Linux |
-| `KabanGit` | клоны задач, fetch, rebase, ff-merge, diffstat, снимки refs | macOS + Linux |
-| `KabanGitShim` (executable) | обёртка `git` для PATH агента | macOS |
-| `KabanDaemon` (executable) | сборка всего, Seatbelt, launchd, XPC listener | macOS |
-| `KabanApp` (Xcode) | SwiftUI | macOS |
+| Модуль | Что внутри | Зависит от | Платформа |
+|---|---|---|---|
+| `KabanProtocol` | XPC: команды, ответы, снимок, события с `seq`, эфемерные события, `AgentEvent` | Foundation | macOS + Linux (Codable) |
+| `KabanKit` | модель (Task, Stage, Pipeline, Run), валидатор `pipeline.yaml`, итоговая git-политика стадии, генератор маскота; машина состояний `reduce(state, command) -> (state, [effect])`, WIP, лимиты возвратов, ретраи. Статусы и причины берёт из `KabanProtocol`, своих копий не заводит | `KabanProtocol` | macOS + Linux |
+| `KabanDaemonCore` | GRDB: схема, миграции, журнал; планировщик, справедливый обход проектов, фейковый драйвер | `KabanKit`, GRDB | macOS + Linux |
+| `KabanAgentDrivers` | `AgentDriver` + `CursorCLIDriver` (аргументы, парсер stream-json → `AgentEvent`) | `KabanProtocol` | macOS + Linux |
+| `KabanHTTP` | loopback-сервер: MCP доски и `/git/check` | `KabanDaemonCore` | macOS + Linux |
+| `KabanGit` | клоны задач, fetch, rebase, ff-merge, diffstat, снимки refs | Foundation | macOS + Linux |
+| `KabanBoardCore` | состояние доски в приложении: применение снимка и событий, набор проектов (`BoardSetStore`), фильтры, оптимистичные команды | **только `KabanProtocol`** | macOS + Linux |
+| `KabanGitShim` (executable) | обёртка `git` для PATH агента | — | macOS |
+| `KabanDaemon` (executable) | сборка всего, Seatbelt, launchd, XPC listener | всё демонное | macOS |
+| `KabanApp` (Xcode) | SwiftUI | `KabanProtocol`, `KabanBoardCore` | macOS |
 
-Всё, кроме последних трёх, собирается и тестируется на общем Linux-компьютере, пока Мак не в сети.
+Граница: приложение не импортирует `KabanKit` и GRDB. Правда о задачах и валидности пайплайна живёт в демоне; черновик пайплайна приложение проверяет командой `validatePipeline` (ответ и эфемерное `pipelineDraftValidated`), а не своей копией валидатора. Модули `KabanModel`/`KabanStateMachine`/`KabanStore`/`KabanScheduler` из v0.11 слиты в `KabanKit` и `KabanDaemonCore` (v0.11.1).
+
+Всё, кроме трёх macOS-модулей, собирается и тестируется на общем Linux-компьютере, пока Мак не в сети.
 
 ## 3. Конечный автомат
 
@@ -140,7 +141,7 @@ stages:
 - Новый проект без `.kaban/`: в диалоге добавления галочка «создать шаблон и закоммитить» (по умолчанию включена). Моделей по умолчанию нет: шаблон коммитится с пустыми `model:`, и проект сразу получает `unavailable: pipeline_invalid` со списком стадий без модели. Без закоммиченного пайплайна проект добавляется, но задачи не запускаются, на дорожке плашка «нет пайплайна». Задачи в Backlog создавать можно в обоих случаях.
 - Чистая рабочая копия для добавления проекта не нужна.
 
-**Валидация** (JSON Schema + семантика в `KabanModel`). Ошибки — `ValidationIssue { path: "stages[2].wip", code, message, severity }`, путь к полю для подсветки в настройках. `updatePipeline` некорректную версию не коммитит, «Сохранить» в UI при ошибках неактивна, черновик живёт только в редакторе. Если некорректная версия попала в `main` ручным коммитом, проект получает `unavailable: pipeline_invalid`: идущие runs доигрывают, новые не стартуют и задачи не переходят между стадиями, флаг гаснет сам, когда в `main` появляется корректная версия (правило «работаем на последней валидной» с v0.10 снято).
+**Валидация** (JSON Schema + семантика в `KabanKit`). Ошибки — `ValidationIssue { path: "stages[2].wip", code, message, severity }`, путь к полю для подсветки в настройках. `updatePipeline` некорректную версию не коммитит, «Сохранить» в UI при ошибках неактивна, черновик живёт только в редакторе. Если некорректная версия попала в `main` ручным коммитом, проект получает `unavailable: pipeline_invalid`: идущие runs доигрывают, новые не стартуют и задачи не переходят между стадиями, флаг гаснет сам, когда в `main` появляется корректная версия (правило «работаем на последней валидной» с v0.10 снято).
 - `id` уникальны; одна `queue`-стадия входа, одна `merge`, есть `terminal`;
 - `terminal` достижим по `on_success` из каждой стадии, циклов по `on_success` нет;
 - `returns_to` указывает только назад по цепочке;
@@ -445,7 +446,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 ## 15. Порядок разработки
 
 - **M0** спайки.
-- **M1** ядро на Linux: `KabanModel`, `KabanStateMachine`, `KabanStore`, `KabanScheduler` с фейковым драйвером, `kabanctl`.
+- **M1** ядро на Linux: `KabanKit` (модель, валидатор, машина состояний) и `KabanDaemonCore` (хранилище, планировщик с фейковым драйвером), `kabanctl`.
 - **M2** исполнение: `CursorCLIDriver`, `KabanHTTP` (MCP и `/git/check`), обёртка git, клоны, гейты, проверка результата, восстановление.
 - **M3** UI: доска, карточка, лог, Human Review, настройки стадии и git, менюбар, уведомления.
 - **M4** слияние и квоты: очередь merge, конфликты, классификатор лимитных ошибок, флаги модели, опция проактивной квоты.
@@ -459,6 +460,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 ## Журнал изменений
 
 - v0.11 (презентация утверждена 4 октября): три git-пресета `strict | standard | permissive`, политика на уровне проекта, у стадии только переопределения (8.4); в «Строгом» коммитит только демон (6.3); проверка `suspicious_files` по всему diff ветки, `waiting_human: suspicious_files`, `task_accepted_file`, события `suspiciousFilesFound` / `suspiciousFilesAccepted` (8.2, 5); паузы ретраев `[30s, 2m]` при 3 попытках утверждены; «Слияние» стало 8.5.
+- v0.11.1: раскладка модулей §2 под репозиторий: `KabanKit` = модель + валидатор + машина состояний, `KabanDaemonCore` = GRDB-хранилище + планировщик; `KabanBoardCore` и приложение зависят только от `KabanProtocol`.
 - v0.10.2: набор проектов на доске вместо режимов «один / несколько / все» (5, 11), подписка приложения на все проекты; `billingCycleStart` в спайке 1 (14).
 - v0.10.1: `usage_exhausted` по пулам (на весь Мак только `unknown`); `actual` в `model_flag` необязательно; `quotaUpdated` с `billingCycleStart?` и «нет данных» вместо 0%. В §9 конфиг MCP собирается из пересечения выбора стадии и белого списка, а выключенный сервер даёт предупреждение.
 - v0.10 (по журналу решений от 3 октября): Auto запрещён, `model` обязательна, моделей по умолчанию нет, стадия без модели делает пайплайн некорректным; некорректная версия в `main` останавливает новые старты вместо работы на последней корректной; `backoff` на одну паузу короче числа попыток (`[30s, 2m]` — ждёт Артёма); попытки на заход в стадию, `max_runs_per_task` и `waiting_human: run_limit`; `refs/kaban/wip/<run-id>` перед откатом; классификатор сбоев, `silent_exit` и пробный запуск; `usage_exhausted`, флаги модели `unavailable` и `substituted`, `model_substituted` и `model_unconfirmed`; проактивная квота Cm/Om (опция), `model_catalog`, `model_pool_rule`, `quota_sample`; белый список MCP, конфиг MCP от демона, `mcp_unexpected`; запрет на `globalStorage` Cursor в Seatbelt и остаточный риск токена CLI; спайки разложены по номерам §14.

@@ -2,10 +2,13 @@
 
 import PackageDescription
 
-// Каркас пакета. Модули пустые: типы и логику добавляют отдельные PR.
-// GRDB сюда не подключать — зависимость добавит бэкенд вместе с KabanStore.
+// Каркас пакета. KabanProtocol наполнен; KabanKit и KabanBoardCore пока заглушки.
+// KabanDaemonCore и GRDB не подключать — их добавит бэкенд отдельным PR.
+// PackageDescription 6.0 не содержит MacOSVersion.v15 (последний кейс — v14).
+// Строка "15.0" — тот же минимум macOS 15, что и .v15 на более новом tools-version.
 let package = Package(
     name: "Kaban",
+    platforms: [.macOS("15.0")],
     products: [
         .library(name: "KabanProtocol", targets: ["KabanProtocol"]),
         .library(name: "KabanKit", targets: ["KabanKit"]),
@@ -13,13 +16,13 @@ let package = Package(
     ],
     targets: [
         .target(name: "KabanProtocol"),
-        .target(name: "KabanKit"),
+        .target(
+            name: "KabanKit",
+            dependencies: ["KabanProtocol"]
+        ),
         .target(
             name: "KabanBoardCore",
-            dependencies: [
-                "KabanProtocol",
-                "KabanKit",
-            ]
+            dependencies: ["KabanProtocol"]
         ),
         .testTarget(
             name: "KabanProtocolTests",
