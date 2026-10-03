@@ -1,0 +1,490 @@
+{
+  "modelFlags" : [
+    {
+      "actual" : "Claude 4 Sonnet",
+      "fallbackModel" : "claude-4-sonnet",
+      "modelId" : "claude-4.5-opus",
+      "reason" : "substituted",
+      "requested" : "Claude 4.5 Opus",
+      "since" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "modelId" : "gpt-5-codex",
+      "reason" : "unavailable",
+      "requested" : "GPT-5 Codex",
+      "since" : "2026-10-04T08:00:00.000Z"
+    }
+  ],
+  "openIncidentCount" : 1,
+  "pipelines" : [
+    {
+      "gitPreset" : "standard",
+      "hasUncommittedEdits" : false,
+      "issues" : [
+        {
+          "code" : "mcp_not_allowlisted",
+          "message" : "Сервер «linear» выключен в белом списке проекта и не будет подключён",
+          "path" : "stages[1].agent.mcp[1]",
+          "severity" : "warning"
+        }
+      ],
+      "maxRunsPerTask" : 12,
+      "maxWaitingHuman" : 3,
+      "projectId" : "p-kaban",
+      "stages" : [
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "icon" : "tray",
+            "order" : 0
+          },
+          "id" : "backlog",
+          "kind" : "queue",
+          "name" : "Backlog",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ]
+        },
+        {
+          "display" : {
+            "collapsed" : false,
+            "color" : "blue",
+            "hidden" : false,
+            "icon" : "hammer",
+            "order" : 1
+          },
+          "id" : "dev",
+          "kind" : "agent",
+          "maxAttempts" : 3,
+          "model" : "claude-4.5-opus",
+          "name" : "Разработка",
+          "onSuccess" : "test",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ],
+          "wip" : 3
+        },
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "order" : 2
+          },
+          "id" : "test",
+          "kind" : "agent",
+          "maxAttempts" : 3,
+          "model" : "composer-1",
+          "name" : "Тесты",
+          "onSuccess" : "review",
+          "readOnly" : false,
+          "returnsTo" : [
+            {
+              "limit" : 3,
+              "stage" : "dev"
+            }
+          ],
+          "wip" : 2
+        },
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "order" : 3
+          },
+          "id" : "review",
+          "kind" : "human",
+          "name" : "Human Review",
+          "onSuccess" : "merge",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ]
+        },
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "order" : 4
+          },
+          "id" : "merge",
+          "kind" : "merge",
+          "name" : "Слияние",
+          "onSuccess" : "done",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ],
+          "wip" : 1
+        },
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "order" : 5
+          },
+          "id" : "done",
+          "kind" : "terminal",
+          "name" : "Готово",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ]
+        }
+      ],
+      "versionHash" : "sha256:9f2c"
+    },
+    {
+      "gitPreset" : "standard",
+      "hasUncommittedEdits" : false,
+      "issues" : [
+        {
+          "code" : "model_missing",
+          "message" : "У стадии нет модели",
+          "path" : "stages[0].agent.model",
+          "severity" : "error"
+        }
+      ],
+      "maxRunsPerTask" : 12,
+      "maxWaitingHuman" : 3,
+      "projectId" : "p-site",
+      "stages" : [
+        {
+          "display" : {
+            "collapsed" : false,
+            "hidden" : false,
+            "order" : 1
+          },
+          "id" : "dev",
+          "kind" : "agent",
+          "name" : "Разработка",
+          "readOnly" : false,
+          "returnsTo" : [
+
+          ],
+          "wip" : 1
+        }
+      ]
+    }
+  ],
+  "projects" : [
+    {
+      "availability" : "available",
+      "baseBranch" : "main",
+      "id" : "p-kaban",
+      "mascotSeed" : "p-kaban",
+      "name" : "kaban",
+      "path" : "/Users/artem/dev/kaban",
+      "weight" : 1
+    },
+    {
+      "availability" : "missing",
+      "baseBranch" : "main",
+      "id" : "p-site",
+      "mascotSeed" : "p-site",
+      "name" : "site",
+      "path" : "/Users/artem/dev/site",
+      "weight" : 1
+    }
+  ],
+  "protocolVersion" : 1,
+  "quota" : {
+    "billingCycleEnd" : "2026-10-17T00:00:00.000Z",
+    "cm" : 42.5,
+    "fetchedAt" : "2026-10-04T08:00:00.000Z"
+  },
+  "schedulerFlags" : [
+    {
+      "flag" : "usage_exhausted",
+      "level" : "pool",
+      "pool" : "om",
+      "reason" : "om",
+      "resetsAt" : "2026-10-17T00:00:00.000Z"
+    },
+    {
+      "flag" : "usage_exhausted",
+      "level" : "mac",
+      "reason" : "unknown"
+    },
+    {
+      "flag" : "rate_limited",
+      "level" : "mac",
+      "step" : 1,
+      "until" : "2026-10-04T08:15:00.000Z"
+    },
+    {
+      "flag" : "runner_unavailable",
+      "level" : "mac",
+      "reason" : "agent_not_logged_in"
+    },
+    {
+      "detail" : "dev: нет модели",
+      "flag" : "unavailable",
+      "level" : "project",
+      "projectId" : "p-site",
+      "reason" : "pipeline_invalid"
+    },
+    {
+      "detail" : "github",
+      "flag" : "unavailable",
+      "level" : "project",
+      "projectId" : "p-kaban",
+      "reason" : "mcp_unexpected"
+    },
+    {
+      "flag" : "intake_paused",
+      "level" : "project",
+      "projectId" : "p-kaban",
+      "reason" : "max_waiting_human"
+    },
+    {
+      "flag" : "merge_blocked",
+      "level" : "project",
+      "projectId" : "p-kaban",
+      "reason" : "main_dirty"
+    }
+  ],
+  "seq" : 1042,
+  "tasks" : [
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-1-x",
+      "id" : "t-1",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "dev",
+      "state" : {
+        "status" : "running"
+      },
+      "title" : "Парсер stream-json",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-2-x",
+      "id" : "t-2",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "dev",
+      "state" : {
+        "reason" : "wip_full",
+        "status" : "queued"
+      },
+      "title" : "Ждёт места",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-3-x",
+      "id" : "t-3",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "test",
+      "state" : {
+        "reason" : "quota_cm",
+        "status" : "queued"
+      },
+      "title" : "Ждёт квоту Cm",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-4-x",
+      "id" : "t-4",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "dev",
+      "state" : {
+        "reason" : "silent_exit",
+        "status" : "retry_wait"
+      },
+      "title" : "Молчаливый выход",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-5-x",
+      "id" : "t-5",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "dev",
+      "state" : {
+        "reason" : "model_substituted",
+        "status" : "waiting_human"
+      },
+      "title" : "Подмена модели",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-6-x",
+      "id" : "t-6",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "dev",
+      "state" : {
+        "reason" : "run_limit",
+        "status" : "waiting_human"
+      },
+      "title" : "Лимит запусков",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-7-x",
+      "id" : "t-7",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "review",
+      "state" : {
+        "reason" : "review",
+        "status" : "waiting_human"
+      },
+      "title" : "На ревью",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-8-x",
+      "id" : "t-8",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "test",
+      "state" : {
+        "reason" : "suspicious_files",
+        "status" : "waiting_human"
+      },
+      "title" : "Подозрительные файлы",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-9-x",
+      "id" : "t-9",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "merge",
+      "state" : {
+        "reason" : "main_dirty",
+        "status" : "blocked"
+      },
+      "title" : "main грязный",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    {
+      "attempt" : 1,
+      "bounceByReason" : {
+
+      },
+      "branch" : "kaban/t-10-x",
+      "id" : "t-10",
+      "maxAttempts" : 3,
+      "model" : "claude-4.5-opus",
+      "overlapsWith" : [
+
+      ],
+      "priority" : 0,
+      "projectId" : "p-kaban",
+      "runsSinceHuman" : 2,
+      "stageId" : "done",
+      "state" : {
+        "status" : "done"
+      },
+      "title" : "Готово",
+      "unusedGitGrants" : 0,
+      "updatedAt" : "2026-10-04T08:00:00.000Z"
+    }
+  ]
+}

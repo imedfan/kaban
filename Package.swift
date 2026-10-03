@@ -23,7 +23,8 @@ let package = Package(
         ),
         .testTarget(
             name: "KabanProtocolTests",
-            dependencies: ["KabanProtocol"]
+            dependencies: ["KabanProtocol"],
+            resources: [.copy("Fixtures")]
         ),
         .testTarget(
             name: "KabanKitTests",
