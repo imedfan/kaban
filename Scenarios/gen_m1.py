@@ -24,7 +24,7 @@ sc("M1-FLOW-01",["UC-03","UC-05","1.1"],"Задача проходит Dev→Tes
  {"command":cmd("moveTask",taskId="t-1",stage="dev"),"then":{"tasks":{"t-1":{"stage":"dev","state":st("queued"),"attempt":1,"autoRuns":0}}}},
  {"tick":"scheduler","then":{"tasks":{"t-1":{"state":st("running"),"attempt":1,"autoRuns":1}},"runsStarted":1}},
  {"driver":{"task":"t-1","end":"completed","gates":"green"},"then":{"tasks":{"t-1":{"stage":"test","state":st("queued"),"attempt":1,"autoRuns":1}},
-   "events":[tr("t-1","dev","dev",st("running"),st("gating")),tr("t-1","dev","test",st("gating"),st("queued"))]}}])
+   "events":[tr("t-1","dev","dev",st("running"),st("gating"),by="agent"),tr("t-1","dev","test",st("gating"),st("queued"))]}}])
 sc("M1-WIP-01",["1.2","UC-03"],"WIP стадии Dev=3: четвёртая задача ждёт с подписью «ждёт места»",
  G([task(f"t-{i}","dev",st("queued")) for i in range(1,5)]),[
  {"tick":"scheduler","then":{"tasks":{"t-1":{"state":st("running")},"t-2":{"state":st("running")},"t-3":{"state":st("running")},"t-4":{"state":st("queued","wip_full")}},"runsStarted":3}}])
@@ -86,10 +86,10 @@ sc("M1-RUNLIMIT-02",["1.4","F27"],"Действие человека сбрас�
 
 # --- Возвраты и max_waiting_human
 sc("M1-BOUNCE-01",["1.3","UC-07"],"Лимит возвратов Test→Dev = 3",
- G([task("t-1","test",st("running"),runId="r-1",bounces={"test_dev":3,"total":3})]),[
+ G([task("t-1","test",st("running"),runId="r-1",bounces={"test_dev":3})]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"stage":"test","state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-BOUNCE-02",["1.3"],"Общий потолок возвратов 5 срабатывает раньше лимита пары",
- G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"review_dev":1,"total":5})]),[
+ G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"ai_review_dev":1})]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-MAXWH-01",["1.2","UC-06"],"max_waiting_human=3 останавливает приём новых задач проекта, ревью не считается",
  G([task("t-1","dev",st("waiting_human","question")),task("t-2","test",st("waiting_human","retries_exhausted")),task("t-3","human_review",st("waiting_human","review")),task("t-4","dev",st("running"),runId="r-4"),task("t-5","dev",st("queued"))]),[
@@ -116,7 +116,7 @@ sc("M1-PIPE-01",["UC-23","1.5"],"Стадия без модели: проект 
 sc("M1-PIPE-02",["UC-23","1.5"],"validatePipeline: стадия без модели или auto — ошибка, MCP вне белого списка — предупреждение",
  G([]),[
  {"command":cmd("validatePipeline",projectId="p-kaban",content="<pipeline: dev.model = auto, test.mcp = [github] при пустом белом списке>"),
-  "then":{"ephemeral":[{"type":"pipelineDraftValidated","data":{"issues":[{"severity":"error","stageId":"dev","code":"model_required"},{"severity":"warning","stageId":"test","code":"mcp_not_allowlisted"}]}}]}}])
+  "then":{"ephemeral":[{"type":"pipelineDraftValidated","data":{"issues":[{"severity":"error","path":"stages.dev.model","stageId":"dev","code":"model_auto_forbidden"},{"severity":"warning","path":"stages.test.mcp[0]","stageId":"test","code":"mcp_not_allowlisted"}]}}]}}])
 sc("M1-PAUSE-01",["UC-11"],"Пауза задачи останавливает запуск и освобождает слот, продолжение ставит в очередь",
  G([task("t-1","dev",st("running"),runId="r-1",attempt=1,autoRuns=1)]),[
  {"command":cmd("pauseTask",taskId="t-1"),"then":{"tasks":{"t-1":{"state":st("paused")}},"runsKilled":1,"runEnd":"paused_by_human"}},

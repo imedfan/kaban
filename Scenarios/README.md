@@ -1,6 +1,6 @@
 # Сценарии приёмки M1
 
-Автор: Kaban Analyst Bot. Источник: спека v0.8.1 (`docs/kaban-mvp-features-usecases.md`) и архитектура v0.11.1. Критерии приёмки по всем UC и вехам лежат в `/workspace/kaban/acceptance-criteria-v0.md` (в репозитории `docs/acceptance-criteria-v0.md`).
+Автор: Kaban Analyst Bot. Источник: спека v0.8.2 (`docs/kaban-mvp-features-usecases.md`) и архитектура v0.11.1. Критерии приёмки по всем UC и вехам лежат в `/workspace/kaban/acceptance-criteria-v0.md` (в репозитории `docs/acceptance-criteria-v0.md`).
 
 JSON не править руками: источник это `gen_m1.py`, файлы пересобираются командой `python3 gen_m1.py`. Типы на проводе те же, что в `KabanProtocol`: состояние задачи `{status, reason}`, команда `{protocolVersion, commandId, command: {имя: {поля}}}`, событие `{type, data}`, флаг `{level, flag, ...}`.
 
@@ -27,6 +27,7 @@ JSON не править руками: источник это `gen_m1.py`, фа
 - `runsStarted` / `runsKilled`: сколько run стартовало или было убито в шаге.
 - `runningByProject`, `clone` (`kept` / `reset`), `refs`, `probes`, `runEnd`.
 - `commandError`: ожидаемая ошибка команды; `acceptedFiles`: принятые файлы задачи.
+- Ключи `bounces` (`bounceByReason`): `<from>_<to>` по id стадий (`test_dev`, `ai_review_dev`) и `merge_conflict`; общий итог отдельным полем, не ключом.
 - `note`: пояснение для человека, не проверяется.
 
 ## Базовый пайплайн `base`

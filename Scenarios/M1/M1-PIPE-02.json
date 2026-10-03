@@ -30,11 +30,13 @@
               "issues": [
                 {
                   "severity": "error",
+                  "path": "stages.dev.model",
                   "stageId": "dev",
-                  "code": "model_required"
+                  "code": "model_auto_forbidden"
                 },
                 {
                   "severity": "warning",
+                  "path": "stages.test.mcp[0]",
                   "stageId": "test",
                   "code": "mcp_not_allowlisted"
                 }
