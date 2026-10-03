@@ -33,8 +33,9 @@ final class ScenarioReplayTests: XCTestCase {
 
     /// Differences between the scenarios and KabanKit that are known and listed in the report to the Architector/Analyst.
     static let knownMismatches: [String: Set<String>] = [
-        // §3.3 says `complete_stage` is called by the agent; the scenario records `by: daemon` for running → gating.
-        "M1-FLOW-01": ["event taskTransitioned[0].by: expected daemon, got agent"],
+        // The total moved out of `bounces` (README) but `given` has no total field, so the total is the sum (4), not 5.
+        // Waits for `bounceTotal: 5` in `given` (asked the Analyst).
+        "M1-BOUNCE-02": ["step 1 t-1.state: expected waitingHuman(KabanProtocol.WaitingHumanReason.bounceLimit), got queued(nil)"],
     ]
 
     /// Scenarios expected to replay completely through the state machine.
@@ -117,8 +118,11 @@ private final class Replayer {
             if let run = t["runId"] as? String { s.currentRunId = RunID(rawValue: run); s.lastRunId = s.currentRunId }
             if let a = t["attempt"] as? Int { s.attemptsUsed = max(0, a - 1) }
             s.runsSinceHuman = t["autoRuns"] as? Int ?? (s.state == .running ? 1 : 0)
-            for (k, v) in t["bounces"] as? [String: Int] ?? [:] {
-                if k == "total" { s.totalBounces = v } else { s.bounces[k] = v }
+            // Keys are `<from>_<to>` routes; the total is not a key (README) and defaults to their sum.
+            let seeded = t["bounces"] as? [String: Int] ?? [:]
+            s.totalBounces = t["bounceTotal"] as? Int ?? seeded.values.reduce(0, +)
+            for (k, v) in seeded {
+                s.bounces[k] = v
             }
             if let files = t["suspiciousFiles"] as? [[String: Any]] {
                 s.suspiciousFiles = files.map { SuspiciousFile(path: $0["path"] as! String, rule: .pattern, sizeBytes: 0, blob: $0["blob"] as! String) }

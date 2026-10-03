@@ -2,7 +2,7 @@ import XCTest
 import KabanProtocol
 @testable import KabanKit
 
-/// `waiting_human: suspicious_files` rules (architecture v0.11.1 §5, §8.2).
+/// `waiting_human: suspicious_files` rules (architecture v0.11.2 §5, §8.2).
 final class SuspiciousFilesMachineTests: XCTestCase {
     let base = TestPipelines.base
     let envLocal = SuspiciousFile(path: ".env.local", rule: .pattern, pattern: ".env*", sizeBytes: 212, blob: "a1b2c3")
@@ -97,7 +97,6 @@ final class SuspiciousFilesMachineTests: XCTestCase {
         let actions: [(HumanAction, TaskState, StageID)] = [
             (.retryStage(grantAttempts: nil), .queued(nil), "dev"),
             (.move(stage: "backlog"), .queued(nil), "backlog"),
-            (.requestChanges(comments: "fix", target: "dev"), .queued(nil), "dev"),
             (.reject(target: .stage(stageId: "dev"), keepBranch: false), .queued(nil), "dev"),
             (.reject(target: .cancel, keepBranch: false), .cancelled, "dev"),
             (.cancel(keepBranch: true), .cancelled, "dev"),
@@ -110,6 +109,23 @@ final class SuspiciousFilesMachineTests: XCTestCase {
             XCTAssertEqual(h.s.stageId, stage, "\(action)")
             XCTAssertEqual(h.s.suspiciousFiles, [])
             XCTAssertTrue(e.startedRuns.isEmpty)
+        }
+    }
+
+    func testRequestChangesDoesNotAcceptAndRechecksAfterGates() {
+        for stage: StageID in ["dev", "merge"] {
+            var h = blocked(stage: stage)
+            let e = h.ok(.human(.requestChanges(comments: "remove .env.local", target: "dev")))
+            XCTAssertNil(e.accepted, "requestChanges must not accept the set (\(stage))")
+            XCTAssertEqual(h.s.state, .queued(nil))
+            XCTAssertEqual(h.s.stageId, "dev")
+            XCTAssertEqual(h.s.suspiciousFiles, [])
+            let r = h.ok(.start(runId: "r-2")).startedRuns
+            XCTAssertEqual(r.first?.prompt, [.humanComments("remove .env.local")])
+            h.ok(.completeStage(runId: "r-2", summary: "s"))
+            h.ok(.gatesPassed)
+            h.ok(.resultChecked(.suspiciousFiles([envLocal])))
+            XCTAssertEqual(h.s.state, .waitingHuman(.suspiciousFiles))
         }
     }
 

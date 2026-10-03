@@ -487,9 +487,9 @@ private struct Machine {
         switch action {
         case .answer(let text, let requestId): answer(stage, text: text, requestId: requestId)
         case .approve: approve(stage)
-        case .requestChanges(let comments, let target): requestChanges(stage, comments: comments, target: target)
+        case .requestChanges(let comments, let target): requestChanges(stage, comments: comments, target: target, acceptSet: false)
         case .reject(.cancel, let keep): cancel(keepBranch: keep)
-        case .reject(.stage(let target), _): requestChanges(stage, comments: nil, target: target)
+        case .reject(.stage(let target), _): requestChanges(stage, comments: nil, target: target, acceptSet: true)
         case .pause: pause()
         case .resume: resume()
         case .move(let target): humanMove(target)
@@ -539,7 +539,9 @@ private struct Machine {
         enter(stage.onSuccess, priority: nil, prompt: [], returnReason: nil, note: "approved")
     }
 
-    mutating func requestChanges(_ stage: StageConfig, comments: String?, target: StageID?) {
+    /// `requestChanges` never accepts the suspicious set (v0.11.2 §8.2): the check repeats after the target's gates.
+    /// `reject` to a stage does accept it.
+    mutating func requestChanges(_ stage: StageConfig, comments: String?, target: StageID?, acceptSet: Bool) {
         guard case .waitingHuman = s.state else { return reject("requestChanges/reject needs a task in waiting_human") }
         guard let targetId = target ?? pipeline.firstAgentStage?.id, let t = pipeline.stage(targetId) else {
             return reject("Unknown target stage '\(target?.rawValue ?? "-")'", code: CommandError.notFoundCode)
@@ -547,7 +549,7 @@ private struct Machine {
         guard t.kind != .terminal, t.id == stage.id || pipeline.isUpstream(t.id, of: stage.id) else {
             return reject("Target '\(t.id)' must be the current or an earlier stage")
         }
-        leaveWaiting()
+        leaveWaiting(acceptSet: acceptSet)
         // Human returns do not count toward return limits.
         enter(t.id, priority: .returned, prompt: comments.map { [.humanComments($0)] } ?? [], returnReason: .human, note: "changes requested")
     }
