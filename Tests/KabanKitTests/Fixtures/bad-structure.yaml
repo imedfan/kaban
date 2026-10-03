@@ -1,0 +1,14 @@
+version: 2
+board:
+  max_runs_per_task: twelve
+mcp: [github]
+stages:
+  - id: backlog
+    kind: queue
+    on_success: dev
+  - id: dev
+    kind: robot
+  - name: no id here
+    kind: agent
+  - id: done
+    kind: terminal
