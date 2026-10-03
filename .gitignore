@@ -34,3 +34,9 @@ Package.pins
 *.swp
 *~
 .idea/
+
+# Frontend spikes generated on the Mac
+spikes/frontend/**/*.xcodeproj/
+spikes/frontend/Config/Signing.xcconfig
+spikes/frontend/results/*
+!spikes/frontend/results/.gitkeep

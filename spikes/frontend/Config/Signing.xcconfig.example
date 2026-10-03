@@ -1,0 +1,4 @@
+// run.sh перезаписывает Config/Signing.xcconfig перед генерацией проекта.
+// Team ID не коммитить.
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic

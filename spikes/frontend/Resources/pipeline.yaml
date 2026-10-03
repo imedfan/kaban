@@ -1,0 +1,32 @@
+# pipeline.yaml — фикстура FS-8.
+# Комментарий в шапке нельзя терять.
+# Число 12 в этом комментарии не является значением max_runs_per_task.
+
+version: 1
+
+board:
+  # Лимит автоматических запусков на задачу.
+  max_runs_per_task: 12 # не трогать этот комментарий
+  # Ещё комментарий между ключами.
+  wip_unlimited: false
+
+stages:
+  - id: backlog
+    kind: intake
+    name: Backlog
+  - id: dev
+    kind: agent
+    name: Dev
+    # Модель обязательна, Auto запрещён.
+    model: composer-2
+    wip: 3
+  - id: test
+    kind: agent
+    name: Test
+    model: gpt-5.6
+    notes: |
+      Многострочный блок.
+      Внутри слово composer-2 и число 12.
+      Его нельзя переписать вместе с полем model.
+
+# Хвост файла. Порядок ключей version, board, stages должен сохраниться.

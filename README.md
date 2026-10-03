@@ -15,7 +15,7 @@ Sources/
 Tests/                     по одному тестовому таргету на модуль
 docs/                      архитектура, спека, планы, журнал решений
 spikes/backend/            спайки бэкенда, наполняется на mbp
-spikes/frontend/           спайки фронтенда, наполняется на mbp
+spikes/frontend/           спайки FS-1…FS-9, прогон на mbp (`spikes/frontend/README.md`)
 .github/workflows/ci.yml   сборка и тесты
 ```
 
