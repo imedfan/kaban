@@ -18,6 +18,7 @@
         "runId": "r-1",
         "bounces": {
           "test_dev": 3,
+          "ai_review_test": 1,
           "ai_review_dev": 1
         },
         "bounceTotal": 5
@@ -59,6 +60,7 @@
               "runsSinceHuman": 0,
               "bounceByReason": {
                 "test_dev": 3,
+                "ai_review_test": 1,
                 "ai_review_dev": 1
               },
               "overlapsWith": [],

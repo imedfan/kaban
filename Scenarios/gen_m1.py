@@ -89,7 +89,7 @@ sc("M1-BOUNCE-01",["1.3","UC-07"],"Лимит возвратов Test→Dev = 3"
  G([task("t-1","test",st("running"),runId="r-1",bounces={"test_dev":3},bounceTotal=3)]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"stage":"test","state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-BOUNCE-02",["1.3"],"Общий потолок возвратов 5 срабатывает раньше лимита пары",
- G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"ai_review_dev":1},bounceTotal=5)]),[
+ G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"ai_review_test":1,"ai_review_dev":1},bounceTotal=5)]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-MAXWH-01",["1.2","UC-06"],"max_waiting_human=3 останавливает приём новых задач проекта, ревью не считается",
  G([task("t-1","dev",st("waiting_human","question")),task("t-2","test",st("waiting_human","retries_exhausted")),task("t-3","human_review",st("waiting_human","review")),task("t-4","dev",st("running"),runId="r-4"),task("t-5","dev",st("queued"))]),[
