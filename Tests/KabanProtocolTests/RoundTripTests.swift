@@ -12,6 +12,16 @@ final class RoundTripTests: XCTestCase {
         XCTAssertEqual(back, value, String(decoding: data, as: UTF8.self), file: file, line: line)
     }
 
+    func testSuspiciousFilesSurviveResync() throws {
+        // Набор живёт в TaskCard (снимок, taskUpdated), принятые — в TaskDetail (§8.2).
+        try roundTrip(Samples.taskDetail)
+        let card = try XCTUnwrap(Samples.tasks.first { $0.id == "t-8" })
+        XCTAssertEqual(card.suspiciousFiles.count, 2)
+        let json = String(decoding: try encoder.encode(Samples.taskDetail), as: UTF8.self)
+        XCTAssertTrue(json.contains("\"acceptedFiles\""))
+        try roundTrip(Command.acceptSuspiciousFiles(taskId: "t-8", files: [FileBlobRef(path: ".env.local", blob: "a1b2c3")]))
+    }
+
     func testAllTaskStatesRoundTrip() throws {
         var states: [TaskState] = [.queued(nil), .running, .gating, .paused, .done, .cancelled]
         states += QueuedReason.allCases.map { .queued($0) }

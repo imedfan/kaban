@@ -267,6 +267,9 @@
       "state" : {
         "status" : "running"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Парсер stream-json",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -291,6 +294,9 @@
         "reason" : "wip_full",
         "status" : "queued"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Ждёт места",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -315,6 +321,9 @@
         "reason" : "quota_cm",
         "status" : "queued"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Ждёт квоту Cm",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -339,6 +348,9 @@
         "reason" : "silent_exit",
         "status" : "retry_wait"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Молчаливый выход",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -363,6 +375,9 @@
         "reason" : "model_substituted",
         "status" : "waiting_human"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Подмена модели",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -387,6 +402,9 @@
         "reason" : "run_limit",
         "status" : "waiting_human"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Лимит запусков",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -411,6 +429,9 @@
         "reason" : "review",
         "status" : "waiting_human"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "На ревью",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -435,6 +456,21 @@
         "reason" : "suspicious_files",
         "status" : "waiting_human"
       },
+      "suspiciousFiles" : [
+        {
+          "blob" : "a1b2c3",
+          "path" : ".env.local",
+          "pattern" : ".env*",
+          "rule" : "pattern",
+          "sizeBytes" : 212
+        },
+        {
+          "blob" : "d4e5f6",
+          "path" : "assets/dump.bin",
+          "rule" : "size",
+          "sizeBytes" : 7340032
+        }
+      ],
       "title" : "Подозрительные файлы",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -459,6 +495,9 @@
         "reason" : "main_dirty",
         "status" : "blocked"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "main грязный",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
@@ -482,6 +521,9 @@
       "state" : {
         "status" : "done"
       },
+      "suspiciousFiles" : [
+
+      ],
       "title" : "Готово",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"

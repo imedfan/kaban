@@ -40,7 +40,7 @@ enum Samples {
         card("t-5", stage: "dev", state: .waitingHuman(.modelSubstituted), title: "Подмена модели"),
         card("t-6", stage: "dev", state: .waitingHuman(.runLimit), title: "Лимит запусков"),
         card("t-7", stage: "review", state: .waitingHuman(.review), title: "На ревью"),
-        card("t-8", stage: "test", state: .waitingHuman(.suspiciousFiles), title: "Подозрительные файлы"),
+        { var c = card("t-8", stage: "test", state: .waitingHuman(.suspiciousFiles), title: "Подозрительные файлы"); c.suspiciousFiles = suspicious; return c }(),
         card("t-9", stage: "merge", state: .blocked(.mainDirty), title: "main грязный"),
         card("t-10", stage: "done", state: .done, title: "Готово"),
     ]
@@ -107,5 +107,9 @@ enum Samples {
         CommandEnvelope(commandId: cmd, command: .setQuotaOptions(options: QuotaOptions(enabled: true, consent: true))),
         CommandEnvelope(commandId: cmd, command: .listIncidents(projectIds: nil, state: .open)),
         CommandEnvelope(commandId: cmd, command: .pauseAll),
+        CommandEnvelope(commandId: cmd, command: .acceptSuspiciousFiles(taskId: "t-8", files: suspicious.map { FileBlobRef(path: $0.path, blob: $0.blob) })),
     ]
+
+    static let taskDetail = TaskDetail(seq: 1047, task: tasks[7], feed: [], runs: [], suspiciousFiles: suspicious,
+                                       acceptedFiles: [AcceptedFile(path: "fixtures/big.bin", blob: "0f0f0f", at: t0, commandId: cmd)])
 }

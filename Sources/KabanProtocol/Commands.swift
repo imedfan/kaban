@@ -31,6 +31,9 @@ public enum Command: Codable, Hashable, Sendable {
     case approve(taskId: TaskID)
     case requestChanges(taskId: TaskID, comments: String, target: StageID?)
     case reject(taskId: TaskID, target: RejectTarget, keepBranch: Bool)
+    /// Принять показанный набор подозрительных файлов (§8.2). `files` — ровно тот набор, что видел человек;
+    /// если набор успел измениться, демон отвечает `stale_suspicious_files` и ничего не принимает.
+    case acceptSuspiciousFiles(taskId: TaskID, files: [FileBlobRef])
     // Git
     case allowGitOnce(denialId: DenialID)
     case addDenialToPolicy(denialId: DenialID, scope: PolicyScope)
@@ -59,6 +62,25 @@ public enum Command: Codable, Hashable, Sendable {
     case getRunHistory(taskId: TaskID)
     // Инциденты
     case listIncidents(projectIds: [ProjectID]?, state: IncidentListState)
+}
+
+/// Файл в конкретной версии: путь + git blob.
+public struct FileBlobRef: Codable, Hashable, Sendable {
+    public var path: String
+    public var blob: String
+    public init(path: String, blob: String) { self.path = path; self.blob = blob }
+}
+
+/// Принятый человеком подозрительный файл (`task_accepted_file`).
+public struct AcceptedFile: Codable, Hashable, Sendable {
+    public var path: String
+    public var blob: String
+    public var by: Actor
+    public var at: Date
+    public var commandId: CommandID?
+    public init(path: String, blob: String, by: Actor = .human, at: Date, commandId: CommandID? = nil) {
+        self.path = path; self.blob = blob; self.by = by; self.at = at; self.commandId = commandId
+    }
 }
 
 public enum RejectTarget: Codable, Hashable, Sendable { case cancel, stage(stageId: StageID) }
@@ -127,6 +149,7 @@ public struct CommandError: Codable, Hashable, Sendable, Error {
     public static let invalidStateCode = "invalid_state"     // например, `approve` не из `human`-стадии
     public static let notFoundCode = "not_found"
     public static let protocolMismatchCode = "protocol_mismatch"
+    public static let staleSuspiciousFilesCode = "stale_suspicious_files"
 }
 
 public struct EnvironmentReport: Codable, Hashable, Sendable {
@@ -149,9 +172,14 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var feed: [FeedItem]
     public var runs: [RunSummary]
     public var humanRequests: [HumanRequest]
+    /// Текущий непринятый набор (то же, что `task.suspiciousFiles`), с полными данными правил.
     public var suspiciousFiles: [SuspiciousFile]
-    public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [], suspiciousFiles: [SuspiciousFile] = []) {
-        self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests; self.suspiciousFiles = suspiciousFiles
+    /// Уже принятые по задаче файлы (`task_accepted_file`), для блока «Принято ранее».
+    public var acceptedFiles: [AcceptedFile]
+    public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
+                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = []) {
+        self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
+        self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles
     }
 }
 

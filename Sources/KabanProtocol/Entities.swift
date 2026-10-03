@@ -37,16 +37,19 @@ public struct TaskCard: Codable, Hashable, Sendable {
     public var unusedGitGrants: Int
     public var model: ModelID?
     public var retryAt: Date?
+    /// Текущий непринятый набор подозрительных файлов; не пуст только в `waiting_human: suspicious_files` (§8.2).
+    /// Приходит в снимке и в `taskUpdated`, поэтому переживает перезапуск и `resyncRequired`.
+    public var suspiciousFiles: [SuspiciousFile]
     public var updatedAt: Date
 
     public init(id: TaskID, projectId: ProjectID, title: String, stageId: StageID, state: TaskState, priority: Int = 0,
                 branch: String? = nil, attempt: Int = 0, maxAttempts: Int? = nil, runsSinceHuman: Int = 0,
                 bounceByReason: [String: Int] = [:], overlapsWith: [TaskID] = [], unusedGitGrants: Int = 0,
-                model: ModelID? = nil, retryAt: Date? = nil, updatedAt: Date) {
+                model: ModelID? = nil, retryAt: Date? = nil, suspiciousFiles: [SuspiciousFile] = [], updatedAt: Date) {
         self.id = id; self.projectId = projectId; self.title = title; self.stageId = stageId; self.state = state
         self.priority = priority; self.branch = branch; self.attempt = attempt; self.maxAttempts = maxAttempts
         self.runsSinceHuman = runsSinceHuman; self.bounceByReason = bounceByReason; self.overlapsWith = overlapsWith
-        self.unusedGitGrants = unusedGitGrants; self.model = model; self.retryAt = retryAt; self.updatedAt = updatedAt
+        self.unusedGitGrants = unusedGitGrants; self.model = model; self.suspiciousFiles = suspiciousFiles; self.retryAt = retryAt; self.updatedAt = updatedAt
     }
 }
 
