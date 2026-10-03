@@ -19,7 +19,8 @@
         "bounces": {
           "test_dev": 3,
           "ai_review_dev": 1
-        }
+        },
+        "bounceTotal": 5
       }
     ]
   },

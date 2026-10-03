@@ -23,6 +23,7 @@
             "rule": "pattern",
             "sizeBytes": 212,
             "blob": "a1b2c3",
+            "isText": true,
             "pattern": ".env*"
           }
         ]
@@ -80,6 +81,7 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
               ],
@@ -131,6 +133,7 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
               ],
@@ -170,6 +173,7 @@
                 "rule": "pattern",
                 "sizeBytes": 212,
                 "blob": "a1b2c3",
+                "isText": true,
                 "pattern": ".env*"
               }
             ]
@@ -185,10 +189,17 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
-              ]
-            }
+              ],
+              "taskId": "t-1",
+              "stageId": "dev",
+              "runId": null
+            },
+            "check": [
+              "files"
+            ]
           },
           {
             "type": "taskUpdated",
@@ -217,6 +228,7 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
               ],

@@ -19,7 +19,7 @@ final class ScenarioReplayTests: XCTestCase {
             }
         }
         if !skipped.isEmpty {
-            print("KabanBoardCore: пропущены предметные события, которые не декодируются в JournalEvent (\(skipped.count)):")
+            print("KabanBoardCore: пропущены события, которые не декодируются типами PR #2 (\(skipped.count)):")
             for line in skipped.sorted() {
                 print("  \(line)")
             }
@@ -119,12 +119,31 @@ final class ScenarioReplayTests: XCTestCase {
             }
             let events = then["events"] as? [[String: Any]] ?? []
             let prepared = try prepare(events, file: name, skipped: &skipped)
+            let ephemeral = prepared.filter { $0.kind == .ephemeral }
+                + (try prepareEphemeral(then["ephemeral"] as? [[String: Any]] ?? [], file: name, skipped: &skipped))
+            let feedStart = projection.feed.count
+            var appliedDomain: [Prepared] = []
             for event in ordered(prepared, order) {
+                guard let journal = event.event else { continue }
                 seq += 1
                 let result = projection.apply(EventEnvelope(
-                    seq: seq, at: clock, projectId: nil, commandId: event.commandId, event: event.event
+                    seq: seq, at: clock, projectId: nil, commandId: event.commandId, event: journal
                 ))
                 XCTAssertTrue(result == .applied || result == .ignored, "\(name) шаг \(index) seq \(seq): \(result)")
+                if event.kind == .domain { appliedDomain.append(event) }
+            }
+            for event in ephemeral {
+                guard let payload = event.ephemeral else { continue }
+                let result = projection.apply(payload)
+                XCTAssertEqual(result, .applied, "\(name) шаг \(index) \(payload.type)")
+                try assertEphemeralCheck(event.check, stored: projection, expected: payload, file: name, step: index)
+            }
+            let added = Array(projection.feed.dropFirst(feedStart))
+            XCTAssertEqual(added.count, appliedDomain.count, "\(name) шаг \(index): предметные события попадают в ленту")
+            for (item, event) in zip(added, appliedDomain) {
+                let journal = try XCTUnwrap(event.event)
+                XCTAssertEqual(item.event.type, journal.type, "\(name) шаг \(index)")
+                try assertJournalCheck(event.check, stored: item.event, expected: journal, file: name, step: index)
             }
             var lastCard: [TaskID: Prepared] = [:]
             for event in prepared where event.kind == .card {
@@ -147,11 +166,15 @@ final class ScenarioReplayTests: XCTestCase {
         return ScenarioRun(steps: steps, skipped: skipped)
     }
 
+    /// TODO(protocol): `isText`, `stageLoad`, `readonlyViolation` приедут отдельным PR протокола.
+    /// Лишние ключи декодер PR #2 игнорирует. Событие, которое всё же не ложится в тип, пропускается
+    /// с напечатанной причиной — типы под него не заводятся. Сверка только по полям `check`.
     private func prepare(_ events: [[String: Any]], file: String, skipped: inout [String]) throws -> [Prepared] {
         var prepared: [Prepared] = []
         for event in events {
             let type = event["type"] as? String ?? ""
             let commandId = uuid(event["commandId"])
+            let check = event["check"] as? [String] ?? []
             if type == "taskCreated" || type == "taskUpdated" || type == "taskEdited" {
                 let card = try decoder.decode(TaskCard.self, from: try jsonData(event["data"] as Any))
                 let journal: JournalEvent
@@ -160,30 +183,174 @@ final class ScenarioReplayTests: XCTestCase {
                 case "taskEdited": journal = .taskEdited(card)
                 default: journal = .taskUpdated(card)
                 }
-                let check = event["check"] as? [String] ?? []
-                prepared.append(Prepared(kind: .card, event: journal, commandId: commandId, check: check, card: card))
+                prepared.append(Prepared(kind: .card, event: journal, ephemeral: nil, commandId: commandId, check: check, card: card))
                 continue
             }
             let payload: [String: Any] = ["type": type, "data": event["data"] ?? [:]]
+            let data = try jsonData(payload)
             do {
-                let journal = try decoder.decode(JournalEvent.self, from: try jsonData(payload))
+                let journal = try decoder.decode(JournalEvent.self, from: data)
                 if case .unknown = journal {
-                    skipped.append("\(file) \(type): unknown")
+                    if let ephemeral = decodeEphemeral(data, file: file, type: type, skipped: &skipped) {
+                        prepared.append(Prepared(kind: .ephemeral, event: nil, ephemeral: ephemeral, commandId: commandId, check: check, card: nil))
+                    }
                     continue
                 }
-                prepared.append(Prepared(kind: .domain, event: journal, commandId: commandId, check: [], card: nil))
+                prepared.append(Prepared(kind: .domain, event: journal, ephemeral: nil, commandId: commandId, check: check, card: nil))
             } catch {
-                skipped.append("\(file) \(type): \(error)")
+                noteSkip(file: file, type: type, error: error, skipped: &skipped)
             }
         }
         return prepared
     }
 
+    private func prepareEphemeral(_ events: [[String: Any]], file: String, skipped: inout [String]) throws -> [Prepared] {
+        var prepared: [Prepared] = []
+        for event in events {
+            let type = event["type"] as? String ?? ""
+            let check = event["check"] as? [String] ?? []
+            let payload: [String: Any] = ["type": type, "data": event["data"] ?? [:]]
+            if let ephemeral = decodeEphemeral(try jsonData(payload), file: file, type: type, skipped: &skipped) {
+                prepared.append(Prepared(kind: .ephemeral, event: nil, ephemeral: ephemeral, commandId: nil, check: check, card: nil))
+            }
+        }
+        return prepared
+    }
+
+    private func decodeEphemeral(_ data: Data, file: String, type: String, skipped: inout [String]) -> EphemeralEvent? {
+        do {
+            let event = try decoder.decode(EphemeralEvent.self, from: data)
+            if case .unknown = event {
+                noteSkip(file: file, type: type, error: "unknown", skipped: &skipped)
+                return nil
+            }
+            return event
+        } catch {
+            noteSkip(file: file, type: type, error: error, skipped: &skipped)
+            return nil
+        }
+    }
+
+    private func noteSkip(file: String, type: String, error: Any, skipped: inout [String]) {
+        skipped.append("\(file) \(type): TODO(protocol) \(error)")
+    }
+
+    private func assertJournalCheck(_ fields: [String], stored: JournalEvent, expected: JournalEvent, file: String, step: Int) throws {
+        for field in fields {
+            let where_ = "\(file) шаг \(step) \(expected.type).\(field)"
+            switch field {
+            case "taskId":
+                XCTAssertEqual(journalTaskId(stored), journalTaskId(expected), where_)
+            case "files":
+                XCTAssertEqual(journalFiles(stored), journalFiles(expected), where_)
+            case "by":
+                XCTAssertEqual(journalActor(stored), journalActor(expected), where_)
+            case "stageId":
+                XCTAssertEqual(journalStageId(stored), journalStageId(expected), where_)
+            case "runId":
+                XCTAssertEqual(journalRunId(stored), journalRunId(expected), where_)
+            case "question":
+                XCTAssertEqual(journalQuestion(stored), journalQuestion(expected), where_)
+            case "requestId":
+                XCTAssertEqual(journalRequestId(stored), journalRequestId(expected), where_)
+            default:
+                XCTFail("\(where_): неизвестное поле check")
+            }
+        }
+    }
+
+    private func assertEphemeralCheck(_ fields: [String], stored: BoardProjection, expected: EphemeralEvent, file: String, step: Int) throws {
+        let whereType = "\(file) шаг \(step) \(expected.type)"
+        switch expected {
+        case .pipelineDraftValidated(let draft):
+            let got = try XCTUnwrap(stored.ephemeral.pipelineDrafts[draft.projectId], whereType)
+            for field in fields {
+                let where_ = "\(whereType).\(field)"
+                switch field {
+                case "issues": XCTAssertEqual(got.issues, draft.issues, where_)
+                case "projectId": XCTAssertEqual(got.projectId, draft.projectId, where_)
+                case "contentHash": XCTAssertEqual(got.contentHash, draft.contentHash, where_)
+                default: XCTFail("\(where_): неизвестное поле check")
+                }
+            }
+        case .modelFlagsChanged(let flags):
+            XCTAssertEqual(stored.ephemeral.modelFlags.count, flags.count, whereType)
+            for field in fields {
+                let where_ = "\(whereType).\(field)"
+                switch field {
+                case "modelId": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.modelId), flags.map(\.modelId), where_)
+                case "reason": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.reason), flags.map(\.reason), where_)
+                case "requested": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.requested), flags.map(\.requested), where_)
+                case "actual": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.actual), flags.map(\.actual), where_)
+                case "since": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.since), flags.map(\.since), where_)
+                case "fallbackModel": XCTAssertEqual(stored.ephemeral.modelFlags.map(\.fallbackModel), flags.map(\.fallbackModel), where_)
+                default: XCTFail("\(where_): неизвестное поле check")
+                }
+            }
+        default:
+            if !fields.isEmpty {
+                XCTFail("\(whereType): нет сверки полей check")
+            }
+        }
+    }
+
+    private func journalTaskId(_ event: JournalEvent) -> TaskID? {
+        switch event {
+        case .suspiciousFilesFound(let found): found.taskId
+        case .suspiciousFilesAccepted(let accepted): accepted.taskId
+        case .humanRequested(let request): request.taskId
+        case .taskTransitioned(let transition): transition.taskId
+        default: nil
+        }
+    }
+
+    private func journalFiles(_ event: JournalEvent) -> [SuspiciousFile]? {
+        switch event {
+        case .suspiciousFilesFound(let found): found.files
+        case .suspiciousFilesAccepted(let accepted): accepted.files
+        default: nil
+        }
+    }
+
+    private func journalActor(_ event: JournalEvent) -> Actor? {
+        switch event {
+        case .suspiciousFilesAccepted(let accepted): accepted.by
+        case .taskTransitioned(let transition): transition.by
+        default: nil
+        }
+    }
+
+    private func journalStageId(_ event: JournalEvent) -> StageID? {
+        switch event {
+        case .suspiciousFilesFound(let found): found.stageId
+        default: nil
+        }
+    }
+
+    private func journalRunId(_ event: JournalEvent) -> RunID? {
+        switch event {
+        case .suspiciousFilesFound(let found): found.runId
+        case .humanRequested(let request): request.runId
+        default: nil
+        }
+    }
+
+    private func journalQuestion(_ event: JournalEvent) -> String? {
+        if case .humanRequested(let request) = event { return request.question }
+        return nil
+    }
+
+    private func journalRequestId(_ event: JournalEvent) -> HumanRequestID? {
+        if case .humanRequested(let request) = event { return request.requestId }
+        return nil
+    }
+
     private func ordered(_ events: [Prepared], _ order: ReplayOrder) -> [Prepared] {
+        let journal = events.filter { $0.kind != .ephemeral }
         switch order {
-        case .written: events
-        case .domainFirst: events.filter { $0.kind == .domain } + events.filter { $0.kind == .card }
-        case .cardsFirst: events.filter { $0.kind == .card } + events.filter { $0.kind == .domain }
+        case .written: return journal
+        case .domainFirst: return journal.filter { $0.kind == .domain } + journal.filter { $0.kind == .card }
+        case .cardsFirst: return journal.filter { $0.kind == .card } + journal.filter { $0.kind == .domain }
         }
     }
 
@@ -320,9 +487,10 @@ private struct ScenarioRun {
 }
 
 private struct Prepared {
-    enum Kind { case card, domain }
+    enum Kind { case card, domain, ephemeral }
     var kind: Kind
-    var event: JournalEvent
+    var event: JournalEvent?
+    var ephemeral: EphemeralEvent?
     var commandId: CommandID?
     var check: [String]
     var card: TaskCard?

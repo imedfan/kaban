@@ -58,8 +58,15 @@
                 "modelId": "claude-opus",
                 "reason": "substituted",
                 "requested": "claude-opus",
-                "actual": "claude-sonnet"
+                "actual": "claude-sonnet",
+                "since": "2026-10-04T08:00:00.000Z"
               }
+            ],
+            "check": [
+              "actual",
+              "modelId",
+              "reason",
+              "requested"
             ]
           }
         ],

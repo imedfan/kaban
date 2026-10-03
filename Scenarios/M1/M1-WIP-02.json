@@ -67,8 +67,14 @@
           {
             "type": "humanRequested",
             "data": {
-              "taskId": "t-1"
-            }
+              "taskId": "t-1",
+              "requestId": "hr-t-1",
+              "runId": "r-1",
+              "question": "Какой формат даты?"
+            },
+            "check": [
+              "taskId"
+            ]
           },
           {
             "type": "taskUpdated",

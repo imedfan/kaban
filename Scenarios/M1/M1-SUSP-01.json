@@ -55,6 +55,7 @@
                 "rule": "pattern",
                 "sizeBytes": 212,
                 "blob": "a1b2c3",
+                "isText": true,
                 "pattern": ".env*"
               }
             ]
@@ -71,10 +72,17 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
-              ]
-            }
+              ],
+              "stageId": "dev",
+              "runId": "r-1"
+            },
+            "check": [
+              "files",
+              "taskId"
+            ]
           },
           {
             "type": "taskUpdated",
@@ -103,6 +111,7 @@
                   "rule": "pattern",
                   "sizeBytes": 212,
                   "blob": "a1b2c3",
+                  "isText": true,
                   "pattern": ".env*"
                 }
               ],
@@ -140,8 +149,23 @@
             "type": "suspiciousFilesAccepted",
             "data": {
               "taskId": "t-1",
-              "by": "human"
-            }
+              "by": "human",
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "commandId": "00000000-0000-4000-8000-000000000014"
+            },
+            "check": [
+              "by",
+              "taskId"
+            ]
           },
           {
             "type": "taskUpdated",

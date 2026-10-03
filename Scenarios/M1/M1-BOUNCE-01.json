@@ -19,7 +19,8 @@
         "runId": "r-1",
         "bounces": {
           "test_dev": 3
-        }
+        },
+        "bounceTotal": 3
       }
     ]
   },

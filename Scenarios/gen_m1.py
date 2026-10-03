@@ -12,7 +12,7 @@ def task(id, stage, s, **kw): return {"id":id,"projectId":kw.pop("projectId","p-
 def tr(task, fs, ts, frm, to, by="daemon"): return {"type":"taskTransitioned","data":{"taskId":task,"fromStage":fs,"toStage":ts,"from":frm,"to":to,"by":by}}
 S=[]
 def SF(path, blob, rule="pattern", size=212, pattern=".env*"):
-    d={"path":path,"rule":rule,"sizeBytes":size,"blob":blob}
+    d={"path":path,"rule":rule,"sizeBytes":size,"blob":blob,"isText":rule=="pattern"}
     if rule=="pattern": d["pattern"]=pattern
     return d
 def sc(id, uc, title, given, steps): S.append({"id":id,"uc":uc,"title":title,"given":given,"steps":steps})
@@ -86,10 +86,10 @@ sc("M1-RUNLIMIT-02",["1.4","F27"],"Действие человека сбрас�
 
 # --- Возвраты и max_waiting_human
 sc("M1-BOUNCE-01",["1.3","UC-07"],"Лимит возвратов Test→Dev = 3",
- G([task("t-1","test",st("running"),runId="r-1",bounces={"test_dev":3})]),[
+ G([task("t-1","test",st("running"),runId="r-1",bounces={"test_dev":3},bounceTotal=3)]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"stage":"test","state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-BOUNCE-02",["1.3"],"Общий потолок возвратов 5 срабатывает раньше лимита пары",
- G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"ai_review_dev":1})]),[
+ G([task("t-1","ai_review",st("running"),runId="r-1",bounces={"test_dev":3,"ai_review_dev":1},bounceTotal=5)]),[
  {"driver":{"task":"t-1","end":"returned","to":"dev"},"then":{"tasks":{"t-1":{"state":st("waiting_human","bounce_limit")}}}}])
 sc("M1-MAXWH-01",["1.2","UC-06"],"max_waiting_human=3 останавливает приём новых задач проекта, ревью не считается",
  G([task("t-1","dev",st("waiting_human","question")),task("t-2","test",st("waiting_human","retries_exhausted")),task("t-3","human_review",st("waiting_human","review")),task("t-4","dev",st("running"),runId="r-4"),task("t-5","dev",st("queued"))]),[
@@ -183,12 +183,40 @@ def _card(t, now):
     for k,v in t.items():
         if k in CARD: c[CARD[k]]=v
     return c
+# Предметные события дополняются до полного типа KabanProtocol; check = поля, которые задал сценарий.
+def complete_events(s, step, evs, cards, now):
+    drv=step.get("driver",{}); c=step.get("command",{}).get("command",{}); cf=next(iter(c.values()),{}) if c else {}
+    tid=drv.get("task") or cf.get("taskId") or (next(iter(cards)) if len(cards)==1 else None)
+    given={t["id"]:t for t in s["given"].get("tasks",[])}
+    for ev in evs:
+        t=ev.get("type"); d=ev.get("data")
+        if t=="taskUpdated" or d is None or "check" in ev: continue
+        orig=sorted(d.keys()) if isinstance(d,dict) else sorted(d[0].keys()) if d else []
+        if t=="suspiciousFilesFound":
+            d.setdefault("taskId",tid); d.setdefault("stageId",cards.get(d["taskId"],{}).get("stageId"))
+            d.setdefault("runId",given.get(d["taskId"],{}).get("runId"))
+        elif t=="suspiciousFilesAccepted":
+            d.setdefault("files",list(cards.get(d["taskId"],{}).get("suspiciousFiles",[])))
+            d.setdefault("by","human")
+            if "command" in step: d.setdefault("commandId",step["command"]["commandId"])
+        elif t=="humanRequested":
+            d.setdefault("requestId","hr-"+d["taskId"]); d.setdefault("runId",given.get(d["taskId"],{}).get("runId"))
+            d.setdefault("question",drv.get("question",""))
+        elif t=="pipelineDraftValidated":
+            d.setdefault("projectId",cf.get("projectId","p-kaban")); d.setdefault("contentHash","sha256:any")
+            for i in d.get("issues",[]): i.setdefault("message","…")
+        elif t=="modelFlagsChanged":
+            for f in d: f.setdefault("since",_iso(now))
+        else: continue
+        ev["check"]=orig
 def add_task_updated(s):
     now=_t(s["given"].get("clock",T0))
     cards={t["id"]:_card(t,now) for t in s["given"].get("tasks",[])}
     for step in s["steps"]:
         if "advance" in step: now=now+_dur(step["advance"])
         th=step.get("then")
+        if th and th.get("events"): complete_events(s, step, th["events"], cards, now)
+        if th and th.get("ephemeral"): complete_events(s, step, th["ephemeral"], cards, now)
         if not th or "commandError" in th or "tasks" not in th: continue
         ups=[]
         for tid,exp in th["tasks"].items():

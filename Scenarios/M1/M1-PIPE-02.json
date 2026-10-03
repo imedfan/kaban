@@ -32,16 +32,23 @@
                   "severity": "error",
                   "path": "stages.dev.model",
                   "stageId": "dev",
-                  "code": "model_auto_forbidden"
+                  "code": "model_auto_forbidden",
+                  "message": "…"
                 },
                 {
                   "severity": "warning",
                   "path": "stages.test.mcp[0]",
                   "stageId": "test",
-                  "code": "mcp_not_allowlisted"
+                  "code": "mcp_not_allowlisted",
+                  "message": "…"
                 }
-              ]
-            }
+              ],
+              "projectId": "p-kaban",
+              "contentHash": "sha256:any"
+            },
+            "check": [
+              "issues"
+            ]
           }
         ]
       }

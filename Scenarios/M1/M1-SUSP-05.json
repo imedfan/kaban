@@ -22,6 +22,7 @@
             "rule": "pattern",
             "sizeBytes": 212,
             "blob": "a1b2c3",
+            "isText": true,
             "pattern": ".env*"
           }
         ]
@@ -44,8 +45,23 @@
           {
             "type": "suspiciousFilesAccepted",
             "data": {
-              "taskId": "t-1"
-            }
+              "taskId": "t-1",
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "by": "human",
+              "commandId": "00000000-0000-4000-8000-000000000017"
+            },
+            "check": [
+              "taskId"
+            ]
           },
           {
             "type": "taskUpdated",

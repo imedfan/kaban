@@ -22,6 +22,7 @@
             "rule": "pattern",
             "sizeBytes": 230,
             "blob": "ffff01",
+            "isText": true,
             "pattern": ".env*"
           }
         ]

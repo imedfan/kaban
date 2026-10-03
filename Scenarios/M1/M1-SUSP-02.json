@@ -59,13 +59,15 @@
                 "rule": "pattern",
                 "sizeBytes": 230,
                 "blob": "ffff01",
+                "isText": true,
                 "pattern": ".env*"
               },
               {
                 "path": "assets/dump.bin",
                 "rule": "size",
                 "sizeBytes": 7340032,
-                "blob": "d4e5f6"
+                "blob": "d4e5f6",
+                "isText": false
               }
             ]
           }
@@ -80,16 +82,24 @@
                   "rule": "pattern",
                   "sizeBytes": 230,
                   "blob": "ffff01",
+                  "isText": true,
                   "pattern": ".env*"
                 },
                 {
                   "path": "assets/dump.bin",
                   "rule": "size",
                   "sizeBytes": 7340032,
-                  "blob": "d4e5f6"
+                  "blob": "d4e5f6",
+                  "isText": false
                 }
-              ]
-            }
+              ],
+              "taskId": "t-1",
+              "stageId": "dev",
+              "runId": "r-1"
+            },
+            "check": [
+              "files"
+            ]
           },
           {
             "type": "taskUpdated",
@@ -118,13 +128,15 @@
                   "rule": "pattern",
                   "sizeBytes": 230,
                   "blob": "ffff01",
+                  "isText": true,
                   "pattern": ".env*"
                 },
                 {
                   "path": "assets/dump.bin",
                   "rule": "size",
                   "sizeBytes": 7340032,
-                  "blob": "d4e5f6"
+                  "blob": "d4e5f6",
+                  "isText": false
                 }
               ],
               "updatedAt": "2026-10-04T08:00:00.000Z"

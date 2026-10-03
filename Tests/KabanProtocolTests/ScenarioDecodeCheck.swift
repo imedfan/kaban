@@ -13,6 +13,12 @@ final class ScenarioDecodeCheck: XCTestCase {
             let root = try JSONSerialization.jsonObject(with: data)
             func walk(_ v: Any, _ path: String) {
                 if let d = v as? [String: Any] {
+                    if d["check"] != nil, (d["type"] as? String) != "taskUpdated", d["data"] != nil {
+                        let raw = try? JSONSerialization.data(withJSONObject: ["type": d["type"]!, "data": d["data"]!])
+                        let okJ = raw.flatMap { try? dec.decode(JournalEvent.self, from: $0) }.map { _ in true } ?? false
+                        let okE = raw.flatMap { try? dec.decode(EphemeralEvent.self, from: $0) }.map { _ in true } ?? false
+                        if !(okJ || okE) { problems.append("\(name) \(path): событие \(d["type"] ?? "?") не декодируется") }
+                    }
                     if (d["type"] as? String) == "taskUpdated", let card = d["data"] as? [String: Any] {
                         do { _ = try dec.decode(TaskCard.self, from: JSONSerialization.data(withJSONObject: card)) }
                         catch { problems.append("\(name) \(path).taskUpdated: \(error)") }
