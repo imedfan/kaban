@@ -1,0 +1,145 @@
+{
+  "id": "M1-SUBST-01",
+  "uc": [
+    "UC-22"
+  ],
+  "title": "Cursor подменил модель: задача в model_substituted, попытка не списана, флаг на модели",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1",
+        "attempt": 1,
+        "autoRuns": 1
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ],
+    "stageModels": {
+      "dev": "claude-opus"
+    }
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "model_substituted",
+        "actual": "claude-sonnet"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "model_substituted"
+            },
+            "attempt": 1,
+            "autoRuns": 0
+          }
+        },
+        "ephemeral": [
+          {
+            "type": "modelFlagsChanged",
+            "data": [
+              {
+                "modelId": "claude-opus",
+                "reason": "substituted",
+                "requested": "claude-opus",
+                "actual": "claude-sonnet"
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "model_substituted"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "runsSinceHuman",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-2": {
+            "state": {
+              "status": "queued",
+              "reason": "model_flag"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-2",
+              "projectId": "p-kaban",
+              "title": "Задача t-2",
+              "stageId": "dev",
+              "state": {
+                "status": "queued",
+                "reason": "model_flag"
+              },
+              "priority": 0,
+              "branch": "kaban/t-2",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

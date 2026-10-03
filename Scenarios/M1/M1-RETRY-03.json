@@ -1,0 +1,133 @@
+{
+  "id": "M1-RETRY-03",
+  "uc": [
+    "1.4",
+    "UC-10"
+  ],
+  "title": "После gate_failed повтор идёт в том же клоне, после crash состояние сохраняется в refs/kaban/wip и клон откатывается",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "gate_failed"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "gate_failed"
+            }
+          }
+        },
+        "clone": {
+          "t-1": "kept"
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "retry_wait",
+                "reason": "gate_failed"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "advance": "30s",
+      "tick": "scheduler"
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "crash",
+        "dirty": true
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "crash"
+            }
+          }
+        },
+        "clone": {
+          "t-1": "reset"
+        },
+        "refs": [
+          "refs/kaban/wip/<runId>"
+        ],
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "retry_wait",
+                "reason": "crash"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:30.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "id": "M1-PIPE-02",
+  "uc": [
+    "UC-23",
+    "1.5"
+  ],
+  "title": "validatePipeline: стадия без модели или auto — ошибка, MCP вне белого списка — предупреждение",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": []
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000008",
+        "command": {
+          "validatePipeline": {
+            "projectId": "p-kaban",
+            "content": "<pipeline: dev.model = auto, test.mcp = [github] при пустом белом списке>"
+          }
+        }
+      },
+      "then": {
+        "ephemeral": [
+          {
+            "type": "pipelineDraftValidated",
+            "data": {
+              "issues": [
+                {
+                  "severity": "error",
+                  "stageId": "dev",
+                  "code": "model_required"
+                },
+                {
+                  "severity": "warning",
+                  "stageId": "test",
+                  "code": "mcp_not_allowlisted"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

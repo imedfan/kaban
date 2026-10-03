@@ -1,0 +1,204 @@
+{
+  "id": "M1-WIP-02",
+  "uc": [
+    "1.2",
+    "UC-06"
+  ],
+  "title": "waiting_human не занимает слот: вопрос агента освобождает место для следующей задачи",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-2"
+      },
+      {
+        "id": "t-3",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-3"
+      },
+      {
+        "id": "t-4",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued",
+          "reason": "wip_full"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "asked_human",
+        "question": "Какой формат даты?"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "question"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "humanRequested",
+            "data": {
+              "taskId": "t-1"
+            }
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "question"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-4": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-4",
+              "projectId": "p-kaban",
+              "title": "Задача t-4",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-4",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000003",
+        "command": {
+          "answerHuman": {
+            "taskId": "t-1",
+            "text": "ISO 8601"
+          }
+        }
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "queued",
+              "reason": "wip_full"
+            },
+            "autoRuns": 0
+          }
+        },
+        "note": "ответ человека сбрасывает autoRuns; попытки стадии не меняются",
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued",
+                "reason": "wip_full"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000003"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "id": "M1-WIP-03",
+  "uc": [
+    "1.2"
+  ],
+  "title": "retry_wait держит слот стадии",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-2"
+      },
+      {
+        "id": "t-3",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "crash"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "crash"
+            },
+            "attempt": 2
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "test",
+              "state": {
+                "status": "retry_wait",
+                "reason": "crash"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 2,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-3": {
+            "state": {
+              "status": "queued",
+              "reason": "wip_full"
+            }
+          }
+        },
+        "runsStarted": 0,
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-3",
+              "projectId": "p-kaban",
+              "title": "Задача t-3",
+              "stageId": "test",
+              "state": {
+                "status": "queued",
+                "reason": "wip_full"
+              },
+              "priority": 0,
+              "branch": "kaban/t-3",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

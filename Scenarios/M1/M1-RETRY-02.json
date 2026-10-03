@@ -1,0 +1,178 @@
+{
+  "id": "M1-RETRY-02",
+  "uc": [
+    "1.4"
+  ],
+  "title": "Счётчик попыток считается на заход в стадию",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "retry_wait",
+          "reason": "crash"
+        },
+        "attempt": 2,
+        "autoRuns": 1,
+        "retryAt": "2026-10-04T08:00:00.000Z"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            },
+            "attempt": 2
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 2,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "retryAt",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "completed",
+        "gates": "green"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "test",
+            "state": {
+              "status": "queued"
+            },
+            "attempt": 1
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "test",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "stageId",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler"
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "returned",
+        "to": "dev"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "dev",
+            "state": {
+              "status": "queued"
+            },
+            "attempt": 1,
+            "bounces": {
+              "test_dev": 1
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {
+                "test_dev": 1
+              },
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "bounceByReason",
+              "stageId"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

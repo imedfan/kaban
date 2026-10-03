@@ -1,0 +1,103 @@
+{
+  "id": "M1-MACPAUSE-01",
+  "uc": [
+    "UC-11"
+  ],
+  "title": "Пауза всего Мака: новые запуски не стартуют, текущие доигрывают",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000011",
+        "command": {
+          "pauseAll": {}
+        }
+      },
+      "tick": "scheduler",
+      "then": {
+        "flags": [
+          {
+            "level": "mac",
+            "flag": "paused"
+          }
+        ],
+        "runsStarted": 0,
+        "runsKilled": 0
+      }
+    },
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000012",
+        "command": {
+          "resumeAll": {}
+        }
+      },
+      "tick": "scheduler",
+      "then": {
+        "flags": [],
+        "tasks": {
+          "t-2": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-2",
+              "projectId": "p-kaban",
+              "title": "Задача t-2",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-2",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000012"
+          }
+        ]
+      }
+    }
+  ]
+}

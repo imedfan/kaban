@@ -1,0 +1,207 @@
+{
+  "id": "M1-FLOW-01",
+  "uc": [
+    "UC-03",
+    "UC-05",
+    "1.1"
+  ],
+  "title": "Задача проходит Dev→Test по зелёным гейтам, счётчик попыток сбрасывается",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "backlog",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000002",
+        "command": {
+          "moveTask": {
+            "taskId": "t-1",
+            "stage": "dev"
+          }
+        }
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "dev",
+            "state": {
+              "status": "queued"
+            },
+            "attempt": 1,
+            "autoRuns": 0
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "stageId"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000002"
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            },
+            "attempt": 1,
+            "autoRuns": 1
+          }
+        },
+        "runsStarted": 1,
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "runsSinceHuman",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "completed",
+        "gates": "green"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "test",
+            "state": {
+              "status": "queued"
+            },
+            "attempt": 1,
+            "autoRuns": 1
+          }
+        },
+        "events": [
+          {
+            "type": "taskTransitioned",
+            "data": {
+              "taskId": "t-1",
+              "fromStage": "dev",
+              "toStage": "dev",
+              "from": {
+                "status": "running"
+              },
+              "to": {
+                "status": "gating"
+              },
+              "by": "daemon"
+            }
+          },
+          {
+            "type": "taskTransitioned",
+            "data": {
+              "taskId": "t-1",
+              "fromStage": "dev",
+              "toStage": "test",
+              "from": {
+                "status": "gating"
+              },
+              "to": {
+                "status": "queued"
+              },
+              "by": "daemon"
+            }
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "test",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "stageId",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "id": "M1-MAXWH-01",
+  "uc": [
+    "1.2",
+    "UC-06"
+  ],
+  "title": "max_waiting_human=3 останавливает приём новых задач проекта, ревью не считается",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "waiting_human",
+          "reason": "question"
+        }
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "waiting_human",
+          "reason": "retries_exhausted"
+        }
+      },
+      {
+        "id": "t-3",
+        "projectId": "p-kaban",
+        "stage": "human_review",
+        "state": {
+          "status": "waiting_human",
+          "reason": "review"
+        }
+      },
+      {
+        "id": "t-4",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-4"
+      },
+      {
+        "id": "t-5",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "tick": "scheduler",
+      "then": {
+        "flags": [],
+        "tasks": {
+          "t-5": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "note": "ожидающих без ревью 2 < 3",
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-5",
+              "projectId": "p-kaban",
+              "title": "Задача t-5",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-5",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "driver": {
+        "task": "t-4",
+        "end": "asked_human"
+      },
+      "then": {
+        "flags": [
+          {
+            "level": "project",
+            "flag": "intake_paused",
+            "projectId": "p-kaban"
+          }
+        ]
+      }
+    },
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000006",
+        "command": {
+          "answerHuman": {
+            "taskId": "t-1",
+            "text": "ok"
+          }
+        }
+      },
+      "then": {
+        "flags": []
+      }
+    }
+  ]
+}

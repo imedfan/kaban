@@ -1,0 +1,234 @@
+{
+  "id": "M1-SUSP-04",
+  "uc": [
+    "UC-25",
+    "F23"
+  ],
+  "title": "«Попросить убрать» (answerHuman) набор не принимает: новый запуск, после гейтов проверка заново",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "waiting_human",
+          "reason": "suspicious_files"
+        },
+        "suspiciousFiles": [
+          {
+            "path": ".env.local",
+            "rule": "pattern",
+            "sizeBytes": 212,
+            "blob": "a1b2c3",
+            "pattern": ".env*"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000016",
+        "command": {
+          "answerHuman": {
+            "taskId": "t-1",
+            "text": "убери .env.local из ветки"
+          }
+        }
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "dev",
+            "state": {
+              "status": "queued"
+            }
+          }
+        },
+        "acceptedFiles": {
+          "t-1": []
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "pattern": ".env*"
+                }
+              ],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000016"
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "pattern": ".env*"
+                }
+              ],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "completed",
+        "gates": "green",
+        "branchFiles": [
+          {
+            "path": ".env.local",
+            "blob": "a1b2c3",
+            "sizeBytes": 212
+          }
+        ]
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "suspicious_files"
+            },
+            "suspiciousFiles": [
+              {
+                "path": ".env.local",
+                "rule": "pattern",
+                "sizeBytes": 212,
+                "blob": "a1b2c3",
+                "pattern": ".env*"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "type": "suspiciousFilesFound",
+            "data": {
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "pattern": ".env*"
+                }
+              ]
+            }
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "suspicious_files"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "pattern": ".env*"
+                }
+              ],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
