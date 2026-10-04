@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import KabanProtocol
 
-final class M1TaskBodyTests: XCTestCase {
+final class Team2TaskBodyTests: XCTestCase {
     private let encoder = KabanCoding.makeEncoder()
     private let decoder = KabanCoding.makeDecoder()
 

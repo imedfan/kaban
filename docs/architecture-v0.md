@@ -1,4 +1,4 @@
-# Kaban: архитектура MVP (черновик v0.11.23)
+# Kaban: архитектура MVP (черновик v0.11.24)
 
 Автор: Kaban Architector Bot · 3 октября 2026 · статус: на обсуждение, до утверждения Артёмом
 
@@ -169,7 +169,7 @@ stages:
 | `done` | дошла до `terminal` | нет | — |
 | `cancelled` | отменена или отклонена человеком | нет | — |
 
-**WIP `human`-стадии** (v0.11.23): занимают все уже допущенные нетерминальные задачи стадии, кроме `queued`, включая `paused` и `waiting_human` с любой причиной; ждущие места стоят в самой стадии как `queued: wip_full`. В протоколе — `occupiesWIP(in: StageKind)`. Демон отдаёт готовую загрузку: `stageLoad [{ projectId, stageId, wipUsed, wipLimit? }]` в снимке и журнальное событие `stageLoadChanged` в той же транзакции, что и `taskUpdated`; UI сам WIP не считает.
+**WIP `human`-стадии** (v0.11.24): занимают все уже допущенные нетерминальные задачи текущего входа в стадию; допуск хранится у демона до выхода из стадии или final. `queued` и `paused` до допуска места не занимают; пауза после допуска сохраняет место, resume human review возвращает `waiting_human: review`. Ждущие места стоят в самой стадии как `queued: wip_full`. Статусная подсказка `occupiesWIP(in: StageKind)` не заменяет durable marker допуска. Демон отдаёт готовую загрузку: `stageLoad [{ projectId, stageId, wipUsed, wipLimit? }]` в снимке и журнальное событие `stageLoadChanged` в той же транзакции, что и `taskUpdated`; UI сам WIP не считает.
 
 Причины (`reason`, enum):
 - `waiting_human`: `question` (агент вызвал `request_human`), `review` (задача в `human`-стадии), `retries_exhausted`, `bounce_limit`, `conflict_limit`, `run_limit` (превышен `max_runs_per_task`), `model_substituted` (Cursor ответил не той моделью, 6.4), `git_denials` (5 отказов политики за run), `incident` (проверка результата нашла нарушение), `suspicious_files` (в diff ветки есть подозрительные файлы, 8.2), `invalid_result` (read-only стадия оставила изменения).
@@ -271,7 +271,7 @@ stages:
 
 **Синхронизация.**
 - `getSnapshot(projectIds?) -> Snapshot { seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota?, openIncidentCount, stageLoad, settings? }` (`openIncidentCount` — сумма `ProjectSummary.openIncidentCount`) — состояние доски на момент `seq` (карточки, без лент). Карточка несёт `suspiciousFiles` — текущий непринятый набор (не пуст только в `waiting_human: suspicious_files`), поэтому он переживает перезапуск и `resyncRequired`; принятые файлы (`acceptedFiles`: путь, blob, кто, когда) — в `TaskDetail`.
-- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests, suspiciousFiles, acceptedFiles, clonePath? }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
+- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests, suspiciousFiles, acceptedFiles, clonePath?, body? }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
 - `subscribe(fromSeq, projectIds?)` — досылка из `event` после `fromSeq`, затем живые события. Если `fromSeq` старше хранимого журнала — сигнал `resyncRequired`, клиент берёт снимок заново.
 - Каждая команда несёт `commandId` (UUID от клиента); ответ содержит `commandId` и `seq` порождённого события, а журнальное событие — тот же `commandId` в `payload`. UI не делает оптимистичных переходов: карточка ждёт событие с этим `commandId`.
 
@@ -282,6 +282,8 @@ stages:
 - Execution WIP agent/gate/merge следует `TaskStatus.occupiesWIP`; `waiting_human` агентский слот не занимает. Admission WIP human-стадии считает все уже допущенные нетерминальные задачи, кроме `queued`, включая `paused` и `waiting_human` с любой причиной. `queued` перед входом не занимает место; при снижении лимита никого не вытесняют, новые admission блокируются до освобождения. Human admission не расходует глобальный слот run.
 - `ValidationIssue.path = ""` означает документ целиком, допустим для `yaml_syntax` и root `type_mismatch`. Клиент отображает его как `pipeline.yaml`; ошибки конкретного поля сохраняют непустой путь.
 - Агрегаты инцидентов авторитетны в `ProjectSummary.openIncidentCount`, полученном из snapshot / `projectAdded` / `projectUpdated`. Демон публикует `projectUpdated` в той же транзакции, что открывает/закрывает incident. `incidentOpened` / `incidentResolved` обновляют детали и ленту, но клиент не увеличивает/уменьшает по ним счётчики. `Snapshot.openIncidentCount` и агрегат клиентской проекции равны сумме по проектам данного снимка/проекции; `projectRemoved` также пересчитывает сумму. Конечный результат не зависит от порядка событий внутри транзакции.
+
+**Markdown содержимое задачи (v0.11.24).** `TaskDetail.body: String?` читается из сохранённых данных. `nil` означает неизвестное legacy содержимое и опускается при encoding; `""` — известное пустое содержимое. Старый JSON без поля/null декодируется как nil, известный неверный тип отклоняется. Клиент не заменяет неизвестное body пустой строкой и отключает его редактирование до получения. Согласованные `getSnapshot()`/`getTaskDetail()` читают данные и `seq` одной read transaction; неизвестные обязательные legacy project/detail данные дают явную `incompleteProjection`.
 
 **Долговечные DTO деталей (#14).** `TaskDetail.artifacts: [TaskArtifact]`, `gitGrants: [GitGrantSnapshot]`, `gitDenials: [GitDenialSnapshot]` читаются из долговечных таблиц, а не восстанавливаются из обрезанного журнала. Отсутствующие/null коллекции старого ответа декодируются как `[]`; новые пустые коллекции не кодируются, сохраняя прежние golden fixtures. Существующие `humanRequests`, `suspiciousFiles`, `acceptedFiles` остаются обязательными массивами: отсутствие/null — ошибка декодирования.
 
@@ -483,6 +485,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 
 ## Журнал изменений
 
+- v0.11.24: optional Markdown `TaskDetail.body` и честная legacy/query семантика; human WIP через durable admission marker и сохранение review при pause/resume; границы следующего headless M1 описаны отдельным контрактом.
 - v0.11.23: уточнения решений #9–12/#44; долговечные typed DTO artifacts/gitGrants/gitDenials и optional начальные GlobalSettings (#14), совместимое декодирование старых ответов; транзакционная граница M1 store и отдельная веха живого исполнения.
 - v0.11 (презентация утверждена 4 октября): три git-пресета `strict | standard | permissive`, политика на уровне проекта, у стадии только переопределения (8.4); в «Строгом» коммитит только демон (6.3); проверка `suspicious_files` по всему diff ветки, `waiting_human: suspicious_files`, `task_accepted_file`, события `suspiciousFilesFound` / `suspiciousFilesAccepted` (8.2, 5); паузы ретраев `[30s, 2m]` при 3 попытках утверждены; «Слияние» стало 8.5.
 - v0.11.22: порядок проверки автора: перенос строки и NUL до обрезки, затем обрезка.
