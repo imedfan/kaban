@@ -99,15 +99,16 @@ final class Team2ValidatorFuzzTests: XCTestCase {
         }
     }
 
-    func testNonMappingRootIssuesHaveNonemptyPathsWhenContractIsResolved() throws {
+    // #12 resolved: an empty path identifies the document itself, not a missing field path.
+    func testNonMappingRootsUseCanonicalDocumentPath() {
         let results = ["x", "[]", ""].map { PipelineValidator.validate(yaml: $0) }
-        if results.contains(where: { $0.issues.contains { $0.code == ValidationCode.typeMismatch && $0.path.isEmpty } }) {
-            throw XCTSkip("Корневой path требует решения контракта: https://github.com/imedfan/kaban/issues/12")
-        }
         for validation in results {
+            XCTAssertNil(validation.config)
             XCTAssertEqual(validation.issues.count, 1)
             XCTAssertEqual(validation.issues.first?.code, ValidationCode.typeMismatch)
-            assertIssues(validation, label: "nonmapping root diagnostic")
+            XCTAssertEqual(validation.issues.first?.path, "")
+            XCTAssertFalse(validation.issues.first?.message.isEmpty ?? true)
+            XCTAssertFalse(validation.isValid)
         }
     }
 
