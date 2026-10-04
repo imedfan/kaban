@@ -22,11 +22,11 @@ Codex. Повтор через разрешённый автоматическо
 Текущий `spikes/backend/kaban-agent.sb` — **allow-default эксперимент**, а не
 готовая граница изоляции. Черновик ниже — deny-default для безопасных проб
 инструментов; его нельзя объявлять рабочим профилем Cursor или Swift-сборок до
-проверки зависимостей: запуск `/usr/bin/true` под этим deny-default черновиком
-на хосте завершился SIGABRT (код 134), даже после добавления file-map-executable.
-Поэтому все его ожидаемые pass/fail ниже — план, а не результаты.
-Диагностический профиль с общим file-read*, теми же process-exec/process-fork
-и sysctl-read запускает true (0); необходимое узкое исключение чтения ещё не найдено. Production-решение и принятый риск остаются за Architect.
+проверки зависимостей. Первоначальный вариант с whitelist чтения завершался
+SIGABRT (134) даже на true. Основной кандидат ниже использует общий file-read*
+с явными запретами секретов: это граница записи/сети, но не полная изоляция чтения.
+Узкий список необходимых launch read paths ещё не найден.
+Production-решение и принятый риск остаются за Architect.
 
 ## Что видно точно в текущем спайке
 
@@ -64,6 +64,26 @@ Codex. Повтор через разрешённый автоматическо
 существующего шаблона; пустые EXTRA_*; исходный файл не менять. Не применять
 ожидание `outside=fail` к текущему шаблону, если outside лежит в `/private/tmp`.
 
+## Результаты исправленного кандидата на хосте 27
+
+Для Scheme-блока ниже, с теми же disposable markers и argv функции `sb`:
+
+```text
+compile=0 clone=0 scratch=0 read-config=0
+ide-link=1 outside=1 outside-link=1 kaban-link=1
+write-.git/config=1 unlink-.git/config=1
+write-.git/hooks/hook=1 unlink-.git/hooks/hook=1
+write-.git/info/exclude=1 unlink-.git/info/exclude=1
+write-.kaban/pipeline.yaml=1 unlink-.kaban/pipeline.yaml=1
+rename-git=1 rename-kaban=1 child=1
+```
+
+После проб все четыре защищённых marker-файла и outside сохранили `marker`;
+положительные allowed-файлы созданы. Исходный ограниченный whitelist reads
+не запускался (134), поэтому заменён на явно описанный общий read allowance.
+Все результаты относятся к **macOS27**, на Mac26 нужна повторная проверка.
+Сеть, hardlinks и runtime Cursor не проверены этим набором.
+
 ## Черновик профиля инструментов
 
 Скопировать блок в `tool.sb` внутри созданной ниже временной папки. Передавать
@@ -81,19 +101,9 @@ Codex. Повтор через разрешённый автоматическо
 (allow file-map-executable)
 (allow sysctl-read)
 
-;; Бинарники, dyld и системные библиотеки; сторонних toolchain здесь нет.
-(allow file-read*
-  (subpath "/System")
-  (subpath "/usr/lib")
-  (subpath "/usr/share")
-  (subpath "/bin")
-  (subpath "/usr/bin")
-  (subpath (param "CLONE"))
-  (subpath (param "SCRATCH"))
-  (literal "/dev/null")
-  (literal "/dev/urandom"))
-(allow file-read-metadata
-  (literal "/") (literal "/private") (literal "/private/tmp"))
+;; Research compromise: general reads until narrow launch paths are known.
+;; This is write/network confinement, not a confidentiality whitelist.
+(allow file-read*)
 
 (allow file-write*
   (require-all
@@ -273,7 +283,7 @@ fail under deny-default read/write rules. Keep these results distinct.
 SBPL; кто гарантирует обязательный tool broker; какие git internals могут писаться
 агентом при hard invariant foreign_refs; какие exact egress endpoints разрешены;
 допустимы ли per-run cache/scratch; где хранится CLI-token и кто принимает его риск.
-Уверенность высокая в статическом описании спайка и статусе API, средняя в черновике
+Уверенность высокая в статическом описании спайка и статусе API, средняя в кандидате
 до macOS26/CLI/build тестов. Реальные Cursor/auth/model прогоны в T3 не выполнялись.
 
 ## Первичные источники (прочитаны 2026-10-04)
