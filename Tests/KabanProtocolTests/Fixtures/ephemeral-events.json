@@ -87,6 +87,403 @@
     "type" : "modelFlagsChanged"
   },
   {
+    "data" : {
+      "contentHash" : "sha256:d1",
+      "issues" : [
+        {
+          "code" : "mcp_not_allowlisted",
+          "message" : "Сервер «linear» выключен в белом списке проекта и не будет подключён",
+          "params" : {
+
+          },
+          "path" : "stages[1].agent.mcp[1]",
+          "severity" : "warning"
+        }
+      ],
+      "projectId" : "p-kaban",
+      "resolved" : {
+        "defaultReturnStage" : "dev",
+        "gitCommandCatalog" : [
+          "status",
+          "diff",
+          "log",
+          "show",
+          "add",
+          "commit",
+          "restore",
+          "stash",
+          "rebase",
+          "reset",
+          "cherry-pick"
+        ],
+        "gitPreset" : "standard",
+        "hasUncommittedEdits" : false,
+        "issues" : [
+          {
+            "code" : "mcp_not_allowlisted",
+            "message" : "Сервер «linear» выключен в белом списке проекта и не будет подключён",
+            "params" : {
+
+            },
+            "path" : "stages[1].agent.mcp[1]",
+            "severity" : "warning"
+          }
+        ],
+        "maxRunsPerTask" : 12,
+        "maxWaitingHuman" : 3,
+        "projectGitPolicy" : {
+          "allowed" : [
+            {
+              "rule" : "status",
+              "source" : "preset"
+            },
+            {
+              "rule" : "diff",
+              "source" : "preset"
+            },
+            {
+              "rule" : "log",
+              "source" : "preset"
+            },
+            {
+              "rule" : "show",
+              "source" : "preset"
+            },
+            {
+              "rule" : "add",
+              "source" : "preset"
+            },
+            {
+              "rule" : "commit",
+              "source" : "preset"
+            },
+            {
+              "rule" : "restore --staged",
+              "source" : "preset"
+            },
+            {
+              "rule" : "stash",
+              "source" : "project"
+            }
+          ],
+          "committer" : "agent_with_safety_commit",
+          "conditional" : [
+
+          ],
+          "denied" : [
+            {
+              "rule" : "cherry-pick",
+              "source" : "project"
+            }
+          ],
+          "hardInvariants" : [
+            "push",
+            "remote",
+            "config",
+            "tag",
+            "force",
+            "foreign_refs",
+            "kaban_dir"
+          ],
+          "preset" : "standard",
+          "readOnly" : false
+        },
+        "projectId" : "p-kaban",
+        "stages" : [
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "icon" : "tray",
+              "order" : 0
+            },
+            "gates" : [
+
+            ],
+            "id" : "backlog",
+            "kind" : "queue",
+            "name" : "Backlog",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ]
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "color" : "blue",
+              "hidden" : false,
+              "icon" : "hammer",
+              "order" : 1
+            },
+            "gates" : [
+
+            ],
+            "gitPolicy" : {
+              "allowed" : [
+                {
+                  "rule" : "status",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "diff",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "log",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "show",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "add",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "commit",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "restore --staged",
+                  "source" : "preset"
+                }
+              ],
+              "committer" : "agent_with_safety_commit",
+              "conditional" : [
+                {
+                  "allowed" : [
+                    {
+                      "rule" : "rebase",
+                      "source" : "stage"
+                    }
+                  ],
+                  "returnReason" : "merge_conflict"
+                }
+              ],
+              "denied" : [
+                {
+                  "rule" : "cherry-pick",
+                  "source" : "project"
+                },
+                {
+                  "rule" : "stash",
+                  "source" : "stage"
+                }
+              ],
+              "hardInvariants" : [
+                "push",
+                "remote",
+                "config",
+                "tag",
+                "force",
+                "foreign_refs",
+                "kaban_dir"
+              ],
+              "preset" : "standard",
+              "readOnly" : false
+            },
+            "id" : "dev",
+            "kind" : "agent",
+            "maxAttempts" : 3,
+            "model" : "claude-4.5-opus",
+            "name" : "Разработка",
+            "onSuccess" : "test",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ],
+            "wip" : 3
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "order" : 2
+            },
+            "gates" : [
+
+            ],
+            "gitPolicy" : {
+              "allowed" : [
+                {
+                  "rule" : "status",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "diff",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "log",
+                  "source" : "preset"
+                },
+                {
+                  "rule" : "show",
+                  "source" : "preset"
+                }
+              ],
+              "committer" : "agent_with_safety_commit",
+              "conditional" : [
+
+              ],
+              "denied" : [
+                {
+                  "rule" : "cherry-pick",
+                  "source" : "project"
+                },
+                {
+                  "rule" : "add",
+                  "source" : "stage"
+                },
+                {
+                  "rule" : "commit",
+                  "source" : "stage"
+                },
+                {
+                  "rule" : "restore --staged",
+                  "source" : "stage"
+                },
+                {
+                  "rule" : "stash",
+                  "source" : "stage"
+                }
+              ],
+              "hardInvariants" : [
+                "push",
+                "remote",
+                "config",
+                "tag",
+                "force",
+                "foreign_refs",
+                "kaban_dir"
+              ],
+              "preset" : "standard",
+              "readOnly" : true
+            },
+            "id" : "test",
+            "kind" : "agent",
+            "maxAttempts" : 3,
+            "model" : "composer-1",
+            "name" : "Тесты",
+            "onSuccess" : "checks",
+            "readOnly" : true,
+            "returnsTo" : [
+              {
+                "limit" : 3,
+                "stage" : "dev"
+              }
+            ],
+            "wip" : 2
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "order" : 3
+            },
+            "gates" : [
+              "swift build",
+              "swift test"
+            ],
+            "id" : "checks",
+            "kind" : "gate",
+            "name" : "Проверки",
+            "onFail" : {
+              "limit" : 3,
+              "stage" : "dev"
+            },
+            "onSuccess" : "review",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ]
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "order" : 4
+            },
+            "gates" : [
+
+            ],
+            "id" : "review",
+            "kind" : "human",
+            "name" : "Human Review",
+            "onSuccess" : "merge",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ],
+            "wip" : 2
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "order" : 5
+            },
+            "gates" : [
+
+            ],
+            "id" : "merge",
+            "kind" : "merge",
+            "name" : "Слияние",
+            "onConflict" : {
+              "limit" : 2,
+              "stage" : "dev"
+            },
+            "onSuccess" : "done",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ],
+            "wip" : 1
+          },
+          {
+            "display" : {
+              "collapsed" : false,
+              "hidden" : false,
+              "order" : 6
+            },
+            "gates" : [
+
+            ],
+            "id" : "done",
+            "kind" : "terminal",
+            "name" : "Готово",
+            "readOnly" : false,
+            "returnsTo" : [
+
+            ]
+          }
+        ],
+        "versionHash" : "sha256:9f2c"
+      }
+    },
+    "type" : "pipelineDraftValidated"
+  },
+  {
+    "data" : {
+      "contentHash" : "sha256:d2",
+      "issues" : [
+        {
+          "code" : "yaml_syntax",
+          "message" : "Ошибка YAML в строке 14",
+          "params" : {
+            "line" : "14"
+          },
+          "path" : "stages[2]",
+          "severity" : "error"
+        }
+      ],
+      "projectId" : "p-kaban"
+    },
+    "type" : "pipelineDraftValidated"
+  },
+  {
     "type" : "resyncRequired"
   }
 ]

@@ -2,13 +2,24 @@ import Foundation
 import XCTest
 @testable import KabanProtocol
 
-/// Проверяет, что команды и состояния в сценариях аналитика декодируются типами KabanProtocol.
+/// Проверяет, что команды, события и состояния в сценариях M1 декодируются типами KabanProtocol.
+/// Без `KABAN_SCENARIOS` тест пропускается (локально и до появления `Scenarios/M1` в main).
+/// Если переменная задана, папка обязана существовать и содержать `.json` прямо в ней (в CI — `Scenarios/M1`),
+/// иначе тест падает, а не проходит вхолостую.
 final class ScenarioDecodeCheck: XCTestCase {
     func testScenariosDecode() throws {
-        let dir = try scenariosDirectory()
+        guard let dir = ProcessInfo.processInfo.environment["KABAN_SCENARIOS"] else { throw XCTSkip("KABAN_SCENARIOS не задан") }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else {
+            return XCTFail("KABAN_SCENARIOS=\(dir): папки нет")
+        }
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir).sorted().filter { $0.hasSuffix(".json") }
+        guard !files.isEmpty else {
+            return XCTFail("KABAN_SCENARIOS=\(dir): нет .json прямо в папке (нужна Scenarios/M1, а не корень Scenarios)")
+        }
         let dec = KabanCoding.makeDecoder()
         var problems: [String] = []
-        for name in try FileManager.default.contentsOfDirectory(atPath: dir).sorted() where name.hasSuffix(".json") {
+        for name in files {
             let data = try Data(contentsOf: URL(fileURLWithPath: dir).appendingPathComponent(name))
             let root = try JSONSerialization.jsonObject(with: data)
             func walk(_ v: Any, _ path: String) {
@@ -39,27 +50,5 @@ final class ScenarioDecodeCheck: XCTestCase {
             walk(root, "")
         }
         XCTAssertTrue(problems.isEmpty, problems.joined(separator: "\n"))
-    }
-
-    /// `KABAN_SCENARIOS`, иначе `Scenarios/M1` в корне репозитория (от `#filePath` вверх).
-    private func scenariosDirectory() throws -> String {
-        if let env = ProcessInfo.processInfo.environment["KABAN_SCENARIOS"], !env.isEmpty {
-            return env
-        }
-        var url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let fileManager = FileManager.default
-        for _ in 0..<10 {
-            let candidate = url.appendingPathComponent("Scenarios").appendingPathComponent("M1")
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory), isDirectory.boolValue {
-                return candidate.path
-            }
-            let parent = url.deletingLastPathComponent()
-            if parent.path == url.path { break }
-            url = parent
-        }
-        XCTFail("Нет Scenarios/M1 и не задан KABAN_SCENARIOS")
-        struct MissingScenarios: Error {}
-        throw MissingScenarios()
     }
 }

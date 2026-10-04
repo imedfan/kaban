@@ -72,7 +72,6 @@
         "files" : [
           {
             "blob" : "a1b2c3",
-            "isText" : true,
             "path" : ".env.local",
             "pattern" : ".env*",
             "rule" : "pattern",
@@ -80,7 +79,6 @@
           },
           {
             "blob" : "d4e5f6",
-            "isText" : false,
             "path" : "assets/dump.bin",
             "rule" : "size",
             "sizeBytes" : 7340032
@@ -105,7 +103,6 @@
         "files" : [
           {
             "blob" : "a1b2c3",
-            "isText" : true,
             "path" : ".env.local",
             "pattern" : ".env*",
             "rule" : "pattern",
@@ -113,7 +110,6 @@
           },
           {
             "blob" : "d4e5f6",
-            "isText" : false,
             "path" : "assets/dump.bin",
             "rule" : "size",
             "sizeBytes" : 7340032
@@ -160,19 +156,5 @@
     },
     "projectId" : "p-kaban",
     "seq" : 1050
-  },
-  {
-    "at" : "2026-10-04T08:00:00.000Z",
-    "event" : {
-      "data" : {
-        "projectId" : "p-kaban",
-        "stageId" : "dev",
-        "wipLimit" : 3,
-        "wipUsed" : 2
-      },
-      "type" : "stageLoadChanged"
-    },
-    "projectId" : "p-kaban",
-    "seq" : 1051
   }
 ]

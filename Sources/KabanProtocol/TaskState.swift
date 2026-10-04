@@ -9,6 +9,16 @@ public enum TaskStatus: String, Codable, Sendable, CaseIterable {
 
     /// Занимает ли задача WIP-слот стадии.
     public var occupiesWIP: Bool { self == .running || self == .gating || self == .retryWait }
+
+    /// Занимает ли задача WIP-слот стадии данного вида (§3.2, v0.11.2): в `human`-стадии — все, кроме `queued`
+    /// и терминальных; в остальных — как `occupiesWIP`.
+    public func occupiesWIP(in kind: StageKind) -> Bool {
+        switch kind {
+        case .human: self != .queued && self != .done && self != .cancelled
+        case .queue, .terminal: false
+        case .agent, .gate, .merge: occupiesWIP
+        }
+    }
 }
 
 public enum WaitingHumanReason: String, Codable, Sendable, CaseIterable {
@@ -45,6 +55,8 @@ public enum RetryWaitReason: String, Codable, Sendable, CaseIterable {
     case runnerAuth = "runner_auth"
     case daemonRestart = "daemon_restart"
     case silentExit = "silent_exit"
+    /// Read-only стадия оставила изменения: откат и один повтор с замечанием; попытка списывается (§6.3).
+    case readonlyViolation = "readonly_violation"
 
     /// Причины, при которых попытка и `max_runs_per_task` не списываются (§3.2).
     public var chargesAttempt: Bool {
@@ -142,6 +154,7 @@ public enum RunEndReason: String, Codable, Sendable {
     case daemonRestart = "daemon_restart"
     case silentExit = "silent_exit"
     case modelSubstituted = "model_substituted"
+    case readonlyViolation = "readonly_violation"
     case completed, returned
     case askedHuman = "asked_human"
     case pausedByHuman = "paused_by_human"

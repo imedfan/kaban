@@ -43,6 +43,8 @@ public enum JournalEvent: Hashable, Sendable {
     case incidentResolved(IncidentResolved)
     case suspiciousFilesFound(SuspiciousFilesFound)
     case suspiciousFilesAccepted(SuspiciousFilesAccepted)
+    /// Загрузка WIP стадии изменилась; шлётся в той же транзакции, что и `taskUpdated` (§3.2, v0.11.2).
+    case stageLoadChanged(StageLoad)
     /// Событие более новой версии демона. Клиент его пропускает и, если нужно, берёт снимок заново.
     case unknown(type: String)
 }
@@ -176,6 +178,7 @@ extension JournalEvent: Codable {
         case .incidentResolved: "incidentResolved"
         case .suspiciousFilesFound: "suspiciousFilesFound"
         case .suspiciousFilesAccepted: "suspiciousFilesAccepted"
+        case .stageLoadChanged: "stageLoadChanged"
         case .unknown(let t): t
         }
     }
@@ -207,6 +210,7 @@ extension JournalEvent: Codable {
         case "incidentResolved": self = .incidentResolved(try d(IncidentResolved.self))
         case "suspiciousFilesFound": self = .suspiciousFilesFound(try d(SuspiciousFilesFound.self))
         case "suspiciousFilesAccepted": self = .suspiciousFilesAccepted(try d(SuspiciousFilesAccepted.self))
+        case "stageLoadChanged": self = .stageLoadChanged(try d(StageLoad.self))
         default: self = .unknown(type: type)
         }
     }
@@ -234,6 +238,7 @@ extension JournalEvent: Codable {
         case .incidentResolved(let v): try c.encode(v, forKey: .data)
         case .suspiciousFilesFound(let v): try c.encode(v, forKey: .data)
         case .suspiciousFilesAccepted(let v): try c.encode(v, forKey: .data)
+        case .stageLoadChanged(let v): try c.encode(v, forKey: .data)
         case .unknown: break
         }
     }
@@ -261,7 +266,13 @@ public struct RunnerCheck: Codable, Hashable, Sendable {
 }
 public struct PipelineDraftValidation: Codable, Hashable, Sendable {
     public var projectId: ProjectID; public var contentHash: String; public var issues: [ValidationIssue]
-    public init(projectId: ProjectID, contentHash: String, issues: [ValidationIssue]) { self.projectId = projectId; self.contentHash = contentHash; self.issues = issues }
+    /// Драфт, разрешённый тем же резолвером, что и `main`: `onFail`/`onConflict`/`gitPolicy` стадий, `defaultReturnStage`,
+    /// `projectGitPolicy` для превью в редакторе. `nil`, только если черновик не разобрался как YAML (`yaml_syntax`)
+    /// или его корень не mapping; при прочих ошибках поле заполнено (арх. v0.11.10 §3.1).
+    public var resolved: PipelineSummary?
+    public init(projectId: ProjectID, contentHash: String, issues: [ValidationIssue], resolved: PipelineSummary? = nil) {
+        self.projectId = projectId; self.contentHash = contentHash; self.issues = issues; self.resolved = resolved
+    }
 }
 public struct RunProgress: Codable, Hashable, Sendable {
     public var runId: RunID; public var taskId: TaskID; public var message: String?; public var lastActivityAt: Date
