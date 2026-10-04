@@ -6,6 +6,12 @@ import KabanProtocol
 public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case start(RunID)
     case completeStage(RunID, summary: String)
+    case requestHuman(RunID, question: String)
+    case answer(text: String, requestId: HumanRequestID?)
+    case approve
+    case pause
+    case resume
+    case resultClean
     case gatesPassed
     case daemonRestarted
     case cancel(keepBranch: Bool)
@@ -14,6 +20,12 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         switch self {
         case .start(let id): .start(runId: id)
         case .completeStage(let id, let summary): .completeStage(runId: id, summary: summary)
+        case .requestHuman(let id, let question): .requestHuman(runId: id, question: question)
+        case .answer(let text, let request): .human(.answer(text: text, requestId: request))
+        case .approve: .human(.approve)
+        case .pause: .human(.pause)
+        case .resume: .human(.resume)
+        case .resultClean: .resultChecked(.clean)
         case .gatesPassed: .gatesPassed
         case .daemonRestarted: .daemonRestarted
         case .cancel(let keep): .human(.cancel(keepBranch: keep))
@@ -50,5 +62,8 @@ public struct DurableSnapshot: Sendable {
 
 public enum StoreError: Error, Equatable {
     case taskExists, taskMissing, invalidPipeline, commandIdConflict
+    case projectMissing, incompleteProjection, settingsInvalid, schedulerBlocked
+    case effectMissing, effectSuperseded, unsupportedEffect, effectResultConflict
+    case questionInvalid
     case rejected(CommandError)
 }

@@ -1,0 +1,111 @@
+import Foundation
+import GRDB
+import KabanKit
+import KabanProtocol
+
+extension KabanStore {
+    private struct Registration: Codable { let summary: ProjectSummary; let pipeline: PipelineConfig }
+    private struct ManagedCreation: Codable { let card: TaskCard; let body: String; let pipeline: PipelineConfig }
+
+    /// Fixed fake-pipeline registration only; no repository inspection or pipeline replacement.
+    public func registerProject(_ summary: ProjectSummary, pipeline: PipelineConfig, commandId: CommandID, at: Date) throws -> ConfigurationReceipt {
+        let request = try Self.encode(Registration(summary: summary, pipeline: pipeline))
+        return try database.write { db in
+            if let receipt = try Self.configurationReplay(commandId, request: request, db: db) { return receipt }
+            guard Self.isBoundedPipeline(pipeline), summary.weight > 0, summary.maxRuns.map({ $0 > 0 }) ?? true else { throw StoreError.invalidPipeline }
+            let existing = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [summary.id.rawValue]).map { try Self.decode(ProjectRecord.self, $0) }
+            if let existing, existing.pipeline != pipeline { throw StoreError.invalidPipeline }
+            let record = ProjectRecord(summary: summary, pipeline: pipeline, version: existing?.version ?? commandId.uuidString.lowercased())
+            try db.execute(sql: "INSERT INTO project(id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [summary.id.rawValue, try Self.encode(record)])
+            _ = try Self.journal(existing == nil ? .projectAdded(summary) : .projectUpdated(summary), projectId: summary.id, commandId: commandId, at: at, db: db)
+            let seq = try Self.journal(.pipelineApplied(pipeline.summary(projectId: summary.id, versionHash: record.version, issues: PipelineValidator.validate(config: pipeline).issues)), projectId: summary.id, commandId: commandId, at: at, db: db)
+            return try Self.configurationReceipt(commandId, request: request, seq: seq, db: db)
+        }
+    }
+    static func isBoundedPipeline(_ p: PipelineConfig) -> Bool {
+        guard PipelineValidator.validate(config: p).errors.allSatisfy({ $0.code == "merge_count" }), p.stages.count == 4,
+              p.stages.map(\.kind) == [.queue, .agent, .human, .terminal],
+              p.successChain(from: p.entryStage?.id) == p.stages.map(\.id) else { return false }
+        return p.stages.allSatisfy { $0.gates.isEmpty && $0.hooks.onEnter == nil && $0.hooks.onExit == nil }
+    }
+    public func setSettings(_ settings: GlobalSettings, commandId: CommandID, at: Date) throws -> ConfigurationReceipt {
+        let request = try Self.encode(settings)
+        return try database.write { db in
+            if let receipt = try Self.configurationReplay(commandId, request: request, db: db) { return receipt }
+            guard settings.maxConcurrentRuns > 0, settings.quotaOptions.pollInterval > 0,
+                  settings.quotaOptions.thresholdCm.isFinite, settings.quotaOptions.thresholdOm.isFinite else { throw StoreError.settingsInvalid }
+            try db.execute(sql: "INSERT INTO global_settings(id, payload) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [request])
+            let event = SettingsChange(key: "global", value: "updated", settings: settings)
+            let seq = try Self.journal(.settingsChanged(event), projectId: nil, commandId: commandId, at: at, db: db)
+            return try Self.configurationReceipt(commandId, request: request, seq: seq, db: db)
+        }
+    }
+    public func createTask(card: TaskCard, body: String, commandId: CommandID, at: Date) throws -> DurableReceipt {
+        try database.write { db in
+            let project = try Self.project(card.projectId, db: db)
+            let request = try Self.encode(Request(kind: "managed_create", taskId: card.id, body: Self.encode(ManagedCreation(card: card, body: body, pipeline: project.pipeline))))
+            return try Self.createTask(card: card, pipeline: project.pipeline, commandId: commandId, at: at, request: request, managed: true, body: body, db: db)
+        }
+    }
+    public func getTaskDetail(_ taskId: TaskID) throws -> TaskDetail {
+        try database.read { db in
+            let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
+            return TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
+                              suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: d.acceptedFiles, clonePath: d.clonePath,
+                              artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
+        }
+    }
+    public func getSnapshot() throws -> Snapshot {
+        try database.read { db in
+            let projects = try Self.projects(db)
+            let tasks = try Self.allTasks(db)
+            // A v1 unregistered project or unresolved incident lacks an authoritative projection.
+            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && $0.pipeline == task.pipeline } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
+            let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
+            let flags = projects.compactMap { project -> SchedulerFlag? in
+                let waiting = tasks.filter { $0.card.projectId == project.summary.id && $0.pipeline.stage($0.machine.stageId)?.kind == .agent && $0.machine.state.status == .waitingHuman }.count
+                return waiting >= project.pipeline.board.maxWaitingHuman ? .intakePaused(project.summary.id) : nil
+            }
+            return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map { $0.pipeline.summary(projectId: $0.summary.id, versionHash: $0.version, issues: PipelineValidator.validate(config: $0.pipeline).issues) },
+                            tasks: tasks.map(\.card), schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
+                            stageLoad: try Self.stageLoads(db), settings: settings)
+        }
+    }
+    static func projects(_ db: Database) throws -> [ProjectRecord] {
+        try Data.fetchAll(db, sql: "SELECT payload FROM project ORDER BY id").map { try decode(ProjectRecord.self, $0) }
+    }
+    static func journal(_ event: JournalEvent, projectId: ProjectID?, commandId: CommandID, at: Date, db: Database) throws -> Seq {
+        try db.execute(sql: "INSERT INTO event(payload) VALUES (?)", arguments: [Data()])
+        let seq = db.lastInsertedRowID
+        let envelope = EventEnvelope(seq: seq, at: at, projectId: projectId, commandId: commandId, event: event)
+        try db.execute(sql: "UPDATE event SET payload = ? WHERE seq = ?", arguments: [try encode(envelope), seq])
+        return seq
+    }
+    static func configurationReplay(_ id: CommandID, request: Data, db: Database) throws -> ConfigurationReceipt? {
+        if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM command WHERE id = ?)", arguments: [id.uuidString]) == true { throw StoreError.commandIdConflict }
+        guard let row = try Row.fetchOne(db, sql: "SELECT request, receipt FROM configuration_command WHERE id = ?", arguments: [id.uuidString]) else { return nil }
+        guard (row["request"] as Data) == request else { throw StoreError.commandIdConflict }
+        return try decode(ConfigurationReceipt.self, row["receipt"])
+    }
+    static func configurationReceipt(_ id: CommandID, request: Data, seq: Seq, db: Database) throws -> ConfigurationReceipt {
+        let receipt = ConfigurationReceipt(commandId: id, seq: seq)
+        try db.execute(sql: "INSERT INTO configuration_command(id, request, receipt) VALUES (?, ?, ?)", arguments: [id.uuidString, request, try encode(receipt)])
+        return receipt
+    }
+    static func stageLoads(_ db: Database) throws -> [StageLoad] {
+        let tasks = try allTasks(db)
+        return try projects(db).flatMap { p in try p.pipeline.stages.map { stage in
+            let admitted = try Set(String.fetchAll(db, sql: "SELECT task_id FROM human_admission"))
+            let used = tasks.filter { task in
+                guard task.card.projectId == p.summary.id, task.machine.stageId == stage.id else { return false }
+                return stage.kind == .human ? admitted.contains(task.card.id.rawValue) : task.machine.state.status.occupiesWIP
+            }.count
+            return StageLoad(projectId: p.summary.id, stageId: stage.id, wipUsed: used, wipLimit: stage.effectiveWIP)
+        } }
+    }
+    static func recordChangedLoads(from previous: [StageLoad], commandId: CommandID, at: Date, db: Database) throws {
+        for load in try stageLoads(db) where previous.first(where: { $0.projectId == load.projectId && $0.stageId == load.stageId }) != load {
+            _ = try journal(.stageLoadChanged(load), projectId: load.projectId, commandId: commandId, at: at, db: db)
+        }
+    }
+}

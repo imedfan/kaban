@@ -6,6 +6,8 @@ public struct TaskMachineState: Codable, Hashable, Sendable {
     public var taskId: TaskID
     public var stageId: StageID
     public var state: TaskState
+    /// Explicit origin of a pause; absent in legacy persisted state.
+    public var pausedState: TaskState?
 
     /// Charged attempts in the current stage entry (§3.2 «Счётчики»). Reset on every stage entry.
     public var attemptsUsed: Int
