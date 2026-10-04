@@ -118,7 +118,7 @@ status или модели. Все конфиги синтетические; KA
 ### 1. Изолированные каталоги, runner и два stub
 
 ```sh
-K2_REPO=/Users/artem/Documents/dev/kaban
+K2_REPO="$(pwd -P)"  # execute from the repository root
 K2_CA="$(command -v cursor-agent)"
 K2_PY="$(command -v python3)"
 K2_TMP="$(mktemp -d /private/tmp/kaban-t2-mcp.XXXXXX)"
