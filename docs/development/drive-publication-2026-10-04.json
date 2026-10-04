@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-04",
+  "verification": "Full connector readback SHA-256 equals local Git files",
+  "files": [
+    {
+      "name": "architecture-v0.md",
+      "id": "1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs",
+      "bytes": 113806,
+      "sha256": "f274d67a2c7e8f4ed2052853e8a614890ebb7c944e1229adf9f3f476eea1ba75",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs/view?usp=drivesdk"
+    },
+    {
+      "name": "kaban-mvp-features-usecases.md",
+      "id": "1z7MT3ezZ5V7d5BoIBWaMjnTg_iHMSFKQ",
+      "bytes": 124938,
+      "sha256": "d96e2ed1def4bc1e76c524f22d7d81e43aa1876994eaa66c3d410c36db159bab",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1z7MT3ezZ5V7d5BoIBWaMjnTg_iHMSFKQ/view?usp=drivesdk"
+    },
+    {
+      "name": "frontend-plan-v0.md",
+      "id": "1LXl5tv4Wjw6CNfNbs8vezjLSxgkZWtc_",
+      "bytes": 298361,
+      "sha256": "1b6fbf8e8892ac02fe10eda4b778d130f759e82faf9cedead24b917c2d43effb",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1LXl5tv4Wjw6CNfNbs8vezjLSxgkZWtc_/view?usp=drivesdk"
+    },
+    {
+      "name": "acceptance-criteria-v0.md",
+      "id": "14z297h5-6AOABSw-53kHCtnntKW_NxAv",
+      "bytes": 17814,
+      "sha256": "d70f1b52606ad99a964bfe12f7d9423fc0ad7d96017917b3caac7c5810c1aa72",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/14z297h5-6AOABSw-53kHCtnntKW_NxAv/view?usp=drivesdk"
+    },
+    {
+      "name": "backend-plan-v0.md",
+      "id": "19dtdvSF302OIOkrvqYaL1H1WAvXvDI6l",
+      "bytes": 14328,
+      "sha256": "aff2adc567fcc8684ca2a0b343d374c5502f299fffcedfac1f6c69ecef64baaf",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/19dtdvSF302OIOkrvqYaL1H1WAvXvDI6l/view?usp=drivesdk"
+    },
+    {
+      "name": "decisions-log.md",
+      "id": "1AGNwKUwZ_YcOzh0A3LAg2zUWx-_71wxx",
+      "bytes": 19815,
+      "sha256": "5d24b0277d385e0bf555f969f00037ef258017054d200a5d01b65ede0d565d80",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1AGNwKUwZ_YcOzh0A3LAg2zUWx-_71wxx/view?usp=drivesdk"
+    },
+    {
+      "name": "first-increment.md",
+      "id": "1tUKJMefOAo-Sgrzfqgk4kymvjcQIugNZ",
+      "bytes": 3575,
+      "sha256": "91440287c294a9ecdd7a8d6f63aaaef999c7889cf848a23ddf3fea9920c1ed46",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1tUKJMefOAo-Sgrzfqgk4kymvjcQIugNZ/view?usp=drivesdk"
+    },
+    {
+      "name": "merge-order.md",
+      "id": "1HTDDQvqmtUzOJIgebf7f3e_r1LhwW4-l",
+      "bytes": 7231,
+      "sha256": "7715a20948d7bfb06431f3adf111eac95167526c16475a99b48e3237daf5cd20",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1HTDDQvqmtUzOJIgebf7f3e_r1LhwW4-l/view?usp=drivesdk"
+    },
+    {
+      "name": "takeover-report-2026-10-04.md",
+      "id": "1gFTTLm0mnM7eJ5iOOyWVee8PX8jeiVK4",
+      "bytes": 9122,
+      "sha256": "11d7a99613fcd062545abb09f8a70416ad4b82a806f84e3693de3207145ac5da",
+      "matchesUpdated": true,
+      "parentPreserved": true,
+      "url": "https://drive.google.com/file/d/1gFTTLm0mnM7eJ5iOOyWVee8PX8jeiVK4/view?usp=drivesdk"
+    }
+  ]
+}

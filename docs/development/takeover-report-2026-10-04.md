@@ -79,16 +79,24 @@ combined-app-build.log и final-pr-ledger.json. Эти временные фай
   drag-and-drop, уведомления и подпись/нотаризация.
 - Seatbelt на целевой macOS 26, live runtime/build/network, hardlinks,
   inherited descriptors и race attacks. Нет утверждения о production isolation.
-- Оригиналы Google Drive не обновлены: подключение недоступно в текущей сессии.
-  Полные шесть исходных файлов сохранены до потери подключения. Git-версии
-  обновлены: architecture/acceptance в #56, frontend plan в #59,
-  backend plan в #58, spec/decisions и порядок работ в этом PR.
+
+## Публикация Google Drive после восстановления подключения
+
+Все шесть актуальных исходных файлов обновлены по прежним IDs. Перед записью
+полное содержимое каждого совпало с сохранённым original по SHA-256; после
+записи совпало с обновлённой Git-версией. Папки, имена, ссылки и права доступа
+сохранены, отдельные старые файлы-версии не изменены. Architecture/acceptance
+находятся в #56, frontend plan в #59, backend plan в #58, spec/decisions — в #61.
+Нативный исторический checklist team2 не редактировался; новый порядок работы
+описан в документах takeover. Публикация документов не означает мерж кода.
+План инкремента, очередь PR и этот отчёт опубликованы в
+[Drive/development](https://drive.google.com/drive/folders/1blNW9iIIyUs4kgR70MNcjtlWf7hKkpve).
 
 ## Вопросы и следующий шаг
 
 Новых продуктовых вопросов, блокирующих следующий M1-инкремент, нет.
-Для публикации тех же версий в Drive требуется восстановить подключение;
-исходные file IDs сохраняем. Следующая вертикаль: полный snapshot/details,
+Подключение Drive восстановлено, публикация завершена.
+Следующая вертикаль: полный snapshot/details,
 идемпотентный outbox worker и fake pipeline, затем scheduler/XPC.
 Frontend продолжает этап 2 из [плана](first-increment.md).
 
