@@ -75,9 +75,9 @@ public enum GitPolicyResolver {
             guard let cmd = w.first else { return false }
             let args = optionArgs(w)
             if args.contains(where: { $0.hasPrefix("--force") }) { return true }
-            if shortForceCommands.contains(cmd) && args.contains(where: { shortCluster($0, hasAnyOf: "f") }) { return true }
+            if shortForceCommands.contains(cmd) && args.contains(where: { shortCluster($0, hasAnyOf: "f", consuming: shortValueOptions(cmd)) }) { return true }
             // v0.11.13 §8.2: `clean -i` and `clean.requireForce=false` delete without `-f`, so only a dry run passes.
-            if cmd == "clean" { return !args.contains { $0 == "--dry-run" || shortCluster($0, hasAnyOf: "n") } }
+            if cmd == "clean" { return !args.contains { $0 == "--dry-run" || shortCluster($0, hasAnyOf: "n", consuming: "e") } }
             return false
         },
         .init(id: HardInvariant.foreignRefs,
@@ -91,13 +91,19 @@ public enum GitPolicyResolver {
             let args = optionArgs(w)
             switch cmd {
             case "branch":
-                return args.contains { ["--delete", "--move"].contains($0) || shortCluster($0, hasAnyOf: "dDfmMC") }
+                return args.contains { longOption($0, abbreviates: "--delete", minimum: "--del") || longOption($0, abbreviates: "--move", minimum: "--mov") || shortCluster($0, hasAnyOf: "dDfmMC", consuming: "cC") }
             case "checkout":
-                return args.contains { shortCluster($0, hasAnyOf: "B") } || args.contains(where: namesMain)
+                return args.contains { shortCluster($0, hasAnyOf: "B", consuming: "bB") } || args.contains(where: namesMain)
             case "switch":
-                return args.contains { shortCluster($0, hasAnyOf: "C") } || args.contains(where: namesMain)
+                return args.contains { shortCluster($0, hasAnyOf: "C", consuming: "cC") } || args.contains(where: namesMain)
             case "rebase":
-                return args.contains(where: namesMain)
+                return args.contains { word in
+                    if let equal = word.firstIndex(of: "="),
+                       longOption(String(word[..<equal]), abbreviates: "--onto", minimum: "--on") {
+                        return namesMain(String(word[word.index(after: equal)...]))
+                    }
+                    return namesMain(word)
+                }
             default:
                 return false
             }
@@ -113,11 +119,28 @@ public enum GitPolicyResolver {
     static func words(_ rule: String) -> [String] { normalize(rule).split(separator: " ").map(String.init) }
     /// Words after the subcommand up to `--` (after it come paths, not options).
     static func optionArgs(_ w: [String]) -> [String] { Array(w.dropFirst().prefix { $0 != "--" }) }
-    /// `-f`, `-fd`, `-Df`: a single-dash cluster of letters containing one of `letters`.
-    static func shortCluster(_ word: String, hasAnyOf letters: String) -> Bool {
+    /// Scan short options until an option consumes the rest as its value. `-qBtask1`
+    /// contains B, while `-bfeature` contains b and a branch name, not a force flag.
+    static func shortCluster(_ word: String, hasAnyOf letters: String, consuming: String = "") -> Bool {
         guard word.hasPrefix("-"), !word.hasPrefix("--"), word.count > 1 else { return false }
-        let body = word.dropFirst()
-        return body.allSatisfy(\.isLetter) && body.contains { letters.contains($0) }
+        for option in word.dropFirst() {
+            guard option.isLetter else { return false }
+            if letters.contains(option) { return true }
+            if consuming.contains(option) { return false }
+        }
+        return false
+    }
+    static func shortValueOptions(_ command: String) -> String {
+        switch command {
+        case "checkout", "worktree": "bB"
+        case "switch": "cC"
+        case "clean": "e"
+        default: ""
+        }
+    }
+    /// Only the supported, unambiguous spelling family, not arbitrary prefix matches.
+    static func longOption(_ word: String, abbreviates canonical: String, minimum: String) -> Bool {
+        word.hasPrefix(minimum) && canonical.hasPrefix(word)
     }
     static func namesMain(_ word: String) -> Bool {
         var w = Substring(word)
