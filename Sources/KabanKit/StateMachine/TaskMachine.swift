@@ -349,12 +349,10 @@ private struct Machine {
             s.pendingPrompt.append(.gateOutput(output))
             chargeAttempt(stage, reason: .gateFailed)
         case .gate:
-            if let fail = stage.onFail {
-                bounce(key: TaskMachineState.bounceKey(from: stage.id, to: fail.stage), limit: fail.limit, limitReason: .bounceLimit, target: fail.stage,
-                       prompt: [.gateOutput(output)], returnReason: .returned, runId: nil)
-            } else {
-                chargeAttempt(stage, reason: .gateFailed)
-            }
+            // A red gate is never retried in place (v0.11.4 §3.1); no target only happens with an invalid pipeline.
+            guard let fail = stage.failReturn(in: pipeline) else { return waitHuman(.bounceLimit, note: "no return target for a red gate") }
+            bounce(key: TaskMachineState.bounceKey(from: stage.id, to: fail.stage), limit: fail.limit, limitReason: .bounceLimit, target: fail.stage,
+                   prompt: [.gateOutput(output)], returnReason: .returned, runId: nil)
         default:
             ignore("stage has no gates")
         }
@@ -402,7 +400,7 @@ private struct Machine {
             set(.gating)
             effects.append(.fastForwardMerge)
         case .agent:
-            let committer = GitPolicyResolver.resolve(project: pipeline.git, stage: stage, returnReason: s.returnReason).committer
+            let committer = GitPolicyResolver.resolve(project: pipeline.git, stage: stage).committer
             effects.append(.commitStage(committer == .daemonOnly ? .daemonSingle(summary: s.lastSummary ?? "kaban: \(stage.id) \(s.taskId)") : .safety))
             enter(stage.onSuccess, priority: nil, prompt: [], returnReason: nil, note: nil)
         default:
@@ -540,14 +538,22 @@ private struct Machine {
     }
 
     /// `requestChanges` never accepts the suspicious set (v0.11.2 §8.2): the check repeats after the target's gates.
-    /// `reject` to a stage does accept it.
+    /// `reject` to a stage does accept it. Both are returns (v0.11.6 §3.1, §3.3): the target must be a writable agent
+    /// stage (else `invalid_state`); `requestChanges` without target goes to `defaultReturnStage`. `reject` to cancel is separate.
     mutating func requestChanges(_ stage: StageConfig, comments: String?, target: StageID?, acceptSet: Bool) {
         guard case .waitingHuman = s.state else { return reject("requestChanges/reject needs a task in waiting_human") }
-        guard let targetId = target ?? pipeline.firstAgentStage?.id, let t = pipeline.stage(targetId) else {
+        guard let targetId = target ?? pipeline.defaultReturnStage else {
+            return reject("No writable agent stage to return the task to")
+        }
+        guard let t = pipeline.stage(targetId) else {
             return reject("Unknown target stage '\(target?.rawValue ?? "-")'", code: CommandError.notFoundCode)
         }
         guard t.kind != .terminal, t.id == stage.id || pipeline.isUpstream(t.id, of: stage.id) else {
             return reject("Target '\(t.id)' must be the current or an earlier stage")
+        }
+        // Only a writable agent stage qualifies (`invalid_state`); `moveTask` is a move and is not restricted.
+        if !t.isReturnTarget {
+            return reject("'\(t.id)' is not a writable agent stage; a task can only be returned to one")
         }
         leaveWaiting(acceptSet: acceptSet)
         // Human returns do not count toward return limits.

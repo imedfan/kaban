@@ -8,18 +8,29 @@ import KabanProtocol
 /// need them stop the replay (reported as "needs scheduler"). The daemon glue is mimicked minimally:
 /// `completed` = complete_stage → gates → result check over `branchFiles`; a single-task `tick` = start if due.
 final class ScenarioReplayTests: XCTestCase {
-    /// `KABAN_SCENARIOS` (either the `M1` directory itself or a `Scenarios` root containing `M1/`), otherwise
-    /// `<repo root>/Scenarios/M1`. The scenarios arrive with the frontend PR; until then the test is skipped.
-    static var scenarioDir: URL {
-        if let env = ProcessInfo.processInfo.environment["KABAN_SCENARIOS"], !env.isEmpty {
-            let url = URL(fileURLWithPath: env)
-            let m1 = url.appendingPathComponent("M1")
+    /// Where the M1 scenarios come from, decided only by `KABAN_SCENARIOS` (CI: `Scenarios/M1`):
+    /// - unset or empty → `.skip` (locally, and until `Scenarios/M1` lands in main);
+    /// - set, and it or its `M1/` subfolder has `*.json` → `.run` (the `M1` folder itself or a `Scenarios` root);
+    /// - set, but the folder is missing or neither it nor `M1/` has any `.json` → `.fail`, never a silent pass.
+    enum ScenarioSource: Equatable {
+        case skip(String)
+        case run(URL, [String])
+        case fail(String)
+    }
+
+    static func resolveScenarios(_ env: String?, fileManager fm: FileManager = .default) -> ScenarioSource {
+        guard let env, !env.isEmpty else { return .skip("KABAN_SCENARIOS is not set") }
+        func jsonFiles(_ url: URL) -> [String]? {
             var isDir: ObjCBool = false
-            if FileManager.default.fileExists(atPath: m1.path, isDirectory: &isDir), isDir.boolValue { return m1 }
-            return url
+            guard fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
+            return ((try? fm.contentsOfDirectory(atPath: url.path)) ?? []).filter { $0.hasSuffix(".json") }.sorted()
         }
-        return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Scenarios/M1")
+        let url = URL(fileURLWithPath: env)
+        guard let own = jsonFiles(url) else { return .fail("KABAN_SCENARIOS=\(env): no such directory") }
+        let m1 = url.appendingPathComponent("M1")
+        if let inM1 = jsonFiles(m1), !inM1.isEmpty { return .run(m1, inM1) }
+        if !own.isEmpty { return .run(url, own) }
+        return .fail("KABAN_SCENARIOS=\(env): no .json scenarios in it or in its M1/ subfolder")
     }
 
     enum Status: Equatable { case full, partial(String), skipped(String) }
@@ -32,11 +43,8 @@ final class ScenarioReplayTests: XCTestCase {
     }
 
     /// Differences between the scenarios and KabanKit that are known and listed in the report to the Architector/Analyst.
-    static let knownMismatches: [String: Set<String>] = [
-        // The total moved out of `bounces` (README) but `given` has no total field, so the total is the sum (4), not 5.
-        // Waits for `bounceTotal: 5` in `given` (asked the Analyst).
-        "M1-BOUNCE-02": ["step 1 t-1.state: expected waitingHuman(KabanProtocol.WaitingHumanReason.bounceLimit), got queued(nil)"],
-    ]
+    /// M1-BOUNCE-02 used to be listed here (no total in `given`); the scenarios now carry `bounceTotal: 5` and it replays cleanly.
+    static let knownMismatches: [String: Set<String>] = [:]
 
     /// Scenarios expected to replay completely through the state machine.
     static let expectedFull: Set<String> = [
@@ -46,11 +54,52 @@ final class ScenarioReplayTests: XCTestCase {
         "M1-BOUNCE-01", "M1-BOUNCE-02", "M1-CANCEL-01", "M1-FLOW-01", "M1-GIT-01", "M1-PAUSE-01", "M1-SILENT-01",
     ]
 
+    /// The folder resolver behind `testReplayM1Scenarios`: skip / run / fail cases on temporary directories.
+    func testScenarioSourceResolution() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("kaban-scenarios-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        func mkdir(_ p: String) throws -> URL {
+            let u = root.appendingPathComponent(p); try fm.createDirectory(at: u, withIntermediateDirectories: true); return u
+        }
+        func touch(_ p: String) throws { try Data("{}".utf8).write(to: root.appendingPathComponent(p)) }
+        func isFail(_ s: ScenarioSource) -> Bool { if case .fail = s { return true }; return false }
+        /// `.run` as (standardized path, files): `URL(fileURLWithPath:)` adds a trailing slash for existing directories.
+        func run(_ s: ScenarioSource) -> [String]? {
+            if case .run(let u, let n) = s { return [u.standardizedFileURL.path] + n }; return nil
+        }
+        func expect(_ u: URL, _ n: [String]) -> [String] { [u.standardizedFileURL.path] + n }
+
+        XCTAssertEqual(Self.resolveScenarios(nil), .skip("KABAN_SCENARIOS is not set"))
+        XCTAssertEqual(Self.resolveScenarios(""), .skip("KABAN_SCENARIOS is not set"))
+        // Missing folder, a file instead of a folder, an empty folder, only non-JSON files, an empty M1/ → fail.
+        XCTAssertTrue(isFail(Self.resolveScenarios(root.appendingPathComponent("nope").path)))
+        let empty = try mkdir("empty")
+        XCTAssertTrue(isFail(Self.resolveScenarios(empty.path)))
+        try touch("empty/README.md")
+        XCTAssertTrue(isFail(Self.resolveScenarios(empty.path)))
+        _ = try mkdir("empty/M1")
+        XCTAssertTrue(isFail(Self.resolveScenarios(empty.path)))
+        try touch("empty/README.md.json.txt")
+        XCTAssertTrue(isFail(Self.resolveScenarios(empty.path)))
+        XCTAssertTrue(isFail(Self.resolveScenarios(root.appendingPathComponent("empty/README.md").path)))
+        // The M1 folder itself.
+        let m1 = try mkdir("Scenarios/M1")
+        try touch("Scenarios/M1/b.json"); try touch("Scenarios/M1/a.json"); try touch("Scenarios/M1/notes.txt")
+        XCTAssertEqual(run(Self.resolveScenarios(m1.path)), expect(m1, ["a.json", "b.json"]))
+        // A Scenarios root containing M1/ (its own top-level .json, if any, are not scenarios).
+        let scen = root.appendingPathComponent("Scenarios")
+        XCTAssertEqual(run(Self.resolveScenarios(scen.path)), expect(m1, ["a.json", "b.json"]))
+        try touch("Scenarios/index.json")
+        XCTAssertEqual(run(Self.resolveScenarios(scen.path)), expect(m1, ["a.json", "b.json"]))
+    }
+
     func testReplayM1Scenarios() throws {
-        let dir = Self.scenarioDir
-        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path).filter({ $0.hasSuffix(".json") }).sorted(),
-              !names.isEmpty else {
-            throw XCTSkip("no scenarios at \(dir.path) (set KABAN_SCENARIOS or add Scenarios/M1)")
+        let dir: URL, names: [String]
+        switch Self.resolveScenarios(ProcessInfo.processInfo.environment["KABAN_SCENARIOS"]) {
+        case .skip(let why): throw XCTSkip(why)
+        case .fail(let why): return XCTFail(why)
+        case .run(let d, let n): dir = d; names = n
         }
         var reports: [Report] = []
         for name in names {

@@ -25,12 +25,23 @@ public struct PipelineConfig: Codable, Hashable, Sendable {
     public var entryStage: StageConfig? { stages.first { $0.kind == .queue } }
     public var mergeStage: StageConfig? { stages.first { $0.kind == .merge } }
 
-    /// First `agent` stage along the `on_success` chain from the entry stage (default target of
-    /// `requestChanges` and merge conflicts, §3.3, §8.5).
+    /// First `agent` stage along the `on_success` chain from the entry stage, read-only or not.
+    /// Not a return target by itself: returns use `firstWritableAgentStage` (v0.11.4 §3.1).
     public var firstAgentStage: StageConfig? {
         successChain(from: entryStage?.id).lazy.compactMap { self.stage($0) }.first { $0.kind == .agent }
             ?? stages.first { $0.kind == .agent }
     }
+
+    /// First `agent` stage with `readOnly == false` along the `on_success` chain from the entry stage: default target of
+    /// `on_conflict` and `requestChanges` without target (v0.11.4 §3.1, §8.5). `nil` → `no_return_target`.
+    public var firstWritableAgentStage: StageConfig? {
+        successChain(from: entryStage?.id).lazy.compactMap { self.stage($0) }.first(where: \.isReturnTarget)
+            ?? stages.first(where: \.isReturnTarget)
+    }
+
+    /// Default target of `requestChanges` without `target` (v0.11.5 §3.1, `PipelineSummary.defaultReturnStage`):
+    /// the first writable agent stage. The single resolver used by the state machine, the summary and the validator.
+    public var defaultReturnStage: StageID? { firstWritableAgentStage?.id }
 
     /// Stage ids visited by following `on_success` from `start` (inclusive), stopping on a cycle or dangling reference.
     public func successChain(from start: StageID?) -> [StageID] {
@@ -42,6 +53,17 @@ public struct PipelineConfig: Codable, Hashable, Sendable {
             cursor = s.onSuccess
         }
         return out
+    }
+
+    /// Default `on_fail` target of a `gate` stage (v0.11.4 §3.1): the nearest preceding `agent` stage with
+    /// `readOnly == false` along `on_success` (a read-only stage cannot fix code). `nil` → `no_return_target`.
+    public func nearestWritableAgentStage(before id: StageID) -> StageConfig? {
+        var best: (stage: StageConfig, distance: Int)?
+        for s in stages where s.isReturnTarget && s.id != id {
+            guard let d = successChain(from: s.id).firstIndex(of: id) else { continue }
+            if best.map({ d < $0.distance }) ?? true { best = (s, d) }
+        }
+        return best?.stage
     }
 
     /// `true` when `upstream` reaches `downstream` by `on_success` (i.e. `upstream` is earlier in the chain).
@@ -116,8 +138,9 @@ public struct StageConfig: Codable, Hashable, Sendable {
     public var gates: [String]
     public var onSuccess: StageID?
     public var returnsTo: [StageReturn]
-    /// `gate` stages: where a red gate sends the task (counts as an automatic return). `nil` — retry in place.
-    public var onFail: StageReturn?
+    /// `gate` stages: where a red gate sends the task (counts as an automatic return). Optional block and optional
+    /// fields; a red gate is never retried in place — defaults are resolved by `failReturn(in:)` (v0.11.4 §3.1).
+    public var onFail: FailReturn?
     /// `merge` stage: where a rebase conflict / red post-rebase gates send the task. Defaults resolved by `conflictReturn(in:)`.
     public var onConflict: ConflictReturn?
     public var retry: RetryPolicy
@@ -128,7 +151,7 @@ public struct StageConfig: Codable, Hashable, Sendable {
     public init(id: StageID, name: String? = nil, kind: StageKind, display: StageDisplay? = nil, wip: Int? = nil,
                 priority: [PriorityRule] = StageConfig.defaultPriority, agent: AgentConfig? = nil, git: StageGitOverride? = nil,
                 inputs: [String] = [], gates: [String] = [], onSuccess: StageID? = nil, returnsTo: [StageReturn] = [],
-                onFail: StageReturn? = nil, onConflict: ConflictReturn? = nil, retry: RetryPolicy = .init(),
+                onFail: FailReturn? = nil, onConflict: ConflictReturn? = nil, retry: RetryPolicy = .init(),
                 timeouts: StageTimeouts = .init(), hooks: StageHooks = .init(), notify: [String] = []) {
         self.id = id; self.name = name ?? id.rawValue; self.kind = kind; self.display = display ?? StageDisplay(order: 0)
         self.wip = wip; self.priority = priority; self.agent = agent; self.git = git; self.inputs = inputs; self.gates = gates
@@ -148,13 +171,37 @@ public struct StageConfig: Codable, Hashable, Sendable {
 
     public var isReadOnly: Bool { agent?.permissions == .readOnly }
 
-    /// Target and limit for merge conflicts (§8.5): explicit `on_conflict`, else first agent stage with limit 2.
+    /// The only kind of stage a task can be *returned* to (v0.11.4 §3.1): an `agent` stage with `readOnly == false`.
+    /// Applies to `returns_to`, `on_fail`, `on_conflict` and `requestChanges.target`; `moveTask` is not a return.
+    public var isReturnTarget: Bool { kind == .agent && !isReadOnly }
+
+    /// Target and limit for a red gate of a `gate` stage (v0.11.4 §3.1): `on_fail.stage`, else the nearest preceding
+    /// writable agent stage; `on_fail.limit`, else 3. The block itself is optional. `nil` for non-gate stages or when
+    /// no target exists (the validator reports `no_return_target`).
+    public func failReturn(in pipeline: PipelineConfig) -> StageReturn? {
+        guard kind == .gate else { return nil }
+        let f = onFail ?? FailReturn()
+        guard let target = f.stage ?? pipeline.nearestWritableAgentStage(before: id)?.id else { return nil }
+        return StageReturn(stage: target, limit: f.limit)
+    }
+
+    /// Target and limit for merge conflicts (§8.5, v0.11.4 §3.1): `on_conflict.stage`, else the first writable agent
+    /// stage; `on_conflict.limit`, else 2. `nil` for non-merge stages or when no target exists (`no_return_target`).
     public func conflictReturn(in pipeline: PipelineConfig) -> StageReturn? {
-        let target = onConflict?.stage ?? pipeline.firstAgentStage?.id
+        guard kind == .merge else { return nil }
+        let target = onConflict?.stage ?? pipeline.firstWritableAgentStage?.id
         return target.map { StageReturn(stage: $0, limit: onConflict?.limit ?? ConflictReturn.defaultLimit) }
     }
 
     public func returnLimit(to target: StageID) -> Int? { returnsTo.first { $0.stage == target }?.limit }
+}
+
+/// `on_fail { stage?, limit = 3 }` of a `gate` stage (v0.11.4 §3.1). Both fields default, see `failReturn(in:)`.
+public struct FailReturn: Codable, Hashable, Sendable {
+    public static let defaultLimit = 3
+    public var stage: StageID?
+    public var limit: Int
+    public init(stage: StageID? = nil, limit: Int = defaultLimit) { self.stage = stage; self.limit = limit }
 }
 
 public struct ConflictReturn: Codable, Hashable, Sendable {
@@ -262,17 +309,24 @@ public struct StageHooks: Codable, Hashable, Sendable {
 // MARK: - Projection to the protocol
 
 public extension StageConfig {
-    var summary: StageSummary {
+    /// Board projection. `onFail` (gate) / `onConflict` (merge) are sent already resolved (v0.11.4 §3.1): the client
+    /// never computes defaults. They are `nil` only for other kinds or an invalid pipeline without a return target.
+    /// `gitPolicy` is the resolved policy of `agent` stages (v0.11.6 §8.4), `nil` for other kinds.
+    func summary(in pipeline: PipelineConfig) -> StageSummary {
         StageSummary(id: id, name: name, kind: kind, display: display, wip: effectiveWIP, model: agent?.model,
                      readOnly: isReadOnly, returnsTo: returnsTo, onSuccess: onSuccess,
-                     maxAttempts: (kind == .agent || kind == .gate) ? retry.maxAttempts : nil)
+                     maxAttempts: (kind == .agent || kind == .gate) ? retry.maxAttempts : nil,
+                     gates: gates, onFail: failReturn(in: pipeline), onConflict: conflictReturn(in: pipeline),
+                     gitPolicy: kind == .agent ? GitPolicyResolver.resolve(project: pipeline.git, stage: self) : nil)
     }
 }
 
 public extension PipelineConfig {
     func summary(projectId: ProjectID, versionHash: String?, issues: [ValidationIssue] = [], hasUncommittedEdits: Bool = false) -> PipelineSummary {
         PipelineSummary(projectId: projectId, versionHash: versionHash, gitPreset: git.preset, maxWaitingHuman: board.maxWaitingHuman,
-                        maxRunsPerTask: board.maxRunsPerTask, stages: stages.map(\.summary), issues: issues,
-                        hasUncommittedEdits: hasUncommittedEdits)
+                        maxRunsPerTask: board.maxRunsPerTask, stages: stages.map { $0.summary(in: self) }, issues: issues,
+                        hasUncommittedEdits: hasUncommittedEdits, defaultReturnStage: defaultReturnStage,
+                        projectGitPolicy: GitPolicyResolver.resolveProject(git),
+                        gitCommandCatalog: GitPolicyResolver.gitCommandCatalog)
     }
 }

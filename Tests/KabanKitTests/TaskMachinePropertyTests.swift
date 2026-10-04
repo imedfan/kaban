@@ -166,7 +166,7 @@ final class TaskMachinePropertyTests: XCTestCase {
         if s.totalBounces > p.board.bounceLimitTotal { return "totalBounces over limit" }
         for (key, n) in s.bounces {
             let limit: Int? = key == TaskMachineState.conflictBounceKey ? p.mergeStage?.conflictReturn(in: p)?.limit
-                : p.stages.lazy.flatMap { st in (st.returnsTo + [st.onFail].compactMap { $0 }).map { (TaskMachineState.bounceKey(from: st.id, to: $0.stage), $0.limit) } }
+                : p.stages.lazy.flatMap { st in (st.returnsTo + [st.failReturn(in: p)].compactMap { $0 }).map { (TaskMachineState.bounceKey(from: st.id, to: $0.stage), $0.limit) } }
                     .first { $0.0 == key }?.1
             guard let limit, n <= limit else { return "bounce \(key)=\(n) over limit" }
         }

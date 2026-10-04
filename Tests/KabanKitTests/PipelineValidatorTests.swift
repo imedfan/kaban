@@ -24,7 +24,8 @@ final class PipelineValidatorTests: XCTestCase {
         XCTAssertEqual(c.workspace, WorkspaceSettings(warmPaths: ["node_modules", ".gradle"], onCreate: "npm ci --prefer-offline"))
         XCTAssertEqual(c.stage("test")?.returnsTo, [StageReturn(stage: "dev", limit: 3)])
         XCTAssertEqual(c.stage("test")?.retry, RetryPolicy())   // defaults: 3 attempts, [30s, 2m]
-        XCTAssertEqual(c.stage("lint")?.onFail, StageReturn(stage: "dev", limit: 2))
+        XCTAssertEqual(c.stage("lint")?.onFail, FailReturn(stage: "dev", limit: 2))
+        XCTAssertEqual(c.stage("lint")?.failReturn(in: c), StageReturn(stage: "dev", limit: 2))
         XCTAssertEqual(c.stage("ai_review")?.isReadOnly, true)
         XCTAssertEqual(c.stage("merge")?.conflictReturn(in: c), StageReturn(stage: "dev", limit: 2))
         XCTAssertEqual(c.board, BoardSettings())
@@ -82,9 +83,9 @@ final class PipelineValidatorTests: XCTestCase {
         let v = PipelineValidator.validate(yaml: try Fixtures.text("bad-semantics.yaml"))
         XCTAssertFalse(v.isValid)
         let expected: [(String, String)] = [
-            (KabanValidationCode.limitOutOfRange, "board.max_runs_per_task"),
-            (KabanValidationCode.gitHardInvariant, "git.allow[0]"),
-            (KabanValidationCode.gitHardInvariant, "git.allow[1]"),
+            (ValidationCode.limitOutOfRange, "board.max_runs_per_task"),
+            (ValidationCode.gitHardInvariant, "git.allow[0]"),
+            (ValidationCode.gitHardInvariant, "git.allow[1]"),
             (ValidationCode.wipOutOfRange, "stages[1].wip"),
             (ValidationCode.modelAutoForbidden, "stages[1].agent.model"),
             (ValidationCode.secretInEnv, "stages[1].agent.env.GITHUB_TOKEN"),
@@ -92,10 +93,10 @@ final class PipelineValidatorTests: XCTestCase {
             (ValidationCode.backoffTooLong, "stages[1].retry.backoff"),
             (ValidationCode.modelMissing, "stages[2].agent.model"),
             (ValidationCode.returnsForward, "stages[2].returns_to[0].stage"),
-            (KabanValidationCode.agentMissing, "stages[3].agent"),
+            (ValidationCode.agentMissing, "stages[3].agent"),
             (ValidationCode.modelMissing, "stages[3].agent.model"),
-            (KabanValidationCode.duplicateId, "stages[5].id"),
-            (KabanValidationCode.onSuccessCycle, "stages[2].on_success"),
+            (ValidationCode.duplicateId, "stages[5].id"),
+            (ValidationCode.onSuccessCycle, "stages[2].on_success"),
         ]
         for (code, path) in expected {
             XCTAssertTrue(v.has(code, at: path), "missing \(code) at \(path)\n\(v.dump)")
@@ -106,21 +107,21 @@ final class PipelineValidatorTests: XCTestCase {
     func testStructuralErrorsAreIssuesNotThrows() throws {
         let v = PipelineValidator.validate(yaml: try Fixtures.text("bad-structure.yaml"))
         XCTAssertFalse(v.isValid)
-        XCTAssertTrue(v.has(KabanValidationCode.versionUnsupported, at: "version"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.typeMismatch, at: "board.max_runs_per_task"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.unknownKey, at: "mcp", .warning), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.invalidValue, at: "stages[1].kind"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.missingField, at: "stages[2].id"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.versionUnsupported, at: "version"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.typeMismatch, at: "board.max_runs_per_task"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.unknownKey, at: "mcp", .warning), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.invalidValue, at: "stages[1].kind"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.missingField, at: "stages[2].id"), v.dump)
         // backlog → dev is dangling because `dev` was dropped for its invalid kind.
-        XCTAssertTrue(v.has(KabanValidationCode.unknownStage, at: "stages[0].on_success"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.mergeCount, at: "stages"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.unknownStage, at: "stages[0].on_success"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.mergeCount, at: "stages"), v.dump)
     }
 
     func testSyntaxErrorHasLine() throws {
         let v = PipelineValidator.validate(yaml: try Fixtures.text("bad-syntax.yaml"))
         XCTAssertNil(v.config)
         XCTAssertEqual(v.issues.count, 1)
-        XCTAssertEqual(v.issues.first?.code, KabanValidationCode.yamlSyntax)
+        XCTAssertEqual(v.issues.first?.code, ValidationCode.yamlSyntax)
         XCTAssertTrue(v.issues.first?.message.hasPrefix("line 5:") ?? false, v.dump)
     }
 
@@ -172,10 +173,10 @@ final class PipelineValidatorTests: XCTestCase {
           - { id: merge2, kind: merge }
         """
         let v = PipelineValidator.validate(yaml: noTerminal)
-        XCTAssertTrue(v.has(KabanValidationCode.terminalMissing, at: "stages"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.mergeCount, at: "stages[3].kind"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.onSuccessMissing, at: "stages[3].on_success"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.onSuccessCycle, at: "stages[1].on_success"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.terminalMissing, at: "stages"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.mergeCount, at: "stages[3].kind"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.onSuccessMissing, at: "stages[3].on_success"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.onSuccessCycle, at: "stages[1].on_success"), v.dump)
     }
 
     func testKindSpecificFields() {
@@ -190,17 +191,17 @@ final class PipelineValidatorTests: XCTestCase {
           - { id: done, kind: terminal, on_success: dev }
         """
         let v = PipelineValidator.validate(yaml: yaml)
-        XCTAssertTrue(v.has(KabanValidationCode.fieldNotAllowedForKind, at: "stages[0].gates"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.harnessUnsupported, at: "stages[1].agent.harness"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.fieldNotAllowedForKind, at: "stages[1].on_fail"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.missingField, at: "stages[2].gates"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.attemptsOutOfRange, at: "stages[2].retry.max_attempts"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.fieldNotAllowedForKind, at: "stages[3].agent"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.returnsNotAllowed, at: "stages[3].returns_to"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.fieldNotAllowedForKind, at: "stages[0].gates"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.harnessUnsupported, at: "stages[1].agent.harness"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.fieldNotAllowedForKind, at: "stages[1].on_fail"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.missingField, at: "stages[2].gates"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.attemptsOutOfRange, at: "stages[2].retry.max_attempts"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.fieldNotAllowedForKind, at: "stages[3].agent"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.returnsNotAllowed, at: "stages[3].returns_to"), v.dump)
         XCTAssertTrue(v.has(ValidationCode.wipOutOfRange, at: "stages[4].wip"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.durationOutOfRange, at: "stages[4].timeouts.wall") ||
-                      v.has(KabanValidationCode.durationOutOfRange, at: "stages[4].timeouts.stall"), v.dump)
-        XCTAssertTrue(v.has(KabanValidationCode.terminalHasOnSuccess, at: "stages[5].on_success"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.durationOutOfRange, at: "stages[4].timeouts.wall") ||
+                      v.has(ValidationCode.durationOutOfRange, at: "stages[4].timeouts.stall"), v.dump)
+        XCTAssertTrue(v.has(ValidationCode.terminalHasOnSuccess, at: "stages[5].on_success"), v.dump)
     }
 
     func testTypedConfigValidationAndSummary() {

@@ -2,13 +2,17 @@ import Foundation
 import KabanProtocol
 
 /// Collects `ValidationIssue`s with field paths like `stages[2].wip`.
+/// `stage` is the stage currently being parsed/validated: issues get it as `stageId` for highlighting (v0.11.2 §3.1)
+/// unless a call passes its own. `params` carry the placeholders of the spec §4.1 UI texts (arch. v0.11.7) except
+/// `{stage}` (from `stageId`) and `{path}` (from `path`), which are never duplicated there.
 struct IssueSink {
     var issues: [ValidationIssue] = []
-    mutating func error(_ path: String, _ code: String, _ message: String) {
-        issues.append(ValidationIssue(path: path, code: code, message: message, severity: .error))
+    var stage: StageID?
+    mutating func error(_ path: String, _ code: String, _ message: String, stageId: StageID? = nil, params: [String: String] = [:]) {
+        issues.append(ValidationIssue(path: path, stageId: stageId ?? stage, code: code, message: message, severity: .error, params: params))
     }
-    mutating func warning(_ path: String, _ code: String, _ message: String) {
-        issues.append(ValidationIssue(path: path, code: code, message: message, severity: .warning))
+    mutating func warning(_ path: String, _ code: String, _ message: String, stageId: StageID? = nil, params: [String: String] = [:]) {
+        issues.append(ValidationIssue(path: path, stageId: stageId ?? stage, code: code, message: message, severity: .warning, params: params))
     }
 }
 
@@ -23,7 +27,7 @@ struct PipelineParser {
 
     mutating func parse(_ root: YAMLNode) -> PipelineConfig? {
         guard case .mapping(let entries) = root.value else {
-            sink.error("", KabanValidationCode.typeMismatch, "pipeline.yaml must be a mapping at the top level (line \(root.line))")
+            sink.error("", ValidationCode.typeMismatch, "pipeline.yaml must be a mapping at the top level (line \(root.line))")
             return nil
         }
         checkKeys(entries, allowed: ["version", "board", "workspace", "git", "suspicious_files", "stages"], path: "")
@@ -32,10 +36,10 @@ struct PipelineParser {
         if let v = root["version"] {
             if let n = int(v, "version") {
                 config.version = n
-                if n != 1 { sink.error("version", KabanValidationCode.versionUnsupported, "Unsupported pipeline version \(n); expected 1") }
+                if n != 1 { sink.error("version", ValidationCode.versionUnsupported, "Unsupported pipeline version \(n); expected 1", params: ["n": String(n)]) }
             }
         } else {
-            sink.error("version", KabanValidationCode.missingField, "Field 'version' is required (version: 1)")
+            sink.error("version", ValidationCode.missingField, "Field 'version' is required (version: 1)")
         }
 
         if let b = root["board"], let e = mapping(b, "board") {
@@ -55,7 +59,7 @@ struct PipelineParser {
             checkKeys(e, allowed: ["preset", "allow", "deny"], path: "git")
             if let p = g["preset"].flatMap({ string($0, "git.preset") }) {
                 if let preset = GitPreset(rawValue: p) { config.git.preset = preset } else {
-                    sink.error("git.preset", KabanValidationCode.invalidValue, "Unknown git preset '\(p)'; expected strict, standard or permissive")
+                    sink.error("git.preset", ValidationCode.invalidValue, "Unknown git preset '\(p)'; expected strict, standard or permissive", params: ["value": p])
                 }
             }
             if let l = g["allow"].flatMap({ stringList($0, "git.allow") }) { config.git.allow = l }
@@ -78,10 +82,10 @@ struct PipelineParser {
                     }
                 }
             } else if !st.isNull {
-                sink.error("stages", KabanValidationCode.typeMismatch, "'stages' must be a list (line \(st.line))")
+                sink.error("stages", ValidationCode.typeMismatch, "'stages' must be a list (line \(st.line))")
             }
         } else {
-            sink.error("stages", KabanValidationCode.missingField, "Field 'stages' is required")
+            sink.error("stages", ValidationCode.missingField, "Field 'stages' is required")
         }
         return config
     }
@@ -92,18 +96,22 @@ struct PipelineParser {
     mutating func parseStage(_ node: YAMLNode, index i: Int) -> StageConfig? {
         let p = "stages[\(i)]"
         guard let entries = mapping(node, p) else { return nil }
-        checkKeys(entries, allowed: Self.stageKeys, path: p)
         guard let id = node["id"].flatMap({ string($0, "\(p).id") }) else {
-            sink.error("\(p).id", KabanValidationCode.missingField, "Stage at line \(node.line) has no 'id'")
+            checkKeys(entries, allowed: Self.stageKeys, path: p)
+            sink.error("\(p).id", ValidationCode.missingField, "Stage at line \(node.line) has no 'id'")
             return nil
         }
+        sink.stage = StageID(rawValue: id)
+        defer { sink.stage = nil }
+        checkKeys(entries, allowed: Self.stageKeys, path: p)
         guard let kindText = node["kind"].flatMap({ string($0, "\(p).kind") }) else {
-            sink.error("\(p).kind", KabanValidationCode.missingField, "Stage '\(id)' has no 'kind'")
+            sink.error("\(p).kind", ValidationCode.missingField, "Stage '\(id)' has no 'kind'")
             return nil
         }
         guard let kind = StageKind(rawValue: kindText) else {
-            sink.error("\(p).kind", KabanValidationCode.invalidValue,
-                       "Stage '\(id)': unknown kind '\(kindText)'; expected one of \(StageKind.allCases.map(\.rawValue).joined(separator: ", "))")
+            sink.error("\(p).kind", ValidationCode.invalidValue,
+                       "Stage '\(id)': unknown kind '\(kindText)'; expected one of \(StageKind.allCases.map(\.rawValue).joined(separator: ", "))",
+                       params: ["value": kindText])
             return nil
         }
         var stage = StageConfig(id: StageID(rawValue: id), kind: kind, display: StageDisplay(order: i))
@@ -122,7 +130,7 @@ struct PipelineParser {
             var rules: [PriorityRule] = []
             for (j, r) in pr.enumerated() {
                 if let rule = PriorityRule(rawValue: r) { rules.append(rule) } else {
-                    sink.error("\(p).priority[\(j)]", KabanValidationCode.invalidValue, "Unknown priority rule '\(r)'; expected returned, answered or fifo")
+                    sink.error("\(p).priority[\(j)]", ValidationCode.invalidValue, "Unknown priority rule '\(r)'; expected returned, answered or fifo", params: ["value": r])
                 }
             }
             stage.priority = rules
@@ -136,10 +144,10 @@ struct PipelineParser {
             if case .sequence(let items) = r.value {
                 stage.returnsTo = items.enumerated().compactMap { j, item in parseReturn(item, path: "\(p).returns_to[\(j)]", limitRequired: true) }
             } else {
-                sink.error("\(p).returns_to", KabanValidationCode.typeMismatch, "'returns_to' must be a list of { stage, limit }")
+                sink.error("\(p).returns_to", ValidationCode.typeMismatch, "'returns_to' must be a list of { stage, limit }")
             }
         }
-        if let f = node["on_fail"], !f.isNull { stage.onFail = parseReturn(f, path: "\(p).on_fail", limitRequired: true) }
+        if let f = node["on_fail"], !f.isNull { stage.onFail = parseFailReturn(f, path: "\(p).on_fail") }
         if let c = node["on_conflict"], !c.isNull, let e = mapping(c, "\(p).on_conflict") {
             checkKeys(e, allowed: ["stage", "limit"], path: "\(p).on_conflict")
             var cr = ConflictReturn()
@@ -154,7 +162,7 @@ struct PipelineParser {
                 var secs: [Int] = []
                 for (j, item) in list.enumerated() {
                     if let s = DurationParser.seconds(item) { secs.append(s) } else {
-                        sink.error("\(p).retry.backoff[\(j)]", KabanValidationCode.invalidValue, "Invalid duration '\(item)' (use 30s, 2m, 1h)")
+                        sink.error("\(p).retry.backoff[\(j)]", ValidationCode.invalidValue, "Invalid duration '\(item)' (use 30s, 2m, 1h)", params: ["value": item])
                     }
                 }
                 stage.retry.backoffSeconds = secs
@@ -183,7 +191,7 @@ struct PipelineParser {
         agent.skill = node["skill"].flatMap { string($0, "\(p).skill") }
         if let perm = node["permissions"].flatMap({ string($0, "\(p).permissions") }) {
             if let v = AgentPermissions(rawValue: perm) { agent.permissions = v } else {
-                sink.error("\(p).permissions", KabanValidationCode.invalidValue, "Unknown permissions '\(perm)'; expected write or read-only")
+                sink.error("\(p).permissions", ValidationCode.invalidValue, "Unknown permissions '\(perm)'; expected write or read-only", params: ["value": perm])
             }
         }
         if let m = node["mcp"].flatMap({ stringList($0, "\(p).mcp") }) { agent.mcp = m }
@@ -196,7 +204,7 @@ struct PipelineParser {
         }
         if let w = node["workspace"].flatMap({ string($0, "\(p).workspace") }) {
             if let v = AgentWorkspaceMode(rawValue: w) { agent.workspace = v } else {
-                sink.error("\(p).workspace", KabanValidationCode.invalidValue, "Unknown workspace '\(w)'; expected task or fresh-readonly")
+                sink.error("\(p).workspace", ValidationCode.invalidValue, "Unknown workspace '\(w)'; expected task or fresh-readonly", params: ["value": w])
             }
         }
         return agent
@@ -210,8 +218,9 @@ struct PipelineParser {
         if let l = node["deny"].flatMap({ stringList($0, "\(p).deny") }) { o.deny = l }
         if let w = node["when"].flatMap({ string($0, "\(p).when") }) {
             if let c = GitOverrideCondition.parse(w) { o.when = c } else {
-                sink.error("\(p).when", KabanValidationCode.gitConditionInvalid,
-                           "Unsupported condition '\(w)'; expected 'return_reason == <\(ReturnReason.allCases.map(\.rawValue).joined(separator: "|"))>'")
+                sink.error("\(p).when", ValidationCode.gitConditionInvalid,
+                           "Unsupported condition '\(w)'; expected 'return_reason == <\(ReturnReason.allCases.map(\.rawValue).joined(separator: "|"))>'",
+                           params: ["when": w])
             }
         }
         return o
@@ -221,28 +230,39 @@ struct PipelineParser {
         guard let e = mapping(node, p) else { return nil }
         checkKeys(e, allowed: ["stage", "limit"], path: p)
         guard let s = node["stage"].flatMap({ string($0, "\(p).stage") }) else {
-            sink.error("\(p).stage", KabanValidationCode.missingField, "Return target needs 'stage'")
+            sink.error("\(p).stage", ValidationCode.missingField, "Return target needs 'stage'")
             return nil
         }
         guard let l = node["limit"].flatMap({ int($0, "\(p).limit") }) else {
-            sink.error("\(p).limit", KabanValidationCode.missingField, "Return to '\(s)' needs an explicit 'limit'")
+            sink.error("\(p).limit", ValidationCode.missingField, "Return to '\(s)' needs an explicit 'limit'")
             return nil
         }
         return StageReturn(stage: StageID(rawValue: s), limit: l)
+    }
+
+    /// `on_fail { stage?, limit = 3 }` (v0.11.4 §3.1): both fields are optional.
+    mutating func parseFailReturn(_ node: YAMLNode, path p: String) -> FailReturn? {
+        guard let e = mapping(node, p) else { return nil }
+        checkKeys(e, allowed: ["stage", "limit"], path: p)
+        var f = FailReturn()
+        f.stage = node["stage"].flatMap { string($0, "\(p).stage") }.map(StageID.init(rawValue:))
+        if let l = node["limit"].flatMap({ int($0, "\(p).limit") }) { f.limit = l }
+        return f
     }
 
     // MARK: Primitive readers
 
     mutating func checkKeys(_ entries: [YAMLEntry], allowed: Set<String>, path: String) {
         for e in entries where !allowed.contains(e.key) {
-            sink.warning(Self.join(path, e.key), KabanValidationCode.unknownKey, "Unknown key '\(e.key)' (line \(e.keyLine)) is ignored")
+            sink.warning(Self.join(path, e.key), ValidationCode.unknownKey, "Unknown key '\(e.key)' (line \(e.keyLine)) is ignored",
+                         params: ["key": e.key, "line": String(e.keyLine)])
         }
     }
 
     mutating func mapping(_ node: YAMLNode, _ path: String) -> [YAMLEntry]? {
         if case .mapping(let e) = node.value { return e }
         if node.isNull { return nil }
-        sink.error(path, KabanValidationCode.typeMismatch, "Expected a mapping (line \(node.line))")
+        sink.error(path, ValidationCode.typeMismatch, "Expected a mapping (line \(node.line))")
         return nil
     }
 
@@ -251,7 +271,7 @@ struct PipelineParser {
         switch node.value {
         case .scalar(let s, _): return node.isNull ? nil : s
         default:
-            sink.error(path, KabanValidationCode.typeMismatch, "Expected a single value (line \(node.line))")
+            sink.error(path, ValidationCode.typeMismatch, "Expected a single value (line \(node.line))")
             return nil
         }
     }
@@ -259,14 +279,14 @@ struct PipelineParser {
     mutating func int(_ node: YAMLNode, _ path: String) -> Int? {
         guard let s = string(node, path) else { return nil }
         if case .scalar(_, let quoted) = node.value, !quoted, let n = Int(s) { return n }
-        sink.error(path, KabanValidationCode.typeMismatch, "Expected an integer, got '\(s)' (line \(node.line))")
+        sink.error(path, ValidationCode.typeMismatch, "Expected an integer, got '\(s)' (line \(node.line))")
         return nil
     }
 
     mutating func double(_ node: YAMLNode, _ path: String) -> Double? {
         guard let s = string(node, path) else { return nil }
         if case .scalar(_, let quoted) = node.value, !quoted, let n = Double(s), n.isFinite { return n }
-        sink.error(path, KabanValidationCode.typeMismatch, "Expected a number, got '\(s)' (line \(node.line))")
+        sink.error(path, ValidationCode.typeMismatch, "Expected a number, got '\(s)' (line \(node.line))")
         return nil
     }
 
@@ -275,14 +295,14 @@ struct PipelineParser {
         if case .scalar(_, let quoted) = node.value, !quoted {
             switch s { case "true", "True", "TRUE", "yes": return true; case "false", "False", "FALSE", "no": return false; default: break }
         }
-        sink.error(path, KabanValidationCode.typeMismatch, "Expected true or false, got '\(s)' (line \(node.line))")
+        sink.error(path, ValidationCode.typeMismatch, "Expected true or false, got '\(s)' (line \(node.line))")
         return nil
     }
 
     mutating func duration(_ node: YAMLNode, _ path: String) -> Int? {
         guard let s = string(node, path) else { return nil }
         if let v = DurationParser.seconds(s) { return v }
-        sink.error(path, KabanValidationCode.invalidValue, "Invalid duration '\(s)' (use 30s, 10m, 1h)")
+        sink.error(path, ValidationCode.invalidValue, "Invalid duration '\(s)' (use 30s, 10m, 1h)", params: ["value": s])
         return nil
     }
 
@@ -290,7 +310,7 @@ struct PipelineParser {
     mutating func stringList(_ node: YAMLNode, _ path: String) -> [String]? {
         if node.isNull { return [] }
         guard case .sequence(let items) = node.value else {
-            sink.error(path, KabanValidationCode.typeMismatch, "Expected a list (line \(node.line))")
+            sink.error(path, ValidationCode.typeMismatch, "Expected a list (line \(node.line))")
             return nil
         }
         var out: [String] = []

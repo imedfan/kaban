@@ -278,8 +278,9 @@ final class TaskMachineTests: XCTestCase {
         XCTAssertEqual(h.s.stageId, "dev")
         XCTAssertEqual(h.s.returnReason, .mergeConflict)
         XCTAssertEqual(h.s.bounces["merge_conflict"], 1)
-        let policy = GitPolicyResolver.resolve(project: base.git, stage: base.stage("dev")!, returnReason: h.s.returnReason)
+        let policy = GitPolicyResolver.resolve(project: base.git, stage: base.stage("dev")!)
         XCTAssertEqual(policy.preset, .standard)
+        XCTAssertEqual(policy.allowed(for: h.s.returnReason), policy.allowed, "base dev has no conditional rules")
         let r = h.ok(.start(runId: "r-1")).startedRuns[0]
         XCTAssertEqual(r.prompt, [.mergeConflict(files: ["a.swift"])])
         XCTAssertEqual(r.returnReason, .mergeConflict)
