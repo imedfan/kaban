@@ -44,13 +44,14 @@ TaskEvent.human разложен во второй матрице. StartBlock р
   maxRuns → H:run_limit, нет явной модели → I. gate → G:gates, merge → G:rebase,
   human → H:review, terminal → D, queue → вход onSuccess. WIP/квоту/backoff
   проверяет исполнитель до start; чистый автомат не обеспечивает это самостоятельно.
-- Вход в target: terminal → D, human → H:review, прочие → Q; нет target/onSuccess
+- Вход в target: terminal → D, все остальные kind (включая human) → Q;
+  только последующий start в human-стадии переводит Q → H:review; нет target/onSuccess
   → H:incident. На входе resets attempts/context стадии.
 - K: текущий runId в R разрешён; lastRunId finished → I, иной runId → F.
   Клетки в R также требуют currentRunId; runEnded/modelMismatch/gitDenialLimit
   с несовпавшим currentRunId → I.
 - RT: разрешённый returnsTo → вход target, bounce +1; превышен лимит → H:bounce_limit,
-  общий лимит возвратов → H:run_limit; неразрешённый target → F.
+  общий лимит возвратов → H:bounce_limit; неразрешённый target → F.
 - E: crash/stall/wall → WIP save+rollback, списать attempt, T соответствующей причины
   либо H:retries_exhausted; noFinalCall → T:no_final_call либо исчерпание;
   rateLimit/runnerAuth/silentExit → T без списания; usageExhausted/modelUnavailable
