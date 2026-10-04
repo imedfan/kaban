@@ -13,9 +13,15 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private let boardSet = BoardSetStore(storage: DefaultsStorage())
     var projection: BoardProjection?
     var visibleIDs: [ProjectID] = []
+    var selectedProjectID: ProjectID?
     var selectedID: TaskID?
     var detail: TaskDetail?
     var error: String?
+    var editorError: String?
+    private(set) var creation = TaskCreationPending()
+    private(set) var createdTaskID: TaskID?
+    private var selection = TaskDetailSelection()
+    private var taskReadFloors: [TaskID: Seq] = [:]
     private var didConnect = false
 
     init(client: any KabanClient) { self.client = client }
@@ -26,17 +32,50 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         do {
             let snapshot = try await client.getSnapshot()
             projection = BoardProjection(snapshot: snapshot)
+            taskReadFloors = Dictionary(uniqueKeysWithValues: snapshot.tasks.map { ($0.id, snapshot.seq) })
             boardSet.bootstrap(projects: snapshot.projects.map(\.id))
             visibleIDs = boardSet.visibleProjectIds
+            selectedProjectID = snapshot.projects.first?.id
             for await event in stream {
                 guard !Task.isCancelled else { break }
                 guard var board = projection else { continue }
                 let result = board.apply(event)
-                if case .gap = result { board.replace(with: try await client.getSnapshot()) }
-                boardSet.apply(event.event)
+                if case .gap = result {
+                    let snapshot = try await client.getSnapshot()
+                    board.replace(with: snapshot)
+                    taskReadFloors = Dictionary(uniqueKeysWithValues: snapshot.tasks.map { ($0.id, snapshot.seq) })
+                    projection = board
+                    boardSet.bootstrap(projects: board.projectOrder)
+                    visibleIDs = boardSet.visibleProjectIds
+                    if selectedProjectID == nil || selectedProjectID.map({ board.projects[$0] == nil }) == true { selectedProjectID = board.projectOrder.first }
+                    if let id = creation.commandID { creation.fail(id); editorError = "Доска обновлена. Проверьте, была ли создана задача." }
+                    // Invalidate older detail requests, including same-task body responses.
+                    if let id = selectedID { await select(board.tasks[id] == nil ? nil : id) }
+                    continue
+                }
                 projection = board
+                guard result == .applied else { continue }
+                switch event.event {
+                case .taskCreated(let card), .taskEdited(let card), .taskUpdated(let card): taskReadFloors[card.id] = event.seq
+                default: break
+                }
+                boardSet.apply(event.event)
                 visibleIDs = boardSet.visibleProjectIds
-                if let id = selectedID { await select(id) }
+                if selectedProjectID == nil || selectedProjectID.map({ board.projects[$0] == nil }) == true { selectedProjectID = board.projectOrder.first }
+                if let id = creation.finish(with: event) {
+                    createdTaskID = id
+                    if let project = board.tasks[id]?.projectId { show(project); selectedProjectID = project }
+                    Task { await select(id) }
+                } else if let id = selectedID {
+                    if board.tasks[id] == nil { await select(nil) }
+                    else {
+                        switch event.event {
+                        case .taskUpdated(let card) where card.id == id, .taskEdited(let card) where card.id == id:
+                            Task { await refreshDetail(id) }
+                        default: break
+                        }
+                    }
+                }
             }
         } catch { self.error = error.localizedDescription }
         didConnect = false
@@ -44,28 +83,60 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     func select(_ id: TaskID?) async {
         selectedID = id
         detail = nil
-        guard let id else { return }
+        _ = selection.begin(id)
+        if let id { await refreshDetail(id) }
+    }
+    private func refreshDetail(_ id: TaskID) async {
+        guard selectedID == id else { return }
+        let generation = selection.begin(id)
         do {
             let result = try await client.send(.getTaskDetail(taskId: id), commandId: UUID())
-            guard selectedID == id else { return }
+            guard selection.accepts(generation, taskID: id) else { return }
             switch result {
-            case .taskDetail(let detail): self.detail = detail
+            case .taskDetail(let detail):
+                guard selection.accepts(generation, detail: detail, minimumSeq: taskReadFloors[id] ?? 0) else { return }
+                self.detail = detail
             case .error(let error): self.error = error.message
             default: self.error = "Не удалось получить детали задачи."
             }
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            guard selection.accepts(generation, taskID: id) else { return }
+            self.error = error.localizedDescription
+        }
     }
-    func send(_ command: Command, taskID: TaskID) async {
+    func prepareCreation() { editorError = nil; createdTaskID = nil }
+    func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
+        guard draft.canSubmit, projection?.projects[projectID] != nil else { return }
+        let commandID = UUID()
+        guard creation.begin(commandID: commandID, projectID: projectID) else { return }
+        editorError = nil
+        do {
+            let result = try await client.send(.createTask(projectId: projectID, title: draft.title, body: draft.body), commandId: commandID)
+            if case .error(let error) = result {
+                guard creation.commandID == commandID else { return }
+                creation.fail(commandID); editorError = error.message
+            }
+            // A task ID in the receipt is not a card. Selection waits for correlated taskCreated.
+        } catch {
+            guard creation.commandID == commandID else { return }
+            creation.fail(commandID); editorError = error.localizedDescription
+        }
+    }
+    @discardableResult func send(_ command: Command, taskID: TaskID, editor: Bool = false) async -> Bool {
+        guard let board = projection, board.tasks[taskID] != nil, !board.isSent(taskID) else { return false }
         let commandID = UUID()
         projection?.markSent(commandId: commandID, taskId: taskID, at: Date())
         do {
-            if case .error(let error) = try await client.send(command, commandId: commandID) {
+            if case .error(let commandError) = try await client.send(command, commandId: commandID) {
                 projection?.noteCommandError(commandID)
-                self.error = error.message
+                if editor { editorError = commandError.message } else { error = commandError.message }
+                return false
             }
+            return true
         } catch {
             projection?.noteCommandError(commandID)
-            self.error = error.localizedDescription
+            if editor { editorError = error.localizedDescription } else { self.error = error.localizedDescription }
+            return false
         }
     }
     func hide(_ id: ProjectID) { boardSet.hide(id); visibleIDs = boardSet.visibleProjectIds }
