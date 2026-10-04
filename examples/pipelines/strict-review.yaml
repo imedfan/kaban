@@ -1,0 +1,18 @@
+# Replace <model-id> with an explicit id from cursor-agent --list-models before use.
+# No default model and no auto. Synthetic examples; inspect gate commands before running.
+version: 1
+git: {preset: strict}
+stages:
+  - {id: backlog, kind: queue, on_success: dev}
+  - id: dev
+    kind: agent
+    agent: {model: "<model-id>", permissions: write}
+    on_success: review
+  - id: review
+    kind: agent
+    agent: {model: "<model-id>", permissions: read-only}
+    returns_to: [{stage: dev, limit: 2}]
+    on_success: human
+  - {id: human, kind: human, wip: 5, on_success: merge}
+  - {id: merge, kind: merge, on_conflict: {stage: dev, limit: 2}, on_success: done}
+  - {id: done, kind: terminal}
