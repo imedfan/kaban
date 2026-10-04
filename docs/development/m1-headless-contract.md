@@ -162,7 +162,8 @@ Tick ограничен конечным числом admissions/starts и не 
 - Human/queue/terminal admission не расходует глобальный **agent run** slot.
   У managed fixture нет отдельных live gate/merge процессов.
 - При уменьшении лимита ниже occupancy существующих задач не вытесняют;
-  новые admissions/starts ждут освобождения. Следующая eligible задача не
+  новые admissions/starts ждут освобождения. Пауза human review сохраняет допуск; resume возвращает `waiting_human: review`
+  без нового admission. Пауза queued до admission возвращает queued. Следующая eligible задача не
   блокируется неготовым кандидатом.
 - В проекте приоритет: returned/answered раньше новых, затем card priority,
   затем durable FIFO с детерминированным tie-break по task ID. Admission в queue
@@ -188,14 +189,14 @@ live merge и process reconciliation остаются следующими сл�
 | HC-02 | Unknown legacy projection | Wire query явно incompleteProjection; внутренний v1 snapshot/reopen остаётся совместимым |
 | HC-03 | Создание → tick → fake question | Task waiting_human:question, run завершён asked_human, запрос и feed durable, execution slot свободен |
 | HC-04 | Ответ → tick → fake completion → human admission | Agent получает answer context; stage summary artifact один; task waiting_human:review |
-| HC-05 | Approve → terminal tick | Task done, все известные fake effects drained с truthful audit receipts; устаревшего start нет, detail/history доступны |
+| HC-05 | Approve → немедленно done; tick/worker drain | Task done, все известные fake effects drained с truthful audit receipts; устаревшего start нет, detail/history доступны |
 | HC-06 | Reopen на running/waiting_human/done | Card, machine counters, pipeline, detail, settings и seq сохраняются; recovery действует только на активные runs |
 | HC-07 | Повтор commandId/tickId/effect ID после reopen | Те же receipts; нет второго question/completion/artifact/journal/start и лишнего cursor advance |
 | HC-08 | Тот же ID с другим command/effect payload | Явный conflict, состояние и journal не изменены |
 | HC-09 | Чужой requestId, answer на human, approve на agent | Reject; вопрос, task и counters не изменены |
 | HC-10 | Fail между projection/result и journal/ack | Вся транзакция rollback; retry действительно завершает операцию один раз |
 | HC-11 | Stage WIP/global maxRuns и два simultaneous ticks | Starts не превышают лимиты; retry occupancy не удваивается |
-| HC-12 | Human admission marker + limit shrink | Queued/paused до admission: 0; waiting/paused/resumed queued после admission: 1 до stage exit/final; повтор admission не удваивает occupancy; новый вход блокируется без вытеснения |
+| HC-12 | Human admission marker + limit shrink | Queued/paused до admission: 0; waiting/paused/resumed review после admission: 1 до stage exit/final; повтор admission не удваивает occupancy; новый вход блокируется без вытеснения |
 | HC-13 | Приоритет/FIFO и blocked intake | Answered/returned раньше новых, затем priority/FIFO; task без criteria не стартует, но не блокирует eligible |
 | HC-14 | Два eligible проекта с разными weights | Нет starvation; результаты конечного набора ticks отражают weight; reopen сохраняет порядок/credits |
 | HC-15 | Cancel/recovery между enqueue и fake delivery | Старый launch/result не воскресит задачу; kill/rollback/cleanup нового состояния сохраняются |
