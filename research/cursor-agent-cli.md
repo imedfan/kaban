@@ -33,7 +33,7 @@ Local sources read without modification:
 
 ## Observed installed CLI
 
-Binary `/Users/artem/.local/bin/cursor-agent`; version `2026.09.23-86fc751`.
+Binary `~/.local/bin/cursor-agent`; version `2026.09.23-86fc751`.
 `--version`, `--help`, `mcp --help`, `status --help` each completed within
 30 seconds, exit 0, empty stderr. Help calls establish syntax, not behavior.
 Current docs use executable name `agent`; Kaban can retain the discovered
@@ -130,7 +130,7 @@ All generated data stays in a temporary directory. Substitute the binary
 path on mbp; do not install or alter shell/global configuration.
 
 ```bash
-CA=/Users/artem/.local/bin/cursor-agent
+CA="$(command -v cursor-agent)"
 KS="$PWD/spikes/backend/lib/kspike.py"  # run from repository root
 TD=$(mktemp -d /private/tmp/kaban-team2-cli.XXXXXX)
 mkdir -p "$TD/repo" "$TD/out" "$TD/home" "$TD/config"
