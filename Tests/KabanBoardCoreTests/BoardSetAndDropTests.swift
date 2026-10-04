@@ -2,6 +2,61 @@ import XCTest
 @testable import KabanBoardCore
 import KabanProtocol
 
+final class BoardSetTests: XCTestCase {
+    func testAddAppendsOnceAndReaddDoesNotTouchAddedOrder() {
+        var set = BoardSet()
+        set.add("a")
+        set.add("b", at: 0)
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["b", "a"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "b"])
+        set.add("a", at: 0)
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["a", "b"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "b"])
+    }
+
+    func testMoveChangesOnlyDisplayOrder() {
+        var set = BoardSet(lanes: ["a", "b", "c"])
+        set.move("a", to: 2)
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["b", "c", "a"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "b", "c"])
+        set.shiftDisplay("c", by: -1)
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["c", "b", "a"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "b", "c"])
+    }
+
+    func testRemoveAndPruneDropBothOrdersAndReaddGoesToTheEnd() {
+        var set = BoardSet(lanes: ["a", "b", "c"])
+        set.remove("b")
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["a", "c"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "c"])
+        set.add("b", at: 0)
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["b", "a", "c"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "c", "b"])
+        set.prune(existing: ["a", "b"])
+        XCTAssertEqual(set.lanes.map(\.rawValue), ["b", "a"])
+        XCTAssertEqual(set.addedOrder.map(\.rawValue), ["a", "b"])
+    }
+
+    func testMissingAddedOrderDecodesAsDisplayOrder() throws {
+        let array = Data("[\"b\",\"a\"]".utf8)
+        let fromArray = try JSONDecoder().decode(BoardSet.self, from: array)
+        XCTAssertEqual(fromArray.lanes.map(\.rawValue), ["b", "a"])
+        XCTAssertEqual(fromArray.addedOrder.map(\.rawValue), ["b", "a"])
+
+        let object = Data("{\"lanes\":[\"b\",\"a\"]}".utf8)
+        let fromObject = try JSONDecoder().decode(BoardSet.self, from: object)
+        XCTAssertEqual(fromObject.lanes.map(\.rawValue), ["b", "a"])
+        XCTAssertEqual(fromObject.addedOrder.map(\.rawValue), ["b", "a"])
+
+        var moved = BoardSet(lanes: ["a", "b"])
+        moved.move("a", to: 1)
+        let again = try JSONDecoder().decode(BoardSet.self, from: JSONEncoder().encode(moved))
+        XCTAssertEqual(again, moved)
+        XCTAssertEqual(again.addedOrder.map(\.rawValue), ["a", "b"])
+        XCTAssertEqual(again.lanes.map(\.rawValue), ["b", "a"])
+    }
+}
+
 final class BoardSetStoreTests: XCTestCase {
     func testFirstLaunchShowsEveryProjectAndSurvivesRestart() {
         let storage = MemoryKeyValueStore()
@@ -31,6 +86,39 @@ final class BoardSetStoreTests: XCTestCase {
         restarted.bootstrap(projects: ["a", "b", "c", "d", "e"])
         XCTAssertEqual(restarted.visibleProjectIds.map(\.rawValue), ["a", "c", "d", "e"])
         XCTAssertFalse(restarted.visibleProjectIds.contains("b"))
+    }
+
+    func testReorderKeepsAddedOrderAcrossRestart() {
+        let storage = MemoryKeyValueStore()
+        let store = BoardSetStore(storage: storage)
+        store.bootstrap(projects: ["a", "b", "c"])
+        XCTAssertEqual(store.addedOrder.map(\.rawValue), ["a", "b", "c"])
+        store.move("a", to: 2)
+        store.moveLeft("c")
+        XCTAssertEqual(store.visibleProjectIds.map(\.rawValue), ["c", "b", "a"])
+        XCTAssertEqual(store.addedOrder.map(\.rawValue), ["a", "b", "c"])
+        store.hide("b")
+        XCTAssertEqual(store.addedOrder.map(\.rawValue), ["a", "c"])
+        store.show("b", at: 0)
+        XCTAssertEqual(store.visibleProjectIds.map(\.rawValue), ["b", "c", "a"])
+        XCTAssertEqual(store.addedOrder.map(\.rawValue), ["a", "c", "b"])
+
+        let restarted = BoardSetStore(storage: storage)
+        restarted.bootstrap(projects: ["a", "b", "c"])
+        XCTAssertEqual(restarted.visibleProjectIds.map(\.rawValue), ["b", "c", "a"])
+        XCTAssertEqual(restarted.addedOrder.map(\.rawValue), ["a", "c", "b"])
+    }
+
+    func testLegacyLaneArrayBecomesAddedOrder() throws {
+        let storage = MemoryKeyValueStore()
+        storage.set(Data("[\"b\",\"a\"]".utf8), forKey: BoardSetStorageKey.lanes)
+        let known: [ProjectID] = ["a", "b"]
+        storage.set(try JSONEncoder().encode(known), forKey: BoardSetStorageKey.known)
+        let store = BoardSetStore(storage: storage)
+        store.bootstrap(projects: ["a", "b"])
+        XCTAssertTrue(store.restoredFromSavedSet)
+        XCTAssertEqual(store.visibleProjectIds.map(\.rawValue), ["b", "a"])
+        XCTAssertEqual(store.addedOrder.map(\.rawValue), ["b", "a"])
     }
 
     func testReorderAndFocusShortcut() {

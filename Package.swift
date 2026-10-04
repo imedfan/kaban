@@ -36,7 +36,8 @@ let package = Package(
         ),
         .testTarget(
             name: "KabanBoardCoreTests",
-            dependencies: ["KabanBoardCore"]
+            dependencies: ["KabanBoardCore"],
+            resources: [.copy("Resources/test-vectors.json")]
         ),
     ]
 )
