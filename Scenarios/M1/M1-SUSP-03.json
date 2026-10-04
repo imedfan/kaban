@@ -1,0 +1,63 @@
+{
+  "id": "M1-SUSP-03",
+  "uc": [
+    "UC-25"
+  ],
+  "title": "acceptSuspiciousFiles с устаревшим набором отклоняется, ничего не принимается",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "waiting_human",
+          "reason": "suspicious_files"
+        },
+        "suspiciousFiles": [
+          {
+            "path": ".env.local",
+            "rule": "pattern",
+            "sizeBytes": 230,
+            "blob": "ffff01",
+            "isText": true,
+            "pattern": ".env*"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000015",
+        "command": {
+          "acceptSuspiciousFiles": {
+            "taskId": "t-1",
+            "files": [
+              {
+                "path": ".env.local",
+                "blob": "a1b2c3"
+              }
+            ]
+          }
+        }
+      },
+      "then": {
+        "commandError": "stale_suspicious_files",
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "suspicious_files"
+            }
+          }
+        },
+        "events": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "id": "M1-SUSP-05",
+  "uc": [
+    "UC-25"
+  ],
+  "title": "Повтор стадии принимает текущий набор",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "waiting_human",
+          "reason": "suspicious_files"
+        },
+        "suspiciousFiles": [
+          {
+            "path": ".env.local",
+            "rule": "pattern",
+            "sizeBytes": 212,
+            "blob": "a1b2c3",
+            "isText": true,
+            "pattern": ".env*"
+          }
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000017",
+        "command": {
+          "retryStage": {
+            "taskId": "t-1"
+          }
+        }
+      },
+      "then": {
+        "events": [
+          {
+            "type": "suspiciousFilesAccepted",
+            "data": {
+              "taskId": "t-1",
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "by": "human",
+              "commandId": "00000000-0000-4000-8000-000000000017"
+            },
+            "check": [
+              "taskId"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state",
+              "suspiciousFiles"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000017"
+          }
+        ],
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "queued"
+            },
+            "suspiciousFiles": []
+          }
+        }
+      }
+    }
+  ]
+}

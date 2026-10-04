@@ -1,0 +1,81 @@
+{
+  "id": "M1-CANCEL-01",
+  "uc": [
+    "UC-07",
+    "UC-11"
+  ],
+  "title": "Отмена задачи с сохранением ветки",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000013",
+        "command": {
+          "cancelTask": {
+            "taskId": "t-1",
+            "keepBranch": true
+          }
+        }
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "cancelled"
+            }
+          }
+        },
+        "runsKilled": 1,
+        "refs": [
+          "kaban/archive/t-1"
+        ],
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "cancelled"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000013"
+          }
+        ]
+      }
+    }
+  ]
+}

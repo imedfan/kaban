@@ -1,0 +1,74 @@
+name: KabanSpikes
+options:
+  bundleIdPrefix: app.kaban.spikes
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  developmentLanguage: ru
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_APP_SANDBOX: NO
+    SWIFT_STRICT_CONCURRENCY: complete
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
+targets:
+  KabanSpikes:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Shared
+      - path: Resources/pipeline.yaml
+        buildPhase: resources
+      - path: Resources/app.kaban.spikes.agent.plist
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchAgents
+    dependencies:
+      - target: KabanSpikeAgent
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.kaban.spikes
+        PRODUCT_NAME: KabanSpikes
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: App/InfoAdditions.plist
+        ENABLE_PREVIEWS: NO
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+  KabanSpikeAgent:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Agent
+      - path: Shared
+        excludes:
+          - PipelineYamlEditor.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.kaban.spikes.agent
+        PRODUCT_NAME: KabanSpikeAgent
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
+        SKIP_INSTALL: YES
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+schemes:
+  KabanSpikes:
+    build:
+      targets:
+        KabanSpikes: all
+    run:
+      config: Debug
+    archive:
+      config: Release

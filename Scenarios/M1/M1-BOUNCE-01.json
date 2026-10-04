@@ -1,0 +1,80 @@
+{
+  "id": "M1-BOUNCE-01",
+  "uc": [
+    "1.3",
+    "UC-07"
+  ],
+  "title": "Лимит возвратов Test→Dev = 3",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1",
+        "bounces": {
+          "test_dev": 3
+        },
+        "bounceTotal": 3
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "returned",
+        "to": "dev"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "test",
+            "state": {
+              "status": "waiting_human",
+              "reason": "bounce_limit"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "test",
+              "state": {
+                "status": "waiting_human",
+                "reason": "bounce_limit"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {
+                "test_dev": 3
+              },
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

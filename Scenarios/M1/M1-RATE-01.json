@@ -1,0 +1,94 @@
+{
+  "id": "M1-RATE-01",
+  "uc": [
+    "UC-09 а"
+  ],
+  "title": "Cooldown rate-limit растёт 15→30→60 мин, снимается вручную",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "rate_limit"
+      },
+      "then": {
+        "flags": [
+          {
+            "level": "mac",
+            "flag": "rate_limited",
+            "step": 1,
+            "until": "+15m"
+          }
+        ]
+      }
+    },
+    {
+      "advance": "15m",
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "flags": []
+      }
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "rate_limit"
+      },
+      "then": {
+        "flags": [
+          {
+            "level": "mac",
+            "flag": "rate_limited",
+            "step": 2,
+            "until": "+30m"
+          }
+        ]
+      }
+    },
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000004",
+        "command": {
+          "resumeAfterRateLimit": {}
+        }
+      },
+      "then": {
+        "flags": []
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

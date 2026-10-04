@@ -1,0 +1,164 @@
+{
+  "kit": 1,
+  "N": 30,
+  "textures": 8,
+  "vectors": [
+    {
+      "seed": "p-kaban",
+      "fnv1a64": "0xd8220f758d092a87",
+      "mascotIndex": 19,
+      "textureIndex": 6,
+      "emoji": "🐳",
+      "mascot": "whale",
+      "texture": "chevrons"
+    },
+    {
+      "seed": "p-site",
+      "fnv1a64": "0xcb1f979490ec3795",
+      "mascotIndex": 7,
+      "textureIndex": 1,
+      "emoji": "🐰",
+      "mascot": "rabbit",
+      "texture": "stripes"
+    },
+    {
+      "seed": "shop-api",
+      "fnv1a64": "0x28452d2ae9ddfa44",
+      "mascotIndex": 8,
+      "textureIndex": 2,
+      "emoji": "🐱",
+      "mascot": "cat",
+      "texture": "crosshatch"
+    },
+    {
+      "seed": "mobile-app",
+      "fnv1a64": "0xd09b6e8799a2b6c5",
+      "mascotIndex": 27,
+      "textureIndex": 3,
+      "emoji": "🦋",
+      "mascot": "butterfly",
+      "texture": "waves"
+    },
+    {
+      "seed": "docs-site",
+      "fnv1a64": "0xa79f85873f359226",
+      "mascotIndex": 24,
+      "textureIndex": 1,
+      "emoji": "🦦",
+      "mascot": "otter",
+      "texture": "stripes"
+    },
+    {
+      "seed": "infra",
+      "fnv1a64": "0x75503f8f8917ecdd",
+      "mascotIndex": 15,
+      "textureIndex": 1,
+      "emoji": "🦁",
+      "mascot": "lion",
+      "texture": "stripes"
+    },
+    {
+      "seed": "",
+      "fnv1a64": "0xcbf29ce484222325",
+      "mascotIndex": 17,
+      "textureIndex": 6,
+      "emoji": "🦓",
+      "mascot": "zebra",
+      "texture": "chevrons"
+    },
+    {
+      "seed": "8a60b3cc-6141-80fc-8008-bbcd3bd40972",
+      "fnv1a64": "0x57eaf543ddc8dc80",
+      "mascotIndex": 22,
+      "textureIndex": 3,
+      "emoji": "🐙",
+      "mascot": "octopus",
+      "texture": "waves"
+    },
+    {
+      "seed": "проект-кабан",
+      "fnv1a64": "0xdff835beda121bca",
+      "mascotIndex": 24,
+      "textureIndex": 7,
+      "emoji": "🦦",
+      "mascot": "otter",
+      "texture": "solid-thin"
+    },
+    {
+      "seed": "p-kaban#1",
+      "fnv1a64": "0x16fe18f50c8f26c7",
+      "mascotIndex": 7,
+      "textureIndex": 0,
+      "emoji": "🐰",
+      "mascot": "rabbit",
+      "texture": "dots"
+    }
+  ],
+  "collisionDemo": {
+    "addedOrder": [
+      "p-kaban",
+      "p-site",
+      "shop-api",
+      "mobile-app",
+      "docs-site",
+      "p-crm-4"
+    ],
+    "clash": {
+      "id": "p-crm-4",
+      "seed": "p-crm-4",
+      "with": "p-kaban"
+    },
+    "resolved": {
+      "p-kaban": {
+        "mascot": 19,
+        "texture": 6,
+        "bumped": false,
+        "baseTexture": 6
+      },
+      "p-site": {
+        "mascot": 7,
+        "texture": 1,
+        "bumped": false,
+        "baseTexture": 1
+      },
+      "shop-api": {
+        "mascot": 8,
+        "texture": 2,
+        "bumped": false,
+        "baseTexture": 2
+      },
+      "mobile-app": {
+        "mascot": 27,
+        "texture": 3,
+        "bumped": false,
+        "baseTexture": 3
+      },
+      "docs-site": {
+        "mascot": 24,
+        "texture": 1,
+        "bumped": false,
+        "baseTexture": 1
+      },
+      "p-crm-4": {
+        "mascot": 19,
+        "texture": 7,
+        "bumped": true,
+        "baseTexture": 6
+      }
+    }
+  },
+  "pickerDemo": {
+    "projectId": "p-kaban",
+    "want": {
+      "mascot": 1,
+      "texture": 1
+    },
+    "seed": "p-kaban#89",
+    "check": {
+      "mascot": 1,
+      "texture": 1,
+      "emoji": "🐗",
+      "textureKey": "stripes"
+    }
+  }
+}
