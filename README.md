@@ -25,7 +25,7 @@ spikes/frontend/           спайки FS-1…FS-9, прогон на mbp (`spi
 
 ## Сборка и тесты
 
-Команды выполняются в корне репозитория. Нужен Swift 6.0 или новее.
+Команды выполняются в корне репозитория. Нужен Swift 6.1 или новее.
 
 ### Linux
 
@@ -39,11 +39,11 @@ swift test
 То же в официальном контейнере Swift 6:
 
 ```bash
-docker run --rm -v "$PWD":/src -w /src swift:6.0 swift build
-docker run --rm -v "$PWD":/src -w /src swift:6.0 swift test
+docker run --rm -v "$PWD":/src -w /src swift:6.1 swift build
+docker run --rm -v "$PWD":/src -w /src swift:6.1 swift test
 ```
 
-На каждый push и pull request GitHub Actions гоняет `swift build` и `swift test` в контейнере `swift:6.0`.
+На каждый push и pull request GitHub Actions гоняет `swift build` и `swift test` в контейнере `swift:6.1`.
 
 ### macOS
 

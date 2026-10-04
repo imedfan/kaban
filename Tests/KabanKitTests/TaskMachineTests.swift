@@ -362,7 +362,7 @@ final class TaskMachineTests: XCTestCase {
         h.ok(.gatesPassed)
         let e = h.ok(.resultChecked(.readOnlyChanges))
         XCTAssertTrue(e.contains(.saveWipAndRollback("r-1")))
-        XCTAssertEqual(h.s.state, .retryWait(.gateFailed))
+        XCTAssertEqual(h.s.state, .retryWait(.readonlyViolation))
         h.ok(.start(runId: "r-2"))
         h.ok(.completeStage(runId: "r-2", summary: "lgtm"))
         h.ok(.gatesPassed)
