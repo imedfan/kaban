@@ -1,0 +1,749 @@
+{
+  "os": "27.0.1",
+  "build": "26A434",
+  "profile": "kaban-agent.sb",
+  "results": [
+    {
+      "case": "write-clone",
+      "expected": "allow",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 0,
+          "permissionDenied": false
+        }
+      ]
+    },
+    {
+      "case": "write-tmp",
+      "expected": "allow",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 0,
+          "permissionDenied": false
+        }
+      ]
+    },
+    {
+      "case": "git-status",
+      "expected": "allow",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 0,
+          "permissionDenied": false
+        }
+      ]
+    },
+    {
+      "case": "git-add-index",
+      "expected": "allow",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 0,
+          "permissionDenied": false
+        }
+      ]
+    },
+    {
+      "case": "outside-write",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "read-fake-globalStorage",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "read-globalStorage-symlink",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "write-outside-symlink",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "write-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "unlink-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "symlink-write-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "write-.git/hooks/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "unlink-.git/hooks/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-.git/hooks/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-.git/hooks/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "symlink-write-.git/hooks/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "write-.git/info/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "unlink-.git/info/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-.git/info/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-.git/info/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "symlink-write-.git/info/marker",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "write-.kaban/pipeline.yaml",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "unlink-.kaban/pipeline.yaml",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-.kaban/pipeline.yaml",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-.kaban/pipeline.yaml",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "symlink-write-.kaban/pipeline.yaml",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-.git",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-.git/hooks",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-.git/info",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-.kaban",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-@clone",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "rename-ancestor-@root",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-empty-or-symlink-.git",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-empty-or-symlink-.git/config",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-empty-or-symlink-.git/hooks",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-empty-or-symlink-.git/info",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-empty-or-symlink-.kaban",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-ancestor-symlink-.git",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    },
+    {
+      "case": "replace-ancestor-symlink-.kaban",
+      "expected": "deny",
+      "passed": true,
+      "runs": [
+        {
+          "sandboxed": false,
+          "exit": 0,
+          "permissionDenied": false
+        },
+        {
+          "sandboxed": true,
+          "exit": 13,
+          "permissionDenied": true,
+          "protectedUnchanged": true
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "limits": [
+    "macOS 26 pending",
+    "Cursor/runtime/build/network not tested",
+    "hardlinks and inherited descriptors pending",
+    "broad reads except explicit secret paths",
+    "only synthetic clone metadata protection"
+  ]
+}

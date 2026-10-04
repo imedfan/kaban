@@ -4,23 +4,30 @@
 ;; Плейсхолдеры вида @@ИМЯ@@ подставляет spike6-seatbelt.sh (`lib/kspike.py render-sb`):
 ;;   HOME       реальный путь домашнего каталога
 ;;   CLONE      клон задачи (единственное место записи из проектов)
-;;   TMPDIR     реальный путь $TMPDIR (/private/var/folders/.../T)
-;;   CACHEDIR   getconf DARWIN_USER_CACHE_DIR (/private/var/folders/.../C)
+;;   TMPDIR     выделенный per-run temp (не общий системный $TMPDIR)
+;;   CACHEDIR   выделенный per-run cache (не общий пользовательский cache)
 ;;   MCP_PORT   порт MCP-сервера доски на 127.0.0.1
 ;;   EXTRA_WRITE       служебные каталоги cursor-agent (найдены в спайке)
 ;;   EXTRA_DENY_READ   дополнительные запреты чтения
 ;;   EXTRA_DENY_WRITE  дополнительные запреты записи
 ;;
-;; В SBPL побеждает ПОСЛЕДНЕЕ подходящее правило, поэтому порядок: общее -> исключения.
-;; Пути — только реальные (/private/tmp, /private/var/folders), симлинки не матчатся.
+;; Порядок allow/deny проверен только synthetic probe на указанной macOS версии,
+;; не является обещанием стабильного SBPL API. Launcher передаёт физические пути.
+;; CLONE/TMPDIR/CACHEDIR должны быть отдельными sibling каталогами; их общий
+;; родитель не должен получать запись. EXTRA_WRITE не должен разрешать предков клона.
 ;; Ограничение SBPL: в (remote ip "host:port") host может быть только "*" или "localhost",
 ;; поэтому allowlist внешних хостов для команд агента делается прокси, а не профилем.
 
 (version 1)
 
-;; База спайка: всё разрешено, дальше сужаем запись, чтение секретов и loopback.
-;; Вариант deny-default (как у Codex CLI) — следующий шаг, когда известен минимальный набор.
-(allow default)
+;; Experimental deny-default candidate, verified only by the bounded synthetic probe.
+;; Not production-ready: real cursor-agent/runtime compatibility and macOS 26 are pending.
+;; Read/process permissions remain broad; this candidate only investigates protected writes.
+(deny default)
+(allow file-read*)
+(allow process*)
+(allow sysctl-read)
+(allow mach-lookup)
 
 ;; ---------- Запись: запрещена везде ...
 (deny file-write*)
@@ -30,8 +37,6 @@
   (subpath "@@CLONE@@")
   (subpath "@@TMPDIR@@")
   (subpath "@@CACHEDIR@@")
-  (subpath "/private/tmp")
-  (subpath "/private/var/tmp")
   (literal "/dev/null")
   (literal "/dev/zero")
   (literal "/dev/tty")
@@ -40,6 +45,20 @@
   (regex #"^/dev/fd/")
   (regex #"^/dev/ttys[0-9]+$")
 @@EXTRA_WRITE@@
+)
+
+;; ---------- Protected clone metadata, after every write grant (including EXTRA_WRITE).
+;; Path denies alone do not protect descendants when their ancestor is renamed.
+;; Block unlink/rename of the clone root and .git ancestor as well as protected trees.
+(deny file-write*
+  (subpath "@@CLONE@@/.git/config")
+  (subpath "@@CLONE@@/.git/hooks")
+  (subpath "@@CLONE@@/.git/info")
+  (subpath "@@CLONE@@/.kaban")
+)
+(deny file-write-unlink
+  (literal "@@CLONE@@")
+  (literal "@@CLONE@@/.git")
 )
 
 ;; ---------- Жёсткие запреты записи (поверх разрешений выше)
@@ -59,6 +78,6 @@
 @@EXTRA_DENY_READ@@
 )
 
-;; ---------- Сеть: наружу можно, loopback — только порт MCP-сервера доски
-(deny network-outbound (remote ip "localhost:*"))
+;; ---------- Network remains unavailable except the explicit board MCP port.
+;; No external-host allowance is asserted by this experimental profile.
 (allow network-outbound (remote ip "localhost:@@MCP_PORT@@"))
