@@ -210,16 +210,20 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var acceptedFiles: [AcceptedFile]
     /// Путь клона задачи для «Открыть в Cursor», «дифф» и «Показать в Finder»; `nil`, если клона нет.
     public var clonePath: String?
+    /// Markdown task content. nil means unknown legacy content, not an empty body.
+    public var body: String?
     public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
                 suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil,
-                artifacts: [TaskArtifact] = [], gitGrants: [GitGrantSnapshot] = [], gitDenials: [GitDenialSnapshot] = []) {
+                artifacts: [TaskArtifact] = [], gitGrants: [GitGrantSnapshot] = [], gitDenials: [GitDenialSnapshot] = [],
+                body: String? = nil) {
         self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
         self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles; self.clonePath = clonePath
         self.artifacts = artifacts; self.gitGrants = gitGrants; self.gitDenials = gitDenials
+        self.body = body
     }
 
     enum CodingKeys: String, CodingKey {
-        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials
+        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials, body
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -228,6 +232,7 @@ public struct TaskDetail: Codable, Hashable, Sendable {
         try c.encode(humanRequests, forKey: .humanRequests)
         try c.encode(suspiciousFiles, forKey: .suspiciousFiles); try c.encode(acceptedFiles, forKey: .acceptedFiles)
         try c.encodeIfPresent(clonePath, forKey: .clonePath)
+        try c.encodeIfPresent(body, forKey: .body)
         if !artifacts.isEmpty { try c.encode(artifacts, forKey: .artifacts) }
         if !gitGrants.isEmpty { try c.encode(gitGrants, forKey: .gitGrants) }
         if !gitDenials.isEmpty { try c.encode(gitDenials, forKey: .gitDenials) }
@@ -242,7 +247,8 @@ public struct TaskDetail: Codable, Hashable, Sendable {
                   clonePath: try c.decodeIfPresent(String.self, forKey: .clonePath),
                   artifacts: try c.decodeIfPresent([TaskArtifact].self, forKey: .artifacts) ?? [],
                   gitGrants: try c.decodeIfPresent([GitGrantSnapshot].self, forKey: .gitGrants) ?? [],
-                  gitDenials: try c.decodeIfPresent([GitDenialSnapshot].self, forKey: .gitDenials) ?? [])
+                  gitDenials: try c.decodeIfPresent([GitDenialSnapshot].self, forKey: .gitDenials) ?? [],
+                  body: try c.decodeIfPresent(String.self, forKey: .body))
     }
 }
 
