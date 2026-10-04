@@ -33,6 +33,15 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Build Kaban.app (unsigned)
+        run: |
+          derived_data="$(mktemp -d "${RUNNER_TEMP}/kaban-app-derived-data.XXXXXX")"
+          trap 'rm -rf "$derived_data"' EXIT
+          xcodebuild -project Kaban.xcodeproj -scheme Kaban \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$derived_data" \
+            ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+
       - name: Test
         run: swift test
         env:
