@@ -177,7 +177,7 @@ public struct BoardProjection: Equatable, Sendable {
             modelFlags: snapshot.modelFlags,
             quota: snapshot.quota
         )
-        openIncidentCount = snapshot.openIncidentCount
+        openIncidentCount = snapshot.projects.reduce(0) { $0 + $1.openIncidentCount }
         incidents = [:]
         stageLoad = snapshot.stageLoad
         pending = PendingCommands()
@@ -293,8 +293,8 @@ public struct BoardProjection: Equatable, Sendable {
     /// Бейджи считаются по проекции, видимость дорожки на них не влияет.
     ///
     /// Счётчик инцидентов — `ProjectSummary.openIncidentCount` (снимок и `projectUpdated`).
-    /// `incidentOpened` / `incidentResolved` сдвигают поле проекта, пока демон не пришлёт
-    /// новый `projectUpdated` с уже посчитанным значением.
+    /// Предметные события инцидента дают только детали/ленту. Агрегаты authoritative:
+    /// демон шлёт `projectUpdated` в той же транзакции, порядок её событий не важен.
     public func badgeCounts(for projectId: ProjectID) -> ProjectBadgeCounts {
         let waiting = tasks.values.filter { $0.projectId == projectId && $0.state.status == .waitingHuman }.count
         let open = projects[projectId]?.openIncidentCount ?? 0
@@ -330,11 +330,13 @@ public struct BoardProjection: Equatable, Sendable {
             return .applied
         case .projectAdded(let project):
             projects[project.id] = project
+            reconcileIncidentCount()
             if !projectOrder.contains(project.id) { projectOrder.append(project.id) }
             appendFeed(envelope)
             return .applied
         case .projectUpdated(let project):
             projects[project.id] = project
+            reconcileIncidentCount()
             if !projectOrder.contains(project.id) { projectOrder.append(project.id) }
             appendFeed(envelope)
             return .applied
@@ -347,10 +349,6 @@ public struct BoardProjection: Equatable, Sendable {
             appendFeed(envelope)
             return .applied
         case .incidentOpened(let incident):
-            if incidents[incident.id] == nil {
-                openIncidentCount += 1
-                adjustOpenIncidents(incident.projectId, by: 1)
-            }
             incidents[incident.id] = incident
             appendFeed(envelope)
             return .applied
@@ -361,13 +359,6 @@ public struct BoardProjection: Equatable, Sendable {
                     if incident.resolvedAt == nil {
                         incident.resolvedAt = envelope.at
                         incidents[resolved.incidentId] = incident
-                        if openIncidentCount > 0 { openIncidentCount -= 1 }
-                        adjustOpenIncidents(incident.projectId, by: -1)
-                    }
-                } else {
-                    if openIncidentCount > 0 { openIncidentCount -= 1 }
-                    if let projectId = envelope.projectId {
-                        adjustOpenIncidents(projectId, by: -1)
                     }
                 }
             }
@@ -397,7 +388,6 @@ public struct BoardProjection: Equatable, Sendable {
     }
 
     private mutating func removeProject(_ id: ProjectID) {
-        let removedOpen = projects[id]?.openIncidentCount ?? 0
         projects.removeValue(forKey: id)
         projectOrder.removeAll { $0 == id }
         pipelines.removeValue(forKey: id)
@@ -409,13 +399,13 @@ public struct BoardProjection: Equatable, Sendable {
         }
         taskOrder.removeAll { doomed.contains($0) }
         incidents = incidents.filter { $0.value.projectId != id }
-        openIncidentCount = max(0, openIncidentCount - removedOpen)
+        reconcileIncidentCount()
     }
 
-    private mutating func adjustOpenIncidents(_ projectId: ProjectID, by delta: Int) {
-        guard var project = projects[projectId], delta != 0 else { return }
-        project.openIncidentCount = max(0, project.openIncidentCount + delta)
-        projects[projectId] = project
+    /// Transaction-boundary consistency: project summaries carry the daemon aggregate.
+    /// Never count incident detail events: they can arrive before or after projectUpdated.
+    private mutating func reconcileIncidentCount() {
+        openIncidentCount = projects.values.reduce(0) { $0 + $1.openIncidentCount }
     }
 
     private mutating func appendFeed(_ envelope: EventEnvelope) {

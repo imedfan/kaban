@@ -55,7 +55,7 @@ final class BoardProjectionTests: XCTestCase {
     func testDomainEventsGoToTheFeedOnly() {
         let files = [Fix.file(".env.local")]
         let card = Fix.card("t-1", stage: "dev", state: .waitingHuman(.suspiciousFiles), files: files)
-        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [card], openIncidents: 1))
+        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [card], projects: [Fix.project(openIncidentCount: 1)], openIncidents: 1))
         let found = SuspiciousFilesFound(taskId: "t-1", runId: "r-1", stageId: "dev", files: [Fix.file(".env.other", blob: "ffff")])
         let accepted = SuspiciousFilesAccepted(taskId: "t-1", files: files, by: .human, commandId: Fix.command)
         XCTAssertEqual(projection.apply(Fix.envelope(2, .suspiciousFilesFound(found))), .applied)
@@ -74,7 +74,7 @@ final class BoardProjectionTests: XCTestCase {
         )
         XCTAssertEqual(projection.apply(Fix.envelope(5, .incidentOpened(incident))), .applied)
         XCTAssertEqual(projection.badgeCounts(for: Fix.project), ProjectBadgeCounts(waitingHuman: 1, openIncidents: 1))
-        XCTAssertEqual(projection.openIncidentCount, 2)
+        XCTAssertEqual(projection.openIncidentCount, 1)
         XCTAssertEqual(projection.tasks["t-1"]?.state, .waitingHuman(.suspiciousFiles))
     }
 
@@ -152,8 +152,8 @@ final class BoardProjectionTests: XCTestCase {
             id: "i-9", projectId: Fix.project, taskId: "t-1", runId: nil, kind: .configChanged, rolledBack: [], openedAt: Fix.t0
         )
         XCTAssertEqual(projection.apply(Fix.envelope(2, .incidentOpened(incident))), .applied)
-        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 3)
-        XCTAssertEqual(projection.openIncidentCount, 3)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 2)
+        XCTAssertEqual(projection.openIncidentCount, 2)
 
         var refreshed = project
         refreshed.openIncidentCount = 3
@@ -165,13 +165,13 @@ final class BoardProjectionTests: XCTestCase {
 
         let resolved = IncidentResolved(incidentId: "i-9", by: .human, commandId: Fix.command)
         XCTAssertEqual(projection.apply(Fix.envelope(4, .incidentResolved(resolved))), .applied)
-        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 2)
-        XCTAssertEqual(projection.openIncidentCount, 2)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 3)
+        XCTAssertEqual(projection.openIncidentCount, 3)
 
         let unseen = IncidentResolved(incidentId: "i-old", by: .human, commandId: nil)
         XCTAssertEqual(projection.apply(Fix.envelope(5, .incidentResolved(unseen))), .applied)
-        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 1)
-        XCTAssertEqual(projection.openIncidentCount, 1)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 3)
+        XCTAssertEqual(projection.openIncidentCount, 3)
 
         XCTAssertEqual(projection.apply(Fix.envelope(6, .projectRemoved(Fix.project))), .applied)
         XCTAssertEqual(projection.openIncidentCount, 0)
