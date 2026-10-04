@@ -163,7 +163,7 @@ stages:
 | `running` | идёт run агента | да | — |
 | `gating` | идут гейт-команды (после `complete_stage`, в `gate`- и `merge`-стадиях) | да | — |
 | `retry_wait` | пауза перед повтором (backoff или cooldown rate-limit) | да | — |
-| `waiting_human` | нужен человек, см. `reason` | нет, кроме `human`-стадии | да, кроме `reason = review` |
+| `waiting_human` | нужен человек, см. `reason` | нет; human admission описан ниже | да, кроме `reason = review` |
 | `paused` | человек поставил на паузу эту задачу | нет | — |
 | `blocked` | не может идти по внешней причине, см. `reason` | нет | — |
 | `done` | дошла до `terminal` | нет | — |
@@ -217,7 +217,7 @@ stages:
 | превышен `max_runs_per_task` | демон | → `waiting_human: run_limit` |
 | `rate_limit_detected` | демон | глобальный cooldown, этот run → `retry_wait: rate_limit` |
 | исчерпаны `max_attempts` / лимит возвратов | демон | → `waiting_human` с причиной и сводкой |
-| `answerHuman(text, requestId?)` | человек | на `agent`-стадии из `waiting_human` с любой причиной (иначе `invalid_state`) → `queued` своей стадии с приоритетом `answered`, resume сессии с текстом (**[спайк 1]**). Это и ответ на вопрос, и «Замечание агенту»; если попытки или лимит возвратов исчерпаны, добавляется одна попытка |
+| `answerHuman(text, requestId?)` | человек | на `agent`-стадии из `waiting_human` с любой причиной (иначе `invalid_state`) → `queued` своей стадии с приоритетом `answered`, resume сессии с текстом (**[спайк 1]**). Это и ответ на вопрос, и «Замечание агенту»; если попытки исчерпаны, добавляется одна попытка; счётчики возвратов не сбрасываются |
 | `approve` | человек, `human`-стадия | → `queued` следующей стадии (Merge) |
 | `requestChanges(comments, target?)` | человек | → `queued` указанной стадии (только `agent` с `readOnly = false`; по умолчанию `PipelineSummary.defaultReturnStage`, первая такая стадия), возврат в лимиты не входит; из `human`-, `gate`- и `merge`-стадий (в т. ч. из `bounce_limit` / `conflict_limit`, задача там и остаётся до решения); подозрительный набор не принимает |
 | `reject(target, keepBranch?)` | человек | `target = cancel` → `cancelled`, как `cancelTask`; `target = <stage>` → в эту стадию, это возврат: только `agent` с `readOnly = false`, иначе `invalid_state` |
