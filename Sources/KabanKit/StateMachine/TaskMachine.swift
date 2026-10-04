@@ -562,7 +562,8 @@ private struct Machine {
 
     mutating func pause() {
         switch s.state {
-        case .queued, .running, .gating, .retryWait:
+        case .queued, .running, .gating, .retryWait, .waitingHuman(.review):
+            s.pausedState = s.state
             killLiveRun()
             set(.paused)
         default:
@@ -572,7 +573,9 @@ private struct Machine {
 
     mutating func resume() {
         guard s.state == .paused else { return reject("resumeTask: task is not paused") }
-        set(.queued(nil))
+        let restored: TaskState = s.pausedState == .waitingHuman(.review) ? .waitingHuman(.review) : .queued(nil)
+        s.pausedState = nil
+        set(restored)
     }
 
     mutating func humanMove(_ target: StageID) {
