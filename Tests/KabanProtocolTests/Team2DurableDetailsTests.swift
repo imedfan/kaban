@@ -9,20 +9,34 @@ final class Team2DurableDetailsTests: XCTestCase {
     func testLegacyDetailDefaultsAndFutureFields() throws {
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(Samples.taskDetail)) as? [String: Any])
         XCTAssertNil(json["artifacts"]); XCTAssertNil(json["gitGrants"]); XCTAssertNil(json["gitDenials"])
-        for key in ["artifacts", "gitGrants", "gitDenials", "humanRequests", "suspiciousFiles", "acceptedFiles", "clonePath"] {
+        for key in ["artifacts", "gitGrants", "gitDenials", "clonePath"] {
             json.removeValue(forKey: key)
         }
         json["futureDetail"] = ["opaque": true]
         let detail = try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: json))
         XCTAssertEqual(detail.task, Samples.taskDetail.task)
         XCTAssertTrue(detail.artifacts.isEmpty && detail.gitGrants.isEmpty && detail.gitDenials.isEmpty)
-        XCTAssertTrue(detail.humanRequests.isEmpty && detail.acceptedFiles.isEmpty && detail.suspiciousFiles.isEmpty)
+        XCTAssertEqual(detail.humanRequests, Samples.taskDetail.humanRequests)
+        XCTAssertEqual(detail.acceptedFiles, Samples.taskDetail.acceptedFiles)
+        XCTAssertEqual(detail.suspiciousFiles, Samples.taskDetail.suspiciousFiles)
         XCTAssertNil(detail.clonePath)
         for key in ["artifacts", "gitGrants", "gitDenials"] { json[key] = NSNull() }
         let nullCollections = try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: json))
         XCTAssertTrue(nullCollections.artifacts.isEmpty && nullCollections.gitGrants.isEmpty && nullCollections.gitDenials.isEmpty)
         json["gitGrants"] = "malformed"
         XCTAssertThrowsError(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: json)))
+    }
+
+    func testExistingDetailArraysRemainRequired() throws {
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(Samples.taskDetail)) as? [String: Any])
+        for key in ["humanRequests", "suspiciousFiles", "acceptedFiles"] {
+            var missing = original
+            missing.removeValue(forKey: key)
+            XCTAssertThrowsError(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: missing)), key)
+            var null = original
+            null[key] = NSNull()
+            XCTAssertThrowsError(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: null)), key)
+        }
     }
 
     func testDurableLifecycleSurvivesWithoutJournalOrFeed() throws {

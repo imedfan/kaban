@@ -236,9 +236,9 @@ public struct TaskDetail: Codable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(seq: try c.decode(Seq.self, forKey: .seq), task: try c.decode(TaskCard.self, forKey: .task),
                   feed: try c.decode([FeedItem].self, forKey: .feed), runs: try c.decode([RunSummary].self, forKey: .runs),
-                  humanRequests: try c.decodeIfPresent([HumanRequest].self, forKey: .humanRequests) ?? [],
-                  suspiciousFiles: try c.decodeIfPresent([SuspiciousFile].self, forKey: .suspiciousFiles) ?? [],
-                  acceptedFiles: try c.decodeIfPresent([AcceptedFile].self, forKey: .acceptedFiles) ?? [],
+                  humanRequests: try c.decode([HumanRequest].self, forKey: .humanRequests),
+                  suspiciousFiles: try c.decode([SuspiciousFile].self, forKey: .suspiciousFiles),
+                  acceptedFiles: try c.decode([AcceptedFile].self, forKey: .acceptedFiles),
                   clonePath: try c.decodeIfPresent(String.self, forKey: .clonePath),
                   artifacts: try c.decodeIfPresent([TaskArtifact].self, forKey: .artifacts) ?? [],
                   gitGrants: try c.decodeIfPresent([GitGrantSnapshot].self, forKey: .gitGrants) ?? [],
