@@ -1,0 +1,32 @@
+version: 1
+board:
+  max_runs_per_task: 0
+git:
+  preset: standard
+  allow: [push, "rebase main"]
+stages:
+  - id: backlog
+    kind: queue
+    on_success: dev
+  - id: dev
+    kind: agent
+    wip: 0
+    agent:
+      model: auto
+      env: { GITHUB_TOKEN: abc, OTHER: "sk-live-123" }
+    retry: { max_attempts: 3, backoff: [30s, 2m, 5m] }
+    on_success: test
+  - id: test
+    kind: agent
+    agent:
+      skill: .kaban/skills/test.md
+    returns_to: [{ stage: review, limit: 2 }]
+    on_success: review
+  - id: review
+    kind: agent
+    on_success: merge
+  - id: merge
+    kind: merge
+    on_success: review
+  - id: dev
+    kind: terminal

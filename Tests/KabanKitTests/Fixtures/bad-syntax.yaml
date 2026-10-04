@@ -1,0 +1,5 @@
+version: 1
+stages:
+  - id: backlog
+    kind: queue
+     on_success: dev

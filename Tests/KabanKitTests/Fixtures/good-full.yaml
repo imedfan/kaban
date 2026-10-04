@@ -1,0 +1,82 @@
+# Full pipeline, every feature used once.
+version: 1
+board:                              # project process rules
+  max_waiting_human: 3
+  bounce_limit_total: 5
+  max_runs_per_task: 12
+workspace:
+  warm_paths: [node_modules, .gradle]
+  on_create: "npm ci --prefer-offline"
+git:
+  preset: standard
+  allow: [stash]
+  deny: []
+suspicious_files:
+  patterns: [".env*", "*.pem", "*.key", "*.p12", "id_rsa*", "id_ed25519*"]
+  max_file_mb: 5
+  allow: [".env.example"]
+stages:
+  - id: backlog
+    name: Backlog
+    kind: queue
+    on_success: dev
+  - id: dev
+    name: Разработка
+    kind: agent
+    display: { icon: hammer, color: blue, order: 2, collapsed: false, hidden: false }
+    wip: 3
+    priority: [returned, answered, fifo]
+    agent:
+      harness: cursor-cli
+      model: composer-2
+      skill: .kaban/skills/dev.md
+      permissions: write
+      mcp: [kaban, github]
+      env: { NODE_ENV: test, LOG_LEVEL: "debug" }
+      workspace: task
+    git: { extend: [rebase], when: return_reason == merge_conflict }
+    inputs: [task, handoff, return_issues, gate_output, git_grants]
+    gates: ["./gradlew build", "./gradlew test"]
+    on_success: test
+    returns_to: []
+    retry: { max_attempts: 3, backoff: [30s, 2m] }
+    timeouts: { stall: 10m, wall: 60m }
+    hooks: { on_enter: null, on_exit: null }
+    notify: [waiting_human]
+  - id: test
+    kind: agent
+    wip: 2
+    agent:
+      model: claude-4.5-sonnet
+    on_success: lint
+    returns_to:
+      - stage: dev
+        limit: 3
+  - id: lint
+    kind: gate
+    gates:
+      - npm run lint
+    on_fail: { stage: dev, limit: 2 }
+    on_success: ai_review
+  - id: ai_review
+    name: AI Review
+    kind: agent
+    agent:
+      model: gpt-5
+      permissions: read-only
+      workspace: fresh-readonly
+    returns_to: [{ stage: dev, limit: 2 }]
+    on_success: human_review
+  - id: human_review
+    name: Human Review
+    kind: human
+    wip: 5
+    on_success: merge
+  - id: merge
+    kind: merge
+    gates: ["./gradlew test"]
+    on_conflict: { stage: dev, limit: 2 }
+    on_success: done
+  - id: done
+    name: Done
+    kind: terminal
