@@ -1,6 +1,8 @@
-# Kaban: план бэкенда (демон KabanAgent), черновик v0.1
+# Kaban: план бэкенда (демон KabanAgent), черновик v0.2
 
 Автор: Kaban Backend Bot · 3 октября 2026 · опирается на [архитектуру v0.9](architecture-v0.md), спеку аналитика v0.6 и [журнал решений](decisions-log.md) от 3 октября (вечер). Нумерация спайков по §14 архитектуры.
+
+**Статус второго инкремента, 4 октября 2026:** после принятого PR #62 подготовлен portable managed fake engine: additive миграция, явные projects/settings/body/detail, отдельные per-effect receipts и атомарная симуляция результатов, scheduler с WIP/лимитами и сохранённым weighted cursor, восстановление. Фиксированный fake pipeline queue → agent → human → terminal допускается только внутренним узким исключением merge_count; production-валидатор сохраняет требование merge, а его summary честно содержит ошибку. Это ограниченная часть шага 4, без daemon executable, XPC/kabanctl, live Cursor/git/MCP, квоты и внешнего исполнителя. Контракт и матрица проверки — [m1-headless-contract.md](development/m1-headless-contract.md); результаты и SHA — [отчёт инкремента](development/m1-report-2026-10-04.md). Следующий шаг: транспортный adapter после совместной проверки backend/frontend.
 
 ## 1. Что входит в бэкенд
 Всё, что живёт в демоне `KabanAgent` и пакете `KabanKit`, кроме `KabanApp`: модель, автомат, хранилище, планировщик, runner `cursor-agent`, MCP-сервер доски, git-слой, гейты, восстановление, `kabanctl`.
