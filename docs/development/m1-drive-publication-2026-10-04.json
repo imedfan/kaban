@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-04",
+  "status": "blocked_oauth_write_scope",
+  "error": "403 ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+  "attempted_file_id": "1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs",
+  "verification": "Full pre-write connector text matched prior publication SHA-256; update denied; no success claimed",
+  "files": [
+    {
+      "name": "architecture-v0.md",
+      "id": "1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs",
+      "before_sha256": "f274d67a2c7e8f4ed2052853e8a614890ebb7c944e1229adf9f3f476eea1ba75",
+      "desired_sha256": "9338c709301c991d626af645b30972098b7a42d73ffa859a2a34327a30248d0b",
+      "desired_bytes": 117293,
+      "published": false,
+      "desired_source": "Combined architecture changes in PR #63 and #66"
+    },
+    {
+      "name": "backend-plan-v0.md",
+      "id": "19dtdvSF302OIOkrvqYaL1H1WAvXvDI6l",
+      "before_sha256": "aff2adc567fcc8684ca2a0b343d374c5502f299fffcedfac1f6c69ecef64baaf",
+      "desired_sha256": "273ebda0cc8b6769f593592912123e2d949f7c5a45744ef4d37901309320840b",
+      "desired_bytes": 15621,
+      "published": false
+    },
+    {
+      "name": "frontend-plan-v0.md",
+      "id": "1LXl5tv4Wjw6CNfNbs8vezjLSxgkZWtc_",
+      "before_sha256": "1b6fbf8e8892ac02fe10eda4b778d130f759e82faf9cedead24b917c2d43effb",
+      "desired_sha256": "020fbfcd1b4fc81634893b49394f80185e1494292e8c06085b3d42484fc9086e",
+      "desired_bytes": 299902,
+      "published": false
+    },
+    {
+      "name": "decisions-log.md",
+      "id": "1AGNwKUwZ_YcOzh0A3LAg2zUWx-_71wxx",
+      "before_sha256": "5d24b0277d385e0bf555f969f00037ef258017054d200a5d01b65ede0d565d80",
+      "desired_sha256": "97d4defa14fc528e269e1c644a0f42364ddc9baa28741661d325817155d8a65c",
+      "desired_bytes": 22017,
+      "published": false
+    }
+  ]
+}

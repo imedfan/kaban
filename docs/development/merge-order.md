@@ -32,9 +32,10 @@ Kit identity/size/readonly — [#57](https://github.com/imedfan/kaban/pull/57),
 GRDB store — [#58](https://github.com/imedfan/kaban/pull/58), SwiftUI app —
 [#59](https://github.com/imedfan/kaban/pull/59). Экспериментальный профиль
 [#60](https://github.com/imedfan/kaban/pull/60) принимать после #17.
-#57 сейчас имеет base `codex/kit-git-policy-fixes`, #58 —
-`codex/kit-identity-size-readonly-fixes`. После принятия родителя поменять base
-дочернего PR на `main`, проверить diff и повторить CI.
+Исторически #57 имел base `codex/kit-git-policy-fixes`, #58 —
+`codex/kit-identity-size-readonly-fixes`. После мержа этих PR в родительские ветки
+изменения были восстановлены в main через [#62](https://github.com/imedfan/kaban/pull/62).
+База нового инкремента — `4303550`; все новые PR направлены только в main.
 
 ## Политика issues
 
@@ -49,3 +50,17 @@ production confinement не объявляем.
 Перед записью сверены исходники, после записи — SHA-256 полного содержимого.
 Ссылки, папки и права доступа сохранены. Эти документы описывают принятые
 решения и работу в PR; код в main появится после review и мержа Артёмом.
+
+
+## Второй инкремент: все PR в main
+
+Принять [#63](https://github.com/imedfan/kaban/pull/63) (body/контракт), затем
+[#65](https://github.com/imedfan/kaban/pull/65) (fake backend),
+[#64](https://github.com/imedfan/kaban/pull/64) (действия демо-доски),
+[#66](https://github.com/imedfan/kaban/pull/66) (планы/отчёт).
+Frontend и backend независимы после #63. Их ветки содержат тот же additive
+контракт для самостоятельной сборки против main; это не stacked base.
+SHA, совместные проверки и частичные HC-критерии — в
+[m1-report-2026-10-04.md](m1-report-2026-10-04.md).
+Drive publication этой сессии заблокирована недостаточным OAuth write scope;
+готовые изменения сохранены в Git, прежний Drive manifest не означает их публикацию.
