@@ -20,6 +20,7 @@ public struct ModelID: KabanID { public let rawValue: String; public init(rawVal
 public struct IncidentID: KabanID { public let rawValue: String; public init(rawValue: String) { self.rawValue = rawValue } }
 public struct DenialID: KabanID { public let rawValue: String; public init(rawValue: String) { self.rawValue = rawValue } }
 public struct GrantID: KabanID { public let rawValue: String; public init(rawValue: String) { self.rawValue = rawValue } }
+public struct ArtifactID: KabanID { public let rawValue: String; public init(rawValue: String) { self.rawValue = rawValue } }
 public struct HumanRequestID: KabanID { public let rawValue: String; public init(rawValue: String) { self.rawValue = rawValue } }
 
 /// UUID команды от клиента (§5): ответ и журнальное событие несут тот же `commandId`.

@@ -201,6 +201,9 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var feed: [FeedItem]
     public var runs: [RunSummary]
     public var humanRequests: [HumanRequest]
+    public var artifacts: [TaskArtifact]
+    public var gitGrants: [GitGrantSnapshot]
+    public var gitDenials: [GitDenialSnapshot]
     /// Текущий непринятый набор (то же, что `task.suspiciousFiles`), с полными данными правил.
     public var suspiciousFiles: [SuspiciousFile]
     /// Уже принятые по задаче файлы (`task_accepted_file`), для блока «Принято ранее».
@@ -208,9 +211,38 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     /// Путь клона задачи для «Открыть в Cursor», «дифф» и «Показать в Finder»; `nil`, если клона нет.
     public var clonePath: String?
     public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
-                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil) {
+                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil,
+                artifacts: [TaskArtifact] = [], gitGrants: [GitGrantSnapshot] = [], gitDenials: [GitDenialSnapshot] = []) {
         self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
         self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles; self.clonePath = clonePath
+        self.artifacts = artifacts; self.gitGrants = gitGrants; self.gitDenials = gitDenials
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(seq, forKey: .seq); try c.encode(task, forKey: .task)
+        try c.encode(feed, forKey: .feed); try c.encode(runs, forKey: .runs)
+        try c.encode(humanRequests, forKey: .humanRequests)
+        try c.encode(suspiciousFiles, forKey: .suspiciousFiles); try c.encode(acceptedFiles, forKey: .acceptedFiles)
+        try c.encodeIfPresent(clonePath, forKey: .clonePath)
+        if !artifacts.isEmpty { try c.encode(artifacts, forKey: .artifacts) }
+        if !gitGrants.isEmpty { try c.encode(gitGrants, forKey: .gitGrants) }
+        if !gitDenials.isEmpty { try c.encode(gitDenials, forKey: .gitDenials) }
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(seq: try c.decode(Seq.self, forKey: .seq), task: try c.decode(TaskCard.self, forKey: .task),
+                  feed: try c.decode([FeedItem].self, forKey: .feed), runs: try c.decode([RunSummary].self, forKey: .runs),
+                  humanRequests: try c.decode([HumanRequest].self, forKey: .humanRequests),
+                  suspiciousFiles: try c.decode([SuspiciousFile].self, forKey: .suspiciousFiles),
+                  acceptedFiles: try c.decode([AcceptedFile].self, forKey: .acceptedFiles),
+                  clonePath: try c.decodeIfPresent(String.self, forKey: .clonePath),
+                  artifacts: try c.decodeIfPresent([TaskArtifact].self, forKey: .artifacts) ?? [],
+                  gitGrants: try c.decodeIfPresent([GitGrantSnapshot].self, forKey: .gitGrants) ?? [],
+                  gitDenials: try c.decodeIfPresent([GitDenialSnapshot].self, forKey: .gitDenials) ?? [])
     }
 }
 
