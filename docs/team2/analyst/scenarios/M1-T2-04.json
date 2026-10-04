@@ -1,0 +1,51 @@
+{
+  "id": "M1-T2-04",
+  "uc": [
+    "UC-13",
+    "UC-07",
+    "1.3"
+  ],
+  "title": "Нет writable agent: defaultReturnStage nil и pipeline no_return_target",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": []
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000004",
+        "command": {
+          "validatePipeline": {
+            "projectId": "p-kaban",
+            "content": "version: 1\nstages:\n  - id: backlog\n    kind: queue\n    on_success: review\n  - id: review\n    kind: agent\n    agent: {model: composer-2, permissions: read-only}\n    on_success: human\n  - id: human\n    kind: human\n    on_success: merge\n  - id: merge\n    kind: merge\n    on_success: done\n  - id: done\n    kind: terminal\n"
+          }
+        }
+      },
+      "then": {
+        "ephemeral": [
+          {
+            "type": "pipelineDraftValidated",
+            "data": {
+              "projectId": "p-kaban",
+              "contentHash": "sha256:any",
+              "issues": [
+                {
+                  "path": "stages",
+                  "code": "no_return_target",
+                  "message": "…",
+                  "severity": "error"
+                }
+              ]
+            },
+            "check": [
+              "issues"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "note": "Spec v0.8.24 §1.3: для requestChanges нет editable agent → global issue path stages без stageId. Дополнительный merge no_return_target тоже допустим; issues expectation subset, не exact count. Проверить resolved.defaultReturnStage=nil будущим daemon oracle, check сейчас only typed issues. Архитектура §3.1."
+}

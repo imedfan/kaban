@@ -1,0 +1,51 @@
+{
+  "id": "M1-T2-06",
+  "uc": [
+    "UC-05",
+    "1.3"
+  ],
+  "title": "Исчерпан returns_to: bounce_limit остаётся в Test",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "running"
+        },
+        "attempt": 1,
+        "autoRuns": 3,
+        "bounces": {
+          "test_dev": 3
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "returned",
+        "to": "dev"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "test",
+            "state": {
+              "status": "waiting_human",
+              "reason": "bounce_limit"
+            },
+            "bounces": {
+              "test_dev": 3
+            }
+          }
+        }
+      }
+    }
+  ],
+  "note": "Spec v0.8.24 §1.3: Test→Dev limit=3, следующий возврат не проходит, count остаётся3. Для M3 feed «Лимит возвратов · Test → Dev, 3 из 3»; имена берутся из pipeline. Feed text oracle отсутствует, expectation сохранён в note для Frontend."
+}
