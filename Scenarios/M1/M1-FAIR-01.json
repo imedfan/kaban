@@ -1,0 +1,91 @@
+{
+  "id": "M1-FAIR-01",
+  "uc": [
+    "UC-14",
+    "F19"
+  ],
+  "title": "Общий потолок 4 делится между двумя проектами с равным весом",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "a-1",
+        "projectId": "p-a",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "a-2",
+        "projectId": "p-a",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "a-3",
+        "projectId": "p-a",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "a-4",
+        "projectId": "p-a",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "b-1",
+        "projectId": "p-b",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "b-2",
+        "projectId": "p-b",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "b-3",
+        "projectId": "p-b",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "b-4",
+        "projectId": "p-b",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ],
+    "maxConcurrentRuns": 4
+  },
+  "steps": [
+    {
+      "tick": "scheduler",
+      "then": {
+        "runsStarted": 4,
+        "runningByProject": {
+          "p-a": 2,
+          "p-b": 2
+        }
+      }
+    }
+  ]
+}

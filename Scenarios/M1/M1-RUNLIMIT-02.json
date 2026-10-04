@@ -1,0 +1,125 @@
+{
+  "id": "M1-RUNLIMIT-02",
+  "uc": [
+    "1.4",
+    "F27"
+  ],
+  "title": "Действие человека сбрасывает счётчик автоматических запусков",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "waiting_human",
+          "reason": "run_limit"
+        },
+        "autoRuns": 12
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000005",
+        "command": {
+          "retryStage": {
+            "taskId": "t-1"
+          }
+        }
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "queued"
+            },
+            "autoRuns": 0,
+            "attempt": 1
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "runsSinceHuman",
+              "state"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000005"
+          }
+        ]
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            },
+            "autoRuns": 1
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "runsSinceHuman",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "id": "M1-WIP-01",
+  "uc": [
+    "1.2",
+    "UC-03"
+  ],
+  "title": "WIP стадии Dev=3: четвёртая задача ждёт с подписью «ждёт места»",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "t-3",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      },
+      {
+        "id": "t-4",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          },
+          "t-2": {
+            "state": {
+              "status": "running"
+            }
+          },
+          "t-3": {
+            "state": {
+              "status": "running"
+            }
+          },
+          "t-4": {
+            "state": {
+              "status": "queued",
+              "reason": "wip_full"
+            }
+          }
+        },
+        "runsStarted": 3,
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-2",
+              "projectId": "p-kaban",
+              "title": "Задача t-2",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-2",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-3",
+              "projectId": "p-kaban",
+              "title": "Задача t-3",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-3",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-4",
+              "projectId": "p-kaban",
+              "title": "Задача t-4",
+              "stageId": "dev",
+              "state": {
+                "status": "queued",
+                "reason": "wip_full"
+              },
+              "priority": 0,
+              "branch": "kaban/t-4",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

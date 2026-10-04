@@ -1,0 +1,82 @@
+{
+  "id": "M1-BOUNCE-02",
+  "uc": [
+    "1.3"
+  ],
+  "title": "Общий потолок возвратов 5 срабатывает раньше лимита пары",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "ai_review",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1",
+        "bounces": {
+          "test_dev": 3,
+          "ai_review_test": 1,
+          "ai_review_dev": 1
+        },
+        "bounceTotal": 5
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "returned",
+        "to": "dev"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "bounce_limit"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "ai_review",
+              "state": {
+                "status": "waiting_human",
+                "reason": "bounce_limit"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {
+                "test_dev": 3,
+                "ai_review_test": 1,
+                "ai_review_dev": 1
+              },
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "id": "M1-GIT-01",
+  "uc": [
+    "UC-17"
+  ],
+  "title": "Пятый отказ git за запуск останавливает запуск",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "gitDenied": 4
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          }
+        }
+      }
+    },
+    {
+      "driver": {
+        "task": "t-1",
+        "gitDenied": 1
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "git_denials"
+            }
+          }
+        },
+        "runsKilled": 1,
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "git_denials"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

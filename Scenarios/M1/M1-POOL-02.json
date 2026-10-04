@@ -1,0 +1,57 @@
+{
+  "id": "M1-POOL-02",
+  "uc": [
+    "UC-09 б"
+  ],
+  "title": "Пул неизвестен: встаёт весь Мак, текущие запуски доигрывают",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "test",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ],
+    "flags": [
+      {
+        "level": "mac",
+        "flag": "usage_exhausted"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "running"
+            }
+          },
+          "t-2": {
+            "state": {
+              "status": "queued"
+            }
+          }
+        },
+        "runsStarted": 0,
+        "runsKilled": 0
+      }
+    }
+  ]
+}

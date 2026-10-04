@@ -1,0 +1,154 @@
+{
+  "id": "M1-SUSP-02",
+  "uc": [
+    "UC-25"
+  ],
+  "title": "Изменённый принятый файл и файл больше 5 МБ срабатывают снова",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      }
+    ],
+    "acceptedFiles": {
+      "t-1": [
+        {
+          "path": ".env.local",
+          "blob": "a1b2c3"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "completed",
+        "gates": "green",
+        "branchFiles": [
+          {
+            "path": ".env.local",
+            "blob": "ffff01",
+            "sizeBytes": 230
+          },
+          {
+            "path": "assets/dump.bin",
+            "blob": "d4e5f6",
+            "sizeBytes": 7340032
+          }
+        ]
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "waiting_human",
+              "reason": "suspicious_files"
+            },
+            "suspiciousFiles": [
+              {
+                "path": ".env.local",
+                "rule": "pattern",
+                "sizeBytes": 230,
+                "blob": "ffff01",
+                "isText": true,
+                "pattern": ".env*"
+              },
+              {
+                "path": "assets/dump.bin",
+                "rule": "size",
+                "sizeBytes": 7340032,
+                "blob": "d4e5f6",
+                "isText": false
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "type": "suspiciousFilesFound",
+            "data": {
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 230,
+                  "blob": "ffff01",
+                  "isText": true,
+                  "pattern": ".env*"
+                },
+                {
+                  "path": "assets/dump.bin",
+                  "rule": "size",
+                  "sizeBytes": 7340032,
+                  "blob": "d4e5f6",
+                  "isText": false
+                }
+              ],
+              "taskId": "t-1",
+              "stageId": "dev",
+              "runId": "r-1"
+            },
+            "check": [
+              "files"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "suspicious_files"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 230,
+                  "blob": "ffff01",
+                  "isText": true,
+                  "pattern": ".env*"
+                },
+                {
+                  "path": "assets/dump.bin",
+                  "rule": "size",
+                  "sizeBytes": 7340032,
+                  "blob": "d4e5f6",
+                  "isText": false
+                }
+              ],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state",
+              "suspiciousFiles"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

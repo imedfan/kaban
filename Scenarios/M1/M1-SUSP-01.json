@@ -1,0 +1,220 @@
+{
+  "id": "M1-SUSP-01",
+  "uc": [
+    "UC-25",
+    "F29"
+  ],
+  "title": "Подозрительные файлы в diff ветки: waiting_human, попытка не списана, принятый набор больше не срабатывает",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1",
+        "attempt": 1
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "completed",
+        "gates": "green",
+        "branchFiles": [
+          {
+            "path": ".env.local",
+            "blob": "a1b2c3",
+            "sizeBytes": 212
+          },
+          {
+            "path": ".env.example",
+            "blob": "e0e0e0",
+            "sizeBytes": 90
+          }
+        ]
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "stage": "dev",
+            "state": {
+              "status": "waiting_human",
+              "reason": "suspicious_files"
+            },
+            "attempt": 1,
+            "suspiciousFiles": [
+              {
+                "path": ".env.local",
+                "rule": "pattern",
+                "sizeBytes": 212,
+                "blob": "a1b2c3",
+                "isText": true,
+                "pattern": ".env*"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "type": "suspiciousFilesFound",
+            "data": {
+              "taskId": "t-1",
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "stageId": "dev",
+              "runId": "r-1"
+            },
+            "check": [
+              "files",
+              "taskId"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "waiting_human",
+                "reason": "suspicious_files"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state",
+              "suspiciousFiles"
+            ]
+          }
+        ],
+        "note": ".env.example в allow и не попадает"
+      }
+    },
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000014",
+        "command": {
+          "acceptSuspiciousFiles": {
+            "taskId": "t-1",
+            "files": [
+              {
+                "path": ".env.local",
+                "blob": "a1b2c3"
+              }
+            ]
+          }
+        }
+      },
+      "then": {
+        "events": [
+          {
+            "type": "suspiciousFilesAccepted",
+            "data": {
+              "taskId": "t-1",
+              "by": "human",
+              "files": [
+                {
+                  "path": ".env.local",
+                  "rule": "pattern",
+                  "sizeBytes": 212,
+                  "blob": "a1b2c3",
+                  "isText": true,
+                  "pattern": ".env*"
+                }
+              ],
+              "commandId": "00000000-0000-4000-8000-000000000014"
+            },
+            "check": [
+              "by",
+              "taskId"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "test",
+              "state": {
+                "status": "queued"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "stageId",
+              "state",
+              "suspiciousFiles"
+            ],
+            "commandId": "00000000-0000-4000-8000-000000000014"
+          }
+        ],
+        "tasks": {
+          "t-1": {
+            "stage": "test",
+            "state": {
+              "status": "queued"
+            },
+            "attempt": 1,
+            "suspiciousFiles": []
+          }
+        },
+        "runsStarted": 0,
+        "note": "демон перепроверил diff, задача сделала отложенный переход без нового запуска"
+      }
+    },
+    {
+      "note": "если blob .env.local изменится, проверка сработает снова (M1-SUSP-02)"
+    }
+  ]
+}

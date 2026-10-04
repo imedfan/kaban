@@ -1,0 +1,87 @@
+{
+  "id": "M1-NOCHARGE-rate_limit",
+  "uc": [
+    "1.4",
+    "UC-09",
+    "UC-20"
+  ],
+  "title": "rate_limit: попытка и max_runs_per_task не списываются",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1",
+        "attempt": 1,
+        "autoRuns": 1
+      }
+    ]
+  },
+  "steps": [
+    {
+      "driver": {
+        "task": "t-1",
+        "end": "rate_limit"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "rate_limit"
+            },
+            "attempt": 1,
+            "autoRuns": 0
+          }
+        },
+        "flags": [
+          {
+            "level": "mac",
+            "flag": "rate_limited",
+            "step": 1,
+            "until": "+15m"
+          }
+        ],
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "retry_wait",
+                "reason": "rate_limit"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 1,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "runsSinceHuman",
+              "state"
+            ]
+          }
+        ]
+      },
+      "note": "autoRuns возвращается к значению до запуска"
+    }
+  ]
+}

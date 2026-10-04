@@ -1,0 +1,116 @@
+{
+  "id": "M1-PIPE-01",
+  "uc": [
+    "UC-23",
+    "1.5"
+  ],
+  "title": "Стадия без модели: проект pipeline_invalid, ничего нового не стартует, идущий запуск доигрывает",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "running"
+        },
+        "runId": "r-1"
+      },
+      {
+        "id": "t-2",
+        "projectId": "p-kaban",
+        "stage": "dev",
+        "state": {
+          "status": "queued"
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "pipelineApplied": {
+        "stages": {
+          "test": {
+            "model": null
+          }
+        }
+      },
+      "then": {
+        "flags": [
+          {
+            "level": "project",
+            "flag": "unavailable",
+            "projectId": "p-kaban",
+            "reason": "pipeline_invalid"
+          }
+        ],
+        "runsKilled": 0
+      }
+    },
+    {
+      "tick": "scheduler",
+      "then": {
+        "tasks": {
+          "t-2": {
+            "state": {
+              "status": "queued"
+            }
+          }
+        },
+        "runsStarted": 0
+      }
+    },
+    {
+      "pipelineApplied": {
+        "stages": {
+          "test": {
+            "model": "composer-2"
+          }
+        }
+      },
+      "tick": "scheduler",
+      "then": {
+        "flags": [],
+        "tasks": {
+          "t-2": {
+            "state": {
+              "status": "running"
+            }
+          }
+        },
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-2",
+              "projectId": "p-kaban",
+              "title": "Задача t-2",
+              "stageId": "dev",
+              "state": {
+                "status": "running"
+              },
+              "priority": 0,
+              "branch": "kaban/t-2",
+              "attempt": 0,
+              "maxAttempts": 3,
+              "runsSinceHuman": 0,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": null,
+              "retryAt": null,
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:00:00.000Z"
+            },
+            "check": [
+              "id",
+              "state"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
