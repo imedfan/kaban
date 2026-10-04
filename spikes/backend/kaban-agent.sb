@@ -1,0 +1,64 @@
+;; kaban-agent.sb — шаблон профиля Seatbelt (sandbox-exec) для cursor-agent и его
+;; инструментов (§8.2 п.3 архитектуры Kaban). Шаблон спайка 6.
+;;
+;; Плейсхолдеры вида @@ИМЯ@@ подставляет spike6-seatbelt.sh (`lib/kspike.py render-sb`):
+;;   HOME       реальный путь домашнего каталога
+;;   CLONE      клон задачи (единственное место записи из проектов)
+;;   TMPDIR     реальный путь $TMPDIR (/private/var/folders/.../T)
+;;   CACHEDIR   getconf DARWIN_USER_CACHE_DIR (/private/var/folders/.../C)
+;;   MCP_PORT   порт MCP-сервера доски на 127.0.0.1
+;;   EXTRA_WRITE       служебные каталоги cursor-agent (найдены в спайке)
+;;   EXTRA_DENY_READ   дополнительные запреты чтения
+;;   EXTRA_DENY_WRITE  дополнительные запреты записи
+;;
+;; В SBPL побеждает ПОСЛЕДНЕЕ подходящее правило, поэтому порядок: общее -> исключения.
+;; Пути — только реальные (/private/tmp, /private/var/folders), симлинки не матчатся.
+;; Ограничение SBPL: в (remote ip "host:port") host может быть только "*" или "localhost",
+;; поэтому allowlist внешних хостов для команд агента делается прокси, а не профилем.
+
+(version 1)
+
+;; База спайка: всё разрешено, дальше сужаем запись, чтение секретов и loopback.
+;; Вариант deny-default (как у Codex CLI) — следующий шаг, когда известен минимальный набор.
+(allow default)
+
+;; ---------- Запись: запрещена везде ...
+(deny file-write*)
+
+;; ... кроме клона задачи, временных каталогов, устройств и служебных каталогов CLI
+(allow file-write*
+  (subpath "@@CLONE@@")
+  (subpath "@@TMPDIR@@")
+  (subpath "@@CACHEDIR@@")
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp")
+  (literal "/dev/null")
+  (literal "/dev/zero")
+  (literal "/dev/tty")
+  (literal "/dev/ptmx")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/fd/")
+  (regex #"^/dev/ttys[0-9]+$")
+@@EXTRA_WRITE@@
+)
+
+;; ---------- Жёсткие запреты записи (поверх разрешений выше)
+(deny file-write*
+  (literal "@@HOME@@/.gitconfig")
+  (subpath "@@HOME@@/.ssh")
+  (literal "@@HOME@@/.cursor/mcp.json")
+  (subpath "@@HOME@@/Library/Application Support/Kaban")
+  (subpath "@@HOME@@/Library/LaunchAgents")
+@@EXTRA_DENY_WRITE@@
+)
+
+;; ---------- Чтение секретов запрещено: ключи SSH и globalStorage Cursor IDE (токен IDE)
+(deny file-read*
+  (subpath "@@HOME@@/.ssh")
+  (subpath "@@HOME@@/Library/Application Support/Cursor/User/globalStorage")
+@@EXTRA_DENY_READ@@
+)
+
+;; ---------- Сеть: наружу можно, loopback — только порт MCP-сервера доски
+(deny network-outbound (remote ip "localhost:*"))
+(allow network-outbound (remote ip "localhost:@@MCP_PORT@@"))
