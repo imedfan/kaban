@@ -1,0 +1,55 @@
+{
+  "id": "M1-T2-01",
+  "uc": [
+    "UC-07",
+    "1.3"
+  ],
+  "title": "requestChanges в read-only стадию отклонён",
+  "given": {
+    "clock": "2026-10-04T08:00:00.000Z",
+    "pipeline": "base",
+    "tasks": [
+      {
+        "id": "t-1",
+        "projectId": "p-kaban",
+        "stage": "human_review",
+        "state": {
+          "status": "waiting_human",
+          "reason": "review"
+        },
+        "attempt": 1,
+        "autoRuns": 2
+      }
+    ]
+  },
+  "steps": [
+    {
+      "command": {
+        "protocolVersion": 1,
+        "commandId": "00000000-0000-4000-8000-000000000001",
+        "command": {
+          "requestChanges": {
+            "taskId": "t-1",
+            "comments": "Исправить",
+            "target": "ai_review"
+          }
+        }
+      },
+      "then": {
+        "commandError": "invalid_state",
+        "tasks": {
+          "t-1": {
+            "stage": "human_review",
+            "state": {
+              "status": "waiting_human",
+              "reason": "review"
+            },
+            "autoRuns": 2
+          }
+        },
+        "events": []
+      }
+    }
+  ],
+  "note": "Spec v0.8.24 §1.3 и UC-07: return only writable agent. Отказ не мутирует task и не emits events; ai_review readOnly=true в base."
+}
