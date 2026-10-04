@@ -68,8 +68,10 @@ public struct GitIdentityRequired: Error, Equatable, Sendable {
     static func check(_ raw: GitIdentityFields) -> (identity: GitIdentity?, error: GitIdentityRequired?) {
         var e = GitIdentityRequired()
         for f in GitIdentityField.allCases {
-            let v = raw[f]?.trimmingCharacters(in: .whitespaces) ?? ""
-            if v.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\0" }) { e.invalid.insert(f) }
+            let original = raw[f] ?? ""
+            let v = original.trimmingCharacters(in: .whitespaces)
+            // CRLF is one Swift Character: inspect scalars before trimming.
+            if original.unicodeScalars.contains(where: { $0.value == 10 || $0.value == 13 || $0.value == 0 }) { e.invalid.insert(f) }
             else if v.isEmpty { e.missing.insert(f) }
             else { e.found[f] = v }
         }

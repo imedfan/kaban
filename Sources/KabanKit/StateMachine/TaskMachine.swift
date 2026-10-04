@@ -386,7 +386,7 @@ private struct Machine {
                 waitHuman(.invalidResult)
             } else {
                 s.pendingPrompt.append(.readOnlyViolation)
-                chargeAttempt(stage, reason: .gateFailed)
+                chargeAttempt(stage, reason: .readonlyViolation)
             }
         }
     }

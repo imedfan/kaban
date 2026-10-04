@@ -116,7 +116,15 @@ public struct SuspiciousFilesPolicy: Codable, Hashable, Sendable {
     public init(patterns: [String] = defaultPatterns, maxFileMB: Double = defaultMaxFileMB, allow: [String] = defaultAllow) {
         self.patterns = patterns; self.maxFileMB = maxFileMB; self.allow = allow
     }
-    public var maxFileBytes: Int64 { Int64(maxFileMB * 1024 * 1024) }
+    /// Positive finite thresholds have no product upper bound. File sizes are Int64:
+    /// saturating above that capacity preserves an effectively unlimited threshold.
+    /// Invalid unchecked policies fail closed instead of trapping; validation rejects them.
+    public var maxFileBytes: Int64 {
+        guard maxFileMB.isFinite, maxFileMB > 0 else { return 0 }
+        let bytes = maxFileMB * 1024 * 1024
+        guard bytes < Double(Int64.max) else { return Int64.max }
+        return Int64(bytes)
+    }
 }
 
 /// Order of picking queued tasks inside a stage (`priority: [returned, answered, fifo]`).
