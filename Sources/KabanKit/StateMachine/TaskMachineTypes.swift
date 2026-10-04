@@ -218,7 +218,7 @@ public enum HumanAction: Hashable, Sendable {
 // MARK: - Effects
 
 /// Side effects the daemon executes after persisting the new state in the same transaction (journal first).
-public enum TaskEffect: Hashable, Sendable {
+public enum TaskEffect: Codable, Hashable, Sendable {
     /// Journal `taskTransitioned` (plus `taskUpdated` with the card, see `TaskMachineState.apply(to:stage:)`).
     case recordTransition(TaskTransition)
     case startAgentRun(AgentRunRequest)
@@ -253,7 +253,7 @@ public enum TaskEffect: Hashable, Sendable {
     case cleanupClone(keepBranch: Bool)
 }
 
-public struct AgentRunRequest: Hashable, Sendable {
+public struct AgentRunRequest: Codable, Hashable, Sendable {
     public var runId: RunID
     public var stageId: StageID
     public var model: ModelID
@@ -268,7 +268,7 @@ public struct AgentRunRequest: Hashable, Sendable {
     public var returnReason: ReturnReason?
 }
 
-public struct ModelFlagRequest: Hashable, Sendable {
+public struct ModelFlagRequest: Codable, Hashable, Sendable {
     public var modelId: ModelID
     public var reason: ModelFlag.Reason
     public var requested: String?
@@ -276,7 +276,7 @@ public struct ModelFlagRequest: Hashable, Sendable {
     public var fallbackModel: String?
 }
 
-public enum StageCommit: Hashable, Sendable {
+public enum StageCommit: Codable, Hashable, Sendable {
     /// `strict`: the only commit of the stage, message = `complete_stage.summary`.
     case daemonSingle(summary: String)
     /// `standard` / `permissive`: safety commit `kaban: <stage> <task>` if anything is left uncommitted.
