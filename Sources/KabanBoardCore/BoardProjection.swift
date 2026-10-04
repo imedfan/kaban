@@ -155,6 +155,8 @@ public struct BoardProjection: Equatable, Sendable {
     public private(set) var ephemeral: EphemeralBoardState
     public private(set) var openIncidentCount: Int
     public private(set) var incidents: [IncidentID: Incident]
+    /// Загрузка стадий из снимка; между снимками её двигает `stageLoadChanged`. Клиент WIP не считает.
+    public private(set) var stageLoad: [StageLoad]
     public private(set) var pending: PendingCommands
     private var appliedSeqs: Set<Seq>
     private var resolvedIncidentIds: Set<IncidentID>
@@ -177,6 +179,7 @@ public struct BoardProjection: Equatable, Sendable {
         )
         openIncidentCount = snapshot.openIncidentCount
         incidents = [:]
+        stageLoad = snapshot.stageLoad
         pending = PendingCommands()
         appliedSeqs = []
         resolvedIncidentIds = []
@@ -289,13 +292,17 @@ public struct BoardProjection: Equatable, Sendable {
 
     /// Бейджи считаются по проекции, видимость дорожки на них не влияет.
     ///
-    /// TODO(protocol): Snapshot несёт только общий openIncidentCount, без открытых
-    /// инцидентов по projectId. Бейдж инцидентов проекта после снимка и resync
-    /// считается по incidentOpened / incidentResolved, пришедшим после снимка.
+    /// Счётчик инцидентов — `ProjectSummary.openIncidentCount` (снимок и `projectUpdated`).
+    /// `incidentOpened` / `incidentResolved` сдвигают поле проекта, пока демон не пришлёт
+    /// новый `projectUpdated` с уже посчитанным значением.
     public func badgeCounts(for projectId: ProjectID) -> ProjectBadgeCounts {
         let waiting = tasks.values.filter { $0.projectId == projectId && $0.state.status == .waitingHuman }.count
-        let incidents = incidents.values.filter { $0.projectId == projectId && $0.resolvedAt == nil }.count
-        return ProjectBadgeCounts(waitingHuman: waiting, openIncidents: incidents)
+        let open = projects[projectId]?.openIncidentCount ?? 0
+        return ProjectBadgeCounts(waitingHuman: waiting, openIncidents: open)
+    }
+
+    public func load(projectId: ProjectID, stageId: StageID) -> StageLoad? {
+        stageLoad.first { $0.projectId == projectId && $0.stageId == stageId }
     }
 
     private func columns(for projectId: ProjectID) -> [BoardColumn] {
@@ -342,6 +349,7 @@ public struct BoardProjection: Equatable, Sendable {
         case .incidentOpened(let incident):
             if incidents[incident.id] == nil {
                 openIncidentCount += 1
+                adjustOpenIncidents(incident.projectId, by: 1)
             }
             incidents[incident.id] = incident
             appendFeed(envelope)
@@ -354,10 +362,22 @@ public struct BoardProjection: Equatable, Sendable {
                         incident.resolvedAt = envelope.at
                         incidents[resolved.incidentId] = incident
                         if openIncidentCount > 0 { openIncidentCount -= 1 }
+                        adjustOpenIncidents(incident.projectId, by: -1)
                     }
-                } else if openIncidentCount > 0 {
-                    openIncidentCount -= 1
+                } else {
+                    if openIncidentCount > 0 { openIncidentCount -= 1 }
+                    if let projectId = envelope.projectId {
+                        adjustOpenIncidents(projectId, by: -1)
+                    }
                 }
+            }
+            appendFeed(envelope)
+            return .applied
+        case .stageLoadChanged(let load):
+            if let index = stageLoad.firstIndex(where: { $0.projectId == load.projectId && $0.stageId == load.stageId }) {
+                stageLoad[index] = load
+            } else {
+                stageLoad.append(load)
             }
             appendFeed(envelope)
             return .applied
@@ -377,6 +397,7 @@ public struct BoardProjection: Equatable, Sendable {
     }
 
     private mutating func removeProject(_ id: ProjectID) {
+        let removedOpen = projects[id]?.openIncidentCount ?? 0
         projects.removeValue(forKey: id)
         projectOrder.removeAll { $0 == id }
         pipelines.removeValue(forKey: id)
@@ -387,9 +408,14 @@ public struct BoardProjection: Equatable, Sendable {
             pending.clear(taskId: taskId)
         }
         taskOrder.removeAll { doomed.contains($0) }
-        let removedOpen = incidents.values.filter { $0.projectId == id && $0.resolvedAt == nil }.count
         incidents = incidents.filter { $0.value.projectId != id }
         openIncidentCount = max(0, openIncidentCount - removedOpen)
+    }
+
+    private mutating func adjustOpenIncidents(_ projectId: ProjectID, by delta: Int) {
+        guard var project = projects[projectId], delta != 0 else { return }
+        project.openIncidentCount = max(0, project.openIncidentCount + delta)
+        projects[projectId] = project
     }
 
     private mutating func appendFeed(_ envelope: EventEnvelope) {

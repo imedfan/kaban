@@ -19,7 +19,7 @@ final class ScenarioReplayTests: XCTestCase {
             }
         }
         if !skipped.isEmpty {
-            print("KabanBoardCore: пропущены события, которые не декодируются типами PR #2 (\(skipped.count)):")
+            print("KabanBoardCore: пропущены события, которые не декодируются текущим протоколом (\(skipped.count)):")
             for line in skipped.sorted() {
                 print("  \(line)")
             }
@@ -33,6 +33,7 @@ final class ScenarioReplayTests: XCTestCase {
         XCTAssertEqual(found.state, .waitingHuman(.suspiciousFiles))
         XCTAssertEqual(found.attempt, 1)
         XCTAssertEqual(found.suspiciousFiles.map(\.path), [".env.local"])
+        XCTAssertEqual(found.suspiciousFiles.map(\.isText), [true])
         XCTAssertFalse(found.suspiciousFiles.contains { $0.path == ".env.example" })
         let accepted = try XCTUnwrap(run.steps[1].tasks["t-1"])
         XCTAssertEqual(accepted.stageId.rawValue, "test")
@@ -166,9 +167,8 @@ final class ScenarioReplayTests: XCTestCase {
         return ScenarioRun(steps: steps, skipped: skipped)
     }
 
-    /// TODO(protocol): `isText`, `stageLoad`, `readonlyViolation` приедут отдельным PR протокола.
-    /// Лишние ключи декодер PR #2 игнорирует. Событие, которое всё же не ложится в тип, пропускается
-    /// с напечатанной причиной — типы под него не заводятся. Сверка только по полям `check`.
+    /// Лишние ключи декодер игнорирует. Событие, которое не ложится в известный тип, пропускается
+    /// с напечатанной причиной — тип под него здесь не заводится. Сверка только по полям `check`.
     private func prepare(_ events: [[String: Any]], file: String, skipped: inout [String]) throws -> [Prepared] {
         var prepared: [Prepared] = []
         for event in events {
@@ -232,7 +232,7 @@ final class ScenarioReplayTests: XCTestCase {
     }
 
     private func noteSkip(file: String, type: String, error: Any, skipped: inout [String]) {
-        skipped.append("\(file) \(type): TODO(protocol) \(error)")
+        skipped.append("\(file) \(type): \(error)")
     }
 
     private func assertJournalCheck(_ fields: [String], stored: JournalEvent, expected: JournalEvent, file: String, step: Int) throws {

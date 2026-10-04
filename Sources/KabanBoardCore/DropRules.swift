@@ -35,8 +35,8 @@ public enum DropRules {
     public static let interruptConfirmation = "Прервать текущий запуск? Попытка не спишется"
 
     /// Правила UC-11: назад можно (с подтверждением, если run идёт), вперёд нельзя,
-    /// кроме Backlog → следующая стадия. Столбец `kind == .gate` — запрещённая цель.
-    /// Между проектами переносить нельзя.
+    /// кроме Backlog → следующая стадия при `hasAcceptanceCriteria`. Столбец `kind == .gate`
+    /// — запрещённая цель. Между проектами переносить нельзя.
     public static func evaluate(card: TaskCard, target: StageSummary, in pipeline: PipelineSummary) -> DropDecision {
         if pipeline.projectId != card.projectId {
             return .forbidden(.crossProject)
@@ -53,24 +53,32 @@ public enum DropRules {
         if sourceIndex == targetIndex {
             return .forbidden(.sameColumn)
         }
-        // TODO(protocol): у StageSummary нет списка гейтов. Запрет «вперёд через стадии
-        // с гейтами» опирается на kind == .gate и на общий запрет переноса вперёд.
-        // Гейты agent-стадии, которые не отражены отдельной gate-колонкой, не видны.
         if target.kind == .gate {
             return .forbidden(.gateColumn)
         }
         if targetIndex > sourceIndex {
-            // TODO(protocol): у TaskCard нет критериев приёмки, поэтому исключение
-            // «Backlog → первая стадия, только если критерии есть» проверить нельзя.
-            // Разрешаем переход структурно: queue → следующая стадия.
+            // Вперёд нельзя. Исключение — из `queue` в соседнюю стадию и только если
+            // у карточки есть критерии приёмки. Стадия между источником и целью
+            // с `kind == .gate` или с непустым `gates` тоже закрывает переход:
+            // гейты agent-стадии без своей колонки видны так же, как столбец гейта.
+            // Гейты самой цели входу в неё не мешают.
+            if crossesStagesWithGates(from: sourceIndex, to: targetIndex, stages: stages) {
+                return .forbidden(.forwardMove)
+            }
             let source = stages[sourceIndex]
-            if source.kind == .queue && targetIndex == sourceIndex + 1 {
+            if source.kind == .queue && targetIndex == sourceIndex + 1 && card.hasAcceptanceCriteria {
                 return .allowed(interruptConfirmation: nil)
             }
             return .forbidden(.forwardMove)
         }
         let needsConfirmation = card.state.status == .running || card.state.status == .gating
         return .allowed(interruptConfirmation: needsConfirmation ? interruptConfirmation : nil)
+    }
+
+    /// Есть ли между стадиями барьер: столбец `gate` или стадия с непустым `gates`.
+    static func crossesStagesWithGates(from sourceIndex: Int, to targetIndex: Int, stages: [StageSummary]) -> Bool {
+        guard targetIndex > sourceIndex + 1 else { return false }
+        return stages[(sourceIndex + 1)..<targetIndex].contains { $0.kind == .gate || !$0.gates.isEmpty }
     }
 
     static func orderedStages(_ pipeline: PipelineSummary) -> [StageSummary] {

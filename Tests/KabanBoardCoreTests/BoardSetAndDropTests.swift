@@ -190,10 +190,15 @@ final class DropRulesTests: XCTestCase {
     }
 
     func testForwardIsForbiddenExceptBacklogToNextStage() {
-        let backlogCard = Fix.card("t-1", stage: "backlog", state: .queued(nil))
+        let backlogCard = Fix.card("t-1", stage: "backlog", state: .queued(nil), hasAcceptanceCriteria: true)
         XCTAssertEqual(
             DropRules.evaluate(card: backlogCard, target: Fix.stage("dev", .agent, order: 1), in: pipeline),
             .allowed(interruptConfirmation: nil)
+        )
+        let withoutCriteria = Fix.card("t-1", stage: "backlog", state: .queued(nil))
+        XCTAssertEqual(
+            DropRules.evaluate(card: withoutCriteria, target: Fix.stage("dev", .agent, order: 1), in: pipeline),
+            .forbidden(.forwardMove)
         )
         XCTAssertEqual(
             DropRules.evaluate(card: backlogCard, target: Fix.stage("test", .agent, order: 3), in: pipeline),
@@ -239,5 +244,38 @@ final class DropRulesTests: XCTestCase {
             .forbidden(.unknownStage)
         )
         XCTAssertEqual(DropForbidReason.gateColumn.text, "В столбец гейта нельзя перетащить задачу")
+    }
+
+    func testAcceptanceCriteriaAndAgentGates() {
+        let withGates = Fix.pipeline([
+            Fix.stage("backlog", .queue, order: 0),
+            Fix.stage("review", .agent, order: 1, gates: ["swift test"]),
+            Fix.stage("dev", .agent, order: 2),
+        ])
+        let ready = Fix.card("t-1", stage: "backlog", state: .queued(nil), hasAcceptanceCriteria: true)
+        XCTAssertEqual(
+            DropRules.evaluate(card: ready, target: Fix.stage("review", .agent, order: 1, gates: ["swift test"]), in: withGates),
+            .allowed(interruptConfirmation: nil),
+            "гейты цели не мешают войти в соседнюю стадию"
+        )
+        XCTAssertEqual(
+            DropRules.evaluate(card: ready, target: Fix.stage("dev", .agent, order: 2), in: withGates),
+            .forbidden(.forwardMove)
+        )
+        XCTAssertTrue(DropRules.crossesStagesWithGates(from: 0, to: 2, stages: withGates.stages))
+        let bare = [
+            Fix.stage("backlog", .queue, order: 0),
+            Fix.stage("review", .agent, order: 1),
+            Fix.stage("dev", .agent, order: 2),
+        ]
+        XCTAssertFalse(DropRules.crossesStagesWithGates(from: 0, to: 2, stages: bare))
+        XCTAssertTrue(DropRules.crossesStagesWithGates(
+            from: 0, to: 2,
+            stages: [
+                Fix.stage("backlog", .queue, order: 0),
+                Fix.stage("gate", .gate, order: 1),
+                Fix.stage("dev", .agent, order: 2),
+            ]
+        ))
     }
 }
