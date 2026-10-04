@@ -107,7 +107,7 @@ struct TaskCardView: View {
             }
             Text(card.title).font(.system(size: 12, weight: .semibold)).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             ForEach(Array(card.suspiciousFiles.prefix(2)), id: \.path) { file in
-                Text("\(file.path) · \(file.rule == .pattern ? file.pattern ?? "по шаблону" : "больше 5 МБ")")
+                Text("\(file.path) · \(file.rule == .pattern ? file.pattern ?? "по шаблону" : "превышен лимит размера")")
                     .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1)
             }
             if card.suspiciousFiles.count > 2 { Text("+\(card.suspiciousFiles.count - 2)").font(.caption2) }
@@ -154,7 +154,7 @@ struct TaskDetailView: View {
                         ForEach(detail.suspiciousFiles, id: \.path) { file in
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(file.path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                                Text(file.rule == .pattern ? "по шаблону \(file.pattern ?? "—")" : "больше 5 МБ").font(.caption).foregroundStyle(.secondary)
+                                Text(file.rule == .pattern ? "по шаблону \(file.pattern ?? "—")" : "превышен лимит размера").font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }
