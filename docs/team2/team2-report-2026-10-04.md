@@ -197,3 +197,14 @@ swift test --disable-sandbox \
 `PR19-linux.log`, `PR29-linux.log`, `scope-audit.json`, `T7-validation.log`;
 они временные, проверяемые долговременные CI-логи доступны по ссылкам в таблице.
 Команды спайков и ограничения исследования перечислены в каждом research-файле.
+
+
+## Frontend-only design implementation — resumed session
+
+The user continued the frontend phase after all previous M1 PRs merged. Immediate XPC work is superseded for this session. Only frontend application/assets/docs changed; backend, protocol, auth and designer work remain excluded. Implementing supplied approved designs does not create a new design.
+
+The primary application now hosts the approved local HTML/CSS/SVG in WKWebView inside SwiftUI, with an allowlisted memory demo bridge; native prototype remains available. All 46 original sources retain their SHA256. Every one of 28 unique original frames has a menu route and own WK export, with two extra projected runtime board exports. General uses a documented deterministic-column compatibility adjustment. Platform font/emoji and snapshot backdrop-filter differences remain explicitly recorded; no pixel-perfect claim is made.
+
+Evidence and remaining production integration are in [frontend parity](../development/frontend-design-parity-2026-10-04.md), [frontend feedback](../development/frontend-feedback-2026-10-04.md) and the source/reference SHA manifest. The unsigned app builds at `/tmp/kaban-parity-derived/Build/Products/Debug/Kaban.app`. Frontend DOM/model smoke passes 35 checks; parent package scenario suite passes 294 tests, no failures/skips. Final source exports live in `/tmp/kaban-source-final`; frames.json contains paths/themes/dimensions/SHA/findings. Root's paired review covers all 28 compositions.
+
+Run the default app binary to inspect latest board21. Use macOS Демо menu for original read-only frames, native fallback and brand. Run binary `--demo-smoke /tmp/result.json` or `--export-design-frames /tmp/frames` for repeatable checks; failure exits nonzero. [App README](../../App/README.md) gives complete commands and scope. Memory actions do not perform repository/system/daemon work; production adaptation to existing typed BoardStore/KabanClient remains future integration. Root publishes PR against MAIN, checks CI and launches the final app; PR URL/SHA will be appended after publication.

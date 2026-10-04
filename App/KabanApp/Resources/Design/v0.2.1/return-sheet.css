@@ -1,0 +1,73 @@
+/* v0.2.1 · «Вернуть…» sheet on gate / merge for waiting_human · suspicious_files (UC-25.4, plan 3.5) */
+html,body{height:900px}
+.rs-page{position:relative;width:1440px;height:900px;background:var(--bg-content);padding:22px 32px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.rs-page h1{font-size:21px;font-weight:750;letter-spacing:-.02em}
+.rs-page .lead{font-size:11.5px;color:var(--text-2);line-height:16px;margin-top:3px;max-width:1370px}
+.rs-page .lead .mono,.rs-cap .mono,.rs-lab .mono{font-size:10.5px;color:var(--text)}
+.rs-two{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+.rs-col{display:flex;flex-direction:column;gap:7px;min-height:0}
+.rs-lab{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700}
+.rs-lab .k{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:var(--bg-control);font-size:11px;font-weight:750;color:var(--text-2)}
+.rs-lab .faint{font-weight:500;font-size:11px}
+.rs-cap{font-size:10.5px;color:var(--text-2);line-height:14.5px}
+.rs-cap b{color:var(--text);font-weight:650}
+/* cropped details panel */
+.rs-frame{position:relative;flex:1;min-height:0;border-radius:var(--r-glass);overflow:hidden;box-shadow:0 0 0 .5px var(--sep-strong),0 10px 30px rgba(30,35,60,.12)}
+.rs-frame .backdrop i{opacity:.4}
+.rs-frame .panel{position:absolute;inset:0;width:auto;right:0;top:0;bottom:0;border-radius:0}
+.rs-frame .scrim{position:absolute;inset:0;background:rgba(30,32,40,.11);z-index:40}
+.dark .rs-frame .scrim{background:rgba(0,0,0,.38)}
+.rs-frame .crop{position:absolute;left:0;right:0;bottom:0;height:26px;z-index:41;background:linear-gradient(transparent,var(--bg-content));opacity:.6}
+.panel .btn.on{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent),0 0 0 .5px var(--sep-strong)}
+.acts3{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+/* the sheet (window chrome → glass allowed) */
+.rsheet{position:absolute;z-index:50;left:20px;right:20px;top:122px;border-radius:var(--r-panel);padding:14px 16px 14px;display:flex;flex-direction:column;gap:11px;font-size:11.5px}
+.rsheet .glass-strong{}
+.rsheet .sh-h{display:flex;align-items:flex-start;gap:10px}
+.rsheet .sh-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--st-suspicious-bg);color:var(--st-suspicious);flex:none}
+.rsheet .sh-t{font-size:14px;font-weight:700;letter-spacing:-.01em}
+.rsheet .sh-s{font-size:11px;color:var(--text-2);margin-top:2px}
+.rsheet .sh-s .mono{font-size:10.5px}
+.rsheet .fr{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start}
+.rsheet .fr>.l{font-size:11px;font-weight:650;color:var(--text-2);padding-top:4px}
+.rsheet .fr .v{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rsheet .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rsheet .hint{font-size:10.5px;color:var(--text-3);line-height:14px}
+.rsheet .hint .mono{font-size:10px;color:var(--text-2)}
+.rsheet .pop.tg{height:24px;font-size:12px;color:var(--text);padding:0 7px 0 8px;gap:6px;min-width:84px}
+.rsheet .pop.tg .ic{color:var(--text-3)}
+.rsheet .alt{font-size:10.5px;color:var(--text-3)}
+.rsheet .alt span{color:var(--accent)}
+.bcnt{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:600;background:var(--bg-control);color:var(--text-2);font-variant-numeric:tabular-nums}
+.bcnt.cf{background:var(--st-conflict-bg,var(--bg-control));color:var(--st-conflict-fg,var(--text-2))}
+.bcnt .mono{font-size:9.5px;font-weight:500;color:var(--text-3)}
+.bcnt .ic{color:var(--text-3)}
+.rsheet .ta{min-height:58px;border-radius:8px;background:var(--bg-card);padding:7px 9px;font-size:12px;line-height:17px;box-shadow:0 0 0 .5px var(--sep-strong),inset 0 1px 1.5px rgba(0,0,0,.05);color:var(--text)}
+.rsheet .ta.focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent),0 0 0 1px var(--accent)}
+.rsheet .ta .ph{color:var(--text-3)}
+.rsheet .ta .caret{display:inline-block;width:1.5px;height:14px;background:var(--accent);vertical-align:-2px;margin-left:1px}
+.rsheet .ta .mono{font-size:11px}
+.rsheet .sug{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--accent);font-weight:550}
+.rsheet .fl3{border-radius:8px;box-shadow:0 0 0 .5px var(--sep);background:color-mix(in srgb,var(--bg-card) 70%,transparent);overflow:hidden}
+.rsheet .fl3 .r{display:grid;grid-template-columns:14px minmax(0,1fr) 52px auto 132px;gap:8px;align-items:center;height:27px;padding:0 9px;border-top:.5px solid var(--sep);font-size:11px}
+.rsheet .fl3 .r:first-child{border-top:none}
+.rsheet .fl3 .p{font-family:var(--font-mono);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsheet .fl3 .p .dir{color:var(--text-3)}
+.rsheet .fl3 .z{text-align:right;color:var(--text-2);font-variant-numeric:tabular-nums}
+.rsheet .fl3 .r>.ic{color:var(--text-3)}
+.fst{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;white-space:nowrap;justify-self:end}
+.fst.acc{color:var(--text-2)} .fst.acc .ic{color:var(--pol-allow)}
+.fst.keep{color:var(--st-suspicious-fg)} .fst.keep .ic{color:var(--st-suspicious)}
+.rsheet .res{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-radius:9px;font-size:11px;line-height:15.5px;color:var(--text-2)}
+.rsheet .res>.ic{flex:none;margin-top:1px}
+.rsheet .res b{color:var(--text);font-weight:650}
+.rsheet .res .mono{font-size:10px;color:var(--text)}
+.rsheet .res.acc{background:var(--bg-control)} .rsheet .res.acc>.ic{color:var(--pol-allow)}
+.rsheet .res.keep{background:var(--st-suspicious-bg)} .rsheet .res.keep>.ic{color:var(--st-suspicious)}
+.rsheet .sh-f{display:flex;align-items:center;gap:8px;padding-top:2px}
+.rsheet .sh-f .cmd{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0}
+.rsheet .sh-f .cmd b{color:var(--text-2);font-weight:600}
+.rsheet .sh-f .btn{height:26px;font-size:12px;padding:0 12px}
+.rsheet .sep2{height:.5px;background:var(--sep);margin:0 -16px}
+.rs-frame .panel > * { flex: none; }
+.rsheet .alt span.mono{color:var(--text-2);font-size:10px}

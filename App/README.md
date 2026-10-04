@@ -1,18 +1,27 @@
-# Kaban.app foundation
+# Kaban.app — approved design demo
 
-Open `Kaban.xcodeproj`, select the shared **Kaban** scheme, and run on macOS 26 or later with Xcode 27. The app imports only `KabanProtocol` and `KabanBoardCore` from the local Swift package. The Debug configuration builds the active architecture. Signing is optional for local compilation; an unsigned build requires no signing identity or Keychain changes:
+Open `Kaban.xcodeproj`, select **Kaban**, and run on macOS 26 with Xcode 27. The default application displays the approved v0.2.1 board through bundled original HTML/CSS/SVG in a local WKWebView, inside the SwiftUI macOS shell. This implements supplied designs; it does not redesign them. The original Kaban icon is bundled under `Resources/Kaban.icns`; the native brand screen uses the supplied outlined wordmark.
 
 ```sh
-xcodebuild -project Kaban.xcodeproj -scheme Kaban \
-  -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath /tmp/kaban-board-derived CODE_SIGNING_ALLOWED=NO build
-swift test --filter Team2TakeoverFrontendFoundationTests
+xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath /tmp/kaban-parity-derived \
+  CODE_SIGNING_ALLOWED=NO build
+/tmp/kaban-parity-derived/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban
 ```
 
-This stage uses `MockKabanClient` with two project fixtures. The toolbar identifies demo data. The sidebar context menu shows or hides projects, and the board persists the visible project set in app UserDefaults. Selecting a task loads typed `TaskDetail` through the client. New tasks are created in the selected project’s Backlog with a title, Markdown description, and an explicit acceptance criteria section composed into the existing `createTask(title, body)` contract. Known Markdown bodies can be edited exactly; legacy `TaskDetail.body == nil` disables body editing and sends title-only changes without replacing unknown content. Move uses the existing drop rules with interruption confirmation, and cancellation explicitly offers branch preservation. Empty projects/boards, pending commands, failures, and stale task selection have native affordances.
+All changes in the default demo exist only in memory for the current launch. Select a project in the sidebar, use **Задача** to create a task, select a card for details/actions, and use its context menu to move it. Create/edit/move/cancel use native forms where no original form was supplied. Task Markdown is stored exactly in demo memory; moves and resumes queue tasks rather than restoring a running state. Original return and project-identity sheets are interactive DOM components. Accepting files tracks pending/accepted sets per task; project registration adds a sidebar entry and a lane; settings apply/cancel preserve a local snapshot.
 
-The mock validates each command against its current card, rejects unsupported commands explicitly, and replays the same `commandId` without duplicate effects; reusing it for a different command conflicts. Cards and loads change through correlated journal events. Creation waits for `taskCreated`, including event-before-ack races. Running tasks can be paused; resume queues the same stage instead of restoring a running state. Mock actions demonstrate states and do not control processes or modify repositories. Snapshot resync invalidates stale detail requests and reconciles visible projects and selection.
+The **Демо** macOS menu opens each of the 28 original reference frames, changes appearance, opens the brand screen, or selects the preserved native SwiftUI prototype. Reference previews are read-only and preserve their original fixtures; the main board and settings use allowlisted Swift demo handlers. `--native-demo` starts the native prototype.
 
-Card typography, spacing, radii, semantic status colours and suspicious-file rows follow the approved v0.2.1 token/reference archive. The foundation uses native SwiftUI materials and controls. Whole-window visual comparison, exact dark appearance token mapping, mascots, drag-and-drop and keyboard lane navigation remain unverified or pending. Action sheets use native controls; original create-sheet visual fidelity remains pending because that reference is unavailable. This is a structural implementation of the existing design, not a redesign.
+```sh
+APP=/tmp/kaban-parity-derived/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban
+"$APP" --demo-smoke /tmp/kaban-dom-smoke.json
+"$APP" --export-design-frames /tmp/kaban-source-frames
+"$APP" --export-design-frames /tmp/kaban-one-frame --frame-id v0.2.1/02-details-suspicious
+```
 
-Real XPC connection/reconnect, quota/settings editors, pipeline/project editors, incident screens, Human Review actions, daemon registration and signing are later stages. No daemon is installed or started by this app. Settings are not inferred from missing snapshot fields. WIP appears only when authoritative `StageLoad` is available; sidebar/global counts use all projects regardless of which lanes are visible.
+The smoke exercises actual DOM clicks, Swift state, DOM projection, original modals, settings reload and SwiftUI observation, plus direct memory-state checks. Failure exits nonzero. Export uses WKWebView snapshots at reference viewport sizes and records source/render SHA256, actual pixel dimensions, result and limitations in `frames.json`. It exports all 28 originals and two projected runtime boards. `--native-frames` selects the preserved AppKit capture path for diagnostics.
+
+Original sources remain byte-for-byte unchanged; runtime entrypoints and `demo-bridge.js` are separate. Web content is restricted to bundled local resources and blocked from remote network navigation. Demo diff/file actions open an illustrative local viewer; no shell, repository, Cursor/Finder, daemon, authentication or XPC action is executed. Production integration remains an adapter to existing BoardStore/KabanClient typed commands, DTOs and journal events.
+
+WK snapshots have a known backdrop-filter compositor limitation and platform font/emoji differences from supplied PNGs. Rendering original DOM is not a claim that every exported pixel matches the supplied raster. See the [parity audit](../docs/development/frontend-design-parity-2026-10-04.md) and [frontend feedback](../docs/development/frontend-feedback-2026-10-04.md).

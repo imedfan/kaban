@@ -1,0 +1,36 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban — Настройки столбца: все разделы</title>
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="settings.css">
+<style>.mas{column-count:3;column-gap:10px}.mas .fbox{break-inside:avoid;margin-bottom:10px}.chipsx{display:flex;gap:4px;flex-wrap:wrap;align-items:center;font-size:11px}.chipsx .cc{font-family:var(--font)}</style></head>
+<body><div id="root"></div><script src="components.js"></script><script src="settings.js"></script>
+<script>
+const fr=(l,v)=>`<div class="fr"><span>${l}</span>${v}</div>`;
+const inp=(v,cls='',i='')=>`<span class="inp ${cls}">${v}${i?ic(i,10):''}</span>`;
+const sw=(on)=>`<span class="switch ${on?'':'off'}"></span>`;
+const cb=(t,on=true)=>`<span><span class="check ${on?'':'off'}">${on?ic('check',9):''}</span>${t}</span>`;
+const box=(icn,title,key,body)=>`<div class="fbox"><h3>${ic(icn,13)}${title}<span class="k">${key}</span></h3>${body}</div>`;
+const left = `<div class="mas">
+${box('tag','Идентичность и вид','id, display',
+  fr('id',inp('dev','mono ro','lock'))+fr('Имя',inp('Разработка'))+fr('Иконка и цвет',`<span style="display:flex;gap:6px">${inp(ic('hammer',11)+' hammer')}${inp('<span class="stdot" style="background:#0a7aff"></span> синий')}</span>`)+fr('Порядок',`<span class="step"><i>−</i><b>2</b><i>+</i></span>`)+fr('Свёрнут по умолчанию',sw(false))+fr('Скрыт',sw(false))+`<div class="hint">Переименование и перестановка задачи не ломают — они ссылаются на id.</div>`)}
+${box('gauge','Пропускная способность','wip, priority',
+  fr('WIP-лимит',`<span style="display:flex;align-items:center;gap:8px"><span class="step"><i>−</i><b>2</b><i>+</i></span><span class="hint">занято 1 · running + gating + retry_wait</span></span>`)+fr('Приоритет',`<span class="chipsx"><span class="cc l">возвращённые</span>→<span class="cc l">отвеченные</span>→<span class="cc l">по очереди</span></span>`)+`<div class="hint">WIP ниже текущего числа задач никого не прерывает: новые просто не стартуют («3/2»).</div>`)}
+${box('bot','Исполнитель','agent',
+  fr('Харнес',inp('Cursor CLI','ro','lock'))+fr('Модель',inp('gpt-5','','chevdown'))+fr('Скилл (роль)',inp('.kaban/skills/dev.md','mono','folder'))+`<div class="hint">Смена модели и скилла действует со следующего запуска.</div>`)}
+${box('shield','Права','permissions, mcp, git',
+  fr('Доступ',`<span class="seg"><span class="on">Запись</span><span>Только чтение</span></span>`)+fr('MCP',`<span class="chipsx"><span class="cc l">kaban</span><span class="btn sm ghost">${ic('plus',9)}</span></span>`)+fr('Git-политика',`<span class="btn sm ghost" style="padding:0">Стандартный · 2 переопределения ${ic('chevright',9)}</span>`))}
+${box('box','Окружение и рабочая копия','env, workspace',
+  fr('Переменные',inp('NODE_ENV = test','mono'))+fr('Секреты',inp(ic('key',10)+' CURSOR_API_KEY → Keychain','mono'))+fr('Рабочая копия',`<span class="seg"><span class="on">Клон задачи</span><span>Свежий, read-only</span></span>`)+`<div class="hint">Клон <span class="mono">git clone --local</span> на задачу; прогрев <span class="mono">warm_paths: [.build]</span> и <span class="mono">on_create</span> задаются на проект ${ic('chevright',8)}</div>`)}
+${box('login','Вход','inputs',
+  `<div class="cbx">${cb('задача')}${cb('резюме прошлой стадии')}${cb('дифф',false)}${cb('отчёт гейтов')}${cb('замечания возврата')}${cb('git-разрешения')}</div>`)}
+${box('gates','Гейты','gates',
+  `<div class="listrow">${ic('terminal',10)}swift build<span class="x">${ic('x',10)}</span></div><div class="listrow">${ic('terminal',10)}swift test<span class="x">${ic('x',10)}</span></div><div style="display:flex;gap:6px"><span class="btn sm">${ic('plus',9)}Команда</span><span class="btn sm">${ic('sparkles',9)}Предложить по файлам сборки</span></div>`)}
+${box('route','Переходы','on_success, returns_to',
+  fr('При успехе',inp('→ Lint','','chevdown'))+fr('Сюда возвращают',`<span class="chipsx"><span class="cc l">AI Review ≤ 2</span><span class="cc l">конфликт ≤ 2</span></span>`)+fr('Провал гейта',inp('повтор стадии','','chevdown'))+`<div class="hint">Возвраты только назад по цепочке; общий потолок на задачу — 5.</div>`)}
+${box('timer','Надёжность','retry, timeouts',
+  fr('Попыток',`<span class="step"><i>−</i><b>3</b><i>+</i></span>`)+fr('Паузы',inp('30 с · 2 мин · 8 мин','mono'))+fr('Таймаут зависания',inp('0 мин','err'))+`<div class="errt">${ic('alert',9)} stages[1].timeouts.stall: от 1 до 120 мин</div>`+fr('Общий таймаут',inp('60 мин')))}
+${box('plug','Хуки и уведомления','hooks, notify',
+  fr('На входе',inp('—','ro'))+fr('На выходе',inp('scripts/on-dev-exit.sh','mono'))+`<div class="cbx">${cb('waiting_human')}${cb('review')}${cb('done',false)}</div>`)}
+<div class="fbox" style="background:transparent;box-shadow:inset 0 0 0 1px var(--sep-strong)"><h3 style="color:var(--st-incident-fg)">${ic('x',13)}Удалить стадию</h3><div class="hint">Нельзя: в стадии 2 задачи (KBN-15 running, KBN-17 waiting_human). Сначала перенесите их или дождитесь, пока стадия опустеет.</div><span class="btn sm dis" style="align-self:flex-start">Удалить стадию Dev</span></div>
+</div>`;
+const foot = `${ic('alert',12)}<span style="color:var(--st-incident-fg)">Ошибка в <span class="mono">stages[1].timeouts.stall</span> — сохранить нельзя; демон работает на последней валидной версии.</span><span class="sp"></span><span class="dirty"></span><span>3 несохранённых изменения</span>`;
+renderSettings(document.getElementById('root'), 'Основное', left, '', foot, {invalid:true});
+</script></body></html>

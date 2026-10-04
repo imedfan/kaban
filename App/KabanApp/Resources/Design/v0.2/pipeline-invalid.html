@@ -1,0 +1,104 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2 — Редактор стадии: пайплайн некорректен</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="v02.css">
+<style>
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.picker{position:relative;margin:6px 0 0 0;border-radius:12px;background:var(--bg-card);box-shadow:var(--sh-pop);overflow:hidden;z-index:5}
+.pk-h{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:.5px solid var(--sep);font-size:11px;color:var(--text-3)}
+.pk-h .inp{flex:1}
+.pk-g{font-size:10px;font-weight:700;color:var(--text-3);padding:7px 10px 3px;display:flex;align-items:center;gap:6px}
+.pk-r{white-space:nowrap;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:0 10px;height:26px;font-size:12px}
+.pk-r .mono{color:var(--text-3);font-size:10.5px}
+.pk-r.hl{background:var(--accent);color:#fff}.pk-r.hl .mono{color:rgba(255,255,255,.8)}.pk-r.hl .pooltag{background:rgba(255,255,255,.22);color:#fff}
+.pk-r .nt{font-size:10px;color:var(--text-3);margin-left:6px;font-weight:500}
+.pk-r .nt.am{color:var(--amber-fg)}
+.pk-f{font-size:10.5px;color:var(--text-3);padding:7px 10px;border-top:.5px solid var(--sep);line-height:14px}
+.chk{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:center;padding:0 2px;min-height:26px;font-size:11.5px;border-top:.5px solid var(--sep)}
+.chk .check{width:13px;height:13px}
+.chk .src{font-size:10px;color:var(--text-3)}
+.chk.warnrow{background:color-mix(in srgb,var(--st-retry-bg) 80%,transparent);box-shadow:inset 3px 0 0 var(--st-retry);padding-left:8px;margin:0 -12px;padding-right:12px}
+.chk .wn{grid-column:2/4;font-size:10.5px;color:var(--st-retry-fg);margin-top:-4px;padding-bottom:5px}
+.mt{width:100%;border-collapse:collapse;font-size:11.5px}.mt td{padding:5px 0;border-top:.5px solid var(--sep);white-space:nowrap}
+.mt td:first-child{font-weight:600;width:96px}
+.mt .e{color:var(--st-waiting-fg);font-weight:650}
+.legend{display:flex;gap:10px;font-size:10.5px;color:var(--text-2);padding:2px 12px 8px;align-items:center}
+.legend .k2{font-size:9.5px;font-weight:750;padding:1px 5px;border-radius:4px}
+.savebar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--st-waiting-bg);color:var(--st-waiting-fg);font-size:11.5px;line-height:15px}
+.savebar .ic{color:var(--st-waiting);flex:none}
+</style></head>
+<body><div id="root"></div><script src="../components.js"></script><script src="v02.js"></script>
+<script>
+const fr=(l,v)=>`<div class="fr"><span>${l}</span>${v}</div>`;
+const inp=(v,cls='',i='')=>`<span class="inp ${cls}">${v}${i?ic(i,10):''}</span>`;
+const side=`<div class="proj" style="padding:4px 8px 10px">${mascotFace('🐗','sad',26)}<div><div class="pn" style="font-size:14px;font-weight:650">kaban</div><div class="ps mono">~/dev/kaban · main</div></div></div>
+ <div class="grp">Стадии пайплайна</div>
+ ${sit('inbox','Backlog','queue')}${sit('hammer','Dev','agent')}${sit('flask','Test','agent',true,true)}${sit('gates','Lint','gate')}${sit('eye','AI Review','agent',false,true)}${sit('usercheck','Human Review','human')}${sit('merge','Merge','merge')}${sit('circlecheck','Done','terminal')}
+ <div class="grp">Проект · pipeline.yaml</div>${sit('shield','Git-политика проекта')}${sit('folder','Рабочая копия задачи')}${sit('hand','Лимиты и возвраты')}
+ <div class="grp">Этот Мак · не в репозитории</div>${sit('plug','MCP для запусков')}${sit('cpu','Вес и личный максимум')}${sit('sparkles','Маскот')}
+ <div class="sp" style="flex:1"></div>
+ <div class="hint" style="padding:0 8px">Знак ${ic('alert',10)} — стадии с ошибкой. Источник правды — закоммиченный <span class="mono">main:.kaban/pipeline.yaml</span>.</div>`;
+const tabs=[['tag','Основное'],['gauge','Пропускная способность'],['bot','Исполнитель'],['shield','Права и git'],['box','Окружение'],['login','Вход'],['gates','Гейты'],['route','Переходы'],['timer','Надёжность'],['plug','Хуки']].map(t=>`<span class="${t[1]==='Исполнитель'?'on':''}">${ic(t[0],12)}${t[1]}${t[1]==='Исполнитель'?`<span style="color:var(--st-waiting);display:inline-flex">${ic('alert',10)}</span>`:''}</span>`).join('');
+const PK=(n,id,pool,note,hl)=>`<div class="pk-r ${hl?'hl':''}"><span>${n}${note||''}</span><span class="mono">${id}</span>${pool==='?'?'<span class="pooltag om">Om?</span>':pooltag(pool)}</div>`;
+const left=`<div class="cols2">
+ <div>
+  <div class="fbox"><h3>${ic('bot',13)}Исполнитель<span class="k">stages[2] · test</span></h3>
+   ${fr('Харнес',inp('Cursor CLI','ro','lock'))}
+   ${fr('Модель',inp('<span style="color:var(--text-3)">не указана</span>','err','chevdown'))}
+   <div class="errt" style="margin-left:120px;margin-top:-6px">Обязательное поле: без модели не запустится весь пайплайн</div>
+   ${fr('Скилл (роль)',inp('.kaban/skills/test.md','mono','folder'))}
+  </div>
+  <div class="picker">
+   <div class="pk-h">${inp(ic('search',10)+' <span style="color:var(--text-3)">поиск модели</span>')}<span>${ic('refresh',10)}</span></div>
+   <div class="pk-g">CURSOR · ПУЛ Cm</div>
+   ${PK('Composer 1','composer-1','cm')}
+   <div class="pk-g">ИМЕННЫЕ · ПУЛ Om</div>
+   ${PK('Sonnet 4.5','sonnet-4.5','om','',true)}
+   ${PK('Opus 4.5','opus-4.5','om','<span class="nt am">флаг: подменяется</span>')}
+   ${PK('GPT-5','gpt-5','om')}
+   ${PK('Gemini 2.5 Pro','gemini-2.5-pro','om')}
+   ${PK('Grok 4','grok-4','?','<span class="nt am">проверь пул</span>')}
+   <div class="pk-f">${ic('info',10)}Живой список из <span class="mono">cursor-agent --list-models</span>, сверен 15:02 · 98 моделей. Auto нет: модель стадии всегда явная.</div>
+  </div>
+ </div>
+ <div style="display:flex;flex-direction:column;gap:10px"><div class="fbox"><h3>${ic('plug',13)}MCP стадии<span class="k">stages[2].mcp</span></h3>
+  <div class="hint">Выбор только из белого списка проекта. Сервер доски есть всегда.</div>
+  <div>
+   <div class="chk"><span class="check" style="opacity:.55">${ic('check',9)}</span><span><b>kaban</b> · сервер доски</span><span class="src">${ic('lock',10)} всегда</span></div>
+   <div class="chk"><span class="check">${ic('check',9)}</span><span><b>sentry</b></span><span class="src">проект · включён</span></div>
+   <div class="chk warnrow"><span class="check">${ic('check',9)}</span><span><b>figma</b></span><span class="src" style="color:var(--st-retry-fg);font-weight:650">выключен в проекте</span><div class="wn">${ic('alert',10)} Не подключится: сервер выключен в белом списке проекта. <a style="color:var(--accent)">MCP для запусков →</a></div></div>
+   <div class="chk"><span class="check off"></span><span>context7</span><span class="src">личный · включён</span></div>
+  </div>
+  <div class="hint">Это предупреждение, а не ошибка: пайплайн остаётся корректным, сохранять можно.</div>
+ </div>
+ <div class="fbox"><h3>${ic('shield',13)}Права<span class="k">stages[2].permissions</span></h3>
+  ${fr('Доступ',`<span class="seg"><span class="on">Запись</span><span>Только чтение</span></span>`)}
+  ${fr('Git-политика',`<span class="btn sm ghost" style="padding:0">наследует проект · вкладка «Права и git» ${ic('chevright',9)}</span>`)}
+ </div></div>
+</div>`;
+const right=`
+ <div class="box"><div class="box-h">${ic('alert',13)}Проверка пайплайна</div>
+  <div class="legend"><span><span class="k2" style="background:var(--st-waiting);color:#fff">ОШИБКА</span> блокирует «Сохранить»</span><span><span class="k2" style="background:var(--st-retry-bg);color:var(--st-retry-fg)">ПРЕДУПРЕЖДЕНИЕ</span> не блокирует</span></div>
+  <div class="vi err">${ic('alert',12)}<div><div class="m">У агентской стадии Test нет модели</div><div class="p">stages[2].model · model_required · severity: error</div></div><span class="k2">ошибка</span></div>
+  <div class="vi err">${ic('alert',12)}<div><div class="m">AI Review: указано <span class="mono">auto</span>, Auto запрещён — нужна явная модель</div><div class="p">stages[4].model · model_auto_forbidden · severity: error</div></div><span class="k2">ошибка</span></div>
+  <div class="vi warn">${ic('alert',12)}<div><div class="m">Test: MCP «figma» выключен в белом списке проекта и не подключится</div><div class="p">stages[2].mcp[1] · mcp_not_allowlisted · severity: warning</div></div><span class="k2">предупр.</span></div>
+ </div>
+ <div class="box"><div class="box-h">${ic('bot',13)}Модели агентских стадий<span class="sp"></span><span class="faint">все за одно сохранение</span></div>
+  <div style="padding:4px 12px 10px"><table class="mt">
+   <tr><td>Dev</td><td><span class="mono">composer-1</span> ${pooltag('cm')}</td></tr>
+   <tr><td>Test</td><td class="e">${ic('alert',10)} нет модели <span class="faint" style="font-weight:500">· выбирается сейчас</span></td></tr>
+   <tr><td>AI Review</td><td class="e">${ic('alert',10)} <span class="mono">auto</span> — запрещено</td></tr>
+  </table></div></div>
+ <div class="savebar">${ic('lock',13)}<span><b>«Сохранить» неактивна, пока есть ошибки.</b> Версия с ошибками не попадёт в <span class="mono">main</span>; черновик живёт только в этом редакторе. Предупреждения сохранению не мешают.</span></div>
+ <div class="yaml"><span class="cm"># черновик в редакторе · в main не попадёт, пока есть ошибки</span>
+<span class="k">stages:</span>
+  <span class="k">- id:</span> test
+    <span class="k">kind:</span> agent
+    <span class="k">model:</span>            <span class="s"># ошибка: model_required</span>
+    <span class="k">mcp:</span> [kaban, sentry, figma]  <span class="cm"># figma: предупреждение</span>
+  <span class="k">- id:</span> ai-review
+    <span class="k">model:</span> auto       <span class="s"># ошибка: auto запрещён</span></div>`;
+settingsWin2(document.getElementById('root'),{side,
+ title:'Test · настройки стадии', sub:'kaban · kind: agent · id: test · пайплайн некорректен',
+ right:`<span class="valid" style="color:var(--st-waiting-fg)">${ic('alert',12)}2 ошибки · 1 предупреждение</span><div class="capsule glass"><div class="tbtn">${ic('code',13)}pipeline.yaml</div></div><div class="capsule glass" style="padding:0 4px"><div class="tbtn">Отменить</div><div class="tbtn primary" style="opacity:.4">${ic('check',12)}Сохранить и закоммитить</div></div>`,
+ tabs, body:`<div class="s-left">${left}</div><div class="s-right" style="width:400px">${right}</div>`,
+ foot:`${ic('info',12)}<span>Пока у всех агентских стадий нет явной модели, проект не берёт задачи: идущие запуски доигрывают, Backlog принимает новые задачи. После сохранения корректной версии флаг снимется сам.</span>`});
+</script></body></html>

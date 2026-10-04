@@ -1,0 +1,432 @@
+{
+  "source_files": [
+    {
+      "source": "board-dark.html",
+      "bytes": 398,
+      "sha256": "4f775ed6024e3198f167c1d56d43ab91af798ac36850898c57655488e50faebc"
+    },
+    {
+      "source": "board.css",
+      "bytes": 4683,
+      "sha256": "002344686c849f5ab3a75c5a68e5cda444c4ff1e44c583137cae7025f2dc0075"
+    },
+    {
+      "source": "board.html",
+      "bytes": 385,
+      "sha256": "c99489f06e587302a4e9b693b45ad13f2858d3cfc11c8531ae386813be684de4"
+    },
+    {
+      "source": "board.js",
+      "bytes": 13721,
+      "sha256": "6ba6f7721a25a8fed4123ae5604e683180dbe20f1ef66fcbd9b0bffebeeed9bc"
+    },
+    {
+      "source": "cards.html",
+      "bytes": 20905,
+      "sha256": "8938d86f3d286cc1109af9245db58e72487a42b32959e45c752edfd60d754941"
+    },
+    {
+      "source": "column-settings-general.html",
+      "bytes": 6600,
+      "sha256": "3497aad05569183c29eeeb70c7fcf8ff45dfce137c239557aaf1c18c50ab8e46"
+    },
+    {
+      "source": "column-settings-git.html",
+      "bytes": 8386,
+      "sha256": "26dab8fb4fc707728d6de32520bf1cec2fb56a07153a9f2301d3074d44f91281"
+    },
+    {
+      "source": "common.css",
+      "bytes": 15018,
+      "sha256": "78c4fa10355a86c3d804683eb58f9d4fc2def0865454f22370d832b15c63887d"
+    },
+    {
+      "source": "components.js",
+      "bytes": 11952,
+      "sha256": "76beeb90f1955bc04012830c4289caacec59f1157fa3a16f127d3593c6ef1291"
+    },
+    {
+      "source": "human-review.html",
+      "bytes": 7298,
+      "sha256": "3d44a645fc20f3f27883ec65b0a5b2acf5f44c4145b65a339e355a801c8b69c3"
+    },
+    {
+      "source": "settings.css",
+      "bytes": 10670,
+      "sha256": "52d03521b10a9c2b8014bdfc8012b1677d76a2b6ddf250791eaf0815dc63c03f"
+    },
+    {
+      "source": "settings.js",
+      "bytes": 3513,
+      "sha256": "8bbdf011328408e358ad9fe043ca90a2ab414482bdb3912ecdf2f4ab3cb6bb33"
+    },
+    {
+      "source": "task-details.css",
+      "bytes": 8687,
+      "sha256": "a862b2eb70092750943109c48f6abc452d0ecba2ad08970e5274e9327f9f4e6e"
+    },
+    {
+      "source": "task-details.html",
+      "bytes": 6575,
+      "sha256": "a5ceaaca25aa17e4338ee55a3a13220a5976fdbe0886c3435f680f744ad86334"
+    },
+    {
+      "source": "tokens.css",
+      "bytes": 5103,
+      "sha256": "ac29bcf5c2d1dcd4eb248ef07367eb8b2bca2a6c8d4be0cf127c3b25259c7c9c"
+    },
+    {
+      "source": "v0.2/board-dark.html",
+      "bytes": 476,
+      "sha256": "204be72e4c7848283771e30f2e3c8e9f85f8cdfaaf7fff3440b92bf9749942fe"
+    },
+    {
+      "source": "v0.2/board.html",
+      "bytes": 448,
+      "sha256": "a7e7aa21b91319d772360af15a4d48d92408948246d8a3b8ba81169c7651036e"
+    },
+    {
+      "source": "v0.2/cards.html",
+      "bytes": 12074,
+      "sha256": "491c0b43f84fb7e7c1ea19fe26b78cb0230b79de6184f4cac41d480384108ee4"
+    },
+    {
+      "source": "v0.2/details-run-limit.html",
+      "bytes": 566,
+      "sha256": "154be7e8c2bdcc49e88072ca1381cb44d2e81fae17965015e7d5609c7f89aab7"
+    },
+    {
+      "source": "v0.2/details-substituted-dark.html",
+      "bytes": 576,
+      "sha256": "3caaffc16cc1482bcd7f9837fc3f6b9db73dcff6e672d9743ebb7b822997d618"
+    },
+    {
+      "source": "v0.2/details-substituted.html",
+      "bytes": 563,
+      "sha256": "ff9883721ef23c32a427dde2ff5c29230a27c479ac29942072070f8b89c68c65"
+    },
+    {
+      "source": "v0.2/details.js",
+      "bytes": 9109,
+      "sha256": "254e7b8bf5c271f4d03430bc6a159e5bff498737077bcc0cac5510a1a750ac84"
+    },
+    {
+      "source": "v0.2/mac-quota.html",
+      "bytes": 13448,
+      "sha256": "5a3fb8265e5d55f185e8049aa82b7b7d10bce877c324619bc835b0d3881b5de1"
+    },
+    {
+      "source": "v0.2/pipeline-invalid.html",
+      "bytes": 12114,
+      "sha256": "33d6909ac2442fcc4deed6c9928fc407284cd23f8829548362e5c88193e58ba4"
+    },
+    {
+      "source": "v0.2/project-mcp.html",
+      "bytes": 9736,
+      "sha256": "c4d1496b32c40c8f2ea9eedf9076c65bc1d079f996f050b965d05820620bab03"
+    },
+    {
+      "source": "v0.2/v02.css",
+      "bytes": 12963,
+      "sha256": "dce7605029fa40f38a42d98180a5586e4dae4df170c8bc4bef5e99d82af2113e"
+    },
+    {
+      "source": "v0.2/v02.js",
+      "bytes": 14889,
+      "sha256": "860023f338b6325bc4bc2c646250ffc06f05d9749a695e426d8a7b3405e61ef6"
+    },
+    {
+      "source": "v0.2.1/add-project-identity-dark.html",
+      "bytes": 671,
+      "sha256": "4f818e808713e9686e6c9f3a335c3732b78f06de7736420cdd3a8a4a49c89dc0"
+    },
+    {
+      "source": "v0.2.1/add-project-identity.html",
+      "bytes": 643,
+      "sha256": "dadbadfbbc0865a4abec57a18f804d428da32a4c37ec4ab791648ef6accc19b6"
+    },
+    {
+      "source": "v0.2.1/add-project.css",
+      "bytes": 9084,
+      "sha256": "3e5f9e75c8954ffeef1bf5bcbd4b73c024e35c7d75ff4ccec13f74db87d48f3a"
+    },
+    {
+      "source": "v0.2.1/add-project.js",
+      "bytes": 10815,
+      "sha256": "823670148a95d3bff5db75e35997c0ceb2e54e0754c0ebeb169dde21080a60a7"
+    },
+    {
+      "source": "v0.2.1/cards-bounce-limits.html",
+      "bytes": 10148,
+      "sha256": "fb1ee3a72ff035d7bb567730a520ec6b8193676d2265723ea1a3deead43b802a"
+    },
+    {
+      "source": "v0.2.1/cards.html",
+      "bytes": 14792,
+      "sha256": "21845f420f841552120d0a2e60ecda06fde77cbfb752e29f4adf1cf9b007b01e"
+    },
+    {
+      "source": "v0.2.1/details-suspicious-dark.html",
+      "bytes": 693,
+      "sha256": "6f5be2b33fdab6e5ae3330712fd53f9633d91570363a8c8d8b50519be233bbe3"
+    },
+    {
+      "source": "v0.2.1/details-suspicious-stale.html",
+      "bytes": 800,
+      "sha256": "0a10d440c8e84fd7ffd8956d680bdc3a39656c7a8c9eab6044740f56a3554ee5"
+    },
+    {
+      "source": "v0.2.1/details-suspicious.html",
+      "bytes": 665,
+      "sha256": "dbeb6311202f16b5080295e33f767fd3a289c3aec16558454a9f508d0a5243e0"
+    },
+    {
+      "source": "v0.2.1/details21.js",
+      "bytes": 9297,
+      "sha256": "e39f86a9bece36a52b4bafa47cbe138fb4c44794b5217485dd832d19df8cbd5c"
+    },
+    {
+      "source": "v0.2.1/project-git.html",
+      "bytes": 15004,
+      "sha256": "b7909223a6ddbf567626da9bad0474ae549e79e5ebd22f40ac8f21b74cb8f9bd"
+    },
+    {
+      "source": "v0.2.1/return-sheet-gate-dark.html",
+      "bytes": 736,
+      "sha256": "9c8cf9f29309ed0fc81ed04db88759c24610a4a29f5a71010b0daec859d0b428"
+    },
+    {
+      "source": "v0.2.1/return-sheet-gate.html",
+      "bytes": 708,
+      "sha256": "831c027e57f1b30e281e2b9a3c759d27504b51604b700e77e03dd524411dc320"
+    },
+    {
+      "source": "v0.2.1/return-sheet-merge.html",
+      "bytes": 710,
+      "sha256": "24958e47bcb585a5569283b1115e44b5c69b2bed5ebdfa4e7489136a7972ccee"
+    },
+    {
+      "source": "v0.2.1/return-sheet.css",
+      "bytes": 6141,
+      "sha256": "ddbb445426fc86cbdeb7c5e2a7b63b154d9a0ae0e9ad7f9a2103469b1b4c0658"
+    },
+    {
+      "source": "v0.2.1/return-sheet.js",
+      "bytes": 17656,
+      "sha256": "6803e816e19182635825a3ae3eb027cf35d71269f71c4a6709920b08df74f723"
+    },
+    {
+      "source": "v0.2.1/stage-git.html",
+      "bytes": 10986,
+      "sha256": "1e67a78a9e8e1bc327eade5a35bda3fa6eb504c1949c05ca82ea254b8850e5da"
+    },
+    {
+      "source": "v0.2.1/v021.css",
+      "bytes": 15531,
+      "sha256": "15a45c9105e5e8132f092719f42a37b87a2b90e42268672ed9023484f5d650b5"
+    },
+    {
+      "source": "v0.2.1/v021.js",
+      "bytes": 9768,
+      "sha256": "87a81c2a8762678cc36ec1bce32d3f7194d427e23992b1ab0bb10bab533491b6"
+    }
+  ],
+  "frames": [
+    {
+      "reference": "base/01-board-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "0162602f5bb6fcdb7963b2dc40ac1cc57e874b598953a77f1208d2706cc226b8"
+    },
+    {
+      "reference": "base/01-board.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "717591faa183eaa4f1b41aeaec5130a66e07c50484517b7a01776d40374e2ab0"
+    },
+    {
+      "reference": "base/02-cards.png",
+      "width": 1440,
+      "height": 2070,
+      "scale": 2,
+      "sha256": "191853322589c688e9b1abe8edda99b4cc6c1ad4a9cdc6955262e63f432b921e"
+    },
+    {
+      "reference": "base/03-task-details.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "7cc9a1f937423d859c334c8c0e7ed87276ba906ff79c74ebf34b77089b969c70"
+    },
+    {
+      "reference": "base/03b-human-review.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "dfec3d4a92be55b06befc6f6d8a7aba2947f7249a21d4a500b526ddba3ea0db4"
+    },
+    {
+      "reference": "base/04-column-settings-git.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "90f69fa778c5e508ed5a8039d5bac7c97a653059fc0150f63df6f621bd77ee93"
+    },
+    {
+      "reference": "base/05-column-settings-general.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "2ee18917ec72b403ec9ed17a3a86de1833ec205c1611f67d239c2e0410f9ad1c"
+    },
+    {
+      "reference": "v0.2/01-board-limits-flags-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "8d43f93022a29111715e6e07c84880184da73419b31a140244102c459e9ddbfc"
+    },
+    {
+      "reference": "v0.2/01-board-limits-flags.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "ae5eec8a662928f81c4f4afc4e18f250290be42119c58772376f926c61af765c"
+    },
+    {
+      "reference": "v0.2/02-cards-states.png",
+      "width": 1440,
+      "height": 1060,
+      "scale": 2,
+      "sha256": "7476edfaca86476b6f5eb0fdb6063e3a6e18df8f0054c153195a971f40fed1b3"
+    },
+    {
+      "reference": "v0.2/03-details-model-substituted-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "dfe7ff01fe44dc22057d26188052334d1b5c680ba2e0f68741d10309d960b627"
+    },
+    {
+      "reference": "v0.2/03-details-model-substituted.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "67ac3812dee8d63edb3236946bcdfb237cb5be904e8581d43585437ace747484"
+    },
+    {
+      "reference": "v0.2/03b-details-run-limit.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "4dc726b1000de27995503f0f95ee544d8460103b3a75175ac6c0ba1a21d3e1b4"
+    },
+    {
+      "reference": "v0.2/04-pipeline-invalid.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "e0abb43f73ec2da78b4c24bdfe49bea4b1c8cecf01c64792037ea419e8e20a0b"
+    },
+    {
+      "reference": "v0.2/05-project-mcp.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "2d52288669f4dd8d3a9f2f990dba2ac9aa093ea5631cf528544c38f18987b4c8"
+    },
+    {
+      "reference": "v0.2/06-mac-quota-menubar.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "75a3c0f9d5972dbc4de02c43de85331d4f1548254e8069df96468a82b378e6a8"
+    },
+    {
+      "reference": "v0.2.1/01-cards-suspicious.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "6118074bdfe412726d5cd62bea3e05638f67870a7597059371ae913655c63d60"
+    },
+    {
+      "reference": "v0.2.1/01c-cards-bounce-limits.png",
+      "width": 1440,
+      "height": 720,
+      "scale": 2,
+      "sha256": "3efb7198f04b1fa6311a60099b7cd9272c323641c037228fa7c7c5b006bfc0fc"
+    },
+    {
+      "reference": "v0.2.1/02-details-suspicious-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "622be5155b570f2f05c62d58da13f014fa915409662768407ad02b489fd27c60"
+    },
+    {
+      "reference": "v0.2.1/02-details-suspicious.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "4fcb3fda517a67f8af5fcb7579df3333a653820aeac1106f9600ed7945a6c987"
+    },
+    {
+      "reference": "v0.2.1/02b-details-suspicious-stale.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "286f37a08f2443915e43d463e19e91d0ffc9ec139f0be827034dfac776cb9f4f"
+    },
+    {
+      "reference": "v0.2.1/03-project-git-presets.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "e83a5c6e518d56b082fda8d55b3b91154224d6f7c37f8ffb93d02ac09137e315"
+    },
+    {
+      "reference": "v0.2.1/04-stage-git-overrides.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "8437d006dbe737d2c7a22441fafa44aa3d42148de0d56e3ffe34e8d752a228b4"
+    },
+    {
+      "reference": "v0.2.1/05-return-sheet-gate-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "23bb541a96bf7f79bc386a8b92146e57a4378823fd4a8179c9aba783b0a6a06a"
+    },
+    {
+      "reference": "v0.2.1/05-return-sheet-gate.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "5951e491311bef35cd624af25bc563047a576ed73a23c4238e5c9ca1bad20230"
+    },
+    {
+      "reference": "v0.2.1/05b-return-sheet-merge.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "c6e085fbdf961ee45fe4aa5102e1ce08c9d912db0afc7d47c0af5047873a96ed"
+    },
+    {
+      "reference": "v0.2.1/06-add-project-identity-dark.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "07f66cadca0684b56dd8c550774dc5b60667bffcbab878b62c56c50687e9fe86"
+    },
+    {
+      "reference": "v0.2.1/06-add-project-identity.png",
+      "width": 1440,
+      "height": 900,
+      "scale": 2,
+      "sha256": "56cac25bc0aa1adbe90b19115ef71f63b867d676f0e0639d4cac8f43131b669e"
+    }
+  ]
+}
