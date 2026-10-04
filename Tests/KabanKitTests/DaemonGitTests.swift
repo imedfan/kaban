@@ -1,7 +1,20 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 import XCTest
 import KabanProtocol
 @testable import KabanKit
+
+/// `realpath(3)`. `URL.resolvingSymlinksInPath` / `standardizingPath` strip `/private` on Darwin and must not be used.
+private func posixRealpath(_ path: String) -> String {
+    guard let resolved = path.withCString({ realpath($0, nil) }) else { return path }
+    let copy = String(cString: resolved)
+    free(resolved)
+    return copy
+}
 
 /// Daemon git calls in a clone: hooks and fsmonitor disabled, whitelisted environment without inherited `GIT_*`,
 /// no global/system config, explicit author, no editor, no prompt, merge `--no-edit` (arch. v0.11.19 §8.2).
@@ -128,6 +141,8 @@ final class DaemonGitTests: XCTestCase {
 
     struct Sandbox {
         let root: URL
+        /// Path before `realpath(3)`. On macOS this is `/var/folders/...` while `root` is `/private/var/folders/...`.
+        let requestedPath: String
         var marker: URL { root.appendingPathComponent("marker.txt") }
         var markerLines: [String] {
             ((try? String(contentsOf: marker, encoding: .utf8)) ?? "").split(separator: "\n").map(String.init)
@@ -137,9 +152,13 @@ final class DaemonGitTests: XCTestCase {
             guard FileManager.default.isExecutableFile(atPath: DaemonGit.executable) else {
                 throw XCTSkip("git not found at \(DaemonGit.executable)")
             }
-            let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-daemongit-\(UUID().uuidString)")
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            return Sandbox(root: root)
+            let requested = FileManager.default.temporaryDirectory
+                .appendingPathComponent("kaban-daemongit-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: requested, withIntermediateDirectories: true)
+            // Canonicalize before any repo exists. Git matches includeIf gitdir: against the resolved gitdir.
+            let canonical = posixRealpath(requested.path)
+            let root = URL(fileURLWithPath: canonical, isDirectory: true)
+            return Sandbox(root: root, requestedPath: requested.path)
         }
 
         /// Minimal runner for tests: /usr/bin/git with an isolated environment (no system/global config).
@@ -356,6 +375,13 @@ final class DaemonGitTests: XCTestCase {
         try s.write("#!/bin/sh\necho credential >> '\(m)'\necho username=x\necho password=y\n", to: "home/cred.sh", executable: true)
         try s.write("#!/bin/sh\necho global-hook >> '\(m)'\n", to: "home/hooks/pre-commit", executable: true)
         try s.write("[user]\n\tname = Included Evil\n\temail = included@evil.invalid\n", to: "home/included.gitconfig")
+        // Both spellings: git matches the resolved gitdir (`/private/var/...`), the raw temp path is `/var/...`.
+        var seenGitdirs = Set<String>()
+        let includeIf = [s.requestedPath, s.root.path].compactMap { path -> String? in
+            let dir = path.hasSuffix("/") ? String(path.dropLast()) : path
+            guard seenGitdirs.insert(dir).inserted else { return nil }
+            return "[includeIf \"gitdir:\(dir)/\"]\n\tpath = \(home.path)/included.gitconfig"
+        }.joined(separator: "\n")
         try s.write("""
         [user]
         \tname = Evil Global
@@ -367,8 +393,7 @@ final class DaemonGitTests: XCTestCase {
         \tst = "!echo alias >> '\(m)'"
         [credential]
         \thelper = \(home.path)/cred.sh
-        [includeIf "gitdir:\(s.root.path)/"]
-        \tpath = \(home.path)/included.gitconfig
+        \(includeIf)
         """, to: "home/.gitconfig")
         try? FileManager.default.removeItem(at: s.marker)
 
