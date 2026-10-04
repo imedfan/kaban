@@ -9,9 +9,10 @@
       "name": "architecture-v0.md",
       "id": "1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs",
       "before_sha256": "f274d67a2c7e8f4ed2052853e8a614890ebb7c944e1229adf9f3f476eea1ba75",
-      "desired_sha256": "f15359f11fb9593db9fbfa92d913cfeb390512a204f736cb2fa03c071269d325",
-      "desired_bytes": 117268,
-      "published": false
+      "desired_sha256": "9338c709301c991d626af645b30972098b7a42d73ffa859a2a34327a30248d0b",
+      "desired_bytes": 117293,
+      "published": false,
+      "desired_source": "Combined architecture changes in PR #63 and #66"
     },
     {
       "name": "backend-plan-v0.md",
