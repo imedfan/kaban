@@ -9,10 +9,13 @@ jobs:
     name: Linux (Swift 6)
     runs-on: ubuntu-latest
     container:
-      image: swift:6.0
+      image: swift:6.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install SQLite headers
+        run: apt-get update && apt-get install -y libsqlite3-dev
 
       - name: Build
         run: swift build
