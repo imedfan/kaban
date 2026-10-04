@@ -1,11 +1,9 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 
 import PackageDescription
 
-// Каркас пакета. KabanProtocol, KabanKit и KabanBoardCore наполнены.
-// KabanDaemonCore и GRDB не подключать — их добавит бэкенд отдельным PR.
-// PackageDescription 6.0 не содержит MacOSVersion.v15 (последний кейс — v14).
-// Строка "15.0" — тот же минимум macOS 15, что и .v15 на более новом tools-version.
+// Headless core and its transactional SQLite store build on macOS and Linux.
+// macOS 15 remains the deployment minimum; GRDB requires Swift tools 6.1.
 let package = Package(
     name: "Kaban",
     platforms: [.macOS("15.0")],
@@ -13,8 +11,12 @@ let package = Package(
         .library(name: "KabanProtocol", targets: ["KabanProtocol"]),
         .library(name: "KabanKit", targets: ["KabanKit"]),
         .library(name: "KabanBoardCore", targets: ["KabanBoardCore"]),
+        .library(name: "KabanDaemonCore", targets: ["KabanDaemonCore"]),
     ],
+    dependencies: [.package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1")],
     targets: [
+        .target(name: "KabanDaemonCore", dependencies: ["KabanKit", "KabanProtocol", .product(name: "GRDB", package: "GRDB.swift")]),
+        .testTarget(name: "KabanDaemonCoreTests", dependencies: ["KabanDaemonCore"]),
         .target(name: "KabanProtocol"),
         .target(
             name: "KabanKit",

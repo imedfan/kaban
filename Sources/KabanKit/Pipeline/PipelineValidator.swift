@@ -125,8 +125,8 @@ public enum PipelineValidator {
         for (i, r) in c.git.allow.enumerated() { checkGitRule(r, path: "git.allow[\(i)]", granting: true, sink: &sink) }
         for (i, r) in c.git.deny.enumerated() { checkGitRule(r, path: "git.deny[\(i)]", granting: false, sink: &sink) }
         // Suspicious files
-        if !(c.suspiciousFiles.maxFileMB > 0) {
-            sink.error("suspicious_files.max_file_mb", ValidationCode.limitOutOfRange, "max_file_mb must be greater than 0",
+        if !c.suspiciousFiles.maxFileMB.isFinite || !(c.suspiciousFiles.maxFileMB > 0) {
+            sink.error("suspicious_files.max_file_mb", ValidationCode.limitOutOfRange, "max_file_mb must be finite and greater than 0",
                        params: ["label": "max_file_mb"])   // no upper bound: the §4.1 text needs {max}, UI falls back to `message`
         }
 
