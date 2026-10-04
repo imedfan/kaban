@@ -83,6 +83,19 @@ final class Team2TakeoverStoreTests: XCTestCase {
         let applied = try store.apply(.start("intake"), taskId: card.id, commandId: id, at: Date())
         XCTAssertNotEqual(applied.task.machine.stageId, before.tasks.first?.machine.stageId)
     }
+    func testCancelSupersedesPendingRunLaunchAtomically() throws {
+        let (root, pipeline, card) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = try KabanStore(path: root.appendingPathComponent("store.sqlite").path)
+        _ = try store.createTask(card: card, pipeline: pipeline, commandId: UUID(), at: Date())
+        _ = try store.apply(.start("intake"), taskId: card.id, commandId: UUID(), at: Date())
+        _ = try store.apply(.start("run"), taskId: card.id, commandId: UUID(), at: Date())
+        let cancelled = try store.apply(.cancel(keepBranch: false), taskId: card.id, commandId: UUID(), at: Date())
+        XCTAssertEqual(cancelled.task.machine.state, .cancelled)
+        let effects = try store.pendingEffects().flatMap(\.effects)
+        XCTAssertFalse(effects.contains { if case .startAgentRun = $0 { true } else { false } })
+        XCTAssertTrue(effects.contains(.killRun("run")))
+        XCTAssertTrue(effects.contains(.cleanupClone(keepBranch: false)))
+    }
     func testRestartRecoveryRefundsRunningCountersAndCanReplayPass() throws {
         let (root, pipeline, card) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let path = root.appendingPathComponent("store.sqlite").path

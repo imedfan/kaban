@@ -85,6 +85,10 @@ public final class KabanStore: Sendable {
         if case .rejected(let error) = result.outcome { throw StoreError.rejected(error) }
         var first: Seq?
         if case .applied = result.outcome {
+            if result.state.state.status == .cancelled || result.state.state.status == .done {
+                // Final tasks must never deliver an obsolete queued launch after cancellation.
+                try db.execute(sql: "DELETE FROM effect_outbox WHERE task_id = ?", arguments: [taskId.rawValue])
+            }
             task.machine = result.state
             task.machine.apply(to: &task.card, stage: task.pipeline.stage(task.machine.stageId)); task.card.updatedAt = at
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try Self.encode(task), taskId.rawValue])
