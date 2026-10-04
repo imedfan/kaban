@@ -7,10 +7,18 @@ API ниже — внутренняя поверхность `KabanDaemonCore`, 
 
 ## Граница инкремента
 
-Управляемый проект использует неизменяемый валидный pipeline
+Управляемый fake-проект использует неизменяемый pipeline
 `queue → agent → human → terminal`, явную модель и fake driver с внедрённым
 временем. Fake driver выдаёт вопрос, завершение или подтверждение симулированного
 effect; настоящих процессов, git, гейтов, Cursor, MCP, сети и квоты нет.
+Это внутренняя fixture: общий production `PipelineValidator` требует ровно одну
+merge-стадию и остаётся строгим. Managed fake API допускает только указанную
+точную четырёхстадийную цепочку без hooks/gates; при её проверке исключается
+только `merge_count`, все остальные ошибки сохраняются. Это не разрешение
+загружать такую цепочку как production `.kaban/pipeline.yaml`. Protocol
+`PipelineSummary.issues` сохраняет ошибки общего валидатора (включая
+`merge_count`), поэтому `isValid` не выдаёт fixture за production-valid.
+
 Поддержка других pipelines, их замена во время задачи и реальный executor —
 отдельные шаги. Обычный unit-тест чистого автомата не считается fake worker.
 
@@ -43,7 +51,7 @@ query mapping, worker, fake driver, scheduler и recovery; Frontend — отоб
 
 | Операция | Вход и результат | Обязательный эффект |
 |---|---|---|
-| Регистрация управляемого проекта | `ProjectSummary`, валидный `PipelineConfig`, `commandId`, `at` | Сохранить проект и pipeline; публиковать `projectAdded`/`pipelineApplied`, соблюдать dedup |
+| Регистрация управляемого проекта | `ProjectSummary`, bounded fake `PipelineConfig`, `commandId`, `at` | Сохранить проект и pipeline; публиковать `projectAdded`/`pipelineApplied`, соблюдать dedup |
 | Запись начальных/новых настроек | Явный `GlobalSettings`, `commandId`, `at` | Сохранить и публиковать `SettingsChange.settings` с совместимыми key/value |
 | Создание управляемой задачи | `TaskCard`, явный Markdown `body`, `commandId`, `at` | Pipeline загружается из зарегистрированного проекта; task/project связь проверяется |
 | `getSnapshot()` | `Snapshot` | Один согласованный read transaction, включая `seq`, настройки, проекты, pipelines, карточки и stageLoad |

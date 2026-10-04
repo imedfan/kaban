@@ -478,6 +478,12 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 - **M4** слияние и квоты: очередь merge, конфликты, классификатор лимитных ошибок, флаги модели, опция проактивной квоты.
 - **M5** подпись, нотаризация, релиз.
 
+### 15.1. Ограниченный headless M1: статус реализации
+
+Срез разработки от 4 октября 2026 описан в [контракте headless M1](development/m1-headless-contract.md). Кандидат реализации добавляет additive v2 schema поверх опубликованной v1: явные project/settings/Markdown detail, согласованные Protocol queries, стабильные per-effect IDs и атомарные simulated result/reducer/journal/ack, конечный scheduler tick с durable human admission и weighted cursor. Приёмка конкретного PR опирается на его результаты тестов по HC-матрице; наличие этого описания не подтверждает выполнение всех HC-критериев.
+
+Fake-срез работает только на внутренней фиксированной цепочке `queue → agent → human → terminal` без hooks/gates. Для неё managed fake API исключает лишь ошибку `merge_count`; общий production validator по-прежнему требует merge. Protocol summary сохраняет production validation issues (включая `merge_count`) и `isValid = false`; fake fixture не подтверждает валидность production `.kaban/pipeline.yaml`. Fake driver явно записывает симуляцию; git, Cursor, сеть, XPC, квота, авторизация, реальные гейты и процессы не исполняются. Полный M1, общий scheduler для произвольного pipeline, retention API и весь M2 остаются отдельной работой. Клиентский инкремент использует mock adapter; соединение с этой БД через XPC ещё не входит в срез.
+
 ## 16. Открытые вопросы
 
 - К аналитику: перенести в спеку ссылку на 3.2 вместо своей таблицы статусов; поправить UC-01 (чистая рабочая копия не нужна), UC-09 (run доигрывает, `paused` только ручная), UC-10 (`failed` → `waiting_human: retries_exhausted`), UC-14 (шаблон коммитится при добавлении проекта).
