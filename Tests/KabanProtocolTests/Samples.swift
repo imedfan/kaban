@@ -7,24 +7,45 @@ enum Samples {
     static let cmd = UUID(uuidString: "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01")!
     static let project: ProjectID = "p-kaban"
 
+    static let hard: [String] = HardInvariant.all
+
     static let stages: [StageSummary] = [
         StageSummary(id: "backlog", name: "Backlog", kind: .queue, display: StageDisplay(icon: "tray", order: 0)),
         StageSummary(id: "dev", name: "Разработка", kind: .agent, display: StageDisplay(icon: "hammer", color: "blue", order: 1),
-                     wip: 3, model: "claude-4.5-opus", onSuccess: "test", maxAttempts: 3),
+                     wip: 3, model: "claude-4.5-opus", onSuccess: "test", maxAttempts: 3,
+                     gitPolicy: EffectiveGitPolicy(preset: .standard,
+                                                   allowed: ["status", "diff", "log", "show", "add", "commit", "restore --staged"].map { GitRule($0, source: .preset) },
+                                                   denied: [GitRule("cherry-pick", source: .project), GitRule("stash", source: .stage)], hardInvariants: Samples.hard,
+                                                   conditional: [ConditionalGitRule(returnReason: "merge_conflict", allowed: [GitRule("rebase", source: .stage)])],
+                                                   committer: .agentWithSafetyCommit, readOnly: false)),
         StageSummary(id: "test", name: "Тесты", kind: .agent, display: StageDisplay(order: 2), wip: 2, model: "composer-1",
-                     returnsTo: [StageReturn(stage: "dev", limit: 3)], onSuccess: "review", maxAttempts: 3),
-        StageSummary(id: "review", name: "Human Review", kind: .human, display: StageDisplay(order: 3), onSuccess: "merge"),
-        StageSummary(id: "merge", name: "Слияние", kind: .merge, display: StageDisplay(order: 4), wip: 1, onSuccess: "done"),
-        StageSummary(id: "done", name: "Готово", kind: .terminal, display: StageDisplay(order: 5)),
+                     readOnly: true, returnsTo: [StageReturn(stage: "dev", limit: 3)], onSuccess: "checks", maxAttempts: 3,
+                     gitPolicy: EffectiveGitPolicy(preset: .standard, allowed: ["status", "diff", "log", "show"].map { GitRule($0, source: .preset) },
+                                                   denied: [GitRule("cherry-pick", source: .project)]
+                                                       + ["add", "commit", "restore --staged", "stash"].map { GitRule($0, source: .stage) },
+                                                   hardInvariants: Samples.hard, committer: .agentWithSafetyCommit, readOnly: true)),
+        StageSummary(id: "checks", name: "Проверки", kind: .gate, display: StageDisplay(order: 3), onSuccess: "review",
+                     gates: ["swift build", "swift test"], onFail: StageReturn(stage: "dev", limit: 3)),
+        StageSummary(id: "review", name: "Human Review", kind: .human, display: StageDisplay(order: 4), wip: 2, onSuccess: "merge"),
+        StageSummary(id: "merge", name: "Слияние", kind: .merge, display: StageDisplay(order: 5), wip: 1, onSuccess: "done",
+                     onConflict: StageReturn(stage: "dev", limit: 2)),
+        StageSummary(id: "done", name: "Готово", kind: .terminal, display: StageDisplay(order: 6)),
     ]
 
     static let pipeline = PipelineSummary(projectId: project, versionHash: "sha256:9f2c", gitPreset: .standard, stages: stages,
         issues: [ValidationIssue(path: "stages[1].agent.mcp[1]", code: ValidationCode.mcpNotAllowlisted,
-                                 message: "Сервер «linear» выключен в белом списке проекта и не будет подключён", severity: .warning)])
+                                 message: "Сервер «linear» выключен в белом списке проекта и не будет подключён", severity: .warning)],
+        defaultReturnStage: "dev",
+        projectGitPolicy: EffectiveGitPolicy(preset: .standard,
+                                             allowed: ["status", "diff", "log", "show", "add", "commit", "restore --staged"].map { GitRule($0, source: .preset) }
+                                                 + [GitRule("stash", source: .project)],
+                                             denied: [GitRule("cherry-pick", source: .project)], hardInvariants: Samples.hard,
+                                             committer: .agentWithSafetyCommit, readOnly: false),
+        gitCommandCatalog: ["status", "diff", "log", "show", "add", "commit", "restore", "stash", "rebase", "reset", "cherry-pick"])
 
     static let invalidPipeline = PipelineSummary(projectId: "p-site", versionHash: nil, stages: [
         StageSummary(id: "dev", name: "Разработка", kind: .agent, display: StageDisplay(order: 1), wip: 1, model: nil),
-    ], issues: [ValidationIssue(path: "stages[0].agent.model", code: ValidationCode.modelMissing,
+    ], issues: [ValidationIssue(path: "stages[0].agent.model", stageId: "dev", code: ValidationCode.modelMissing,
                                 message: "У стадии нет модели", severity: .error)])
 
     static func card(_ id: TaskID, stage: StageID, state: TaskState, title: String) -> TaskCard {
@@ -33,7 +54,7 @@ enum Samples {
     }
 
     static let tasks: [TaskCard] = [
-        card("t-1", stage: "dev", state: .running, title: "Парсер stream-json"),
+        { var c = card("t-1", stage: "dev", state: .running, title: "Парсер stream-json"); c.hasAcceptanceCriteria = true; return c }(),
         card("t-2", stage: "dev", state: .queued(.wipFull), title: "Ждёт места"),
         card("t-3", stage: "test", state: .queued(.quotaCm), title: "Ждёт квоту Cm"),
         card("t-4", stage: "dev", state: .retryWait(.silentExit), title: "Молчаливый выход"),
@@ -43,6 +64,7 @@ enum Samples {
         { var c = card("t-8", stage: "test", state: .waitingHuman(.suspiciousFiles), title: "Подозрительные файлы"); c.suspiciousFiles = suspicious; return c }(),
         card("t-9", stage: "merge", state: .blocked(.mainDirty), title: "main грязный"),
         card("t-10", stage: "done", state: .done, title: "Готово"),
+        card("t-11", stage: "test", state: .retryWait(.readonlyViolation), title: "Правка в read-only стадии"),
     ]
 
     static let flags: [SchedulerFlag] = [
@@ -65,11 +87,16 @@ enum Samples {
     static let quota = QuotaState(cm: 42.5, om: nil, billingCycleEnd: Date(timeIntervalSince1970: 1_792_195_200), fetchedAt: t0)
 
     static let snapshot = Snapshot(seq: 1042,
-        projects: [ProjectSummary(id: project, name: "kaban", path: "/Users/artem/dev/kaban", mascotSeed: "p-kaban"),
+        projects: [ProjectSummary(id: project, name: "kaban", path: "/Users/artem/dev/kaban", mascotSeed: "p-kaban", openIncidentCount: 1,
+                                  identity: GitIdentity(name: "Artem Palkin", email: "artem@example.com")),
                    ProjectSummary(id: "p-site", name: "site", path: "/Users/artem/dev/site", availability: .missing, mascotSeed: "p-site")],
-        pipelines: [pipeline, invalidPipeline], tasks: tasks, schedulerFlags: flags, modelFlags: modelFlags, quota: quota, openIncidentCount: 1)
+        pipelines: [pipeline, invalidPipeline], tasks: tasks, schedulerFlags: flags, modelFlags: modelFlags, quota: quota, openIncidentCount: 1,
+        stageLoad: [StageLoad(projectId: project, stageId: "dev", wipUsed: 3, wipLimit: 3),
+                    StageLoad(projectId: project, stageId: "test", wipUsed: 2, wipLimit: 2),
+                    StageLoad(projectId: project, stageId: "review", wipUsed: 1, wipLimit: 2),
+                    StageLoad(projectId: project, stageId: "merge", wipUsed: 1, wipLimit: 1)])
 
-    static let suspicious = [SuspiciousFile(path: ".env.local", rule: .pattern, pattern: ".env*", sizeBytes: 212, blob: "a1b2c3"),
+    static let suspicious = [SuspiciousFile(path: ".env.local", rule: .pattern, pattern: ".env*", sizeBytes: 212, isText: true, blob: "a1b2c3"),
                              SuspiciousFile(path: "assets/dump.bin", rule: .size, sizeBytes: 7_340_032, blob: "d4e5f6")]
 
     static let events: [EventEnvelope] = [
@@ -88,6 +115,8 @@ enum Samples {
             Incident(id: "i-1", projectId: project, taskId: "t-9", runId: "r-13", kind: .refsMoved, rolledBack: ["refs/heads/main"], openedAt: t0))),
         EventEnvelope(seq: 1050, at: t0, projectId: project, event: .gitPolicyUpdated(
             GitPolicyUpdated(projectId: project, scope: .stage("dev"), pipelineVersion: "sha256:9f2d"))),
+        EventEnvelope(seq: 1051, at: t0, projectId: project, event: .stageLoadChanged(
+            StageLoad(projectId: project, stageId: "dev", wipUsed: 2, wipLimit: 3))),
     ]
 
     static let ephemeral: [EphemeralEvent] = [
@@ -95,6 +124,9 @@ enum Samples {
         .quotaUpdated(QuotaState(cm: nil, om: nil, billingCycleEnd: nil, fetchedAt: t0)), // «нет данных»
         .schedulerFlagsChanged(flags),
         .modelFlagsChanged(modelFlags),
+        .pipelineDraftValidated(PipelineDraftValidation(projectId: project, contentHash: "sha256:d1", issues: pipeline.issues, resolved: pipeline)),
+        .pipelineDraftValidated(PipelineDraftValidation(projectId: project, contentHash: "sha256:d2", issues: [
+            ValidationIssue(path: "stages[2]", code: ValidationCode.yamlSyntax, message: "Ошибка YAML в строке 14", severity: .error, params: ["line": "14"])])),
         .resyncRequired,
     ]
 
@@ -111,5 +143,6 @@ enum Samples {
     ]
 
     static let taskDetail = TaskDetail(seq: 1047, task: tasks[7], feed: [], runs: [], suspiciousFiles: suspicious,
-                                       acceptedFiles: [AcceptedFile(path: "fixtures/big.bin", blob: "0f0f0f", at: t0, commandId: cmd)])
+                                       acceptedFiles: [AcceptedFile(path: "fixtures/big.bin", blob: "0f0f0f", at: t0, commandId: cmd)],
+                                       clonePath: "/Users/artem/Library/Application Support/Kaban/clones/p-kaban/t-8")
 }

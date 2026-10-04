@@ -18,92 +18,18 @@
   "openIncidentCount" : 1,
   "pipelines" : [
     {
-      "defaultReturnStage" : "dev",
-      "gitCommandCatalog" : [
-        "status",
-        "diff",
-        "log",
-        "show",
-        "add",
-        "commit",
-        "restore",
-        "stash",
-        "rebase",
-        "reset",
-        "cherry-pick"
-      ],
       "gitPreset" : "standard",
       "hasUncommittedEdits" : false,
       "issues" : [
         {
           "code" : "mcp_not_allowlisted",
           "message" : "Сервер «linear» выключен в белом списке проекта и не будет подключён",
-          "params" : {
-
-          },
           "path" : "stages[1].agent.mcp[1]",
           "severity" : "warning"
         }
       ],
       "maxRunsPerTask" : 12,
       "maxWaitingHuman" : 3,
-      "projectGitPolicy" : {
-        "allowed" : [
-          {
-            "rule" : "status",
-            "source" : "preset"
-          },
-          {
-            "rule" : "diff",
-            "source" : "preset"
-          },
-          {
-            "rule" : "log",
-            "source" : "preset"
-          },
-          {
-            "rule" : "show",
-            "source" : "preset"
-          },
-          {
-            "rule" : "add",
-            "source" : "preset"
-          },
-          {
-            "rule" : "commit",
-            "source" : "preset"
-          },
-          {
-            "rule" : "restore --staged",
-            "source" : "preset"
-          },
-          {
-            "rule" : "stash",
-            "source" : "project"
-          }
-        ],
-        "committer" : "agent_with_safety_commit",
-        "conditional" : [
-
-        ],
-        "denied" : [
-          {
-            "rule" : "cherry-pick",
-            "source" : "project"
-          }
-        ],
-        "hardInvariants" : [
-          "push",
-          "remote",
-          "config",
-          "tag",
-          "force",
-          "foreign_refs",
-          "kaban_dir"
-        ],
-        "preset" : "standard",
-        "readOnly" : false
-      },
       "projectId" : "p-kaban",
       "stages" : [
         {
@@ -113,9 +39,6 @@
             "icon" : "tray",
             "order" : 0
           },
-          "gates" : [
-
-          ],
           "id" : "backlog",
           "kind" : "queue",
           "name" : "Backlog",
@@ -131,74 +54,6 @@
             "hidden" : false,
             "icon" : "hammer",
             "order" : 1
-          },
-          "gates" : [
-
-          ],
-          "gitPolicy" : {
-            "allowed" : [
-              {
-                "rule" : "status",
-                "source" : "preset"
-              },
-              {
-                "rule" : "diff",
-                "source" : "preset"
-              },
-              {
-                "rule" : "log",
-                "source" : "preset"
-              },
-              {
-                "rule" : "show",
-                "source" : "preset"
-              },
-              {
-                "rule" : "add",
-                "source" : "preset"
-              },
-              {
-                "rule" : "commit",
-                "source" : "preset"
-              },
-              {
-                "rule" : "restore --staged",
-                "source" : "preset"
-              }
-            ],
-            "committer" : "agent_with_safety_commit",
-            "conditional" : [
-              {
-                "allowed" : [
-                  {
-                    "rule" : "rebase",
-                    "source" : "stage"
-                  }
-                ],
-                "returnReason" : "merge_conflict"
-              }
-            ],
-            "denied" : [
-              {
-                "rule" : "cherry-pick",
-                "source" : "project"
-              },
-              {
-                "rule" : "stash",
-                "source" : "stage"
-              }
-            ],
-            "hardInvariants" : [
-              "push",
-              "remote",
-              "config",
-              "tag",
-              "force",
-              "foreign_refs",
-              "kaban_dir"
-            ],
-            "preset" : "standard",
-            "readOnly" : false
           },
           "id" : "dev",
           "kind" : "agent",
@@ -218,73 +73,13 @@
             "hidden" : false,
             "order" : 2
           },
-          "gates" : [
-
-          ],
-          "gitPolicy" : {
-            "allowed" : [
-              {
-                "rule" : "status",
-                "source" : "preset"
-              },
-              {
-                "rule" : "diff",
-                "source" : "preset"
-              },
-              {
-                "rule" : "log",
-                "source" : "preset"
-              },
-              {
-                "rule" : "show",
-                "source" : "preset"
-              }
-            ],
-            "committer" : "agent_with_safety_commit",
-            "conditional" : [
-
-            ],
-            "denied" : [
-              {
-                "rule" : "cherry-pick",
-                "source" : "project"
-              },
-              {
-                "rule" : "add",
-                "source" : "stage"
-              },
-              {
-                "rule" : "commit",
-                "source" : "stage"
-              },
-              {
-                "rule" : "restore --staged",
-                "source" : "stage"
-              },
-              {
-                "rule" : "stash",
-                "source" : "stage"
-              }
-            ],
-            "hardInvariants" : [
-              "push",
-              "remote",
-              "config",
-              "tag",
-              "force",
-              "foreign_refs",
-              "kaban_dir"
-            ],
-            "preset" : "standard",
-            "readOnly" : true
-          },
           "id" : "test",
           "kind" : "agent",
           "maxAttempts" : 3,
           "model" : "composer-1",
           "name" : "Тесты",
-          "onSuccess" : "checks",
-          "readOnly" : true,
+          "onSuccess" : "review",
+          "readOnly" : false,
           "returnsTo" : [
             {
               "limit" : 3,
@@ -299,18 +94,10 @@
             "hidden" : false,
             "order" : 3
           },
-          "gates" : [
-            "swift build",
-            "swift test"
-          ],
-          "id" : "checks",
-          "kind" : "gate",
-          "name" : "Проверки",
-          "onFail" : {
-            "limit" : 3,
-            "stage" : "dev"
-          },
-          "onSuccess" : "review",
+          "id" : "review",
+          "kind" : "human",
+          "name" : "Human Review",
+          "onSuccess" : "merge",
           "readOnly" : false,
           "returnsTo" : [
 
@@ -322,35 +109,9 @@
             "hidden" : false,
             "order" : 4
           },
-          "gates" : [
-
-          ],
-          "id" : "review",
-          "kind" : "human",
-          "name" : "Human Review",
-          "onSuccess" : "merge",
-          "readOnly" : false,
-          "returnsTo" : [
-
-          ],
-          "wip" : 2
-        },
-        {
-          "display" : {
-            "collapsed" : false,
-            "hidden" : false,
-            "order" : 5
-          },
-          "gates" : [
-
-          ],
           "id" : "merge",
           "kind" : "merge",
           "name" : "Слияние",
-          "onConflict" : {
-            "limit" : 2,
-            "stage" : "dev"
-          },
           "onSuccess" : "done",
           "readOnly" : false,
           "returnsTo" : [
@@ -362,11 +123,8 @@
           "display" : {
             "collapsed" : false,
             "hidden" : false,
-            "order" : 6
+            "order" : 5
           },
-          "gates" : [
-
-          ],
           "id" : "done",
           "kind" : "terminal",
           "name" : "Готово",
@@ -379,21 +137,14 @@
       "versionHash" : "sha256:9f2c"
     },
     {
-      "gitCommandCatalog" : [
-
-      ],
       "gitPreset" : "standard",
       "hasUncommittedEdits" : false,
       "issues" : [
         {
           "code" : "model_missing",
           "message" : "У стадии нет модели",
-          "params" : {
-
-          },
           "path" : "stages[0].agent.model",
-          "severity" : "error",
-          "stageId" : "dev"
+          "severity" : "error"
         }
       ],
       "maxRunsPerTask" : 12,
@@ -406,9 +157,6 @@
             "hidden" : false,
             "order" : 1
           },
-          "gates" : [
-
-          ],
           "id" : "dev",
           "kind" : "agent",
           "name" : "Разработка",
@@ -426,13 +174,8 @@
       "availability" : "available",
       "baseBranch" : "main",
       "id" : "p-kaban",
-      "identity" : {
-        "email" : "artem@example.com",
-        "name" : "Artem Palkin"
-      },
       "mascotSeed" : "p-kaban",
       "name" : "kaban",
-      "openIncidentCount" : 1,
       "path" : "/Users/artem/dev/kaban",
       "weight" : 1
     },
@@ -442,7 +185,6 @@
       "id" : "p-site",
       "mascotSeed" : "p-site",
       "name" : "site",
-      "openIncidentCount" : 0,
       "path" : "/Users/artem/dev/site",
       "weight" : 1
     }
@@ -505,32 +247,6 @@
     }
   ],
   "seq" : 1042,
-  "stageLoad" : [
-    {
-      "projectId" : "p-kaban",
-      "stageId" : "dev",
-      "wipLimit" : 3,
-      "wipUsed" : 3
-    },
-    {
-      "projectId" : "p-kaban",
-      "stageId" : "test",
-      "wipLimit" : 2,
-      "wipUsed" : 2
-    },
-    {
-      "projectId" : "p-kaban",
-      "stageId" : "review",
-      "wipLimit" : 2,
-      "wipUsed" : 1
-    },
-    {
-      "projectId" : "p-kaban",
-      "stageId" : "merge",
-      "wipLimit" : 1,
-      "wipUsed" : 1
-    }
-  ],
   "tasks" : [
     {
       "attempt" : 1,
@@ -538,7 +254,6 @@
 
       },
       "branch" : "kaban/t-1-x",
-      "hasAcceptanceCriteria" : true,
       "id" : "t-1",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -565,7 +280,6 @@
 
       },
       "branch" : "kaban/t-2-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-2",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -593,7 +307,6 @@
 
       },
       "branch" : "kaban/t-3-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-3",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -621,7 +334,6 @@
 
       },
       "branch" : "kaban/t-4-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-4",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -649,7 +361,6 @@
 
       },
       "branch" : "kaban/t-5-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-5",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -677,7 +388,6 @@
 
       },
       "branch" : "kaban/t-6-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-6",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -705,7 +415,6 @@
 
       },
       "branch" : "kaban/t-7-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-7",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -733,7 +442,6 @@
 
       },
       "branch" : "kaban/t-8-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-8",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -751,7 +459,6 @@
       "suspiciousFiles" : [
         {
           "blob" : "a1b2c3",
-          "isText" : true,
           "path" : ".env.local",
           "pattern" : ".env*",
           "rule" : "pattern",
@@ -759,7 +466,6 @@
         },
         {
           "blob" : "d4e5f6",
-          "isText" : false,
           "path" : "assets/dump.bin",
           "rule" : "size",
           "sizeBytes" : 7340032
@@ -775,7 +481,6 @@
 
       },
       "branch" : "kaban/t-9-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-9",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -803,7 +508,6 @@
 
       },
       "branch" : "kaban/t-10-x",
-      "hasAcceptanceCriteria" : false,
       "id" : "t-10",
       "maxAttempts" : 3,
       "model" : "claude-4.5-opus",
@@ -821,34 +525,6 @@
 
       ],
       "title" : "Готово",
-      "unusedGitGrants" : 0,
-      "updatedAt" : "2026-10-04T08:00:00.000Z"
-    },
-    {
-      "attempt" : 1,
-      "bounceByReason" : {
-
-      },
-      "branch" : "kaban/t-11-x",
-      "hasAcceptanceCriteria" : false,
-      "id" : "t-11",
-      "maxAttempts" : 3,
-      "model" : "claude-4.5-opus",
-      "overlapsWith" : [
-
-      ],
-      "priority" : 0,
-      "projectId" : "p-kaban",
-      "runsSinceHuman" : 2,
-      "stageId" : "test",
-      "state" : {
-        "reason" : "readonly_violation",
-        "status" : "retry_wait"
-      },
-      "suspiciousFiles" : [
-
-      ],
-      "title" : "Правка в read-only стадии",
       "unusedGitGrants" : 0,
       "updatedAt" : "2026-10-04T08:00:00.000Z"
     }

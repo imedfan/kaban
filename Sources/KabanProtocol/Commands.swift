@@ -4,7 +4,12 @@ import Foundation
 /// Неизвестная демону команда не декодируется, и он отвечает `CommandError.unknownCommand`.
 public enum Command: Codable, Hashable, Sendable {
     // Проекты
-    case addProject(path: String, createTemplate: Bool)
+    /// `identity` — автор коммитов демона (§8.2). Без него демон один раз читает `user.name`/`user.email`
+    /// обычным git пользователя в этом репозитории; если автора нет нигде, ответ `identity_required` и проект не создаётся.
+    case addProject(path: String, createTemplate: Bool, identity: GitIdentity? = nil)
+    /// Сменить автора коммитов демона; действует с новых коммитов. Пустое после обрезки по краям поле
+    /// или перенос строки / NUL — `identity_required` (`missing` / `invalid` в `params`), автор не меняется.
+    case setProjectIdentity(projectId: ProjectID, identity: GitIdentity)
     case removeProject(projectId: ProjectID)
     case relinkProject(projectId: ProjectID, path: String)
     case listBranches(projectId: ProjectID)
@@ -143,13 +148,37 @@ public enum CommandResult: Codable, Hashable, Sendable {
 public struct CommandError: Codable, Hashable, Sendable, Error {
     public var code: String
     public var message: String
-    public init(code: String, message: String) { self.code = code; self.message = message }
+    /// Детали ошибки для клиента, как `ValidationIssue.params`; без ключа на проводе — `[:]`.
+    /// `identity_required`: `missing` = `name` | `email` | `name,email` (не найдено или пусто после обрезки по краям,
+    /// в том числе одни пробелы), `invalid` = `name` | `email` | `name,email` (перенос строки или NUL),
+    /// `name`/`email` — найденные корректные значения. Каждое поле ровно в одном из трёх мест; отклонённое значение
+    /// не возвращается. В списках порядок всегда `name`, затем `email`.
+    public var params: [String: String]
+    public init(code: String, message: String, params: [String: String] = [:]) {
+        self.code = code; self.message = message; self.params = params
+    }
+    enum CodingKeys: String, CodingKey { case code, message, params }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(code: try c.decode(String.self, forKey: .code), message: try c.decode(String.self, forKey: .message),
+                  params: try c.decodeIfPresent([String: String].self, forKey: .params) ?? [:])
+    }
 
     public static let unknownCommandCode = "unknown_command"
     public static let invalidStateCode = "invalid_state"     // например, `approve` не из `human`-стадии
     public static let notFoundCode = "not_found"
     public static let protocolMismatchCode = "protocol_mismatch"
     public static let staleSuspiciousFilesCode = "stale_suspicious_files"
+    /// `addProject` / `setProjectIdentity`: автора нет нигде, имя/почта пустые после обрезки или содержат
+    /// перенос строки / NUL; детали в `params` (`missing`, `invalid`, найденные `name`/`email`); ничего не изменено.
+    public static let identityRequiredCode = "identity_required"
+}
+
+/// Автор коммитов демона в проекте (§8.2): передаётся в git явно `-c user.name=… -c user.email=…`.
+public struct GitIdentity: Codable, Hashable, Sendable {
+    public var name: String
+    public var email: String
+    public init(name: String, email: String) { self.name = name; self.email = email }
 }
 
 public struct EnvironmentReport: Codable, Hashable, Sendable {
@@ -176,10 +205,12 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var suspiciousFiles: [SuspiciousFile]
     /// Уже принятые по задаче файлы (`task_accepted_file`), для блока «Принято ранее».
     public var acceptedFiles: [AcceptedFile]
+    /// Путь клона задачи для «Открыть в Cursor», «дифф» и «Показать в Finder»; `nil`, если клона нет.
+    public var clonePath: String?
     public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
-                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = []) {
+                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil) {
         self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
-        self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles
+        self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles; self.clonePath = clonePath
     }
 }
 
