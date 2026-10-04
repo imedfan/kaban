@@ -157,7 +157,7 @@ stages:
 
 Задача всегда находится в стадии (`stage_id`) и имеет ровно один `status`. Отдельного `failed` нет: всё, что требует решения, это `waiting_human` с причиной.
 
-| status | Смысл | Занимает WIP стадии | Считается в `max_waiting_human` |
+| status | Смысл | Занимает execution WIP стадии | Считается в `max_waiting_human` |
 |---|---|---|---|
 | `queued` | ждёт слота в стадии (в Backlog — ждёт отправки в работу) | нет | — |
 | `running` | идёт run агента | да | — |
@@ -169,7 +169,7 @@ stages:
 | `done` | дошла до `terminal` | нет | — |
 | `cancelled` | отменена или отклонена человеком | нет | — |
 
-**WIP `human`-стадии** (v0.11.2): занимают все задачи стадии, кроме `queued`; ждущие места стоят в самой стадии как `queued: wip_full`. В протоколе — `occupiesWIP(in: StageKind)`. Демон отдаёт готовую загрузку: `stageLoad [{ projectId, stageId, wipUsed, wipLimit? }]` в снимке и журнальное событие `stageLoadChanged` в той же транзакции, что и `taskUpdated`; UI сам WIP не считает.
+**WIP `human`-стадии** (v0.11.23): занимают все уже допущенные нетерминальные задачи стадии, кроме `queued`, включая `paused` и `waiting_human` с любой причиной; ждущие места стоят в самой стадии как `queued: wip_full`. В протоколе — `occupiesWIP(in: StageKind)`. Демон отдаёт готовую загрузку: `stageLoad [{ projectId, stageId, wipUsed, wipLimit? }]` в снимке и журнальное событие `stageLoadChanged` в той же транзакции, что и `taskUpdated`; UI сам WIP не считает.
 
 Причины (`reason`, enum):
 - `waiting_human`: `question` (агент вызвал `request_human`), `review` (задача в `human`-стадии), `retries_exhausted`, `bounce_limit`, `conflict_limit`, `run_limit` (превышен `max_runs_per_task`), `model_substituted` (Cursor ответил не той моделью, 6.4), `git_denials` (5 отказов политики за run), `incident` (проверка результата нашла нарушение), `suspicious_files` (в diff ветки есть подозрительные файлы, 8.2), `invalid_result` (read-only стадия оставила изменения).
@@ -251,7 +251,7 @@ stages:
 - `task` — `stage_id`, `status`, `reason`, хэш версии пайплайна при входе в стадию, приоритет, `bounce_by_reason`, ветка, путь клона, `session_id` для resume;
 - `run` — попытка: стадия, номер, pid, pgid, время старта процесса, запрошенная модель (id) и фактическое имя из `init`, `counts_toward_limits`, статус, `end_reason`, exit code, usage, путь к логу, счётчик git-отказов;
 - `git_grant` — разовые git-разрешения (раздел 8.3);
-- `incident` — `task_id`, `run_id`, вид нарушения (`refs_moved`, `tags_changed`, `config_changed`, `kaban_dir_changed`, `foreign_base`), что откатили, `opened_at`, `resolved_at`, `resolved_by_command`. Инцидент закрывается сам в той же транзакции, где человек выводит задачу из `waiting_human: incident` любой командой (`answerHuman`, `retryStage`, `moveTask`, `requestChanges`, `reject`, `cancelTask`);
+- `incident` — `task_id`, `run_id`, вид нарушения (`refs_moved`, `tags_changed`, `config_changed`, `kaban_dir_changed`, `foreign_base`), что откатили, `opened_at`, `resolved_at`, `resolved_by_command`. Инцидент закрывается сам в той же транзакции, где применённая команда человека выводит задачу из `waiting_human: incident` (`answerHuman`, `retryStage`, `moveTask`, `requestChanges`, `reject`, `cancelTask`);
 - `task_accepted_file` — принятые человеком подозрительные файлы задачи: путь, blob, кто и когда (8.2);
 - `refs_snapshot` — ожидаемые refs основного репозитория для проверки результата;
 - `task_feed_item` — лента задачи (переходы, вопросы, отказы и разрешения git, инциденты, резюме); живёт столько же, сколько задача, и не обрезается вместе с журналом;
@@ -271,7 +271,7 @@ stages:
 
 **Синхронизация.**
 - `getSnapshot(projectIds?) -> Snapshot { seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota?, openIncidentCount, stageLoad, settings? }` (`openIncidentCount` — сумма `ProjectSummary.openIncidentCount`) — состояние доски на момент `seq` (карточки, без лент). Карточка несёт `suspiciousFiles` — текущий непринятый набор (не пуст только в `waiting_human: suspicious_files`), поэтому он переживает перезапуск и `resyncRequired`; принятые файлы (`acceptedFiles`: путь, blob, кто, когда) — в `TaskDetail`.
-- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests, suspiciousFiles, acceptedFiles }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
+- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests, suspiciousFiles, acceptedFiles, clonePath? }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
 - `subscribe(fromSeq, projectIds?)` — досылка из `event` после `fromSeq`, затем живые события. Если `fromSeq` старше хранимого журнала — сигнал `resyncRequired`, клиент берёт снимок заново.
 - Каждая команда несёт `commandId` (UUID от клиента); ответ содержит `commandId` и `seq` порождённого события, а журнальное событие — тот же `commandId` в `payload`. UI не делает оптимистичных переходов: карточка ждёт событие с этим `commandId`.
 
