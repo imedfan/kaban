@@ -112,9 +112,10 @@ final class BoardProjectionTests: XCTestCase {
     func testHiddenProjectKeepsBadgeCounts() {
         let waiting = Fix.card("t-1", state: .waitingHuman(.question))
         let review = Fix.card("t-2", stage: "test", state: .waitingHuman(.review))
-        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [waiting, review], openIncidents: 4))
+        let project = Fix.project(openIncidentCount: 4)
+        let projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [waiting, review], projects: [project], openIncidents: 4))
         XCTAssertEqual(projection.badgeCounts(for: Fix.project).waitingHuman, 2)
-        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 0, "снимок не раскладывает инциденты по проектам")
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 4)
         XCTAssertEqual(projection.openIncidentCount, 4)
         let visible = projection.lanes(orderedBy: [])
         XCTAssertTrue(visible.isEmpty)
@@ -139,5 +140,63 @@ final class BoardProjectionTests: XCTestCase {
         XCTAssertEqual(projection.tasks["t-1"]?.state, .paused)
         XCTAssertEqual(projection.apply(Fix.envelope(12, .taskUpdated(Fix.card("t-1", title: "Не должно примениться"))), subscription: .all), .needsResync)
         XCTAssertEqual(projection.tasks["t-1"]?.title, "С другой подписки" as String?)
+    }
+
+    func testProjectIncidentCountSurvivesSnapshotAndFollowsTheJournal() {
+        let project = Fix.project(openIncidentCount: 2, identity: GitIdentity(name: "Artem", email: "a@b.c"))
+        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, projects: [project], openIncidents: 2))
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 2)
+        XCTAssertEqual(projection.projects[Fix.project]?.identity, GitIdentity(name: "Artem", email: "a@b.c"))
+
+        let incident = Incident(
+            id: "i-9", projectId: Fix.project, taskId: "t-1", runId: nil, kind: .configChanged, rolledBack: [], openedAt: Fix.t0
+        )
+        XCTAssertEqual(projection.apply(Fix.envelope(2, .incidentOpened(incident))), .applied)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 3)
+        XCTAssertEqual(projection.openIncidentCount, 3)
+
+        var refreshed = project
+        refreshed.openIncidentCount = 3
+        refreshed.name = "кабан"
+        XCTAssertEqual(projection.apply(Fix.envelope(3, .projectUpdated(refreshed))), .applied)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 3)
+        XCTAssertEqual(projection.projects[Fix.project]?.name, "кабан")
+        XCTAssertEqual(projection.projects[Fix.project]?.identity?.email, "a@b.c")
+
+        let resolved = IncidentResolved(incidentId: "i-9", by: .human, commandId: Fix.command)
+        XCTAssertEqual(projection.apply(Fix.envelope(4, .incidentResolved(resolved))), .applied)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 2)
+        XCTAssertEqual(projection.openIncidentCount, 2)
+
+        let unseen = IncidentResolved(incidentId: "i-old", by: .human, commandId: nil)
+        XCTAssertEqual(projection.apply(Fix.envelope(5, .incidentResolved(unseen))), .applied)
+        XCTAssertEqual(projection.badgeCounts(for: Fix.project).openIncidents, 1)
+        XCTAssertEqual(projection.openIncidentCount, 1)
+
+        XCTAssertEqual(projection.apply(Fix.envelope(6, .projectRemoved(Fix.project))), .applied)
+        XCTAssertEqual(projection.openIncidentCount, 0)
+        XCTAssertNil(projection.projects[Fix.project])
+    }
+
+    func testStageLoadAndReadonlyViolationStayOnTheBoard() {
+        let load = StageLoad(projectId: Fix.project, stageId: "dev", wipUsed: 1, wipLimit: 2)
+        var file = Fix.file(".env.local")
+        file.isText = true
+        let card = Fix.card("t-1", state: .retryWait(.readonlyViolation), files: [file])
+        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [card], stageLoad: [load]))
+        XCTAssertEqual(projection.load(projectId: Fix.project, stageId: "dev"), load)
+        XCTAssertEqual(projection.tasks["t-1"]?.state, .retryWait(.readonlyViolation))
+        XCTAssertEqual(projection.tasks["t-1"]?.suspiciousFiles.first?.isText, true)
+
+        let next = StageLoad(projectId: Fix.project, stageId: "dev", wipUsed: 2, wipLimit: 2)
+        XCTAssertEqual(projection.apply(Fix.envelope(2, .stageLoadChanged(next))), .applied)
+        XCTAssertEqual(projection.load(projectId: Fix.project, stageId: "dev"), next)
+        XCTAssertEqual(projection.tasks["t-1"], card, "загрузка стадии карточку не меняет")
+        XCTAssertEqual(projection.feed.count, 1)
+
+        let other = StageLoad(projectId: Fix.project, stageId: "test", wipUsed: 0, wipLimit: nil)
+        XCTAssertEqual(projection.apply(Fix.envelope(3, .stageLoadChanged(other))), .applied)
+        XCTAssertEqual(projection.stageLoad.count, 2)
+        XCTAssertNil(projection.load(projectId: Fix.project, stageId: "test")?.wipLimit)
     }
 }

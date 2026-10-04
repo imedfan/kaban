@@ -8,8 +8,8 @@ enum Fix {
     static let other: ProjectID = "p-site"
     static let command = UUID(uuidString: "00000000-0000-4000-8000-000000000014")!
 
-    static func stage(_ id: String, _ kind: StageKind, order: Int) -> StageSummary {
-        StageSummary(id: StageID(rawValue: id), name: id, kind: kind, display: StageDisplay(order: order))
+    static func stage(_ id: String, _ kind: StageKind, order: Int, gates: [String] = []) -> StageSummary {
+        StageSummary(id: StageID(rawValue: id), name: id, kind: kind, display: StageDisplay(order: order), gates: gates)
     }
 
     static let baseStages: [StageSummary] = [
@@ -24,8 +24,16 @@ enum Fix {
         PipelineSummary(projectId: project, versionHash: "v1", stages: stages)
     }
 
-    static func project(_ id: ProjectID = project, name: String = "kaban") -> ProjectSummary {
-        ProjectSummary(id: id, name: name, path: "/\(id.rawValue)", mascotSeed: id.rawValue)
+    static func project(
+        _ id: ProjectID = project,
+        name: String = "kaban",
+        openIncidentCount: Int = 0,
+        identity: GitIdentity? = nil
+    ) -> ProjectSummary {
+        ProjectSummary(
+            id: id, name: name, path: "/\(id.rawValue)", mascotSeed: id.rawValue,
+            openIncidentCount: openIncidentCount, identity: identity
+        )
     }
 
     static func card(
@@ -34,7 +42,8 @@ enum Fix {
         state: TaskState = .queued(nil),
         title: String = "Старая",
         project: ProjectID = project,
-        files: [SuspiciousFile] = []
+        files: [SuspiciousFile] = [],
+        hasAcceptanceCriteria: Bool = false
     ) -> TaskCard {
         TaskCard(
             id: TaskID(rawValue: id),
@@ -43,6 +52,7 @@ enum Fix {
             stageId: StageID(rawValue: stage),
             state: state,
             suspiciousFiles: files,
+            hasAcceptanceCriteria: hasAcceptanceCriteria,
             updatedAt: t0
         )
     }
@@ -60,14 +70,16 @@ enum Fix {
         tasks: [TaskCard] = [],
         projects: [ProjectSummary]? = nil,
         pipelines: [PipelineSummary]? = nil,
-        openIncidents: Int = 0
+        openIncidents: Int = 0,
+        stageLoad: [StageLoad] = []
     ) -> Snapshot {
         Snapshot(
             seq: seq,
             projects: projects ?? [project()],
             pipelines: pipelines ?? [pipeline()],
             tasks: tasks,
-            openIncidentCount: openIncidents
+            openIncidentCount: openIncidents,
+            stageLoad: stageLoad
         )
     }
 }
