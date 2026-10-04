@@ -67,7 +67,11 @@ public struct TaskTransition: Codable, Hashable, Sendable {
 public struct SettingsChange: Codable, Hashable, Sendable {
     public var key: String
     public var value: String
-    public init(key: String, value: String) { self.key = key; self.value = value }
+    /// Authoritative settings after the change. Legacy key/value remains for older clients.
+    public var settings: GlobalSettings?
+    public init(key: String, value: String, settings: GlobalSettings? = nil) {
+        self.key = key; self.value = value; self.settings = settings
+    }
 }
 
 public struct HumanRequest: Codable, Hashable, Sendable {

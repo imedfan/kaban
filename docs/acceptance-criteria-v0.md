@@ -6,9 +6,20 @@
 
 Для M1 у каждого критерия есть исполняемый сценарий в `code/Scenarios/M1/` (формат описан в `code/Scenarios/README.md`). M1 принят, когда все сценарии M1 зелёные в `swift test` на Linux. Для M2–M5 сценарии пишу по ходу, на реальных фикстурах спайков.
 
+## Уточнения контракта 4 октября 2026
+
+Решения #9–12 приняты для реализации; #14/#44 — контракт и кодовые исправления на ревью, issues закрываются только после принятия соответствующих PR. Этот раздел задаёт проверяемые условия, а не утверждает, что daemon/XPC интеграция уже работает.
+
+- #9: `answerHuman` на agent из `waiting_human` продолжает свою стадию с ответом; human/gate/merge отклоняют команду с `invalid_state`. Подозрительный набор ответом не принимается.
+- #10: изменение агентом `.kaban/`, включая untracked содержимое и замену каталога/симлинка, создаёт долговечный incident и `waiting_human:incident` после отката. Автоматического продолжения нет; applied-команда человека явно завершает ожидание. Политика или разовое git-разрешение запрет не отменяет (M2).
+- #11: human admission WIP считает все допущенные нетерминальные задачи, кроме queued; в том числе paused и waiting_human с любой причиной. Human admission не использует execution slot. При снижении лимита существующие задачи сохраняются, новый вход блокируется до освобождения (M1 scheduler).
+- #12: scalar/list/empty корень pipeline даёт root type_mismatch с path=""; YAML syntax также допускает path="". Клиент показывает пустой путь как pipeline.yaml. Ошибка конкретного поля имеет непустой путь.
+- #14: старый TaskDetail без artifacts/gitGrants/gitDenials декодируется с []; пустые новые коллекции не изменяют прежний wire shape. Непустые artifact и grant lifecycle/denial данные проходят typed JSON roundtrip без потери даже при пустом feed. Payloads совпадают с journal DTO. Snapshot.settings отсутствует у старого сервера → nil; явные настройки и settingsChanged.settings несут одинаковый GlobalSettings. Unknown JSON fields допустимы, malformed known required settings отклоняются (M1 DTO; долговечное store чтение и reconnect проверяются после реализации).
+- #44: projectAdded/projectUpdated/projectRemoved авторитетны для incident aggregate; порядок incidentOpened/Resolved относительно projectUpdated не меняет конечный счётчик. Глобальный счётчик равен сумме project counts. Store публикует projectUpdated и incident event одной транзакцией (M1 fake driver; M2 live integration отдельно).
+
 ## Сквозные инварианты (M1, генеративные тесты бэка)
 - У задачи всегда ровно одна стадия и одно состояние из архитектуры 3.2. Причина есть только у `queued` (необязательная), `retry_wait`, `waiting_human`, `blocked`.
-- Занятые WIP-слоты стадии = число задач в `running` + `gating` + `retry_wait`, и оно не больше WIP. Исключение: WIP уменьшили ниже текущего числа задач, тогда новых не берём.
+- Execution WIP agent/gate/merge = число задач в `running` + `gating` + `retry_wait`; human admission WIP определён отдельно выше. Исключение: WIP уменьшили ниже occupancy, тогда существующие задачи сохраняются, новых не берём.
 - Сумма идущих run по всем проектам не больше общего потолка, а по проекту не больше его личного максимума.
 - `attempt` в пределах 1…3 и сбрасывается в 1 при каждом входе в стадию. `autoRuns` в пределах 0…12 и обнуляется любым действием человека.
 - Run с причиной `rate_limit`, `runner_auth`, `daemon_restart`, `silent_exit` или `model_substituted` не меняет ни `attempt`, ни `autoRuns`.
@@ -22,7 +33,7 @@
 | UC-01 Подключить проект | Не git → ошибка, проект не создан. Шаблон коммитит только `.kaban/`. После подключения флаг `pipeline_invalid` со списком стадий без модели. После указания моделей флаг снят, задачи стартуют. | M2 (валидатор M1) | M1-PIPE-01, M1-PIPE-02 |
 | UC-02 Завести задачу | Новая задача `queued` в Backlog. Без критериев приёмки не стартует. Правка запрещена в `running` и `gating`. | M1 | — (добавлю M1-TASK-01) |
 | UC-03 Автозапуск | Стартует только при свободном слоте, без флагов Мака, пула, проекта и модели. Порядок: возвращённые и отвеченные раньше новых, затем приоритет, затем FIFO. Задача, которая не может стартовать по причине, не держит очередь. | M1 | M1-FLOW-01, M1-WIP-01, M1-MODELFLAG-01, M1-POOL-01 |
-| UC-04 Пройти стадию | `complete_stage` → `gating` → при зелёных гейтах `queued` в следующей стадии с `attempt` 1. Красный гейт → `retry_wait: gate_failed` в том же клоне. Read-only стадия с изменениями → откат и повтор, при повторном нарушении `invalid_result`. | M1 (гейты M2) | M1-FLOW-01, M1-RETRY-03 |
+| UC-04 Пройти стадию | `complete_stage` → `gating` → при зелёных гейтах `queued` в следующей стадии с `attempt` 1. Красный гейт → `retry_wait: gate_failed` в том же клоне. Read-only стадия с изменениями → откат, `retry_wait: readonly_violation` со списанием попытки, при повторном нарушении за заход сразу `waiting_human: invalid_result`. | M1 (гейты M2) | M1-FLOW-01, M1-RETRY-03 |
 | UC-05 Возврат | `return_to_stage` в пределах лимита → `queued` в целевой стадии, счётчик пары +1. Превышен лимит пары (3 / 2) или общий (5) → `bounce_limit`, задача остаётся в своей стадии. | M1 | M1-RETRY-02, M1-BOUNCE-01, M1-BOUNCE-02 |
 | UC-06 Агент просит человека | `request_human` → `waiting_human: question`, слот свободен. Ответ → `queued` в своей стадии с приоритетом, `autoRuns` = 0. Ожидающих без ревью ≥ `max_waiting_human` → флаг `intake_paused`. Замечание при исчерпанных попытках добавляет одну попытку. | M1 | M1-WIP-02, M1-MAXWH-01 |
 | UC-07 Ревью человеком | В human-стадии `waiting_human: review`, не считается в `max_waiting_human`. «Одобрить» → очередь Merge. «Вернуть» → выбранная стадия, лимиты возвратов не растут. «Отклонить» → `cancelled` с `kaban/archive/<id>` или без него, либо стадия. | M1 | M1-MAXWH-01, M1-CANCEL-01 |
