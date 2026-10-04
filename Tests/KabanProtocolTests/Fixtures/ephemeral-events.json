@@ -1,0 +1,92 @@
+[
+  {
+    "data" : {
+      "billingCycleEnd" : "2026-10-17T00:00:00.000Z",
+      "cm" : 42.5,
+      "fetchedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    "type" : "quotaUpdated"
+  },
+  {
+    "data" : {
+      "fetchedAt" : "2026-10-04T08:00:00.000Z"
+    },
+    "type" : "quotaUpdated"
+  },
+  {
+    "data" : [
+      {
+        "flag" : "usage_exhausted",
+        "level" : "pool",
+        "pool" : "om",
+        "reason" : "om",
+        "resetsAt" : "2026-10-17T00:00:00.000Z"
+      },
+      {
+        "flag" : "usage_exhausted",
+        "level" : "mac",
+        "reason" : "unknown"
+      },
+      {
+        "flag" : "rate_limited",
+        "level" : "mac",
+        "step" : 1,
+        "until" : "2026-10-04T08:15:00.000Z"
+      },
+      {
+        "flag" : "runner_unavailable",
+        "level" : "mac",
+        "reason" : "agent_not_logged_in"
+      },
+      {
+        "detail" : "dev: нет модели",
+        "flag" : "unavailable",
+        "level" : "project",
+        "projectId" : "p-site",
+        "reason" : "pipeline_invalid"
+      },
+      {
+        "detail" : "github",
+        "flag" : "unavailable",
+        "level" : "project",
+        "projectId" : "p-kaban",
+        "reason" : "mcp_unexpected"
+      },
+      {
+        "flag" : "intake_paused",
+        "level" : "project",
+        "projectId" : "p-kaban",
+        "reason" : "max_waiting_human"
+      },
+      {
+        "flag" : "merge_blocked",
+        "level" : "project",
+        "projectId" : "p-kaban",
+        "reason" : "main_dirty"
+      }
+    ],
+    "type" : "schedulerFlagsChanged"
+  },
+  {
+    "data" : [
+      {
+        "actual" : "Claude 4 Sonnet",
+        "fallbackModel" : "claude-4-sonnet",
+        "modelId" : "claude-4.5-opus",
+        "reason" : "substituted",
+        "requested" : "Claude 4.5 Opus",
+        "since" : "2026-10-04T08:00:00.000Z"
+      },
+      {
+        "modelId" : "gpt-5-codex",
+        "reason" : "unavailable",
+        "requested" : "GPT-5 Codex",
+        "since" : "2026-10-04T08:00:00.000Z"
+      }
+    ],
+    "type" : "modelFlagsChanged"
+  },
+  {
+    "type" : "resyncRequired"
+  }
+]

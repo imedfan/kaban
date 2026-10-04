@@ -1,4 +1,4 @@
-# Kaban: архитектура MVP (черновик v0.10.2)
+# Kaban: архитектура MVP (черновик v0.11.1)
 
 Автор: Kaban Architector Bot · 3 октября 2026 · статус: на обсуждение, до утверждения Артёмом
 
@@ -51,23 +51,24 @@ flowchart LR
 - **cursor-agent** — внешний процесс на каждую попытку стадии, свой process group, cwd = клон задачи, запуск внутри профиля Seatbelt.
 - `kabanctl` — CLI поверх того же XPC, для отладки и скриптов, с первого дня.
 
-## 2. Swift-пакет `KabanKit`
+## 2. Swift-пакет `Kaban` (репозиторий, `Package.swift` в корне)
 
-| Модуль | Что внутри | Платформа |
-|---|---|---|
-| `KabanModel` | Task, Stage, Pipeline, Run, статусы, причины; чистые функции: валидатор пайплайна, итоговая git-политика стадии, генератор маскота | macOS + Linux |
-| `KabanStateMachine` | `reduce(state, command) -> (state, [effect])`, WIP, лимиты возвратов, ретраи | macOS + Linux |
-| `KabanProtocol` | XPC: команды, ответы, снимок, события с `seq` | macOS + Linux (Codable) |
-| `KabanStore` | GRDB: схема, миграции, журнал | macOS + Linux |
-| `KabanScheduler` | цикл планировщика, справедливый обход проектов, с фейковым драйвером | macOS + Linux |
-| `KabanAgentDrivers` | `AgentDriver` + `CursorCLIDriver` (аргументы, парсер stream-json → `AgentEvent`) | macOS + Linux |
-| `KabanHTTP` | loopback-сервер: MCP доски и `/git/check` | macOS + Linux |
-| `KabanGit` | клоны задач, fetch, rebase, ff-merge, diffstat, снимки refs | macOS + Linux |
-| `KabanGitShim` (executable) | обёртка `git` для PATH агента | macOS |
-| `KabanDaemon` (executable) | сборка всего, Seatbelt, launchd, XPC listener | macOS |
-| `KabanApp` (Xcode) | SwiftUI | macOS |
+| Модуль | Что внутри | Зависит от | Платформа |
+|---|---|---|---|
+| `KabanProtocol` | XPC: команды, ответы, снимок, события с `seq`, эфемерные события, `AgentEvent` | Foundation | macOS + Linux (Codable) |
+| `KabanKit` | модель (Task, Stage, Pipeline, Run), валидатор `pipeline.yaml`, итоговая git-политика стадии, генератор маскота; машина состояний `reduce(state, command) -> (state, [effect])`, WIP, лимиты возвратов, ретраи. Статусы и причины берёт из `KabanProtocol`, своих копий не заводит | `KabanProtocol` | macOS + Linux |
+| `KabanDaemonCore` | GRDB: схема, миграции, журнал; планировщик, справедливый обход проектов, фейковый драйвер | `KabanKit`, GRDB | macOS + Linux |
+| `KabanAgentDrivers` | `AgentDriver` + `CursorCLIDriver` (аргументы, парсер stream-json → `AgentEvent`) | `KabanProtocol` | macOS + Linux |
+| `KabanHTTP` | loopback-сервер: MCP доски и `/git/check` | `KabanDaemonCore` | macOS + Linux |
+| `KabanGit` | клоны задач, fetch, rebase, ff-merge, diffstat, снимки refs | Foundation | macOS + Linux |
+| `KabanBoardCore` | состояние доски в приложении: применение снимка и событий, набор проектов (`BoardSetStore`), фильтры, оптимистичные команды | **только `KabanProtocol`** | macOS + Linux |
+| `KabanGitShim` (executable) | обёртка `git` для PATH агента | — | macOS |
+| `KabanDaemon` (executable) | сборка всего, Seatbelt, launchd, XPC listener | всё демонное | macOS |
+| `KabanApp` (Xcode) | SwiftUI | `KabanProtocol`, `KabanBoardCore` | macOS |
 
-Всё, кроме последних трёх, собирается и тестируется на общем Linux-компьютере, пока Мак не в сети.
+Граница: приложение не импортирует `KabanKit` и GRDB. Правда о задачах и валидности пайплайна живёт в демоне; черновик пайплайна приложение проверяет командой `validatePipeline` (ответ и эфемерное `pipelineDraftValidated`), а не своей копией валидатора. Модули `KabanModel`/`KabanStateMachine`/`KabanStore`/`KabanScheduler` из v0.11 слиты в `KabanKit` и `KabanDaemonCore` (v0.11.1).
+
+Всё, кроме трёх macOS-модулей, собирается и тестируется на общем Linux-компьютере, пока Мак не в сети.
 
 ## 3. Конечный автомат
 
@@ -93,10 +94,14 @@ board:                              # правила процесса проек
 workspace:
   warm_paths: [node_modules, .gradle]
   on_create: "npm ci --prefer-offline"
-git:
+git:                                # политика проекта (вкладка git в настройках проекта), 8.4
   preset: standard                  # strict | standard | permissive
-  allow: [status, diff, log, show, add, commit, "restore --staged"]
-  deny:  [push, "reset --hard", remote, config, tag, "branch -D", "--force", "checkout main", "rebase main"]
+  allow: []                         # дополнения к пресету
+  deny:  []                         # сужения пресета; жёсткие инварианты не перечисляются, они всегда действуют
+suspicious_files:                   # проверка всего diff ветки задачи, 8.2
+  patterns: [".env*", "*.pem", "*.key", "*.p12", "id_rsa*", "id_ed25519*"]
+  max_file_mb: 5
+  allow: [".env.example"]           # пути, которые проект считает нормальными
 stages:
   - id: dev                         # стабильный id, на него ссылается SQLite
     name: Разработка
@@ -112,12 +117,12 @@ stages:
       mcp: [kaban]                  # сервер доски всегда; прочие MCP — только из белого списка проекта (9)
       env: { NODE_ENV: test }       # без секретов; секреты только по имени ключа Keychain
       workspace: task               # task | fresh-readonly
-    git: { extend: [rebase], when: return_reason == merge_conflict }
+    git: { extend: [rebase], when: return_reason == merge_conflict }   # только переопределения стадии поверх политики проекта
     inputs: [task, handoff, return_issues, gate_output, git_grants]
     gates: ["./gradlew build", "./gradlew test"]
     on_success: test
     returns_to: []
-    retry: { max_attempts: 3, backoff: [30s, 2m] }   # пауз на одну меньше, чем попыток; значения ждут решения Артёма
+    retry: { max_attempts: 3, backoff: [30s, 2m] }   # пауз на одну меньше, чем попыток (утверждено)
     timeouts: { stall: 10m, wall: 60m }
     hooks: { on_enter: null, on_exit: null }
     notify: [waiting_human]
@@ -136,7 +141,7 @@ stages:
 - Новый проект без `.kaban/`: в диалоге добавления галочка «создать шаблон и закоммитить» (по умолчанию включена). Моделей по умолчанию нет: шаблон коммитится с пустыми `model:`, и проект сразу получает `unavailable: pipeline_invalid` со списком стадий без модели. Без закоммиченного пайплайна проект добавляется, но задачи не запускаются, на дорожке плашка «нет пайплайна». Задачи в Backlog создавать можно в обоих случаях.
 - Чистая рабочая копия для добавления проекта не нужна.
 
-**Валидация** (JSON Schema + семантика в `KabanModel`). Ошибки — `ValidationIssue { path: "stages[2].wip", code, message, severity }`, путь к полю для подсветки в настройках. `updatePipeline` некорректную версию не коммитит, «Сохранить» в UI при ошибках неактивна, черновик живёт только в редакторе. Если некорректная версия попала в `main` ручным коммитом, проект получает `unavailable: pipeline_invalid`: идущие runs доигрывают, новые не стартуют и задачи не переходят между стадиями, флаг гаснет сам, когда в `main` появляется корректная версия (правило «работаем на последней валидной» с v0.10 снято).
+**Валидация** (JSON Schema + семантика в `KabanKit`). Ошибки — `ValidationIssue { path: "stages[2].wip", code, message, severity }`, путь к полю для подсветки в настройках. `updatePipeline` некорректную версию не коммитит, «Сохранить» в UI при ошибках неактивна, черновик живёт только в редакторе. Если некорректная версия попала в `main` ручным коммитом, проект получает `unavailable: pipeline_invalid`: идущие runs доигрывают, новые не стартуют и задачи не переходят между стадиями, флаг гаснет сам, когда в `main` появляется корректная версия (правило «работаем на последней валидной» с v0.10 снято).
 - `id` уникальны; одна `queue`-стадия входа, одна `merge`, есть `terminal`;
 - `terminal` достижим по `on_success` из каждой стадии, циклов по `on_success` нет;
 - `returns_to` указывает только назад по цепочке;
@@ -165,7 +170,7 @@ stages:
 | `cancelled` | отменена или отклонена человеком | нет | — |
 
 Причины (`reason`, enum):
-- `waiting_human`: `question` (агент вызвал `request_human`), `review` (задача в `human`-стадии), `retries_exhausted`, `bounce_limit`, `conflict_limit`, `run_limit` (превышен `max_runs_per_task`), `model_substituted` (Cursor ответил не той моделью, 6.4), `git_denials` (5 отказов политики за run), `incident` (проверка результата нашла нарушение), `invalid_result` (read-only стадия оставила изменения).
+- `waiting_human`: `question` (агент вызвал `request_human`), `review` (задача в `human`-стадии), `retries_exhausted`, `bounce_limit`, `conflict_limit`, `run_limit` (превышен `max_runs_per_task`), `model_substituted` (Cursor ответил не той моделью, 6.4), `git_denials` (5 отказов политики за run), `incident` (проверка результата нашла нарушение), `suspicious_files` (в diff ветки есть подозрительные файлы, 8.2), `invalid_result` (read-only стадия оставила изменения).
 - `queued` (не статус ошибки, а подпись на карточке): `wip_full` («Ждёт места»), `quota_cm` / `quota_om` (остаток пула ниже порога, 7), `model_flag` (на модели стадии висит флаг). Задача с такой причиной не держит очередь: планировщик берёт следующую в стадии.
 - `retry_wait`: `crash`, `stall_timeout`, `wall_timeout`, `no_final_call`, `gate_failed`; без списания попытки: `rate_limit` и `runner_auth` (ждут снятия глобального флага), `daemon_restart`, `silent_exit` (выход без единого вызова инструмента и без изменений, ждёт пробного запуска, 6.4).
 
@@ -245,6 +250,7 @@ stages:
 - `run` — попытка: стадия, номер, pid, pgid, время старта процесса, запрошенная модель (id) и фактическое имя из `init`, `counts_toward_limits`, статус, `end_reason`, exit code, usage, путь к логу, счётчик git-отказов;
 - `git_grant` — разовые git-разрешения (раздел 8.3);
 - `incident` — `task_id`, `run_id`, вид нарушения (`refs_moved`, `tags_changed`, `config_changed`, `kaban_dir_changed`, `foreign_base`), что откатили, `opened_at`, `resolved_at`, `resolved_by_command`. Инцидент закрывается сам в той же транзакции, где человек выводит задачу из `waiting_human: incident` любой командой (`answerHuman`, `retryStage`, `moveTask`, `requestChanges`, `reject`, `cancelTask`);
+- `task_accepted_file` — принятые человеком подозрительные файлы задачи: путь, blob, кто и когда (8.2);
 - `refs_snapshot` — ожидаемые refs основного репозитория для проверки результата;
 - `task_feed_item` — лента задачи (переходы, вопросы, отказы и разрешения git, инциденты, резюме); живёт столько же, сколько задача, и не обрезается вместе с журналом;
 - `event` — append-only журнал синхронизации с глобальным `seq` (бывший `transition`): переходы задач, изменения проектов и настроек, применённые версии пайплайна, инциденты, git-отказы и разрешения. В `payload` — `commandId` команды-источника;
@@ -262,8 +268,8 @@ stages:
 `XPCSession` / `XPCListener`, сообщения Codable из `KabanProtocol`. Listener принимает только клиента, подписанного нашим Team ID.
 
 **Синхронизация.**
-- `getSnapshot(projectIds?) -> Snapshot { seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota?, openIncidentCount }` — состояние доски на момент `seq` (карточки, без лент).
-- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
+- `getSnapshot(projectIds?) -> Snapshot { seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota?, openIncidentCount }` — состояние доски на момент `seq` (карточки, без лент). Карточка несёт `suspiciousFiles` — текущий непринятый набор (не пуст только в `waiting_human: suspicious_files`), поэтому он переживает перезапуск и `resyncRequired`; принятые файлы (`acceptedFiles`: путь, blob, кто, когда) — в `TaskDetail`.
+- `getTaskDetail(taskId) -> TaskDetail { seq, task, feed, runs, artifacts, gitGrants, gitDenials, humanRequests, suspiciousFiles, acceptedFiles }` — всё для панели деталей из долговечных таблиц, не из журнала; дальше панель обновляется событиями этой задачи с `seq` больше полученного.
 - `subscribe(fromSeq, projectIds?)` — досылка из `event` после `fromSeq`, затем живые события. Если `fromSeq` старше хранимого журнала — сигнал `resyncRequired`, клиент берёт снимок заново.
 - Каждая команда несёт `commandId` (UUID от клиента); ответ содержит `commandId` и `seq` порождённого события, а журнальное событие — тот же `commandId` в `payload`. UI не делает оптимистичных переходов: карточка ждёт событие с этим `commandId`.
 
@@ -271,6 +277,8 @@ stages:
 **Эфемерные** (без `seq`, при переподключении приходят текущим значением в снимке): `schedulerFlagsChanged` (все флаги из 3.2 с причинами и временем cooldown), `modelFlagsChanged`, `quotaUpdated { cm?, om?, billingCycleStart?, billingCycleEnd?, fetchedAt }` (`nil` — «нет данных», а не 0%), `modelCatalogChanged`, результат проверки раннера, результат валидации ручной правки пайплайна, прогресс run, живой лог.
 
 **Журнальные события git:** `gitDenied { denialId, taskId, runId, argv, rule }`, `gitGrantCreated { grantId, denialId, argv, by }`, `gitGrantDelivered { grantId, runId, via: mcp_response | next_prompt }` (агент получил уведомление о разрешении), `gitGrantConsumed { grantId, runId }`, `gitGrantRevoked { grantId, by }`, `gitGrantExpired { grantId, reason: task_done | task_cancelled }`, `gitPolicyUpdated { projectId, scope, pipelineVersion }`.
+
+**Журнальные события подозрительных файлов:** `suspiciousFilesFound { taskId, runId?, stageId, files: [{ path, rule: pattern | size, sizeBytes, blob }] }`, `suspiciousFilesAccepted { taskId, files, by, commandId }`.
 
 **Журнальные события инцидентов:** `incidentOpened { incidentId, projectId, taskId, runId, kind, rolledBack }`, `incidentResolved { incidentId, by, commandId }`.
 
@@ -281,7 +289,7 @@ stages:
 - Пайплайн и политика: `updatePipeline(projectId, contentHash) -> PipelineVersion | [ValidationIssue]`, `validatePipeline(projectId, content)` (без записи, для живой проверки в настройках).
 - Детали: `getTaskDetail(taskId)`.
 - Задачи: `createTask`, `editTask` (только в `queued`/`waiting_human`/`paused`), `setPriority`, `moveTask(stage)`, `pauseTask`, `resumeTask`, `cancelTask(taskId, keepBranch = false)`, `retryStage(grantAttempts?)`, `setModelOverride(taskId, stageId, model)`.
-- Человек: `answerHuman(taskId, text, requestId?)` (ответ на вопрос или «Замечание агенту» из любого `waiting_human`), `approve(taskId)`, `requestChanges(taskId, comments, target?)`, `reject(taskId, target, keepBranch = false)` (`keepBranch` учитывается только при `target = cancel`).
+- Человек: `answerHuman(taskId, text, requestId?)` (ответ на вопрос или «Замечание агенту» из любого `waiting_human`), `approve(taskId)`, `requestChanges(taskId, comments, target?)`, `reject(taskId, target, keepBranch = false)` (`keepBranch` учитывается только при `target = cancel`). `acceptSuspiciousFiles(taskId, files: [{path, blob}])` — кнопка «Принять файлы»: принимает ровно показанный набор; если он уже изменился, ответ `stale_suspicious_files` и ничего не принято (8.2).
 - Git: `allowGitOnce(denialId)`, `addDenialToPolicy(denialId, scope: .project | .stage(stageId))` (правка `.kaban/` через тот же путь, что `updatePipeline`), `revokeGitGrant(grantId)`.
 - Планировщик: `pauseAll` / `resumeAll`, `pauseProject` / `resumeProject`, `resumeAfterRateLimit` (досрочно снять cooldown), `setMaxConcurrentRuns`.
 - Среда: `checkEnvironment() -> { cursorAgentPath, version, authOK, gitVersion, sandboxOK, notificationsAuthorized }`, `recheck(scope: .runner | .project(id))` для кнопки «Проверить снова».
@@ -315,7 +323,7 @@ Read-only стадия: без `--force`, политика git сужена до
 LaunchAgent не получает PATH из shell. Путь к `cursor-agent`, PATH и тулчейны демон берёт из своего конфига (детект при первом запуске через login shell, правится в настройках). Авторизация из-под launchd — **[спайк 1]**, запасной вариант `CURSOR_API_KEY` из Keychain в env процесса.
 
 ### 6.3 Коммиты
-Агент коммитит в ветку задачи сам; после зелёных гейтов демон делает страховочный коммит `kaban: <stage> <task>`. Сводка Human Review: `git diff --stat base...branch`, коммиты, резюме стадий.
+В пресетах «Стандартный» и «Свободный» агент коммитит в ветку задачи сам, а после зелёных гейтов демон делает страховочный коммит `kaban: <stage> <task>`. В «Строгом» агент не коммитит: после зелёных гейтов и проверки результата демон делает единственный коммит стадии из всего изменённого в клоне (фильтр — только `.gitignore`), сообщение — `summary` из `complete_stage`. Сводка Human Review: `git diff --stat base...branch`, коммиты, резюме стадий.
 
 ### 6.4 Классификатор сбоев и сверка модели
 - **Сверка модели.** Фактическая модель приходит только в первом событии `system/init` и только отображаемым именем. Демон сравнивает его с `model_catalog.name` для запрошенного id. Совпало — дальше. Имя известно и не совпало — `model_substituted` (3.3): run убивается до первого вызова инструмента, клон чистый, в ленту и на карточку идут запрошенная модель (имя и id), ответившая модель, `fallbackModel` (если был в ошибке), время, номер run, ссылка на лог. Имени нет в каталоге или оно неоднозначно — серая строка `model_unconfirmed` в ленте, run продолжается. Подмену посреди сессии поток не показывает; что видно при `fallbackModel` и `--resume` — **[спайк 1]**.
@@ -346,11 +354,13 @@ LaunchAgent не получает PATH из shell. Путь к `cursor-agent`, P
 1. **Правила `cursor-agent`** для shell-команд (**[спайк 1]**). Сюда попадают **только жёсткие инварианты** (`push`, `remote`, `config`, запись в `.kaban/` и т. п.). Настраиваемые запреты сюда не кладём: иначе CLI отклонит команду раньше обёртки, и «разрешить один раз» не сработает.
 2. **Обёртка `git`** (`KabanGitShim`) первой в PATH: сверяет команду с итоговой политикой стадии через `/git/check` (8.3), даёт понятный отказ. Обходится через `/usr/bin/git` — это фильтр и источник удобных отказов, а не граница.
 3. **Seatbelt** (`sandbox-exec`, тот же механизм, что у песочниц Codex CLI и Claude Code на macOS): запись только в клон задачи, temp и список кэшей и служебных каталогов `cursor-agent`; запрещены запись в основной репозиторий, `~/.gitconfig`, `Application Support/Kaban`, чтение `~/.ssh` и `~/Library/Application Support/Cursor/User/globalStorage/` (токен IDE). Сеть для команд агента — по allowlist хостов; loopback — только порт MCP-сервера доски. Минимальный профиль и эти запреты — **[спайк 6]**.
-4. **Проверка результата демоном** после каждого run — настоящая граница: refs, теги и `config` основного репозитория совпадают со снимком; в ветке задачи нет изменений `.kaban/` относительно `main`; коммиты только поверх базы задачи. Перед проверкой демон возвращает `.cursor/mcp.json` клона к версии из `main` (подмена конфига MCP — наша, 9) и не учитывает её в diff. Нарушение → откат refs из снимка, `waiting_human: incident`, событие-инцидент с уведомлением.
+4. **Проверка результата демоном** после каждого run — настоящая граница: refs, теги и `config` основного репозитория совпадают со снимком; в ветке задачи нет изменений `.kaban/` относительно `main`; коммиты только поверх базы задачи; в diff ветки нет подозрительных файлов (ниже). Перед проверкой демон возвращает `.cursor/mcp.json` клона к версии из `main` (подмена конфига MCP — наша, 9) и не учитывает её в diff. Нарушение → откат refs из снимка, `waiting_human: incident`, событие-инцидент с уведомлением.
+
+**Подозрительные файлы.** После зелёных гейтов, до перевода в следующую стадию и ещё раз в merge-стадии перед слиянием демон проверяет **весь diff ветки задачи** относительно базы (`git diff --name-status base...branch`, а в «Строгом» ещё и незакоммиченное в клоне): пути по `suspicious_files.patterns`, файлы больше `max_file_mb`, кроме путей из `allow`. Нашлось — задача уходит в `waiting_human: suspicious_files`, в ленту и в событие `suspiciousFilesFound` идёт список (путь, правило, размер, blob). Попытка не списывается: это не сбой run. Набор принимают `acceptSuspiciousFiles` и команды, уводящие задачу с этой точки (`retryStage`, `moveTask`, `requestChanges`, `reject`, `cancelTask`): пары «путь + blob» записываются в `task_accepted_file`, идёт `suspiciousFilesAccepted`, повторно они не срабатывают; изменённый файл с тем же путём и новый файл сработают снова. После `acceptSuspiciousFiles` демон сразу перепроверяет diff и, если чисто, делает тот переход, на котором стоял: в следующую стадию или к слиянию; новый run не запускается, попытка не списывается. `answerHuman` («Попросить убрать») набор **не** принимает: задача остаётся в стадии, получает новый run с замечанием, и после его гейтов проверка идёт заново (как в UC-25.4).
 
 Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=`).
 
-Политика из `.kaban/` настраивает слой 2 (и пресеты в UI). Жёсткие инварианты не снимает ни один пресет: агент не двигает `main` и чужие ветки, не пушит, не пишет в `.kaban/`; слияние в `main` делает только демон.
+Политика из `.kaban/` настраивает слой 2 (пресеты — 8.4). Жёсткие инварианты не снимает ни один пресет: агент не двигает `main` и чужие ветки, не пушит, не пишет в `.kaban/`; слияние в `main` делает только демон.
 
 ### 8.3 Отказ и «разрешить один раз»
 1. Обёртка берёт `KABAN_RUN_TOKEN` из env и перед каждой командой делает `POST /git/check { argv, cwd }` на loopback-сервер.
@@ -364,7 +374,19 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 
 Если на `/git/check` нет ответа (демон перезапускается) — обёртка отказывает (fail closed).
 
-### 8.4 Слияние
+### 8.4 Пресеты git
+
+Политика задаётся на уровне проекта (вкладка git в настройках проекта), стадия хранит только переопределения (`extend`, `deny`, `when`). Итоговая политика стадии = пресет → `allow`/`deny` проекта → переопределения стадии → разовые `git_grant`. Жёсткие инварианты (8.2) стоят над всем и в UI показаны с замком.
+
+| Пресет | Агенту разрешено | Кто коммитит |
+|---|---|---|
+| `strict` («Строгий») | `status`, `diff`, `log`, `show` | только демон, один коммит после зелёных гейтов, сообщение из `summary` (6.3) |
+| `standard` («Стандартный», по умолчанию) | чтение + `add`, `commit`, `restore --staged` в своей ветке | агент + страховочный коммит демона |
+| `permissive` («Свободный») | стандартный + `stash`, `rebase`, `reset` (в т. ч. `--hard`) только в пределах своей ветки | агент + страховочный коммит демона |
+
+«В пределах своей ветки» проверяет `/git/check`: цель `rebase`/`reset` — коммит, достижимый из ветки задачи и не старше её базы; `rebase main` и всё, что двигает чужие refs, остаётся запретом. Read-only стадия сужает любой пресет до чтения. Смена пресета — обычная правка `.kaban/` через `updatePipeline`, действует с новых runs.
+
+### 8.5 Слияние
 Строго последовательная очередь на проект: `fetch` ветки из клона → rebase на `main` во временном клоне слияния → гейты → ff-merge.
 - Конфликт rebase → abort, задача в первую agent-стадию с приоритетом, списком конфликтующих файлов и расширением `rebase` в политике, затем снова все стадии и **всегда** Human Review (решение Артёма). Счётчик `conflict` +1, лимит 2 → `waiting_human: conflict_limit`. Rebase чистый, но гейты красные — тот же путь.
 - `main` выбран в рабочей копии человека → `git merge --ff-only` в ней; если правки человека пересекаются с входящими файлами → `blocked: main_dirty`, после очистки повтор автоматически. Если выбрана другая ветка — двигаем ref `main` напрямую.
@@ -424,7 +446,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 ## 15. Порядок разработки
 
 - **M0** спайки.
-- **M1** ядро на Linux: `KabanModel`, `KabanStateMachine`, `KabanStore`, `KabanScheduler` с фейковым драйвером, `kabanctl`.
+- **M1** ядро на Linux: `KabanKit` (модель, валидатор, машина состояний) и `KabanDaemonCore` (хранилище, планировщик с фейковым драйвером), `kabanctl`.
 - **M2** исполнение: `CursorCLIDriver`, `KabanHTTP` (MCP и `/git/check`), обёртка git, клоны, гейты, проверка результата, восстановление.
 - **M3** UI: доска, карточка, лог, Human Review, настройки стадии и git, менюбар, уведомления.
 - **M4** слияние и квоты: очередь merge, конфликты, классификатор лимитных ошибок, флаги модели, опция проактивной квоты.
@@ -437,6 +459,8 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 
 ## Журнал изменений
 
+- v0.11 (презентация утверждена 4 октября): три git-пресета `strict | standard | permissive`, политика на уровне проекта, у стадии только переопределения (8.4); в «Строгом» коммитит только демон (6.3); проверка `suspicious_files` по всему diff ветки, `waiting_human: suspicious_files`, `task_accepted_file`, события `suspiciousFilesFound` / `suspiciousFilesAccepted` (8.2, 5); паузы ретраев `[30s, 2m]` при 3 попытках утверждены; «Слияние» стало 8.5.
+- v0.11.1: раскладка модулей §2 под репозиторий: `KabanKit` = модель + валидатор + машина состояний, `KabanDaemonCore` = GRDB-хранилище + планировщик; `KabanBoardCore` и приложение зависят только от `KabanProtocol`. Подозрительные файлы: команда `acceptSuspiciousFiles`, `TaskCard.suspiciousFiles` в снимке, `TaskDetail.acceptedFiles`; `answerHuman` набор не принимает, проверка повторяется (8.2, 5).
 - v0.10.2: набор проектов на доске вместо режимов «один / несколько / все» (5, 11), подписка приложения на все проекты; `billingCycleStart` в спайке 1 (14).
 - v0.10.1: `usage_exhausted` по пулам (на весь Мак только `unknown`); `actual` в `model_flag` необязательно; `quotaUpdated` с `billingCycleStart?` и «нет данных» вместо 0%. В §9 конфиг MCP собирается из пересечения выбора стадии и белого списка, а выключенный сервер даёт предупреждение.
 - v0.10 (по журналу решений от 3 октября): Auto запрещён, `model` обязательна, моделей по умолчанию нет, стадия без модели делает пайплайн некорректным; некорректная версия в `main` останавливает новые старты вместо работы на последней корректной; `backoff` на одну паузу короче числа попыток (`[30s, 2m]` — ждёт Артёма); попытки на заход в стадию, `max_runs_per_task` и `waiting_human: run_limit`; `refs/kaban/wip/<run-id>` перед откатом; классификатор сбоев, `silent_exit` и пробный запуск; `usage_exhausted`, флаги модели `unavailable` и `substituted`, `model_substituted` и `model_unconfirmed`; проактивная квота Cm/Om (опция), `model_catalog`, `model_pool_rule`, `quota_sample`; белый список MCP, конфиг MCP от демона, `mcp_unexpected`; запрет на `globalStorage` Cursor в Seatbelt и остаточный риск токена CLI; спайки разложены по номерам §14.

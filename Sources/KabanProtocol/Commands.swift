@@ -1,0 +1,196 @@
+import Foundation
+
+/// Команда клиента (§5). Формат на проводе — синтезированный Codable Swift: `{"moveTask": {"taskId": "...", "stage": "..."}}`.
+/// Неизвестная демону команда не декодируется, и он отвечает `CommandError.unknownCommand`.
+public enum Command: Codable, Hashable, Sendable {
+    // Проекты
+    case addProject(path: String, createTemplate: Bool)
+    case removeProject(projectId: ProjectID)
+    case relinkProject(projectId: ProjectID, path: String)
+    case listBranches(projectId: ProjectID)
+    case detectGates(projectId: ProjectID)
+    case setMascot(projectId: ProjectID, seed: String)
+    case setProjectWeight(projectId: ProjectID, weight: Int, maxRuns: Int?)
+    // Пайплайн и политика
+    case updatePipeline(projectId: ProjectID, contentHash: String)
+    case validatePipeline(projectId: ProjectID, content: String)
+    // Детали
+    case getTaskDetail(taskId: TaskID)
+    // Задачи
+    case createTask(projectId: ProjectID, title: String, body: String)
+    case editTask(taskId: TaskID, title: String?, body: String?)
+    case setPriority(taskId: TaskID, priority: Int)
+    case moveTask(taskId: TaskID, stage: StageID)
+    case pauseTask(taskId: TaskID)
+    case resumeTask(taskId: TaskID)
+    case cancelTask(taskId: TaskID, keepBranch: Bool)
+    case retryStage(taskId: TaskID, grantAttempts: Int?)
+    case setModelOverride(taskId: TaskID, stageId: StageID, model: ModelID?)
+    // Человек
+    case answerHuman(taskId: TaskID, text: String, requestId: HumanRequestID?)
+    case approve(taskId: TaskID)
+    case requestChanges(taskId: TaskID, comments: String, target: StageID?)
+    case reject(taskId: TaskID, target: RejectTarget, keepBranch: Bool)
+    /// Принять показанный набор подозрительных файлов (§8.2). `files` — ровно тот набор, что видел человек;
+    /// если набор успел измениться, демон отвечает `stale_suspicious_files` и ничего не принимает.
+    case acceptSuspiciousFiles(taskId: TaskID, files: [FileBlobRef])
+    // Git
+    case allowGitOnce(denialId: DenialID)
+    case addDenialToPolicy(denialId: DenialID, scope: PolicyScope)
+    case revokeGitGrant(grantId: GrantID)
+    // Планировщик
+    case pauseAll
+    case resumeAll
+    case pauseProject(projectId: ProjectID)
+    case resumeProject(projectId: ProjectID)
+    case resumeAfterRateLimit
+    case setMaxConcurrentRuns(count: Int)
+    // Среда
+    case checkEnvironment
+    case recheck(scope: RecheckScope)
+    // Модели и квота
+    case listModels
+    case refreshModelCatalog
+    case setModelPoolRule(pattern: String, pool: ModelPool)
+    case removeModelPoolRule(pattern: String)
+    case clearModelFlag(modelId: ModelID)
+    case setQuotaOptions(options: QuotaOptions)
+    // MCP
+    case listProjectMcpServers(projectId: ProjectID)
+    case setProjectMcpAllowlist(projectId: ProjectID, servers: [McpServerRef])
+    // Логи
+    case getRunHistory(taskId: TaskID)
+    // Инциденты
+    case listIncidents(projectIds: [ProjectID]?, state: IncidentListState)
+}
+
+/// Файл в конкретной версии: путь + git blob.
+public struct FileBlobRef: Codable, Hashable, Sendable {
+    public var path: String
+    public var blob: String
+    public init(path: String, blob: String) { self.path = path; self.blob = blob }
+}
+
+/// Принятый человеком подозрительный файл (`task_accepted_file`).
+public struct AcceptedFile: Codable, Hashable, Sendable {
+    public var path: String
+    public var blob: String
+    public var by: Actor
+    public var at: Date
+    public var commandId: CommandID?
+    public init(path: String, blob: String, by: Actor = .human, at: Date, commandId: CommandID? = nil) {
+        self.path = path; self.blob = blob; self.by = by; self.at = at; self.commandId = commandId
+    }
+}
+
+public enum RejectTarget: Codable, Hashable, Sendable { case cancel, stage(stageId: StageID) }
+public enum RecheckScope: Codable, Hashable, Sendable { case runner, project(projectId: ProjectID) }
+public enum IncidentListState: String, Codable, Sendable { case open, all }
+
+public struct QuotaOptions: Codable, Hashable, Sendable {
+    public var enabled: Bool
+    public var consent: Bool
+    /// Интервал опроса в секундах: 60, 300, 900, 1800 или своё.
+    public var pollInterval: Int
+    public var thresholdCm: Double
+    public var thresholdOm: Double
+    public init(enabled: Bool, consent: Bool, pollInterval: Int = 300, thresholdCm: Double = 10, thresholdOm: Double = 10) {
+        self.enabled = enabled; self.consent = consent; self.pollInterval = pollInterval; self.thresholdCm = thresholdCm; self.thresholdOm = thresholdOm
+    }
+}
+
+public struct McpServerRef: Codable, Hashable, Sendable {
+    public enum Source: String, Codable, Sendable { case project, personal }
+    public var name: String
+    public var source: Source
+    public init(name: String, source: Source) { self.name = name; self.source = source }
+}
+
+/// Конверт запроса: `commandId` генерирует клиент, UI ждёт журнальное событие с тем же `commandId`.
+public struct CommandEnvelope: Codable, Hashable, Sendable {
+    public var protocolVersion: Int
+    public var commandId: CommandID
+    public var command: Command
+    public init(commandId: CommandID = CommandID(), command: Command) {
+        self.protocolVersion = KabanCoding.protocolVersion; self.commandId = commandId; self.command = command
+    }
+}
+
+public struct CommandReply: Codable, Hashable, Sendable {
+    public var commandId: CommandID
+    /// `seq` порождённого журнального события; у чтений — `nil`.
+    public var seq: Seq?
+    public var result: CommandResult
+    public init(commandId: CommandID, seq: Seq?, result: CommandResult) { self.commandId = commandId; self.seq = seq; self.result = result }
+}
+
+public enum CommandResult: Codable, Hashable, Sendable {
+    case ok
+    case pipelineVersion(hash: String)
+    case validationIssues([ValidationIssue])
+    case branches([String])
+    case gates([String])
+    case taskCreated(TaskID)
+    case environment(EnvironmentReport)
+    case models([ModelInfo])
+    case mcpServers([McpServerRef])
+    case incidents([Incident])
+    case runs([RunSummary])
+    case taskDetail(TaskDetail)
+    case error(CommandError)
+}
+
+public struct CommandError: Codable, Hashable, Sendable, Error {
+    public var code: String
+    public var message: String
+    public init(code: String, message: String) { self.code = code; self.message = message }
+
+    public static let unknownCommandCode = "unknown_command"
+    public static let invalidStateCode = "invalid_state"     // например, `approve` не из `human`-стадии
+    public static let notFoundCode = "not_found"
+    public static let protocolMismatchCode = "protocol_mismatch"
+    public static let staleSuspiciousFilesCode = "stale_suspicious_files"
+}
+
+public struct EnvironmentReport: Codable, Hashable, Sendable {
+    public var cursorAgentPath: String?
+    public var version: String?
+    public var authOK: Bool
+    public var gitVersion: String?
+    public var sandboxOK: Bool
+    public var notificationsAuthorized: Bool
+    public init(cursorAgentPath: String?, version: String?, authOK: Bool, gitVersion: String?, sandboxOK: Bool, notificationsAuthorized: Bool) {
+        self.cursorAgentPath = cursorAgentPath; self.version = version; self.authOK = authOK; self.gitVersion = gitVersion
+        self.sandboxOK = sandboxOK; self.notificationsAuthorized = notificationsAuthorized
+    }
+}
+
+/// Всё для панели деталей (§5 `getTaskDetail`).
+public struct TaskDetail: Codable, Hashable, Sendable {
+    public var seq: Seq
+    public var task: TaskCard
+    public var feed: [FeedItem]
+    public var runs: [RunSummary]
+    public var humanRequests: [HumanRequest]
+    /// Текущий непринятый набор (то же, что `task.suspiciousFiles`), с полными данными правил.
+    public var suspiciousFiles: [SuspiciousFile]
+    /// Уже принятые по задаче файлы (`task_accepted_file`), для блока «Принято ранее».
+    public var acceptedFiles: [AcceptedFile]
+    public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
+                suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = []) {
+        self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
+        self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles
+    }
+}
+
+/// Строка ленты задачи (`task_feed_item`). `kind` — открытый набор, неизвестный вид клиент рисует как текст.
+public struct FeedItem: Codable, Hashable, Sendable {
+    public var id: String
+    public var at: Date
+    public var kind: String   // transition, question, answer, git_denied, git_grant, incident, summary, model_unconfirmed, suspicious_files, ...
+    public var text: String
+    public var runId: RunID?
+    public init(id: String, at: Date, kind: String, text: String, runId: RunID? = nil) {
+        self.id = id; self.at = at; self.kind = kind; self.text = text; self.runId = runId
+    }
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "command" : {
+      "answerHuman" : {
+        "taskId" : "t-6",
+        "text" : "Разбей задачу на две"
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "cancelTask" : {
+        "keepBranch" : true,
+        "taskId" : "t-2"
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "reject" : {
+        "keepBranch" : false,
+        "target" : {
+          "stage" : {
+            "stageId" : "dev"
+          }
+        },
+        "taskId" : "t-7"
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "addDenialToPolicy" : {
+        "denialId" : "d-1",
+        "scope" : {
+          "kind" : "project"
+        }
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "recheck" : {
+        "scope" : {
+          "project" : {
+            "projectId" : "p-site"
+          }
+        }
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "setQuotaOptions" : {
+        "options" : {
+          "consent" : true,
+          "enabled" : true,
+          "pollInterval" : 300,
+          "thresholdCm" : 10,
+          "thresholdOm" : 10
+        }
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "listIncidents" : {
+        "state" : "open"
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "pauseAll" : {
+
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  },
+  {
+    "command" : {
+      "acceptSuspiciousFiles" : {
+        "files" : [
+          {
+            "blob" : "a1b2c3",
+            "path" : ".env.local"
+          },
+          {
+            "blob" : "d4e5f6",
+            "path" : "assets/dump.bin"
+          }
+        ],
+        "taskId" : "t-8"
+      }
+    },
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "protocolVersion" : 1
+  }
+]

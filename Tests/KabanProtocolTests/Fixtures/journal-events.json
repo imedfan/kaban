@@ -1,0 +1,160 @@
+[
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "by" : "daemon",
+        "from" : {
+          "status" : "gating"
+        },
+        "fromStage" : "dev",
+        "runId" : "r-11",
+        "taskId" : "t-1",
+        "to" : {
+          "status" : "queued"
+        },
+        "toStage" : "test"
+      },
+      "type" : "taskTransitioned"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1043
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "event" : {
+      "data" : {
+        "taskId" : "t-6",
+        "text" : "Разбей задачу на две"
+      },
+      "type" : "humanAnswered"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1044
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "argv" : [
+          "git",
+          "rebase",
+          "main"
+        ],
+        "denialId" : "d-1",
+        "rule" : "preset:standard",
+        "runId" : "r-11",
+        "taskId" : "t-1"
+      },
+      "type" : "gitDenied"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1045
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "grantId" : "g-1",
+        "runId" : "r-11",
+        "via" : "mcp_response"
+      },
+      "type" : "gitGrantDelivered"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1046
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "files" : [
+          {
+            "blob" : "a1b2c3",
+            "path" : ".env.local",
+            "pattern" : ".env*",
+            "rule" : "pattern",
+            "sizeBytes" : 212
+          },
+          {
+            "blob" : "d4e5f6",
+            "path" : "assets/dump.bin",
+            "rule" : "size",
+            "sizeBytes" : 7340032
+          }
+        ],
+        "runId" : "r-12",
+        "stageId" : "test",
+        "taskId" : "t-8"
+      },
+      "type" : "suspiciousFilesFound"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1047
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+    "event" : {
+      "data" : {
+        "by" : "human",
+        "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+        "files" : [
+          {
+            "blob" : "a1b2c3",
+            "path" : ".env.local",
+            "pattern" : ".env*",
+            "rule" : "pattern",
+            "sizeBytes" : 212
+          },
+          {
+            "blob" : "d4e5f6",
+            "path" : "assets/dump.bin",
+            "rule" : "size",
+            "sizeBytes" : 7340032
+          }
+        ],
+        "taskId" : "t-8"
+      },
+      "type" : "suspiciousFilesAccepted"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1048
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "id" : "i-1",
+        "kind" : "refs_moved",
+        "openedAt" : "2026-10-04T08:00:00.000Z",
+        "projectId" : "p-kaban",
+        "rolledBack" : [
+          "refs/heads/main"
+        ],
+        "runId" : "r-13",
+        "taskId" : "t-9"
+      },
+      "type" : "incidentOpened"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1049
+  },
+  {
+    "at" : "2026-10-04T08:00:00.000Z",
+    "event" : {
+      "data" : {
+        "pipelineVersion" : "sha256:9f2d",
+        "projectId" : "p-kaban",
+        "scope" : {
+          "kind" : "stage",
+          "stageId" : "dev"
+        }
+      },
+      "type" : "gitPolicyUpdated"
+    },
+    "projectId" : "p-kaban",
+    "seq" : 1050
+  }
+]
