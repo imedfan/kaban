@@ -46,19 +46,20 @@ public struct DaemonService: Sendable {
     public static var capabilities: DaemonCapabilities {
         .init(operations: ["snapshot", "subscribe", "command", "capabilities", "synchronize", "ephemeral", "readLog"].map {
             .init(name: $0, supported: $0 != "readLog")
-        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0)) })
+        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0), scopes: $0 == .recheck ? ["project"] : nil) })
     }
     private static func support(_ command: CommandName) -> CommandSupport {
         switch command {
-        case .pauseAll, .resumeAll, .setMaxConcurrentRuns, .setQuotaOptions: .supported
-        case .createTask, .editTask, .setPriority, .moveTask, .pauseTask, .resumeTask, .cancelTask,
-             .retryStage, .answerHuman, .approve, .requestChanges, .reject, .getTaskDetail, .getRunHistory,
+        case .pauseAll, .resumeAll, .setMaxConcurrentRuns, .setQuotaOptions,
+             .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .recheck,
+             .createTask, .editTask, .setPriority, .cancelTask, .getTaskDetail, .getRunHistory,
              .pauseProject, .resumeProject, .setMascot, .setProjectWeight, .setProjectIdentity,
-             .validatePipeline, .validatePipelineDraft: .managedFakeOnly
-        case .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .updatePipeline,
+             .validatePipeline, .validatePipelineDraft: .supported
+        case .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject: .managedFakeOnly
+        case .updatePipeline,
              .setModelOverride, .restoreWIP, .acceptSuspiciousFiles, .allowGitOnce, .addDenialToPolicy,
              .revokeGitGrant, .resumeAfterRateLimit, .checkEnvironment, .getCursorEnvironment,
-             .configureCursor, .recheck, .listModels, .refreshModelCatalog, .setModelPoolRule,
+             .configureCursor, .listModels, .refreshModelCatalog, .setModelPoolRule,
              .removeModelPoolRule, .clearModelFlag, .listProjectMcpServers, .setProjectMcpAllowlist,
              .listIncidents: .unsupported
         }

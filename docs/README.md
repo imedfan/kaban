@@ -29,6 +29,7 @@ Git — основное место ведения документации. А�
 - [Исследование](research/README.md) — полный исходный отчёт от 2 октября; помогает понять происхождение решений.
 - [Презентация](presentation/README.md) — полный HTML и исходная инструкция; содержимое основано на более ранних требованиях.
 - [Архив](archive/README.md) и [team2](team2/README.md) — история, старые правила и аудиты.
+- [BE-02: lifecycle локальных проектов](development/backend-project-lifecycle-2026-10-05.md) — регистрация, Git template, missing/relink/remove и проверки.
 - [Контракт headless M1](development/m1-headless-contract.md) — границы принятого инкремента; отчёты development относятся к своим SHA.
 
 ## Что перенесено из Drive

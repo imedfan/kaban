@@ -105,10 +105,10 @@ final class DaemonGitTests: XCTestCase {
 
     /// v0.11.18: the author is explicit; commit-writing commands without it fail fast instead of guessing.
     func testIdentityIsExplicitAndRequiredForCommits() throws {
-        for sub in ["commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"] {
+        for sub in ["commit-tree", "commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"] {
             XCTAssertThrowsError(try DaemonGit.arguments([sub]), sub) { XCTAssertEqual($0 as? DaemonGit.BuildError, .identityRequired(sub)) }
         }
-        XCTAssertEqual(DaemonGit.commitWritingCommands, ["commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"])
+        XCTAssertEqual(DaemonGit.commitWritingCommands, ["commit-tree", "commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"])
         // Read-only/plumbing calls do not need it, but still get it when supplied.
         XCTAssertEqual(try DaemonGit.arguments(["status"]), DaemonGit.hardeningArguments + ["status"])
         XCTAssertEqual(try DaemonGit.arguments(["status"], identity: Self.id), DaemonGit.hardeningArguments + Self.idArgs + ["status"])

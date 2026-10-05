@@ -400,6 +400,7 @@ public struct BoardProjection: Equatable, Sendable {
         projects.removeValue(forKey: id)
         projectOrder.removeAll { $0 == id }
         pipelines.removeValue(forKey: id)
+        stageLoad.removeAll { $0.projectId == id }
         let doomed = Set(tasks.compactMap { taskId, card in card.projectId == id ? taskId : nil })
         for taskId in doomed {
             tasks.removeValue(forKey: taskId)

@@ -69,7 +69,7 @@ public enum DaemonGit {
     }
 
     /// Subcommands that create commits and therefore require `identity`.
-    public static let commitWritingCommands: Set<String> = ["commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"]
+    public static let commitWritingCommands: Set<String> = ["commit-tree", "commit", "merge", "rebase", "cherry-pick", "revert", "am", "stash"]
 
     /// argv (without the executable): `git [-C directory] -c <hardening>… [-c user.name=… -c user.email=…] <subcommand> <args…>`;
     /// for `merge`, `--no-edit` is inserted right after the subcommand if the caller did not pass it.

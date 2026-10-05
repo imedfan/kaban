@@ -7,6 +7,7 @@ import KabanProtocol
 /// DatabaseQueue serializes concurrent callers; snapshot reads use the same connection transaction.
 public final class KabanStore: Sendable {
     let database: DatabaseQueue
+    let projectOperations = NSRecursiveLock()
 
     public init(path: String) throws {
         var configuration = Configuration()
@@ -26,6 +27,7 @@ public final class KabanStore: Sendable {
         }
         migrator.registerMigration("m1_engine_v2", migrate: Self.migrateEngine)
         migrator.registerMigration("m1_wire_v3", migrate: Self.migrateWire)
+        migrator.registerMigration("production_projects_v4", migrate: Self.migrateProjects)
         try migrator.migrate(database)
     }
 
@@ -70,7 +72,10 @@ public final class KabanStore: Sendable {
     }
     static func createTask(card: TaskCard, pipeline: PipelineConfig, commandId: CommandID, at: Date, request: Data, managed: Bool, body: String?, db: Database) throws -> DurableReceipt {
         if let receipt = try Self.replay(commandId, request: request, db: db) { return receipt }
-        guard (managed ? Self.isBoundedPipeline(pipeline) : PipelineValidator.validate(config: pipeline).isValid), let machine = TaskMachineState.new(taskId: card.id, pipeline: pipeline) else { throw StoreError.invalidPipeline }
+        let owner = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [card.projectId.rawValue]).map { try Self.decode(ProjectRecord.self, $0) }
+        let productionBacklog = owner?.production != nil
+        if productionBacklog { guard managed, owner?.pipeline == pipeline else { throw StoreError.invalidPipeline } }
+        guard (productionBacklog ? pipeline.entryStage?.kind == .queue : (managed ? Self.isBoundedPipeline(pipeline) : PipelineValidator.validate(config: pipeline).isValid)), let machine = TaskMachineState.new(taskId: card.id, pipeline: pipeline) else { throw StoreError.invalidPipeline }
         if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM task WHERE id = ?)", arguments: [card.id.rawValue]) == true { throw StoreError.taskExists }
         var card = card; machine.apply(to: &card, stage: pipeline.stage(machine.stageId)); card.updatedAt = at
         let task = DurableTask(card: card, machine: machine, pipeline: pipeline)
