@@ -5,10 +5,10 @@ struct ReferenceTheme {
     var content: Color { Color(hex: dark ? 0x141417 : 0xeef0f4) }
     var window: Color { Color(hex: dark ? 0x1c1c1f : 0xf3f3f6) }
     var card: Color { Color(hex: dark ? 0x2a2a2e : 0xffffff) }
-    var text: Color { Color(hex: dark ? 0xf2f2f5 : 0x1d1d1f) }
-    var secondary: Color { Color(hex: dark ? 0xb0b2b9 : 0x5f6168) }
+    var text: Color { .primary }
+    var secondary: Color { .secondary }
     var faint: Color { Color(hex: dark ? 0x85878e : 0x8e9097) }
-    var accent: Color { Color(hex: dark ? 0x3c96ff : 0x0a7aff) }
+    var accent: Color { .accentColor }
     var line: Color { (dark ? Color.white : Color.black).opacity(dark ? 0.08 : 0.09) }
     var strongLine: Color { (dark ? Color.white : Color.black).opacity(0.14) }
     var control: Color { (dark ? Color.white : Color.black).opacity(dark ? 0.08 : 0.05) }
@@ -46,16 +46,18 @@ struct ReferenceButton: View {
     var small = false
     let theme: ReferenceTheme
     var action: () -> Void = {}
-    var body: some View {
+    @ViewBuilder var body: some View {
+        if primary {
+            button.buttonStyle(.borderedProminent).controlSize(small ? .small : .regular)
+        } else {
+            button.buttonStyle(.bordered).controlSize(small ? .small : .regular)
+        }
+    }
+    private var button: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                if let icon { Image(systemName: icon).font(.system(size: small ? 10 : 11)) }
-                Text(title).font(.system(size: small ? 11 : 12, weight: .medium)).fixedSize()
-            }.padding(.horizontal, small ? 8 : 10).frame(height: small ? 20 : 24)
-                .foregroundStyle(primary ? .white : theme.text)
-                .background(primary ? theme.accent : theme.card, in: RoundedRectangle(cornerRadius: small ? 6 : 7))
-                .overlay(RoundedRectangle(cornerRadius: small ? 6 : 7).stroke(primary ? .clear : theme.line, lineWidth: 0.5))
-        }.buttonStyle(.plain)
+            if let icon { Label(title, systemImage: icon) }
+            else { Text(title) }
+        }
     }
 }
 
@@ -92,14 +94,11 @@ struct ReferenceBox<Content: View>: View {
     let title: String
     let theme: ReferenceTheme
     @ViewBuilder var content: () -> Content
-    private static var headerInfo:[String:(String,String)]{["Идентичность и вид":("tag","id, display"),"Пропускная способность":("gauge.with.dots.needle.50percent","wip, priority"),"Исполнитель":("cpu","agent"),"Права":("shield","permissions, mcp, git"),"Окружение и рабочая копия":("shippingbox","env, workspace"),"Вход":("rectangle.portrait.and.arrow.right","inputs"),"Гейты":("checklist","gates"),"Переходы":("arrow.triangle.branch","on_success, returns_to"),"Надёжность":("timer","retry, timeouts"),"Хуки и уведомления":("powerplug","hooks, notify")]}
     var body: some View {
-        VStack(alignment: .leading,spacing: 8) {
-            HStack(spacing:6){if let item=Self.headerInfo[title]{Image(systemName:item.0).font(.system(size:13)).foregroundStyle(theme.accent);Text(title).font(.system(size:12.5,weight:.semibold));Spacer();Text(item.1).font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)}else{Text(title).font(.system(size:12.5,weight:.semibold))}}
-            content()
-        }.padding(12).frame(maxWidth: .infinity,alignment: .leading)
-            .background(theme.card,in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.line,lineWidth: 0.5))
+        GroupBox(title) {
+            VStack(alignment: .leading, spacing: 8) { content() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -267,36 +266,6 @@ p.addLine(to:CGPoint(x:507.43964843750007,y:148.0))
 p.closeSubpath()
 return p.applying(CGAffineTransform(translationX:0,y:2).concatenating(CGAffineTransform(scaleX:rect.width/589.4,y:rect.height/152)))
  }
-}
-
-struct ReferenceCheckboxStyle:ToggleStyle {
-    func makeBody(configuration:Configuration)->some View {
-        Button{configuration.isOn.toggle()}label:{HStack(spacing:5){ZStack{RoundedRectangle(cornerRadius:3).fill(configuration.isOn ? Color(hex:0x0a7aff):.clear);if configuration.isOn{Image(systemName:"checkmark").font(.system(size:9,weight:.bold)).foregroundStyle(.white)}}.frame(width:13,height:13).overlay(RoundedRectangle(cornerRadius:3).stroke(configuration.isOn ? Color.clear:Color.gray.opacity(0.3),lineWidth:1));configuration.label}}.buttonStyle(.plain).accessibilityValue(configuration.isOn ? "включено":"выключено")
-    }
-}
-extension ToggleStyle where Self==ReferenceCheckboxStyle {static var referenceCheckbox:Self{.init()}}
-
-struct ReferenceTrafficLights: View {
-    @State private var hovered = false
-    private let labels = ["Закрыть окно", "Свернуть окно", "Развернуть окно"]
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<3) { index in
-                Button {
-                    let window = NSApplication.shared.keyWindow
-                    switch index {
-                    case 0: window?.performClose(nil)
-                    case 1: window?.miniaturize(nil)
-                    default: window?.toggleFullScreen(nil)
-                    }
-                } label: {
-                    Circle().fill(Color(hex: [0xff5f57, 0xfebc2e, 0x28c840][index]))
-                        .overlay { if hovered { Image(systemName: ["xmark", "minus", "plus"][index]).font(.system(size: 7, weight: .bold)).foregroundStyle(.black.opacity(0.6)) } }
-                        .frame(width: 12, height: 12)
-                }.buttonStyle(.plain).accessibilityLabel(labels[index])
-            }
-        }.onHover { hovered = $0 }
-    }
 }
 
 /// Native wrapping layout for metadata chips and small controls.

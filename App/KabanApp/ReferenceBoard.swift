@@ -135,12 +135,13 @@ struct ReferenceBoard: View {
     let theme: ReferenceTheme
     var overlay: String? = nil
     var version = "latest"
+    var nativeContainer = false
     private var base: Bool { version == "base" }
-    private var sidebarWidth: CGFloat { demo.sidebarHidden ? 0 : 248 }
+    private var sidebarWidth: CGFloat { nativeContainer || demo.sidebarHidden ? 0 : 248 }
     var body: some View {
         ZStack(alignment: .topLeading) {
             surface
-            if overlay != nil || demo.selected != nil {
+            if !nativeContainer && (overlay != nil || demo.selected != nil) {
                 ReferenceDetails(demo: demo, theme: theme, kind: overlay ?? demo.detailKind,
                     selectedTaskID: overlay == nil ? demo.selected : nil)
                     .frame(width: 600).padding(.top, 58).padding(.bottom, 8).padding(.trailing, 8)
@@ -151,10 +152,10 @@ struct ReferenceBoard: View {
     private var surface: some View {
         ZStack(alignment: .topLeading) {
             ReferenceBackdrop(theme: theme)
-            if !demo.sidebarHidden { sidebar.frame(width: 232).padding(8) }
+            if !nativeContainer && !demo.sidebarHidden { sidebar.frame(width: 232).padding(8) }
             GeometryReader { geometry in
             VStack(spacing: 0) {
-                toolbar.frame(height: 60)
+                if !nativeContainer { toolbar.frame(height: 60) }
                 ScrollView(geometry.size.width >= 1184 ? [.vertical] : [.horizontal, .vertical]) {
                     VStack(spacing: 8) {
                         flags
@@ -176,10 +177,10 @@ struct ReferenceBoard: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                ReferenceTrafficLights()
+                EmptyView()
                 Spacer()
                 Button { demo.sidebarHidden.toggle() } label: { Image(systemName: "sidebar.left").font(.system(size: 15)) }
-                    .buttonStyle(.plain).help("Скрыть боковую панель")
+                    .buttonStyle(.borderless).help("Скрыть боковую панель")
             }.foregroundStyle(theme.secondary).padding(.horizontal, 6).frame(height: 18).padding(.bottom, 14)
             sideRow("Доска", icon: "rectangle.split.3x1", selected: true) { demo.selected = nil }
             sideRow("Ждут человека", icon: "hand.raised", count: String(demo.waitingCount), tone: "waiting") {
@@ -190,7 +191,7 @@ struct ReferenceBoard: View {
             }
             HStack {
                 Text("Проекты").font(.system(size: 11, weight: .semibold)); Spacer()
-                Button { demo.identityMode = 0; demo.sheet = "add" } label: { Image(systemName: "plus") }.buttonStyle(.plain)
+                Button { demo.identityMode = 0; demo.sheet = "add" } label: { Image(systemName: "plus") }.buttonStyle(.borderless)
             }.foregroundStyle(theme.faint).padding(.horizontal, 8).padding(.top, 10).padding(.bottom, 4)
             ForEach(demo.projects, id: \.self) { project in
                 Button { demo.showProject(project) } label: {
@@ -210,7 +211,7 @@ struct ReferenceBoard: View {
                             else if project == "infra" { Image(systemName:"folder").font(.system(size:11)).foregroundStyle(theme.secondary) }
                         }
                     }.padding(.horizontal, 8).padding(.vertical, 5)
-                }.buttonStyle(.plain).draggable(project)
+                }.buttonStyle(.borderless).draggable(project)
                 .contextMenu {
                     Button("Настройки проекта") { demo.openSettings("project-git", project: project) }
                     Button("Показать на доске") { demo.showProject(project) }
@@ -245,11 +246,11 @@ struct ReferenceBoard: View {
                 Text(title).font(.system(size: 13)); Spacer()
                 if let count { ReferenceChip(title: count, theme: theme, tone: count == "0" ? nil : tone) }
             }.padding(.horizontal, 8).frame(height: 26).background(selected ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
-        }.buttonStyle(.plain)
+        }.buttonStyle(.borderless)
     }
     private var toolbar: some View {
         HStack(spacing: 8) {
-            if demo.sidebarHidden { Button { demo.sidebarHidden = false } label: { Image(systemName: "sidebar.left") }.buttonStyle(.plain) }
+            if demo.sidebarHidden { Button { demo.sidebarHidden = false } label: { Image(systemName: "sidebar.left") }.buttonStyle(.borderless) }
             VStack(alignment: .leading, spacing: 1) {
                 Text("Доска").font(.system(size: 15, weight: .bold))
                 Text(base ? (demo.visible.count == demo.projects.count ? "все 5 проектов" : "4 из 5 проектов") : "\(demo.visible.count) проекта на доске").font(.system(size: 11)).foregroundStyle(theme.faint)
@@ -281,13 +282,13 @@ struct ReferenceBoard: View {
                 Button { demo.sheet = "search" } label: { Image(systemName: "magnifyingglass") }.help("Поиск · ⌘F")
                 Button { demo.sheet = "notifications" } label: { Image(systemName: "bell") }.help("Уведомления")
                 Button { demo.pauseMac() } label: { Image(systemName: demo.macPaused ? "play" : "pause") }.help(demo.macPaused ? "Продолжить" : "Пауза Мака")
-            }.buttonStyle(.plain).padding(.horizontal, 12).frame(height: 34).background(theme.glass, in: Capsule())
+            }.buttonStyle(.borderless).padding(.horizontal, 12).frame(height: 34).background(theme.glass, in: Capsule())
             ReferenceButton(title: "Задача", icon: "plus", primary: true, theme: theme) { demo.draftTitle = ""; demo.draftBody = ""; demo.sheet = "create" }
                 .padding(4).background(theme.glass, in: Capsule())
         }.padding(.leading, 8).padding(.trailing, 12)
     }
     private func toolbarTab(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(title, systemImage: icon).font(.system(size: 12, weight: selected ? .semibold : .regular)).padding(.horizontal, 10).frame(height: 26).background(selected ? theme.card : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain)
+        Button(action: action) { Label(title, systemImage: icon).font(.system(size: 12, weight: selected ? .semibold : .regular)).padding(.horizontal, 10).frame(height: 26).background(selected ? theme.card : .clear, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.borderless)
     }
     @ViewBuilder private var flags: some View {
         if base {
@@ -320,7 +321,7 @@ struct ReferenceBoard: View {
     private func lane(_ project: String) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Button { if !demo.collapsed.insert(project).inserted { demo.collapsed.remove(project) } } label: { Image(systemName: demo.collapsed.contains(project) ? "chevron.right" : "chevron.down").font(.system(size: 10)) }.buttonStyle(.plain)
+                Button { if !demo.collapsed.insert(project).inserted { demo.collapsed.remove(project) } } label: { Image(systemName: demo.collapsed.contains(project) ? "chevron.right" : "chevron.down").font(.system(size: 10)) }.buttonStyle(.borderless)
                 ReferenceMascot(emoji: emoji(project), theme: theme, state: projectState(project))
                 Text(project).font(.system(size: 13, weight: .semibold)); ReferenceChip(title: "⑂ main", theme: theme, mono: true)
                 Text(base ? (project == "kaban" ? "инцидент в KBN-17" : project == "mobile-app" ? "машет · ждут человека" : project == "docs-site" ? "спит · очередь пуста" : project == "infra" ? "недоступен" : (overlay != nil ? "работает · 2 агента" : "работает · 1 агент")) : project == "shop-api" ? "ждут человека · 3" : project == "kaban" ? "новые запуски не стартуют" : project == "docs-site" ? "спит · очередь пуста" : "стоит").font(.system(size:11.5)).foregroundStyle(base && project == "kaban" ? theme.status("incident").2 : theme.faint)
@@ -350,8 +351,8 @@ struct ReferenceBoard: View {
                 if !base || project != "infra" {
                     ReferenceChip(title: project == "docs-site" ? "готово 31" : project == "mobile-app" && !base ? "в очереди 4" : project == "shop-api" && base && overlay != nil ? "2 процесса" : "1 процесс", theme: theme)
                 }
-                Button { demo.openSettings("general", project: project) } label: { Image(systemName: "slider.horizontal.3") }.buttonStyle(.plain).help("Настройки проекта")
-                if !base { Button { demo.visible.removeAll { $0 == project } } label: { Image(systemName: "xmark").font(.system(size: 10)) }.buttonStyle(.plain).help("Убрать дорожку") }
+                Button { demo.openSettings("general", project: project) } label: { Image(systemName: "slider.horizontal.3") }.buttonStyle(.borderless).help("Настройки проекта")
+                if !base { Button { demo.visible.removeAll { $0 == project } } label: { Image(systemName: "xmark").font(.system(size: 10)) }.buttonStyle(.borderless).help("Убрать дорожку") }
             }.padding(.horizontal, 4).frame(height: 36)
             if !demo.collapsed.contains(project) {
                 let stages = base && project == "kaban" ? ["Backlog", "Dev", "Lint", "AI Review", "Human Review", "Merge", "Done"] : ReferenceDemo.stages

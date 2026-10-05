@@ -36,6 +36,26 @@ import CryptoKit
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(records).write(to: root.appendingPathComponent("frames.json"))
     }
+    /// Capture the real WindowGroup, including its title bar safe area.
+    static func captureLiveWindow() async throws -> NSBitmapImageRep {
+        for _ in 0..<40 {
+            if let window = NSApp.windows.first(where: {
+                $0.styleMask.contains(.titled) && $0.contentView != nil && $0.frame.width >= 1040
+            }), let content = window.contentView?.superview ?? window.contentView {
+                window.layoutIfNeeded()
+                content.layoutSubtreeIfNeeded()
+                window.displayIfNeeded()
+                try await Task.sleep(for: .milliseconds(100))
+                content.layoutSubtreeIfNeeded()
+                guard let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds) else { break }
+                content.cacheDisplay(in: content.bounds, to: bitmap)
+                return bitmap
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        throw NSError(domain: "ReferenceExport", code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "Main application window was not available"])
+    }
     static func capture<V:View>(_ view:V,width:CGFloat,height:CGFloat,to url:URL) async throws {
         let host=NSHostingView(rootView:view)
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:width,height:height),styleMask:[.borderless],backing:.buffered,defer:false)

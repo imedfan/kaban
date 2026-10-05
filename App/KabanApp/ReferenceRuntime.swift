@@ -4,23 +4,10 @@ import KabanBoardCore
 struct ReferenceRuntime: View {
     @Bindable var demo: ReferenceDemo
     private var theme: ReferenceTheme { .init(dark:demo.dark) }
-    private var inlineReturn: Bool { ["return-gate", "return-merge"].contains(demo.sheet ?? "") }
+    private var inlineReturn: Bool { false }
     var body: some View {
-        Group {
-            if let id = demo.inspectedFrame, let frame = ReferenceFrame.all.first(where: { $0.id == id }) {
-                ReferenceFrameView(demo: demo, frame: frame)
-            } else if demo.route == "board" {
-                ReferenceBoard(demo: demo, theme: theme)
-            } else if demo.route == "cards" || demo.route == "mascots" {
-                ScrollView {
-                    if demo.route == "mascots" { mascots }
-                    else { ReferenceCardGallery(demo: demo, theme: theme, kind: "cards-suspicious") }
-                }
-            } else {
-                ReferenceSettings(demo: demo, theme: theme, kind: demo.route)
-            }
-        }
-        .preferredColorScheme(demo.dark ? .dark : .light)
+        NativeShell(demo: demo)
+        .preferredColorScheme(nil)
         .tint(theme.accent)
         .onChange(of: demo.route) { _, _ in demo.inspectedFrame = nil }
         .onChange(of: demo.selected) { _, selected in
@@ -44,8 +31,8 @@ struct ReferenceRuntime: View {
     }
     @ViewBuilder private var sheet: some View {
         switch demo.sheet {
-        case "add":ReferenceAddProjectForm(demo:demo,theme:theme)
-        case "return-gate","return-merge":ReferenceReturnForm(demo:demo,theme:theme,merge:demo.sheet=="return-merge")
+        case "add":NativeAddProjectForm(demo:demo)
+        case "return-gate","return-merge":NativeReturnForm(demo:demo,merge:demo.sheet=="return-merge")
         case "create","edit": editor
         case "move": move
         case "review-return": reviewReturn
@@ -95,15 +82,6 @@ struct ReferenceRuntime: View {
     private var move:some View{VStack(alignment:.leading,spacing:12){Text("Перенести задачу").font(.title3.bold());Picker("Стадия",selection:$demo.returnTarget){ForEach(ReferenceDemo.stages,id:\.self){Text($0).tag($0)}};Text("Перенос назад прерывает текущий запуск; попытка не списывается.").font(.caption);HStack{ReferenceButton(title:"Закрыть",theme:theme){demo.sheet=nil};ReferenceButton(title:"Перенести",primary:true,theme:theme){demo.moveSelected()}}}}
     private var mascots:some View{VStack(alignment:.leading,spacing:20){HStack(spacing:18){if let url=Bundle.main.url(forResource:"Kaban",withExtension:"icns",subdirectory:"Resources"),let image=NSImage(contentsOf:url){Image(nsImage:image).resizable().frame(width:96,height:96)};VStack(alignment:.leading){ReferenceWordmark().fill(theme.dark ? .white:Color(hex:0x2a170b)).frame(width:180,height:46);Text("Оригинальный логотип · кит маскотов v1").foregroundStyle(theme.secondary)}};LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:16){ForEach(Array(MascotKit.mascots.enumerated()),id:\.offset){_,mascot in ReferenceMascot(emoji:mascot,theme:theme,state:"running",size:56)}};HStack{ForEach(["running","waiting","paused","done","incident"],id:\.self){state in VStack{ReferenceMascot(emoji:"🐗",theme:theme,state:state,size:48);Text(state).font(.caption)}}}}.padding(32)}
 }
-
-struct ReferenceWindowChrome:NSViewRepresentable {
-    final class ChromeView:NSView {
-        override func viewDidMoveToWindow(){super.viewDidMoveToWindow();for kind in [NSWindow.ButtonType.closeButton,.miniaturizeButton,.zoomButton]{window?.standardWindowButton(kind)?.isHidden=true}}
-    }
-    func makeNSView(context:Context)->NSView{ChromeView()}
-    func updateNSView(_ view:NSView,context:Context){}
-}
-
 
 struct ReferenceMenuBar: View {
     @Bindable var demo: ReferenceDemo

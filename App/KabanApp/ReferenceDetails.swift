@@ -5,6 +5,7 @@ struct ReferenceDetails: View {
     let theme: ReferenceTheme
     var kind = "suspicious"
     var selectedTaskID: String? = nil
+    var nativeContainer = false
     private var runtimeTask:ReferenceTask? {selectedTaskID.flatMap {id in demo.tasks.first{$0.id==id}}}
     private var isSuspicious: Bool { kind == "suspicious" || kind == "stale" || kind == "gate" || kind == "merge" }
     private var taskID: String {runtimeTask?.id ?? (kind=="incident" ? "KBN-17" : kind=="review" ? "SHOP-31" : kind=="substituted" ? "SHOP-35" : kind=="run-limit" ? "SHOP-47" : kind=="gate" ? "SHOP-55" : kind=="merge" ? "SHOP-29" : "SHOP-52")}
@@ -28,11 +29,9 @@ struct ReferenceDetails: View {
                     else { runLimitBlock }
                 }.padding(.horizontal,16).padding(.top,12)
             }.scrollIndicators(.hidden).frame(height:isSuspicious ? 452 : kind=="incident" ? 242 : kind=="review" ? 208 : kind=="run-limit" ? 410 : 346)
-            HStack(spacing:2) {
-                ForEach(kind=="incident" ? ["Лента","Живой лог","Сводка","Попытки","Разрешения git"]:["Лента","Живой лог","Сводка",kind=="run-limit" ? "Запуски":"Попытки"],id:\.self) { tab in
-                    Button{demo.logTab=tab}label:{HStack(spacing:5){Text(tab);if tab=="Попытки" || tab=="Запуски" || tab=="Разрешения git"{ReferenceChip(title:tab=="Разрешения git" ? "1":kind=="incident" ? "2":kind=="run-limit" ? "14":"4",theme:theme)}}.font(.system(size:12,weight:.semibold)).foregroundStyle(demo.logTab==tab ? theme.text : theme.secondary).padding(.horizontal,10).padding(.top,6).padding(.bottom,8).overlay(alignment:.bottom){if demo.logTab==tab {theme.accent.frame(height:2)}}}.buttonStyle(.plain)
-                }
-            }.padding(.horizontal,16).padding(.top,10).overlay(alignment:.bottom){theme.line.frame(height:0.5)}
+            Picker("Сведения о задаче", selection: $demo.logTab) {
+                ForEach(kind == "incident" ? ["Лента", "Живой лог", "Сводка", "Попытки", "Разрешения git"] : ["Лента", "Живой лог", "Сводка", kind == "run-limit" ? "Запуски" : "Попытки"], id: \.self) { tab in Text(tab).tag(tab) }
+            }.pickerStyle(.segmented).controlSize(.small).padding(12)
             ScrollView {
                 VStack(spacing:0) {
                     if demo.logTab=="Лента" { feed }
@@ -44,13 +43,13 @@ struct ReferenceDetails: View {
             if !["gate", "merge"].contains(kind) {
             HStack(spacing:8) {
                 Label("Замечание агенту",systemImage:"message").font(.system(size:12,weight:.semibold)).foregroundStyle(theme.text)
-                TextField(isSuspicious ? "«Попросить убрать» подставит: «Убери из ветки…»" : "Напишите замечание агенту…",text:$demo.returnNote).textFieldStyle(.plain).font(.system(size:12))
+                TextField(isSuspicious ? "«Попросить убрать» подставит: «Убери из ветки…»" : "Напишите замечание агенту…",text:$demo.returnNote).textFieldStyle(.roundedBorder).font(.system(size:12))
                 ReferenceButton(title:"Отправить и продолжить",primary:true,small:true,theme:theme){demo.action("Отправить замечание",taskID:taskID)}.disabled(demo.returnNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }.padding(.horizontal,10).frame(height:38).background(theme.card,in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(theme.line,lineWidth:0.5)).padding(12)
             }
-        }.foregroundStyle(theme.text).background(theme.dark ? Color(hex:0x24242a).opacity(0.72) : Color(hex:0xfafafc).opacity(0.74),in:RoundedRectangle(cornerRadius:18))
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius:18).stroke(theme.line,lineWidth:0.5)).shadow(color:.black.opacity(0.22),radius:32,y:18)
+        }.foregroundStyle(theme.text)
+            .background(nativeContainer ? Color(nsColor: .windowBackgroundColor) : theme.content)
+
     }
     private var header: some View {
         VStack(alignment:.leading,spacing:6) {
@@ -63,8 +62,8 @@ struct ReferenceDetails: View {
                     Button("Изменить…") { demo.selected = taskID; demo.editSelected() }
                     Button("Перенести…") { demo.selected = taskID; demo.sheet = "move" }
                     Button("Отменить…") { demo.selected = taskID; demo.sheet = "cancel" }
-                } label: { Image(systemName: "ellipsis").frame(width: 26, height: 26).background(theme.control, in: Circle()) }.menuStyle(.borderlessButton).fixedSize()
-                Button{demo.selected=nil;demo.inspectedFrame=nil;demo.route="board"}label:{Image(systemName:"xmark").font(.system(size:11)).frame(width:26,height:26).background(theme.control,in:Circle())}.buttonStyle(.plain)
+                } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
+                Button{demo.selected=nil;demo.inspectedFrame=nil;demo.route="board"}label:{Image(systemName:"xmark")}.buttonStyle(.borderless)
             }
             Text(title).font(.system(size:18,weight:.bold)).tracking(-0.25)
             ReferenceFlow(spacing: 6) {
@@ -125,7 +124,7 @@ struct ReferenceDetails: View {
                     ReferenceButton(title:"Перезапустить",icon:"arrow.clockwise",small:true,theme:theme){demo.action("Перезапустить",taskID:taskID)}
                     ReferenceButton(title:"В Backlog",icon:"tray",small:true,theme:theme){demo.action("В Backlog",taskID:taskID)}
                     ReferenceButton(title:"Отменить…",icon:"xmark",small:true,theme:theme){demo.selected = taskID; demo.sheet="cancel"}
-                    Toggle("Сохранить ветку → kaban/archive/\(taskID)",isOn:$demo.keepBranch).toggleStyle(.referenceCheckbox).font(.system(size:10.5)).lineLimit(1)
+                    Toggle("Сохранить ветку → kaban/archive/\(taskID)",isOn:$demo.keepBranch).toggleStyle(.checkbox).font(.system(size:10.5)).lineLimit(1)
                 }
                 Text("retryStage · moveTask · cancelTask(keepBranch) · «Отклонить» — только в Human Review").font(.system(size:9.5,design:.monospaced)).foregroundStyle(theme.faint)
                 theme.line.frame(height:0.5)
@@ -143,7 +142,7 @@ struct ReferenceDetails: View {
             Text("Refs изменены в обход обёртки git. Демон откатил их и остановил задачу; отправлено уведомление высокого приоритета.").font(.system(size:11.5))
             Text("Изменено   refs/heads/main · a41c9e2 → 7f90b31\nОткат       a41c9e2 · демон, 14:32\nЗапуск      Dev · попытка 2 · 14:21–14:32\nОбход       git update-ref · запись вне обёртки").font(.system(size:11,design:.monospaced)).foregroundStyle(theme.secondary)
             HStack(spacing:6){ReferenceButton(title:"Вернуть с замечанием",icon:"message",primary:true,theme:theme){demo.sheet="move"};ReferenceButton(title:"Модель",icon:"cpu",theme:theme){demo.route="pipeline-invalid"};ReferenceButton(title:"Ужесточить политику",icon:"shield",theme:theme){demo.route="stage-git"};ReferenceButton(title:"Отменить…",icon:"xmark",theme:theme){demo.sheet="cancel"}}
-            VStack(alignment:.leading,spacing:6){HStack{Text("Отменить задачу?").font(.system(size:12,weight:.bold));Text("клон удаляется, задача → cancelled").font(.system(size:11)).foregroundStyle(theme.faint);Spacer();ReferenceButton(title:"Не отменять",small:true,theme:theme){demo.sheet=nil};Button("Отменить задачу"){demo.action("Отменить",taskID:taskID)}.buttonStyle(.borderedProminent).tint(theme.status("incident").0).controlSize(.small)};HStack{Toggle("Сохранить ветку → kaban/archive/KBN-17",isOn:$demo.keepBranch).toggleStyle(.referenceCheckbox).font(.system(size:10.5));Spacer()}}.padding(8).background(theme.card,in:RoundedRectangle(cornerRadius:8))
+            VStack(alignment:.leading,spacing:6){HStack{Text("Отменить задачу?").font(.system(size:12,weight:.bold));Text("клон удаляется, задача → cancelled").font(.system(size:11)).foregroundStyle(theme.faint);Spacer();ReferenceButton(title:"Не отменять",small:true,theme:theme){demo.sheet=nil};Button("Отменить задачу"){demo.action("Отменить",taskID:taskID)}.buttonStyle(.borderedProminent).tint(theme.status("incident").0).controlSize(.small)};HStack{Toggle("Сохранить ветку → kaban/archive/KBN-17",isOn:$demo.keepBranch).toggleStyle(.checkbox).font(.system(size:10.5));Spacer()}}.padding(8).background(theme.card,in:RoundedRectangle(cornerRadius:8))
         }.padding(12)
         }.background(theme.status("incident").1,in:RoundedRectangle(cornerRadius:12)).clipShape(RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(theme.status("incident").0,lineWidth:1.5))
     }
