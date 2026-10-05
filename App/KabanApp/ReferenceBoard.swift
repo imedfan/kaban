@@ -43,8 +43,9 @@ struct ReferenceTaskCard: View {
                 VStack(alignment:.leading,spacing:3) {
                     HStack(spacing:5) {
                         Text(task.emoji).font(.system(size:12))
-                        Text(task.id).font(.system(size:10.5,design:.monospaced)).foregroundStyle(theme.faint).fixedSize()
+                        Text(task.id).font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint).fixedSize()
                         Spacer(minLength:0)
+                        if task.id == "SHOP-36" { Text("↑").font(.system(size:10,weight:.bold)).foregroundStyle(theme.status("incident").2) }
                     }.frame(height:14)
                     Text(task.title).font(.system(size:12,weight:.medium)).lineSpacing(1).lineLimit(2)
                         .strikethrough(task.status == "cancelled").foregroundStyle(task.status == "done" || task.status == "cancelled" ? theme.secondary : theme.text)
@@ -55,12 +56,12 @@ struct ReferenceTaskCard: View {
                     if task.id=="SHOP-35" && task.label == "Подмена модели" {
                         Label("Подмена: Opus 4.5 → Sonnet 4",systemImage:"exclamationmark.triangle").font(.system(size:10.5,weight:.semibold)).foregroundStyle(colors.2).lineLimit(1).padding(.top,2)
                     } else if !task.badges.isEmpty {
-                        ReferenceFlow(spacing:3) { ForEach(Array(task.badges.prefix(2)),id:\.self) { ReferenceChip(title:$0,theme:theme,tone:$0.contains("гейты") ? "done" : nil) } }.padding(.top,2)
+                        ReferenceFlow(spacing:3) { ForEach(Array(task.badges.prefix(2)),id:\.self) { ReferenceCardBadge(title:$0,theme:theme) } }.padding(.top,2)
                     }
                 }.padding(.init(top:7,leading:11,bottom:6,trailing:8))
                 HStack(spacing:5) {
                     Image(systemName:symbol).font(.system(size:10))
-                    Text(task.label).font(.system(size:10.5,weight:.semibold)).lineLimit(1)
+                    Text(task.label).font(.system(size:10.5,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                     Spacer(minLength:0)
                     Text(task.meta).font(.system(size:10)).foregroundStyle(attention ? colors.2.opacity(0.8):theme.faint).lineLimit(1)
                 }.padding(.leading,11).padding(.trailing,8).frame(height:22)
@@ -76,6 +77,35 @@ struct ReferenceTaskCard: View {
                 .overlay(RoundedRectangle(cornerRadius:10).stroke(selected ? theme.accent : attention ? colors.0.opacity(0.3) : theme.line,lineWidth:selected ? 2 : 0.5))
                 .shadow(color:.black.opacity(theme.dark ? 0.25 : 0.06),radius:1,y:1)
         }.buttonStyle(.plain).accessibilityLabel("\(task.id), \(task.title), \(task.label)")
+    }
+}
+
+private struct ReferenceCardBadge: View {
+    let title: String
+    let theme: ReferenceTheme
+    private var appearance: (tone: String?, symbol: String?) {
+        if title.contains("гейты") { return ("done", nil) }
+        if title.contains("возврат") { return ("running", title.contains("конфликт") ? "arrow.triangle.merge" : "arrow.uturn.backward") }
+        if title == "после конфликта" { return ("running", "arrow.triangle.merge") }
+        if title == "git ×1 разрешено" { return ("done", "key") }
+        if title == "без критериев приёмки" || title == "main грязная" { return ("retry", "exclamationmark.triangle") }
+        if title == "пересечение файлов" { return ("retry", "square.3.layers.3d") }
+        if title.hasPrefix("stall") { return ("incident", "timer") }
+        if title == "5 отказов" { return ("incident", "nosign") }
+        if title == "runner_auth" { return (nil, "key") }
+        if title == "rate_limit" { return (nil, "bolt") }
+        if title == "request_human" { return (nil, "bubble") }
+        if title.hasPrefix("Human Review") { return (nil, "hourglass") }
+        return (nil, nil)
+    }
+    var body: some View {
+        let style = appearance
+        HStack(spacing:3) {
+            if let symbol = style.symbol { Image(systemName:symbol).font(.system(size:9)) }
+            Text(title).font(.system(size:10,weight:.semibold))
+        }.fixedSize().padding(.horizontal,5).frame(height:16)
+            .foregroundStyle(style.tone.map { theme.status($0).2 } ?? theme.secondary)
+            .background(style.tone.map { theme.status($0).1 } ?? theme.control,in:RoundedRectangle(cornerRadius:5))
     }
 }
 
@@ -125,7 +155,7 @@ struct ReferenceBoard: View {
             GeometryReader { geometry in
             VStack(spacing: 0) {
                 toolbar.frame(height: 60)
-                ScrollView([.horizontal, .vertical]) {
+                ScrollView(geometry.size.width >= 1184 ? [.vertical] : [.horizontal, .vertical]) {
                     VStack(spacing: 8) {
                         flags
                         if demo.visible.isEmpty {
@@ -173,7 +203,12 @@ struct ReferenceBoard: View {
                         }
                         Spacer(minLength: 0)
                         if project == "shop-api", !base { ReferenceChip(title: "3", theme: theme, tone: "waiting") }
-                        if project == "kaban", base { ReferenceChip(title: "1", theme: theme, tone: "incident") }
+                        if base {
+                            if project == "kaban" { ReferenceChip(title:"1",theme:theme,tone:"incident") }
+                            else if project == "mobile-app" { ReferenceChip(title:"3",theme:theme,tone:"waiting") }
+                            else if project == "shop-api" || project == "docs-site" { Text(project == "shop-api" ? "⌘1" : "⌘4").font(.system(size:10)).foregroundStyle(theme.faint) }
+                            else if project == "infra" { Image(systemName:"folder").font(.system(size:11)).foregroundStyle(theme.secondary) }
+                        }
                     }.padding(.horizontal, 8).padding(.vertical, 5)
                 }.buttonStyle(.plain).draggable(project)
                 .contextMenu {
@@ -194,6 +229,7 @@ struct ReferenceBoard: View {
                     }
                 }
                 HStack { Text("Процессы агентов"); Spacer(); Text("\(demo.runningCount) / 4").bold() }.font(.system(size: 11))
+                if base { HStack { Text("Веса"); Spacer(); Text("🦊 2 · 🐗 1 · 🐙 1 · 🦉 1").foregroundStyle(theme.faint) }.font(.system(size:11)) }
                 HStack { Label("Cursor", systemImage: "bolt"); Spacer(); Text(base ? (overlay != nil ? "в норме" : theme.dark ? "cooldown до 16:40" : "нет входа") : "Om исчерпан").foregroundStyle(theme.status(base ? (overlay != nil ? "done" : theme.dark ? "retry" : "incident") : "waiting").2) }.font(.system(size: 11))
                 if !base { theme.line.frame(height: 0.5); ReferenceQuotaBars(theme: theme, compact: true) }
             }.padding(10).background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
@@ -287,7 +323,7 @@ struct ReferenceBoard: View {
                 Button { if !demo.collapsed.insert(project).inserted { demo.collapsed.remove(project) } } label: { Image(systemName: demo.collapsed.contains(project) ? "chevron.right" : "chevron.down").font(.system(size: 10)) }.buttonStyle(.plain)
                 ReferenceMascot(emoji: emoji(project), theme: theme, state: projectState(project))
                 Text(project).font(.system(size: 13, weight: .semibold)); ReferenceChip(title: "⑂ main", theme: theme, mono: true)
-                Text(base ? (project == "kaban" ? "инцидент в KBN-17" : "работает · 1 агент") : project == "shop-api" ? "ждут человека · 3" : project == "kaban" ? "новые запуски не стартуют" : project == "docs-site" ? "спит · очередь пуста" : "стоит").font(.system(size: 11.5)).foregroundStyle(theme.faint)
+                Text(base ? (project == "kaban" ? "инцидент в KBN-17" : project == "mobile-app" ? "машет · ждут человека" : project == "docs-site" ? "спит · очередь пуста" : project == "infra" ? "недоступен" : (overlay != nil ? "работает · 2 агента" : "работает · 1 агент")) : project == "shop-api" ? "ждут человека · 3" : project == "kaban" ? "новые запуски не стартуют" : project == "docs-site" ? "спит · очередь пуста" : "стоит").font(.system(size:11.5)).foregroundStyle(base && project == "kaban" ? theme.status("incident").2 : theme.faint)
                 Spacer(minLength: 0)
                 if base && project == "shop-api" && !demo.flagsCleared.contains("merge") {
                     ReferenceChip(title:"⑂ Слияние остановлено: правки в рабочей копии main пересекаются с SHOP-30",theme:theme,tone:"blocked")
@@ -310,9 +346,12 @@ struct ReferenceBoard: View {
                     if !base { ReferenceButton(title: "Настройки MCP", small: true, theme: theme) { demo.openSettings("project-mcp", project: "mobile-app") } }
                 }
                 if project == "shop-api" || base && project == "kaban" { ReferenceChip(title: project == "shop-api" ? "вес 2" : "вес 1", theme: theme) }
-                ReferenceChip(title: project == "docs-site" ? "готово 31" : project == "mobile-app" ? "в очереди 4" : "1 процесс", theme: theme)
+                if base && project == "mobile-app" { ReferenceChip(title:"в работе 1",theme:theme) }
+                if !base || project != "infra" {
+                    ReferenceChip(title: project == "docs-site" ? "готово 31" : project == "mobile-app" && !base ? "в очереди 4" : project == "shop-api" && base && overlay != nil ? "2 процесса" : "1 процесс", theme: theme)
+                }
                 Button { demo.openSettings("general", project: project) } label: { Image(systemName: "slider.horizontal.3") }.buttonStyle(.plain).help("Настройки проекта")
-                Button { demo.visible.removeAll { $0 == project } } label: { Image(systemName: "xmark").font(.system(size: 10)) }.buttonStyle(.plain).help("Убрать дорожку")
+                if !base { Button { demo.visible.removeAll { $0 == project } } label: { Image(systemName: "xmark").font(.system(size: 10)) }.buttonStyle(.plain).help("Убрать дорожку") }
             }.padding(.horizontal, 4).frame(height: 36)
             if !demo.collapsed.contains(project) {
                 let stages = base && project == "kaban" ? ["Backlog", "Dev", "Lint", "AI Review", "Human Review", "Merge", "Done"] : ReferenceDemo.stages
@@ -327,22 +366,24 @@ struct ReferenceBoard: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(base && project == "kaban" ? theme.status("incident").0.opacity(0.35) : theme.line, lineWidth: 0.5))
     }
     private func column(_ stage: String, project: String?) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: stageSymbol(stage)).font(.system(size: 11)).foregroundStyle(theme.status(stage == "Dev" || stage == "Test" ? "running" : stage == "Human Review" ? "review" : stage == "Merge" ? "conflict" : stage == "Done" ? "done" : "queued").0)
                 Text(stage).font(.system(size: 11.5, weight: .semibold)).fixedSize(); Spacer(minLength: 0)
                 if let project { ReferenceChip(title: columnCount(stage, project: project), theme: theme) }
             }.frame(height: 28).padding(.horizontal, 3)
-            if !base, ["Dev", "Test", "AI Review"].contains(stage), let project { Text(columnModel(stage, project: project)).font(.system(size: 9.5, design: .monospaced)).foregroundStyle(stage == "Dev" ? theme.secondary : theme.status("waiting").2).frame(maxWidth: .infinity, alignment: .leading).frame(height: 18).padding(.horizontal, 4).background(stage == "Dev" ? .clear : theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 6)) }
+            if !base, ["Dev", "Test", "AI Review"].contains(stage), let project { Text(columnModel(stage, project: project)).font(.system(size: 9.5, design: .monospaced)).foregroundStyle(stage == "Dev" ? theme.secondary : theme.status("waiting").2).frame(maxWidth: .infinity, alignment: .leading).frame(height: 18).padding(.horizontal, 4).background(stage == "Dev" ? .clear : theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 6)).padding(.top,-4).padding(.bottom,5) }
             let tasks = demo.tasks.filter { (project == nil ? demo.visible.contains($0.project) : $0.project == project) && $0.stage == stage && (demo.search.isEmpty || $0.title.localizedCaseInsensitiveContains(demo.search) || $0.id.localizedCaseInsensitiveContains(demo.search)) }
-            if tasks.isEmpty { Text("Пусто").font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).frame(height: 50).overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(theme.line, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))) }
-            ForEach(tasks) { task in
-                ReferenceTaskCard(task: task, theme: theme, selected: demo.selected == task.id) { demo.selected = task.id }
-                    .draggable(task.id).contextMenu {
-                        Button("Изменить…") { demo.selected = task.id; demo.editSelected() }
-                        Button("Перенести…") { demo.selected = task.id; demo.sheet = "move" }
-                        Button("Отменить…") { demo.selected = task.id; demo.sheet = "cancel" }
-                    }
+            VStack(spacing:6) {
+                if tasks.isEmpty { Text("Пусто").font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).frame(height: 50).overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(theme.line, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))) }
+                ForEach(tasks) { task in
+                    ReferenceTaskCard(task: task, theme: theme, selected: demo.selected == task.id) { demo.selected = task.id }
+                        .draggable(task.id).contextMenu {
+                            Button("Изменить…") { demo.selected = task.id; demo.editSelected() }
+                            Button("Перенести…") { demo.selected = task.id; demo.sheet = "move" }
+                            Button("Отменить…") { demo.selected = task.id; demo.sheet = "cancel" }
+                        }
+                }
             }
             Spacer(minLength: 0)
         }.padding(.horizontal, 5).padding(.bottom, 6).background(theme.column, in: RoundedRectangle(cornerRadius: 10))
