@@ -165,6 +165,9 @@ public struct PipelineSummary: Codable, Hashable, Sendable {
     public var projectId: ProjectID
     /// Хэш версии из `pipeline_version`; `nil`, если валидной версии в `main` нет.
     public var versionHash: String?
+    /// Identity of the committed .kaban assets, even when YAML is missing/invalid. nil from
+    /// older daemons. Drafts use it to distinguish successive invalid versions safely.
+    public var sourceHash: String?
     public var gitPreset: GitPreset
     public var maxWaitingHuman: Int
     public var maxRunsPerTask: Int
@@ -173,6 +176,9 @@ public struct PipelineSummary: Codable, Hashable, Sendable {
     public var issues: [ValidationIssue]
     /// Есть незакоммиченная ручная правка `.kaban/` (§3.1, FSEvents).
     public var hasUncommittedEdits: Bool
+    /// Validation of the observed working YAML, separate from committed issues. nil means
+    /// no dirty draft was observed (or a legacy daemon); errors here do not stop current main.
+    public var uncommittedIssues: [ValidationIssue]?
     /// Куда по умолчанию ведёт `requestChanges` без `target`: первая `agent`-стадия с `readOnly = false`,
     /// разрешённая демоном; `nil` — такой стадии нет (арх. v0.11.5 §3.1).
     public var defaultReturnStage: StageID?
@@ -185,15 +191,17 @@ public struct PipelineSummary: Codable, Hashable, Sendable {
 
     public init(projectId: ProjectID, versionHash: String?, gitPreset: GitPreset = .standard, maxWaitingHuman: Int = 3,
                 maxRunsPerTask: Int = 12, stages: [StageSummary], issues: [ValidationIssue] = [], hasUncommittedEdits: Bool = false,
-                defaultReturnStage: StageID? = nil, projectGitPolicy: EffectiveGitPolicy? = nil, gitCommandCatalog: [String] = []) {
+                defaultReturnStage: StageID? = nil, projectGitPolicy: EffectiveGitPolicy? = nil, gitCommandCatalog: [String] = [], sourceHash: String? = nil, uncommittedIssues: [ValidationIssue]? = nil) {
         self.projectId = projectId; self.versionHash = versionHash; self.gitPreset = gitPreset; self.maxWaitingHuman = maxWaitingHuman
+        self.sourceHash = sourceHash
+        self.uncommittedIssues = uncommittedIssues
         self.maxRunsPerTask = maxRunsPerTask; self.stages = stages; self.issues = issues; self.hasUncommittedEdits = hasUncommittedEdits
         self.defaultReturnStage = defaultReturnStage; self.projectGitPolicy = projectGitPolicy; self.gitCommandCatalog = gitCommandCatalog
     }
 
     enum CodingKeys: String, CodingKey {
         case projectId, versionHash, gitPreset, maxWaitingHuman, maxRunsPerTask, stages, issues, hasUncommittedEdits, defaultReturnStage
-        case projectGitPolicy, gitCommandCatalog
+        case projectGitPolicy, gitCommandCatalog, sourceHash, uncommittedIssues
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -203,7 +211,9 @@ public struct PipelineSummary: Codable, Hashable, Sendable {
                   issues: try c.decode([ValidationIssue].self, forKey: .issues), hasUncommittedEdits: try c.decode(Bool.self, forKey: .hasUncommittedEdits),
                   defaultReturnStage: try c.decodeIfPresent(StageID.self, forKey: .defaultReturnStage),
                   projectGitPolicy: try c.decodeIfPresent(EffectiveGitPolicy.self, forKey: .projectGitPolicy),
-                  gitCommandCatalog: try c.decodeIfPresent([String].self, forKey: .gitCommandCatalog) ?? [])
+                  gitCommandCatalog: try c.decodeIfPresent([String].self, forKey: .gitCommandCatalog) ?? [],
+                  sourceHash: try c.decodeIfPresent(String.self, forKey: .sourceHash),
+                  uncommittedIssues: try c.decodeIfPresent([ValidationIssue].self, forKey: .uncommittedIssues))
     }
 
     public var isValid: Bool { !issues.contains { $0.severity == .error } }

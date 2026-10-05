@@ -349,6 +349,8 @@ public struct BoardProjection: Equatable, Sendable {
             return .applied
         case .pipelineApplied(let pipeline):
             pipelines[pipeline.projectId] = pipeline
+            let stages = Set(pipeline.stages.map(\.id))
+            stageLoad.removeAll { $0.projectId == pipeline.projectId && !stages.contains($0.stageId) }
             appendFeed(envelope)
             return .applied
         case .settingsChanged(let change):

@@ -24,7 +24,7 @@ extension KabanStore {
     static func enqueue(_ batch: PendingEffectBatch, db: Database) throws {
         for (index, effect) in batch.effects.enumerated() {
             let id = "\(batch.commandId.uuidString.lowercased())/\(index)"
-            let pending = PendingEffect(version: batch.version, id: id, commandId: batch.commandId, taskId: batch.taskId, index: index, effect: effect)
+            let pending = PendingEffect(version: batch.version, id: id, commandId: batch.commandId, taskId: batch.taskId, index: index, effect: effect, runSpecId: batch.runSpecId)
             try db.execute(sql: "INSERT INTO effect(id, command_id, task_id, ordinal, payload, status) VALUES (?, ?, ?, ?, ?, 'pending')",
                            arguments: [id, batch.commandId.uuidString.lowercased(), batch.taskId.rawValue, index, try encode(pending)])
         }

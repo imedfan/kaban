@@ -13,6 +13,10 @@ extension KabanStore {
         if project.production != nil {
             switch command {
             case .cancel: break
+            case .completeStage, .requestHuman, .gatesPassed, .resultClean, .daemonRestarted:
+                guard let run = task.runSpecId,
+                      let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
+                      try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }
             default: throw StoreError.rejected(.init(code: "unsupported_command", message: "Исполнение production-пайплайна ещё не подключено."))
             }
         }

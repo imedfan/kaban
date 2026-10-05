@@ -17,7 +17,8 @@ move/pause/resume/cancel/retry, Human Review/answer, детали/runs, ручн
 паузы, настройки и metadata зарегистрированного проекта. Оригинальный запрос
 и ответ сохраняются в additive v3; replay предшествует ID/time generation.
 Domain refusal сохраняется без перехода; сбой БД откатывает всё действие.
-Wire-приёмник пока обслуживает только зарегистрированные managed fake проекты.
+Эти команды обслуживают managed fake; production Backlog/lifecycle/pipeline
+подключены в BE-02/03 ниже, execution-команды ещё ограничены fake.
 
 Managed fake engine — ограниченная portable вертикаль. Четырёхстадийный fake pipeline
 допускается узким внутренним исключением merge_count; общий production-валидатор
@@ -38,20 +39,26 @@ scheduler/executor loop; приложение не подключено.
 контракт replacement/session, эфирного потока, log pages, version-bound draft,
 Cursor environment и WIP restore. Реализация backend-функций за этими контрактами
 проверяется по capabilities, а не по наличию enum case; границы —
-[BE-01](development/backend-wire-contracts-2026-10-05.md). Следующий инкремент BE-02
-подключает production lifecycle проектов. В текущем инкременте —
+[BE-01](development/backend-wire-contracts-2026-10-05.md). Принятый в PR #72
 [BE-02](development/backend-project-lifecycle-2026-10-05.md): реальные Git roots,
 author/canonical identity, template-only commit, durable recovery intent, missing-folder
 observer, relink и logical removal/history. Production Backlog хранится даже без
-валидного YAML; реальное исполнение/scheduler и apply pipeline ещё не подключены.
+валидного YAML.
+
+[BE-03](development/backend-pipeline-storage-2026-10-05.md) добавляет committed
+asset snapshots, валидные pipeline_version, source-bound draft/apply, isolated
+`.kaban/` commit и восстановление файлового эффекта. Startup/recheck/observer
+подхватывают manual main, отдельные working issues не меняют committed правила.
+Immutable RunSpec и отложенный stage exit сохраняют текущую попытку при invalid
+main; полный production scheduler и внешний executor ещё не подключены.
 
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement
    snapshot, pending commands/retry при reconnect и видимые состояния соединения.
    Отдельно проверить подписанный Mach service в составе бандла.
-2. Production lifecycle проектов/pipelines и оставшиеся wire-команды: add/remove/relink,
-   pipeline validation/replacement, model override, files/incidents и среда.
+2. Production scheduler и оставшиеся wire-команды: model override, files/incidents,
+   WIP restore, среда и интеграция settings.
 3. Внешний executor с claim/lease, процессами Cursor, git-клонами и гейтами.
    Exactly-once внешних действий не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.

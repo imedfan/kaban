@@ -7,11 +7,13 @@ public struct PipelineValidationContext: Sendable {
     public var mcpAllowlist: Set<String>
     /// Stages that currently hold tasks in a non-terminal status (incl. `queued`): they cannot be removed.
     public var stagesWithActiveTasks: Set<StageID>
+    public var activeStageKinds: [StageID: StageKind]
     public var supportedHarnesses: Set<String>
 
     public init(mcpAllowlist: Set<String> = [], stagesWithActiveTasks: Set<StageID> = [],
-                supportedHarnesses: Set<String> = AgentConfig.supportedHarnesses) {
+                supportedHarnesses: Set<String> = AgentConfig.supportedHarnesses, activeStageKinds: [StageID: StageKind] = [:]) {
         self.mcpAllowlist = mcpAllowlist; self.stagesWithActiveTasks = stagesWithActiveTasks; self.supportedHarnesses = supportedHarnesses
+        self.activeStageKinds = activeStageKinds
     }
 }
 
@@ -20,6 +22,7 @@ public struct PipelineValidationContext: Sendable {
 public struct PipelineValidation: Hashable, Sendable {
     public var config: PipelineConfig?
     public var issues: [ValidationIssue]
+    public init(config: PipelineConfig?, issues: [ValidationIssue]) { self.config = config; self.issues = issues }
 
     public var errors: [ValidationIssue] { issues.filter { $0.severity == .error } }
     public var warnings: [ValidationIssue] { issues.filter { $0.severity == .warning } }
@@ -373,6 +376,11 @@ public enum PipelineValidator {
         let ids = Set(c.stages.map(\.id))
         for removed in context.stagesWithActiveTasks.subtracting(ids).sorted(by: { $0.rawValue < $1.rawValue }) {
             sink.error("stages", ValidationCode.stageHasActiveTasks, "Stage '\(removed)' still has active tasks and cannot be removed", stageId: removed)
+        }
+        for (index, stage) in c.stages.enumerated() {
+            if let oldKind = context.activeStageKinds[stage.id], oldKind != stage.kind {
+                sink.error("\(sp(index)).kind", ValidationCode.stageHasActiveTasks, "Stage '\(stage.id)' still has active tasks and cannot change kind", stageId: stage.id)
+            }
         }
     }
 

@@ -5,19 +5,22 @@ import Foundation
 public struct PipelineDraft: Codable, Hashable, Sendable {
     public var projectId: ProjectID
     public var baseVersionHash: String?
+    public var baseSourceHash: String?
     public var contentHash: String
     public var content: String
-    public init(projectId: ProjectID, baseVersionHash: String?, content: String) {
+    public init(projectId: ProjectID, baseVersionHash: String?, content: String, baseSourceHash: String? = nil) {
         self.projectId = projectId; self.baseVersionHash = baseVersionHash
+        self.baseSourceHash = baseSourceHash
         self.content = content; self.contentHash = PipelineContentHash.sha256(content)
     }
-    private enum CodingKeys: String, CodingKey { case projectId, baseVersionHash, contentHash, content }
+    private enum CodingKeys: String, CodingKey { case projectId, baseVersionHash, baseSourceHash, contentHash, content }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         projectId = try c.decode(ProjectID.self, forKey: .projectId)
         // Unlike a legacy command without draft, a new draft must bind an explicit base,
         // including explicit null when the project has no committed pipeline yet.
         baseVersionHash = try c.decode(String?.self, forKey: .baseVersionHash)
+        baseSourceHash = try c.decodeIfPresent(String.self, forKey: .baseSourceHash)
         contentHash = try c.decode(String.self, forKey: .contentHash)
         content = try c.decode(String.self, forKey: .content)
     }
@@ -25,6 +28,18 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(projectId, forKey: .projectId); try c.encode(baseVersionHash, forKey: .baseVersionHash)
         try c.encode(contentHash, forKey: .contentHash); try c.encode(content, forKey: .content)
+        try c.encodeIfPresent(baseSourceHash, forKey: .baseSourceHash)
+    }
+
+    public func checkSourceBinding(currentSourceHash: String?, emptySourceHash: String? = nil) throws {
+        // A valid version's asset identity also binds old drafts. An invalid nonempty source
+        // needs the new field; explicit null version alone cannot identify it.
+        guard let expected = baseSourceHash ?? baseVersionHash ?? emptySourceHash else {
+            throw CommandError(code: "pipeline_source_required", message: "Передайте baseSourceHash текущего committed .kaban/ для исправления невалидного пайплайна.")
+        }
+        guard expected == currentSourceHash else {
+            throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Содержимое .kaban/ изменилось после начала редактирования.")
+        }
     }
 
     /// Call inside the same transaction that accepts the version. YAML validation and the

@@ -44,8 +44,10 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
 public struct DurableTask: Codable, Hashable, Sendable {
     public var card: TaskCard
     public var machine: TaskMachineState
-    /// Immutable creation snapshot; pipeline replacement/stage-entry versioning follows in M1.
-    public let pipeline: PipelineConfig
+    /// Rules of the current invocation/stage entry. Replacement only takes effect at a new start.
+    public var pipeline: PipelineConfig
+    public var pipelineVersion: String? = nil
+    public var runSpecId: RunID? = nil
 }
 
 /// Exact versioned effect payloads are durable; upgrades never recompute old effects.
@@ -54,6 +56,7 @@ public struct PendingEffectBatch: Codable, Hashable, Sendable {
     public let commandId: CommandID
     public let taskId: TaskID
     public let effects: [TaskEffect]
+    public var runSpecId: RunID? = nil
 }
 
 public struct DurableReceipt: Codable, Hashable, Sendable {

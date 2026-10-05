@@ -7,7 +7,8 @@ extension KabanStore {
     /// One deterministic admission/start per tick. The token alone is the tick identity:
     /// repeating it returns the original result even when the clock/candidates have advanced.
     public func tick(tickId: UUID, runId: RunID, at: Date) throws -> TickReceipt {
-        try database.write { db in
+        projectOperations.lock(); defer { projectOperations.unlock() }
+        return try database.write { db in
             if let data = try Data.fetchOne(db, sql: "SELECT receipt FROM tick WHERE id = ?", arguments: [tickId.uuidString]) {
                 return try Self.decode(TickReceipt.self, data)
             }

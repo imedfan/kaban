@@ -45,6 +45,9 @@ public struct LocalGitRepository: Sendable {
         let diff = try git(["diff", "--quiet", "--no-ext-diff", "--no-textconv", "refs/heads/main", "--", ".kaban"], allowedFailure: true, configuration: configuration)
         guard diff.status == 0 || diff.status == 1 else { throw Self.error("git_operation_failed", "Не удалось проверить правки .kaban/.") }
         if diff.status == 1 { return true }
+        let staged = try git(["diff", "--cached", "--quiet", "--no-ext-diff", "--no-textconv", "refs/heads/main", "--", ".kaban"], allowedFailure: true, configuration: configuration)
+        guard staged.status == 0 || staged.status == 1 else { throw Self.error("git_operation_failed", "Не удалось проверить staged правки .kaban/.") }
+        if staged.status == 1 { return true }
         return try !git(["ls-files", "--others", "--exclude-standard", "-z", "--", ".kaban"]).data.isEmpty
     }
     public func gates() throws -> [String] {
@@ -153,12 +156,12 @@ public struct LocalGitRepository: Sendable {
             throw Self.error("template_conflict", "Не удалось установить файл шаблона.")
         }
     }
-    private struct Output { let data: Data; let status: Int32; var text: String {
+    struct Output { let data: Data; let status: Int32; var text: String {
         var value = String(decoding: data, as: UTF8.self)
         if value.hasSuffix("\n") { value.removeLast() }
         return value
     } }
-    private func git(_ args: [String], identity: GitIdentity? = nil, index: String? = nil, input: Data = Data(), allowedFailure: Bool = false, maxBytes: Int = 4_194_304, configuration: [String] = []) throws -> Output {
+    func git(_ args: [String], identity: GitIdentity? = nil, index: String? = nil, input: Data = Data(), allowedFailure: Bool = false, maxBytes: Int = 4_194_304, configuration: [String] = []) throws -> Output {
         try Self.run(args, at: path, identity: identity, index: index, input: input, allowedFailure: allowedFailure, maxBytes: maxBytes, configuration: configuration)
     }
     private static func run(_ args: [String], at path: String, identity: GitIdentity? = nil, index: String? = nil,
@@ -177,6 +180,7 @@ public struct LocalGitRepository: Sendable {
         // Only an internally allocated scratch index; never a caller-supplied environment override.
         if let index { environment["GIT_INDEX_FILE"] = index }
         environment["GIT_OPTIONAL_LOCKS"] = "0"
+        environment["GIT_NO_REPLACE_OBJECTS"] = "1" // Blob/commit IDs must remain immutable source identities.
         process.environment = environment
         process.standardInput = stdin; process.standardOutput = stdout; process.standardError = FileHandle.nullDevice
         try process.run()
@@ -195,5 +199,5 @@ public struct LocalGitRepository: Sendable {
         guard allowedFailure || process.terminationStatus == 0 else { throw error("git_operation_failed", "Не удалось выполнить локальную Git-операцию.") }
         return Output(data: data, status: process.terminationStatus)
     }
-    private static func error(_ code: String, _ message: String, _ params: [String: String] = [:]) -> CommandError { .init(code: code, message: message, params: params) }
+    static func error(_ code: String, _ message: String, _ params: [String: String] = [:]) -> CommandError { .init(code: code, message: message, params: params) }
 }

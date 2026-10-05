@@ -14,6 +14,7 @@ public struct PendingEffect: Codable, Hashable, Sendable {
     public let taskId: TaskID
     public let index: Int
     public let effect: TaskEffect
+    public var runSpecId: RunID? = nil
 }
 
 /// Fake results are values, never evidence of a real process or git operation.
@@ -41,6 +42,7 @@ struct ProductionProject: Codable {
     var repositoryID: String
     var pipelineSummary: PipelineSummary
     var unavailableReason: ProjectUnavailableReason?
+    var source: PipelineSource? = nil
 }
 struct ProjectRecord: Codable {
     var summary: ProjectSummary
