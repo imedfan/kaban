@@ -1,7 +1,9 @@
 # BE-04: полный планировщик и цикл демона
 
 Дата: 5 октября 2026. Ветка `codex/backend-full-scheduler`, база после fetch —
-`origin/main` `bc9abc9` (BE-03, PR #73 принят). Очередь — [backend MVP](backend-mvp-tasks.md).
+`origin/main` `bc9abc9` (BE-03, PR #73 принят). Реализация —
+[PR #74](https://github.com/imedfan/kaban/pull/74), открыт в main.
+Очередь — [backend MVP](backend-mvp-tasks.md).
 
 ## Реализовано
 

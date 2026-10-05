@@ -8,7 +8,7 @@
 
 Проверенная после git fetch база реализации: `origin/main` —
 `bc9abc9` (приняты #63–73, включая native UI #67, transport #70 и BE-01–03 #71–73).
-BE-04 ниже подготовлен в `codex/backend-full-scheduler` от этой базы.
+BE-04 ниже подготовлен в `codex/backend-full-scheduler` от этой базы ([PR #74](https://github.com/imedfan/kaban/pull/74), открыт).
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
