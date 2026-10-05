@@ -207,26 +207,19 @@ extension KabanStore {
                 }
             }
         }
-        var refreshed: ProjectRecord?
         var source: PipelineSource?, sourceError: CommandError?
         do { source = try repository.pipelineSource() }
         catch let error as CommandError { sourceError = error }
         let configurationEdits = try repository.hasConfigurationEdits()
-        let workingFile = configurationEdits ? try? repository.workingPipelineFile() : nil
-        if case .addProject = operation.envelope.command {
-            do { refreshed = Self.productionRecord(operation.record.summary, repositoryID: repository.repositoryID, yaml: try repository.pipeline()) }
-            catch let error as CommandError where ["pipeline_invalid", "git_operation_limit"].contains(error.code) {
-                var record = Self.productionRecord(operation.record.summary, repositoryID: repository.repositoryID, yaml: nil)
-                record.production?.unavailableReason = .pipelineInvalid
-                record.production?.pipelineSummary.issues = [.init(path: ".kaban/pipeline.yaml", code: error.code, message: error.message, severity: .error)]
-                refreshed = record
-            }
+        var workingFile: PipelineSource.File?, workingError: CommandError?
+        if configurationEdits {
+            do { workingFile = try repository.workingPipelineFile() }
+            catch let error as CommandError { workingError = error }
         }
-        if refreshed != nil { refreshed?.production?.pipelineSummary.hasUncommittedEdits = try repository.hasConfigurationEdits() }
         return try database.write { db in
             let envelope = operation.envelope, request = try Self.encode(envelope), previousFlags = try Self.schedulerFlags(db)
             let previousLoads = try Self.stageLoads(db)
-            var record = refreshed ?? operation.record
+            var record = operation.record
             let added: Bool
             if case .addProject = envelope.command { added = true }
             else {
@@ -239,7 +232,7 @@ extension KabanStore {
             try db.execute(sql: "INSERT INTO project(id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [record.summary.id.rawValue, try Self.encode(record)])
             if let source {
                 try Self.applyPipelineSource(source, edits: configurationEdits, record: &record, db: db)
-                try Self.applyUncommittedValidation(workingFile, error: nil, record: &record, db: db)
+                try Self.applyUncommittedValidation(workingFile, error: workingError, record: &record, db: db)
                 try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
             } else if let sourceError {
                 record.production?.unavailableReason = .pipelineInvalid

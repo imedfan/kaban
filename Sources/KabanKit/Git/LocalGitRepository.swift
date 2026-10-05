@@ -183,15 +183,16 @@ public struct LocalGitRepository: Sendable {
         environment["GIT_NO_REPLACE_OBJECTS"] = "1" // Blob/commit IDs must remain immutable source identities.
         process.environment = environment
         process.standardInput = stdin; process.standardOutput = stdout; process.standardError = FileHandle.nullDevice
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { @Sendable _ in finished.signal() }
         try process.run()
-        let deadline = Date().addingTimeInterval(15)
-        while process.isRunning {
+        let deadline = DispatchTime.now() + 15
+        while finished.wait(timeout: .now() + .milliseconds(10)) == .timedOut {
             let bytes = (try FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? NSNumber)?.intValue ?? 0
-            if Date() > deadline || bytes > maxBytes {
+            if DispatchTime.now() > deadline || bytes > maxBytes {
                 kill(process.processIdentifier, SIGKILL); process.waitUntilExit()
                 throw error("git_operation_limit", "Git превысил лимит времени или размера ответа.")
             }
-            Thread.sleep(forTimeInterval: 0.01)
         }
         process.waitUntilExit()
         let data = try Data(contentsOf: outputURL)

@@ -58,7 +58,8 @@ execution settings остаются из старого RunSpec. WIP shrink пу
 ## Проверки
 
 - `KABAN_SCENARIOS=Scenarios/M1 swift test` на macOS: 377 тестов, 0 failures;
-  после финального изменения startup recovery отдельно проверены три затронутых recovery tests.
+  полный прогон повторён после исправления Git completion. Startup recovery
+  также проверен отдельно тремя затронутыми recovery tests.
 - Linux Swift 6.1.3/aarch64: `swift build`, полный прогон 375 тестов и daemon/CLI
   process smoke на окончательном коде. Все проверки прошли.
 - macOS: `swift build` и daemon/CLI process smoke; invalid template → valid apply,
@@ -68,6 +69,14 @@ execution settings остаются из старого RunSpec. WIP shrink пу
   'generic/platform=macOS' ... ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build`:
   BUILD SUCCEEDED. SwiftUI файлы не менялись, визуальная приёмка не заявляется.
 - `python3 tools/check-project-context.py` и `git diff --check` прошли.
+
+CI на `b55e3d3`: оба Linux jobs и context checks прошли; macOS прошёл unsigned App
+build и 377 tests, но smoke оборвал addProject через 15 секунд. Исправление
+сохраняет прежние дедлайны: LocalGitRepository ждёт termination notification
+вместо polling `Process.isRunning`, project completion повторно не читает уже
+полученный source/dirty state. После правки macOS full suite (377), Linux full
+suite (375), build и process smoke прошли. Git-интеграционные сценарии выполняются
+заметно быстрее. Результат повторного CI проверяется на новом HEAD.
 
 17 PipelineLifecycleTests покрывают общий validator, exact draft/source races,
 only-.kaban commit, working/staged preservation, crash/recovery/index lock,
