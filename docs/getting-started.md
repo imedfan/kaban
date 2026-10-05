@@ -39,6 +39,25 @@ docker run --rm -v "$PWD":/src -w /src swift:6.1 bash -lc 'apt-get update && apt
 
 Контейнерная проверка не является запуском macOS-приложения.
 
+## Daemon и CLI
+
+Backend transport собирается корневым `swift build`. `kabanctl --help` описывает
+snapshot/send/subscribe/watch. Mach service предназначен для подписанного
+launchd host и требует same-Team signature; упаковка/регистрация ещё не выполнены.
+Для development smoke используй private stdio и временную БД:
+
+```sh
+swift build
+kaban_bin_dir=$(swift build --show-bin-path)
+"$kaban_bin_dir/kabanctl" --stdio-daemon "$kaban_bin_dir/KabanDaemon" --database /tmp/kaban-demo.sqlite snapshot
+python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"
+```
+
+Команда `send` принимает JSON CommandEnvelope с исходным commandId и сохраняет
+его при retry. Stdio запускает один child daemon для данного CLI; существующую БД
+параллельный второй daemon не открывает. Следует использовать development БД,
+поскольку startup выполняет recovery. Границы — [daemon transport](development/backend-daemon-transport-2026-10-05.md).
+
 ## macOS-приложение
 
 ```sh

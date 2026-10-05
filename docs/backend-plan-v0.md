@@ -28,11 +28,17 @@ Managed fake engine — ограниченная portable вертикаль. Ч
 Исторический интеграционный результат — [m1-report](development/m1-report-2026-10-04.md);
 новая правка проверяется на собственном HEAD.
 
+Транспортный инкремент [daemon/CLI](development/backend-daemon-transport-2026-10-05.md)
+добавляет единый DaemonService, bounded journal pages, monotonic seq при retention,
+XPC адаптеры macOS 26, reconnect/resync клиент и kabanctl. Live subscription пока
+использует polling глобального журнала. Host выполняет recovery, но ещё не запускает
+scheduler/executor loop; приложение не подключено.
+
 ## Следующие результаты
 
-1. Daemon host/XPC adapter и kabanctl: согласованный snapshot/event handshake, подписка,
-   reconnect/resync, доставка отказов и повторов без двойного действия.
-   Затем подключение приложения к durable источнику.
+1. Подключение приложения к durable источнику через готовый transport: replacement
+   snapshot, pending commands/retry при reconnect и видимые состояния соединения.
+   Отдельно проверить подписанный Mach service в составе бандла.
 2. Production lifecycle проектов/pipelines и оставшиеся wire-команды: add/remove/relink,
    pipeline validation/replacement, model override, files/incidents и среда.
 3. Внешний executor с claim/lease, процессами Cursor, git-клонами и гейтами.

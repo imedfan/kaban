@@ -3,7 +3,8 @@
 Локальное macOS-приложение для канбан-пайплайна разработки: задачи проходят
 agent-, gate-, human- и merge-стадии с явными моделями, WIP, ретраями и git-политикой.
 Kaban — основной проект. Текущий код содержит headless-ядро с SQLite/fake engine
-и нативную SwiftUI-доску на mock-клиенте; связь через XPC и реальный Cursor CLI впереди.
+и нативную SwiftUI-доску на mock-клиенте. Backend имеет XPC/CLI transport;
+подключение доски к нему и реальный Cursor CLI впереди.
 
 ## Начало работы
 
@@ -20,6 +21,7 @@ Kaban — основной проект. Текущий код содержит 
 | Sources/KabanProtocol/ | Codable DTO, команды, snapshot/details и события |
 | Sources/KabanKit/ | YAML/pipeline, git-policy и чистый автомат |
 | Sources/KabanDaemonCore/ | GRDB/SQLite, журнал/effects, fake driver, scheduler и recovery |
+| Sources/KabanTransport/, Sources/KabanDaemon/, Sources/kabanctl/ | Клиент транспорта, daemon host и CLI; XPC macOS 26 и development stdio |
 | Sources/KabanBoardCore/ | KabanClient, проекция, BoardSet, pending commands и presentation; только Protocol |
 | App/KabanApp/ и Kaban.xcodeproj | Нативные SwiftUI views и BoardStore; Protocol/BoardCore |
 | Tests/ и Scenarios/M1/ | Unit/integration suites и сценарии |
