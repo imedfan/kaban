@@ -5,14 +5,31 @@ import KabanProtocol
 public struct DaemonService: Sendable {
     public let store: KabanStore
     public let liveEvents: DaemonLiveEvents
-    public init(store: KabanStore, liveEvents: DaemonLiveEvents = .init()) {
-        self.store = store; self.liveEvents = liveEvents
+    private let wakeScheduler: @Sendable () -> Void
+    public init(store: KabanStore, liveEvents: DaemonLiveEvents = .init(), wakeScheduler: @escaping @Sendable () -> Void = {}) {
+        self.store = store; self.liveEvents = liveEvents; self.wakeScheduler = wakeScheduler
     }
 
     /// Future producers publish through this boundary after durable commit. No fake runner,
     /// catalog, quota or log data is synthesized when a producer is unavailable.
     public func publishEphemeral(_ event: EphemeralEvent, at: Date = Date()) throws {
         try liveEvents.publish(event, at: at) { try store.getSnapshot().seq }
+    }
+
+    /// Producer facts commit before live delivery/wake. A reconnect recovers them from snapshot.
+    public func updateSchedulerInputs(_ inputs: SchedulerInputs, commandId: CommandID, at: Date) throws -> ConfigurationReceipt {
+        store.projectOperations.lock(); defer { store.projectOperations.unlock() }
+        let previousQuota = try store.getSnapshot().quota
+        let receipt = try store.setSchedulerInputs(inputs, commandId: commandId, at: at)
+        let snapshot = try store.getSnapshot()
+        try publishEphemeral(.modelFlagsChanged(snapshot.modelFlags), at: at)
+        if let quota = snapshot.quota { try publishEphemeral(.quotaUpdated(quota), at: at) }
+        else if previousQuota != nil {
+            liveEvents.discardQuota()
+            try publishEphemeral(.resyncRequired, at: at)
+        }
+        wakeScheduler()
+        return receipt
     }
 
     public func handle(_ request: DaemonRequest) -> DaemonResponse {
@@ -23,7 +40,10 @@ public struct DaemonService: Sendable {
             switch request.operation {
             case .snapshot: return .init(.snapshot(try store.getSnapshot()))
             case .subscribe(let seq, let limit): return .init(.events(try store.journalPage(after: seq, limit: limit)))
-            case .command(let envelope): return .init(.command(try store.execute(envelope)))
+            case .command(let envelope):
+                let reply = try store.execute(envelope)
+                if reply.seq != nil { wakeScheduler() }
+                return .init(.command(reply))
             case .capabilities: return .init(.capabilities(Self.capabilities))
             case .synchronize: return .init(.replacement(try liveEvents.synchronize { try store.getSnapshot() }))
             case .ephemeral(let cursor, let limit): return .init(.ephemeral(try liveEvents.page(after: cursor, limit: limit)))
@@ -54,8 +74,8 @@ public struct DaemonService: Sendable {
              .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .recheck,
              .createTask, .editTask, .setPriority, .cancelTask, .getTaskDetail, .getRunHistory,
              .pauseProject, .resumeProject, .setMascot, .setProjectWeight, .setProjectIdentity,
-             .validatePipeline, .validatePipelineDraft, .updatePipeline: .supported
-        case .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject: .managedFakeOnly
+             .validatePipeline, .validatePipelineDraft, .updatePipeline,
+             .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject: .supported
         case .setModelOverride, .restoreWIP, .acceptSuspiciousFiles, .allowGitOnce, .addDenialToPolicy,
              .revokeGitGrant, .resumeAfterRateLimit, .checkEnvironment, .getCursorEnvironment,
              .configureCursor, .listModels, .refreshModelCatalog, .setModelPoolRule,

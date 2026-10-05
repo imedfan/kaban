@@ -66,8 +66,10 @@ extension KabanStore {
             guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
             let flags = try Self.schedulerFlags(db)
+            let inputs = try Self.schedulerInputs(db)
             return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
-                            tasks: tasks.map(\.card), schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
+                            tasks: tasks.map(\.card), schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
+                            openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
                             stageLoad: try Self.stageLoads(db), settings: settings)
         }
     }

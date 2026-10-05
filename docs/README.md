@@ -31,6 +31,7 @@ Git — основное место ведения документации. А�
 - [Архив](archive/README.md) и [team2](team2/README.md) — история, старые правила и аудиты.
 - [BE-02: lifecycle локальных проектов](development/backend-project-lifecycle-2026-10-05.md) — регистрация, Git template, missing/relink/remove и проверки.
 - [BE-03: версии и применение пайплайна](development/backend-pipeline-storage-2026-10-05.md) — committed assets, draft binding, recovery, RunSpec и проверки.
+- [BE-04: полный планировщик](development/backend-full-scheduler-2026-10-05.md) — production admission/start, capacity, flags, host loop и проверки.
 - [Контракт headless M1](development/m1-headless-contract.md) — границы принятого инкремента; отчёты development относятся к своим SHA.
 
 ## Что перенесено из Drive
@@ -38,7 +39,7 @@ Git — основное место ведения документации. А�
 [Реестр импорта](drive-import-2026-10-05.json) содержит 18 документов: file ID,
 URL, дату изменения, размер, SHA-256 оригинала, локальный источник и рабочий путь.
 Шесть основных документов и три development-файла сверены с Git. Архитектура
-в Git v0.11.25 новее Drive v0.11.23; frontend v0.5.37 новее v0.5.36;
+в Git v0.11.26 новее Drive v0.11.23; frontend v0.5.37 новее v0.5.36;
 backend v0.2 новее v0.1. Спецификация и приёмка совпадают с базой Git.
 Более свежие Git-решения сохранены. Добавлены недостающее исследование,
 пять полных документов дизайнера и презентация. Отменённый чек-лист team2

@@ -36,12 +36,17 @@ struct DaemonMain {
             try store.refreshProjectLocations()
             try store.refreshPipelines()
             _ = try store.recover(passId: UUID(), at: Date())
-            let service = DaemonService(store: store)
+            let scheduler = DaemonScheduler(store: store) { error in
+                try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: scheduler pass failed: \(error)\n".utf8))
+            }
+            defer { scheduler.stop() }
+            let service = DaemonService(store: store, wakeScheduler: { scheduler.wake() })
             let observer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "app.kaban.project-observer"))
             observer.schedule(deadline: .now() + 2, repeating: 2)
             observer.setEventHandler { @Sendable in
                 try? store.refreshProjectLocations()
                 try? store.refreshPipelines()
+                scheduler.wake()
             }
             observer.resume()
             defer { observer.cancel() }
@@ -70,7 +75,7 @@ struct DaemonMain {
             #if os(macOS)
             if #available(macOS 26.0, *) {
                 let listener = try XPCDaemonListener(service: service)
-                withExtendedLifetime((lease, listener, observer)) { dispatchMain() }
+                withExtendedLifetime((lease, listener, observer, scheduler)) { dispatchMain() }
             } else { throw HostError.platform }
             #else
             throw HostError.platform

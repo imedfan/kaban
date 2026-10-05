@@ -12,12 +12,11 @@ extension KabanStore {
         let project = try Self.project(task.card.projectId, db: db)
         if project.production != nil {
             switch command {
-            case .cancel: break
+            case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage: break
             case .completeStage, .requestHuman, .gatesPassed, .resultClean, .daemonRestarted:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }
-            default: throw StoreError.rejected(.init(code: "unsupported_command", message: "Исполнение production-пайплайна ещё не подключено."))
             }
         }
         switch command {
@@ -28,6 +27,7 @@ extension KabanStore {
                       current.request.runId == task.machine.lastRunId else { throw StoreError.questionInvalid }
             }
         case .start(let runId):
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM run_spec WHERE run_id = ?)", arguments: [runId.rawValue]) != true else { throw StoreError.commandIdConflict }
             if task.pipeline.stage(task.machine.stageId)?.kind == .agent {
                 let details = try Data.fetchAll(db, sql: "SELECT payload FROM task_detail").map { try decode(StoredDetail.self, $0) }
                 guard !details.flatMap(\.runs).contains(where: { $0.id == runId }) else { throw StoreError.commandIdConflict }

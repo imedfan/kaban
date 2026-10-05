@@ -5,6 +5,7 @@ import KabanProtocol
 /// The first headless command surface. Real process/git/gate execution is a later layer.
 public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case start(RunID)
+    case startBlocked(QueuedReason)
     case completeStage(RunID, summary: String)
     case requestHuman(RunID, question: String)
     case answer(text: String, requestId: HumanRequestID?)
@@ -23,6 +24,8 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     var event: TaskEvent {
         switch self {
         case .start(let id): .start(runId: id)
+        case .startBlocked(let reason):
+            .startBlocked(reason == .wipFull ? .wipFull : reason == .modelFlag ? .modelFlag : .quota(reason == .quotaCm ? .cm : .om))
         case .completeStage(let id, let summary): .completeStage(runId: id, summary: summary)
         case .requestHuman(let id, let question): .requestHuman(runId: id, question: question)
         case .answer(let text, let request): .human(.answer(text: text, requestId: request))

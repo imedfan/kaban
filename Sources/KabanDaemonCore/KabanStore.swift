@@ -29,6 +29,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("m1_wire_v3", migrate: Self.migrateWire)
         migrator.registerMigration("production_projects_v4", migrate: Self.migrateProjects)
         migrator.registerMigration("production_pipelines_v5", migrate: Self.migratePipelines)
+        migrator.registerMigration("production_scheduler_v6", migrate: Self.migrateScheduler)
         try migrator.migrate(database)
     }
 
@@ -130,6 +131,9 @@ public final class KabanStore: Sendable {
             if owner?.production != nil {
                 let pending = try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM pipeline_operation WHERE project_id = ?)", arguments: [task.card.projectId.rawValue]) == true
                 if pending || owner?.production?.unavailableReason != nil || owner?.projectedPipeline.isValid == false {
+                    // Only a completed invocation waits for reload. A human decision must
+                    // fail visibly rather than acknowledge an action that cannot be resumed.
+                    guard before.state.status == .gating else { throw StoreError.invalidPipeline }
                     return try Self.deferPipelineTransition(command, task: task, commandId: commandId, at: at, request: request, db: db)
                 }
             }
