@@ -117,7 +117,11 @@ public struct CommandCapability: Codable, Hashable, Sendable {
     /// String preserves entries added by a newer daemon.
     public var name: String
     public var support: CommandSupport
-    public init(name: String, support: CommandSupport) { self.name = name; self.support = support }
+    /// When present, support is limited to these named scopes (e.g. recheck: project).
+    public var scopes: [String]?
+    public init(name: String, support: CommandSupport, scopes: [String]? = nil) {
+        self.name = name; self.support = support; self.scopes = scopes
+    }
 }
 public struct OperationCapability: Codable, Hashable, Sendable {
     public var name: String

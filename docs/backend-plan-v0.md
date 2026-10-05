@@ -39,7 +39,11 @@ scheduler/executor loop; приложение не подключено.
 Cursor environment и WIP restore. Реализация backend-функций за этими контрактами
 проверяется по capabilities, а не по наличию enum case; границы —
 [BE-01](development/backend-wire-contracts-2026-10-05.md). Следующий инкремент BE-02
-подключает production lifecycle проектов.
+подключает production lifecycle проектов. В текущем инкременте —
+[BE-02](development/backend-project-lifecycle-2026-10-05.md): реальные Git roots,
+author/canonical identity, template-only commit, durable recovery intent, missing-folder
+observer, relink и logical removal/history. Production Backlog хранится даже без
+валидного YAML; реальное исполнение/scheduler и apply pipeline ещё не подключены.
 
 ## Следующие результаты
 

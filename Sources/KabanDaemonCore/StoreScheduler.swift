@@ -55,9 +55,9 @@ extension KabanStore {
         let state = task.machine.state
         guard state.status == .queued || state.status == .retryWait, let stage = task.pipeline.stage(task.machine.stageId) else { return false }
         if let retryAt = task.card.retryAt, retryAt > at { return false }
-        let settings = try Self.settings(db)
         let project = try Self.project(task.card.projectId, db: db)
-        guard project.summary.availability == .available else { return false }
+        guard project.production == nil, project.summary.availability == .available else { return false }
+        let settings = try Self.settings(db)
         guard try !Self.isManuallyPaused(project.summary.id, db: db) else { return false }
         let tasks = try allTasks(db)
         let projectTasks = tasks.filter { $0.card.projectId == task.card.projectId }

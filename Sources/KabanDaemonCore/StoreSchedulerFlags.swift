@@ -16,6 +16,11 @@ extension KabanStore {
         let tasks = try allTasks(db)
         for project in try projects(db) {
             let id = project.summary.id
+            if project.summary.availability == .missing {
+                flags.append(.projectUnavailable(id, .projectMissing, detail: nil))
+            } else if let reason = project.production?.unavailableReason {
+                flags.append(.projectUnavailable(id, reason, detail: project.projectedPipeline.issues.first(where: { $0.severity == .error })?.message))
+            }
             if pauses.contains(pauseScope(id)) { flags.append(.projectPaused(id)) }
             let waiting = tasks.filter { $0.card.projectId == id && $0.pipeline.stage($0.machine.stageId)?.kind == .agent && $0.machine.state.status == .waitingHuman }.count
             if waiting >= project.pipeline.board.maxWaitingHuman { flags.append(.intakePaused(id)) }

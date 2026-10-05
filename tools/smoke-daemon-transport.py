@@ -39,7 +39,7 @@ def main():
         assert run("snapshot")["seq"] == 0
         capabilities = run("capabilities")
         commands = {entry["name"]: entry["support"] for entry in capabilities["commands"]}
-        assert commands["restoreWIP"] == "unsupported" and commands["createTask"] == "managedFakeOnly"
+        assert commands["restoreWIP"] == "unsupported" and commands["createTask"] == "supported" and commands["addProject"] == "supported"
         replacement = run("synchronize")
         assert replacement["snapshot"]["seq"] == 0 and replacement["cursor"]["offset"] == 0
         assert replacement["current"] == []
@@ -105,7 +105,81 @@ def main():
             owner.stdin.close()
             owner.wait(timeout=5)
         assert run("snapshot")["seq"] == 3
-    print("Daemon/CLI smoke passed: capabilities, replacement/live cursors, unavailable logs, reopen/replay, refusal, conflict, catch-up, retention, single writer and malformed input.")
+
+        # Real local project lifecycle, including host startup reconciliation on every CLI call.
+        repo = root / "project"
+        repo.mkdir()
+        def git(*arguments):
+            result = subprocess.run(["/usr/bin/git", "-C", str(repo), *arguments], text=True, capture_output=True, timeout=15)
+            assert result.returncode == 0, result.stderr
+            return result.stdout
+        git("init", "-b", "main")
+        git("config", "user.name", "Smoke Author")
+        git("config", "user.email", "smoke@example.test")
+        (repo / "Package.swift").write_text("// swift-tools-version: 6.1\n")
+        (repo / "tracked.txt").write_text("initial\n")
+        git("add", "Package.swift", "tracked.txt")
+        git("commit", "-m", "Initial")
+        (repo / "tracked.txt").write_text("staged\n")
+        git("add", "tracked.txt")
+        (repo / "tracked.txt").write_text("unstaged\n")
+        staged = git("diff", "--cached", "--binary", "--", "tracked.txt")
+        unstaged = git("diff", "--binary", "--", "tracked.txt")
+        addition = envelope("addProject")
+        addition["command"]["addProject"] = {"path": str(repo), "createTemplate": True}
+        added = send(addition)
+        assert "ok" in added["result"] and send(addition) == added
+        assert git("diff", "--cached", "--binary", "--", "tracked.txt") == staged
+        assert git("diff", "--binary", "--", "tracked.txt") == unstaged
+        assert all(path.startswith(".kaban/") for path in git("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines())
+        snapshot = run("snapshot")
+        assert len(snapshot["projects"]) == 1
+        project_id = snapshot["projects"][0]["id"]
+        assert snapshot["projects"][0]["identity"]["name"] == "Smoke Author"
+        task = envelope("createTask")
+        task["command"]["createTask"] = {"projectId": project_id, "title": "Production Backlog", "body": "Description\n\n## Критерии приёмки\n- [ ] Works"}
+        created = send(task)
+        task_id = created["result"]["taskCreated"]["_0"]
+        assert run("snapshot")["tasks"][0]["stageId"] == "backlog"
+        gate_query = envelope("detectGates")
+        gate_query["command"]["detectGates"] = {"projectId": project_id}
+        assert send(gate_query)["result"]["gates"]["_0"] == ["swift build", "swift test"]
+        moved = root / "moved-project"
+        owner = subprocess.Popen([str(daemon), "--stdio", "--database", str(database)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            def owner_snapshot():
+                owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"snapshot": {}}}) + "\n")
+                owner.stdin.flush()
+                return read_reply()["result"]["snapshot"]["_0"]
+            assert owner_snapshot()["projects"][0]["availability"] == "available"
+            repo.rename(moved)
+            deadline = time.monotonic() + 8
+            while owner_snapshot()["projects"][0]["availability"] != "missing":
+                assert time.monotonic() < deadline, "Live folder observer did not mark missing"
+                time.sleep(0.2)
+        finally:
+            try:
+                owner.stdin.close()
+            except BrokenPipeError:
+                pass
+            owner.wait(timeout=5)
+            assert owner.returncode == 0, (owner.returncode, owner.stderr.read())
+        assert run("snapshot")["projects"][0]["availability"] == "missing"
+        relink = envelope("relinkProject")
+        relink["command"]["relinkProject"] = {"projectId": project_id, "path": str(moved)}
+        assert "ok" in send(relink)["result"]
+        linked = run("snapshot")
+        assert linked["projects"][0]["id"] == project_id and linked["projects"][0]["availability"] == "available"
+        removal = envelope("removeProject")
+        removal["command"]["removeProject"] = {"projectId": project_id}
+        removed = send(removal)
+        assert send(removal) == removed
+        assert run("snapshot")["projects"] == [] and (moved / "tracked.txt").exists()
+        detail = envelope("getTaskDetail")
+        detail["command"]["getTaskDetail"] = {"taskId": task_id}
+        archived = send(detail)["result"]["taskDetail"]["_0"]
+        assert archived["task"]["state"]["status"] == "cancelled"
+    print("Daemon/CLI smoke passed: wire sessions/replay/retention, real project/template/dirty checkout, Backlog, gates, missing folder/relink, removal/history and single writer.")
 
 
 if __name__ == "__main__":

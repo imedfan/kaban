@@ -9,7 +9,7 @@ extension KabanStore {
     }
 
     static func rejectWireIdentity(_ id: CommandID, db: Database) throws {
-        if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM wire_command WHERE id = ?)", arguments: [id.uuidString]) == true {
+        if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM wire_command WHERE id = ? UNION ALL SELECT 1 FROM project_operation WHERE id = ?)", arguments: [id.uuidString, id.uuidString]) == true {
             throw StoreError.commandIdConflict
         }
     }
@@ -21,6 +21,7 @@ extension KabanStore {
         }
         let reserved = try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM command WHERE id = ? UNION ALL SELECT 1 FROM configuration_command WHERE id = ?)", arguments: [id.uuidString, id.uuidString])
         if reserved == true { throw StoreError.commandIdConflict }
+        if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM project_operation WHERE id = ?)", arguments: [id.uuidString]) == true { throw StoreError.commandIdConflict }
         return nil
     }
 

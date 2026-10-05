@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 import KabanProtocol
 import KabanDaemonCore
 #if os(macOS)
@@ -30,8 +31,15 @@ struct DaemonMain {
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
             // Recovery changes running/gating invocations only. No external processes are spawned.
+            try store.recoverProjectOperations()
+            try store.refreshProjectLocations()
             _ = try store.recover(passId: UUID(), at: Date())
             let service = DaemonService(store: store)
+            let observer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "app.kaban.project-observer"))
+            observer.schedule(deadline: .now() + 2, repeating: 2)
+            observer.setEventHandler { @Sendable in try? store.refreshProjectLocations() }
+            observer.resume()
+            defer { observer.cancel() }
             if arguments.contains("--stdio") {
                 try withExtendedLifetime(lease) {
                     var buffer = Data()
@@ -57,7 +65,7 @@ struct DaemonMain {
             #if os(macOS)
             if #available(macOS 26.0, *) {
                 let listener = try XPCDaemonListener(service: service)
-                withExtendedLifetime((lease, listener)) { dispatchMain() }
+                withExtendedLifetime((lease, listener, observer)) { dispatchMain() }
             } else { throw HostError.platform }
             #else
             throw HostError.platform

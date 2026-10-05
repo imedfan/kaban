@@ -55,7 +55,7 @@ extension KabanStore {
         return try decode(StoredDetail.self, data)
     }
     static func project(_ id: ProjectID, db: Database) throws -> ProjectRecord {
-        guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [id.rawValue]) else { throw StoreError.projectMissing }
+        guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ? AND id NOT IN (SELECT project_id FROM removed_project)", arguments: [id.rawValue]) else { throw StoreError.projectMissing }
         return try decode(ProjectRecord.self, data)
     }
     static func settings(_ db: Database) throws -> GlobalSettings {

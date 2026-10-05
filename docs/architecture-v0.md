@@ -413,6 +413,10 @@ commandId. Подробные границы — [wire contract](development/bac
 
 **Команды.**
 - Проекты: `addProject(path, createTemplate, identity?)` (без автора — `identity_required`, §8.2), `setProjectIdentity(projectId, identity)`, `removeProject`, `relinkProject(id, path)`, `listBranches(projectId)`, `detectGates(projectId)` (предложить гейты по файлам сборки), `setMascot`, `setProjectWeight(weight, maxRuns?)`.
+  BE-02 реализует локальный lifecycle: [транзакционные границы и removal/history](development/backend-project-lifecycle-2026-10-05.md).
+  Capability может содержать optional `scopes`; для `recheck` сейчас поддержан только `project`.
+  Шаблон требует checkout main и отсутствия конфликтующих `.kaban/` файлов; другие ветки не переключаются.
+
 - Пайплайн и политика: `updatePipeline(projectId, contentHash) -> PipelineVersion | [ValidationIssue]`, `validatePipeline(projectId, content)` (без записи, для живой проверки в настройках).
 - Детали: `getTaskDetail(taskId)`.
 - Задачи: `createTask`, `editTask` (только в `queued`/`waiting_human`/`paused`), `setPriority`, `moveTask(stage)`, `pauseTask`, `resumeTask`, `cancelTask(taskId, keepBranch = false)`, `retryStage(grantAttempts?)`, `setModelOverride(taskId, stageId, model)`.

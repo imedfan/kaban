@@ -37,7 +37,21 @@ public struct TickReceipt: Codable, Hashable, Sendable {
     public let seq: Seq
 }
 
-struct ProjectRecord: Codable { var summary: ProjectSummary; let pipeline: PipelineConfig; let version: String }
+struct ProductionProject: Codable {
+    var repositoryID: String
+    var pipelineSummary: PipelineSummary
+    var unavailableReason: ProjectUnavailableReason?
+}
+struct ProjectRecord: Codable {
+    var summary: ProjectSummary
+    var pipeline: PipelineConfig
+    var version: String
+    var production: ProductionProject? = nil
+    var projectedPipeline: PipelineSummary {
+        production?.pipelineSummary ?? pipeline.summary(projectId: summary.id, versionHash: version,
+            issues: PipelineValidator.validate(config: pipeline).issues)
+    }
+}
 struct StoredQuestion: Codable { let request: HumanRequest; var answeredAt: Date?; var answer: String? }
 struct StoredDetail: Codable {
     var body: String?

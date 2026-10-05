@@ -9,6 +9,8 @@ extension KabanStore {
     /// The original envelope is compared before clock/ID generation or loading current mutable state.
     public func execute(_ envelope: CommandEnvelope, now: () -> Date = { Date() },
                         makeTaskID: () -> TaskID = { TaskID(rawValue: UUID().uuidString.lowercased()) }) throws -> CommandReply {
+        projectOperations.lock(); defer { projectOperations.unlock() }
+        if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
         let request = try Self.encode(envelope)
         return try database.write { db in
             do {
@@ -35,10 +37,10 @@ extension KabanStore {
             case .validatePipelineDraft(let draft):
                 do {
                     let project = try Self.project(draft.projectId, db: db)
-                    try draft.checkBinding(projectId: project.summary.id, currentVersionHash: project.version, requestedHash: draft.contentHash)
+                    try draft.checkBinding(projectId: project.summary.id, currentVersionHash: project.projectedPipeline.versionHash, requestedHash: draft.contentHash)
                     let validation = try Self.validateDraftContent(projectId: draft.projectId, content: draft.content, db: db)
                     var result = validation.draftValidation(projectId: draft.projectId, contentHash: draft.contentHash)
-                    result.baseVersionHash = project.version
+                    result.baseVersionHash = project.projectedPipeline.versionHash
                     return .init(commandId: envelope.commandId, seq: nil, result: .pipelineDraft(result))
                 } catch let error as CommandError { return .init(commandId: envelope.commandId, seq: nil, result: .error(error)) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
@@ -130,7 +132,7 @@ extension KabanStore {
                 throw StoreError.rejected(.init(code: "pipeline_draft_required", message: "Передайте точный YAML и базовую версию в draft."))
             }
             let project = try project(projectId, db: db)
-            do { try draft.checkBinding(projectId: projectId, currentVersionHash: project.version, requestedHash: hash) }
+            do { try draft.checkBinding(projectId: projectId, currentVersionHash: project.projectedPipeline.versionHash, requestedHash: hash) }
             catch let error as CommandError { throw StoreError.rejected(error) }
             throw StoreError.rejected(.init(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна требует production lifecycle проекта.", params: ["command": envelope.command.name.rawValue]))
         default:
@@ -209,7 +211,7 @@ extension KabanStore {
         if edited { _ = try journal(.taskEdited(task.card), task: task, commandId: commandId, at: at, db: db) }
         return try journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
     }
-    private static func saveUpdatedProject(_ project: ProjectRecord, commandId: CommandID, at: Date, db: Database) throws -> Seq {
+    static func saveUpdatedProject(_ project: ProjectRecord, commandId: CommandID, at: Date, db: Database) throws -> Seq {
         try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try encode(project), project.summary.id.rawValue])
         return try journal(.projectUpdated(project.summary), projectId: project.summary.id, commandId: commandId, at: at, db: db)
     }
@@ -219,7 +221,7 @@ extension KabanStore {
         return try journal(.settingsChanged(SettingsChange(key: "global", value: "updated", settings: settings)), projectId: nil, commandId: commandId, at: at, db: db)
     }
 
-    private static func failure(_ error: StoreError, commandId: CommandID) -> CommandReply {
+    static func failure(_ error: StoreError, commandId: CommandID) -> CommandReply {
         let refusal: CommandError
         switch error {
         case .rejected(let error): refusal = error

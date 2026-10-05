@@ -12,9 +12,10 @@ extension KabanStore {
         let request = try Self.encode(Registration(summary: summary, pipeline: pipeline))
         return try database.write { db in
             if let receipt = try Self.configurationReplay(commandId, request: request, db: db) { return receipt }
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM removed_project WHERE project_id = ?)", arguments: [summary.id.rawValue]) != true else { throw StoreError.projectMissing }
             guard Self.isBoundedPipeline(pipeline), summary.weight > 0, summary.maxRuns.map({ $0 > 0 }) ?? true else { throw StoreError.invalidPipeline }
             let existing = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [summary.id.rawValue]).map { try Self.decode(ProjectRecord.self, $0) }
-            if let existing, existing.pipeline != pipeline { throw StoreError.invalidPipeline }
+            if let existing, existing.production != nil || existing.pipeline != pipeline { throw StoreError.invalidPipeline }
             let record = ProjectRecord(summary: summary, pipeline: pipeline, version: existing?.version ?? commandId.uuidString.lowercased())
             try db.execute(sql: "INSERT INTO project(id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [summary.id.rawValue, try Self.encode(record)])
             _ = try Self.journal(existing == nil ? .projectAdded(summary) : .projectUpdated(summary), projectId: summary.id, commandId: commandId, at: at, db: db)
@@ -58,18 +59,19 @@ extension KabanStore {
     public func getSnapshot() throws -> Snapshot {
         try database.read { db in
             let projects = try Self.projects(db)
-            let tasks = try Self.allTasks(db)
+            let removed = try Set(String.fetchAll(db, sql: "SELECT project_id FROM removed_project"))
+            let tasks = try Self.allTasks(db).filter { !removed.contains($0.card.projectId.rawValue) }
             // A v1 unregistered project or unresolved incident lacks an authoritative projection.
-            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && $0.pipeline == task.pipeline } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
+            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
             let flags = try Self.schedulerFlags(db)
-            return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map { $0.pipeline.summary(projectId: $0.summary.id, versionHash: $0.version, issues: PipelineValidator.validate(config: $0.pipeline).issues) },
+            return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
                             tasks: tasks.map(\.card), schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
                             stageLoad: try Self.stageLoads(db), settings: settings)
         }
     }
     static func projects(_ db: Database) throws -> [ProjectRecord] {
-        try Data.fetchAll(db, sql: "SELECT payload FROM project ORDER BY id").map { try decode(ProjectRecord.self, $0) }
+        try Data.fetchAll(db, sql: "SELECT payload FROM project WHERE id NOT IN (SELECT project_id FROM removed_project) ORDER BY id").map { try decode(ProjectRecord.self, $0) }
     }
     static func journal(_ event: JournalEvent, projectId: ProjectID?, commandId: CommandID, at: Date, db: Database) throws -> Seq {
         try db.execute(sql: "INSERT INTO event(payload) VALUES (?)", arguments: [Data()])

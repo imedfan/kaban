@@ -3,10 +3,11 @@
 Очередь поручена Артёмом 5 октября 2026 и перенесена из приложенного
 `backend-mvp-tasks.md`. Объём и зависимости BE-01–20 сохраняются.
 
-Статус: BE-01 реализован и подготовлен к review в `codex/backend-wire-contracts`; контракт и проверки —
-[BE-01](backend-wire-contracts-2026-10-05.md). BE-02–20 ещё не завершены.
-Наличие DTO/fixtures в BE-01 не является реализацией функций последующих задач.
-Мерж выполняет Артём; следующий связный инкремент — BE-02.
+Статус: BE-01 принят в main в PR #71; контракт и проверки —
+[BE-01](backend-wire-contracts-2026-10-05.md). BE-02 реализован в
+`codex/backend-project-lifecycle`; [lifecycle и проверки](backend-project-lifecycle-2026-10-05.md).
+BE-03–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
+Мерж выполняет Артём; следующий связный инкремент — BE-03.
 
 
 ## BE-01. Расширить wire-контракты демона
@@ -60,11 +61,11 @@
 
 ### Критерии приёмки
 
-- [ ] non-git и `identity_required` не оставляют полупроекта; отказ содержит правильные `missing/invalid` params.
-- [ ] Dirty checkout сохраняется.
-- [ ] Повтор commandId не регистрирует второй проект.
-- [ ] Missing path останавливает новые запуски; relink сохраняет projectId.
-- [ ] Project events и snapshot согласованы после reopen.
+- [x] non-git и `identity_required` не оставляют полупроекта; отказ содержит правильные `missing/invalid` params.
+- [x] Dirty checkout сохраняется.
+- [x] Повтор commandId не регистрирует второй проект.
+- [x] Missing path останавливает новые запуски; relink сохраняет projectId.
+- [x] Project events и snapshot согласованы после reopen.
 
 ## BE-03. Реализовать хранение, валидацию и применение пайплайна
 

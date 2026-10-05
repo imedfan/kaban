@@ -7,8 +7,8 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`8d992e6` (приняты #63–70, включая native UI #67, durable wire #69 и transport #70).
-BE-01 ниже подготовлен в `codex/backend-wire-contracts` от этой базы.
+`6508caa` (приняты #63–71, включая native UI #67, durable wire #69, transport #70 и BE-01 #71).
+BE-02 ниже подготовлен в `codex/backend-project-lifecycle` от этой базы.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
@@ -19,8 +19,8 @@ BE-01 ниже подготовлен в `codex/backend-wire-contracts` от э�
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции v1–v3, durable state/journal/effects, wire-команды, ручные паузы/settings, bounded fake driver, scheduler, recovery, DaemonService и journal pages | Wire пока для managed fake проектов; git/process effects симулируются |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; BE-01 добавляет capabilities и отдельную session/ephemeral границу | Transport принят #70; BE-01 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| DaemonCore | GRDB store, миграции v1–v4, durable state/journal/effects, wire-команды, ручные паузы/settings, bounded fake driver, scheduler, recovery, DaemonService и journal pages | Production project lifecycle/Backlog; запуск pipeline и task effects ещё fake |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral и observer папок проектов | Transport/BE-01 приняты #70/71; BE-02 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -58,8 +58,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 ## Ближайшие результаты
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
-Текущий результат — BE-01; следующим берётся BE-02 (production lifecycle проектов).
-Все BE-02–20 ещё требуют реализации и собственной приёмки.
+BE-01 принят в #71; BE-02 реализован в текущем инкременте.
+Следующий — BE-03 (production pipeline storage/apply). BE-03–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -88,9 +88,9 @@ admission/execution; результаты текущих runs продолжаю
 и флаги из journal, а не из ответа `.ok`. Markdown остаётся единым body;
 критерии извлекаются по текущему соглашению task editor.
 
-Приложение продолжает использовать MockKabanClient. Регистрация проекта остаётся
-внутренним bounded fake API; нет production lifecycle, реального git/Cursor,
-MCP, quota poller и системной регистрации. Это командная граница для
+Приложение продолжает использовать MockKabanClient. На базе #69 регистрация была
+внутренним bounded fake API; BE-02 ниже добавляет production lifecycle. Исполнение Cursor,
+MCP, quota poller и системная регистрация ещё не реализованы. Это командная граница для
 следующего транспортного инкремента, не готовность всего M1/MVP.
 
 ## Backend: daemon transport и kabanctl
@@ -114,12 +114,12 @@ send исходного JSON envelope, subscribe и watch. Для headless smoke
 
 Основное приложение остаётся на MockKabanClient. Host не запускает scheduler loop,
 fake driver или внешние effects: этот инкремент проверяет транспорт и сохранение
-команд. Production lifecycle проектов, исполнитель, App integration и системная
+команд. Production lifecycle проектов добавлен в BE-02 ниже; исполнитель, App integration и системная
 регистрация следуют отдельно. Наличие бинарника не означает готовность M1/MVP.
 
 ## Backend: BE-01 wire-контракты
 
-Рабочий инкремент — [матрица и проверки](development/backend-wire-contracts-2026-10-05.md).
+Принято в main в PR #71 — [матрица и проверки](development/backend-wire-contracts-2026-10-05.md).
 `synchronize` согласует snapshot.seq с независимым cursor эфирного канала;
 bounded replay/current, restart/retention, journal barriers и connection states
 доступны в opt-in `sessionUpdates()`. Старые snapshot/watch остаются совместимыми.
@@ -131,6 +131,22 @@ save пока явно недоступен. Типы log pages/tail, Cursor env
 подготовлены; реальное log storage, configuration и restore effect ещё не реализованы.
 Эфирный publisher не выдумывает данные отсутствующего Cursor/model/quota producer.
 App всё ещё использует mock; новые UI-сценарии и визуальная приёмка не заявляются.
+
+## Backend: BE-02 локальные проекты
+
+Рабочий инкремент — [lifecycle и проверки](development/backend-project-lifecycle-2026-10-05.md).
+Add/remove/relink, local branches, gate suggestions и recheck(project) работают через
+wire; author/canonical path/common Git dir/main проверяются до регистрации.
+Шаблон коммитит только `.kaban/` через isolated index и CAS, сохраняя dirty checkout.
+Durable intent восстанавливает DB failure после Git commit без повторного коммита.
+Missing/invalid pipeline допускает Backlog, но публикует authoritative issues/flags.
+
+Host наблюдает missing folder на startup и background timer; relink сохраняет id,
+задачи и историю. Remove отменяет задачи с keepBranch=true, архивирует запись и
+сохраняет details/receipts; пользовательский root не удаляется. Физические kill/
+archive/cleanup effects ждут executor BE-05/06. Production start/scheduler ещё
+заблокированы; fake registration/driver не подменяют настоящее исполнение.
+Pipeline apply/reload следует в BE-03. App остаётся на MockKabanClient.
 
 ## Какие источники читать
 

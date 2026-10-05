@@ -9,6 +9,13 @@ extension KabanStore {
     }
     static func validateManagedCommand(_ command: DurableTaskCommand, task: DurableTask, at: Date, db: Database) throws {
         guard try isManaged(task.card.id, db: db) else { return }
+        let project = try Self.project(task.card.projectId, db: db)
+        if project.production != nil {
+            switch command {
+            case .cancel: break
+            default: throw StoreError.rejected(.init(code: "unsupported_command", message: "Исполнение production-пайплайна ещё не подключено."))
+            }
+        }
         switch command {
         case .answer(_, let id):
             if let id {

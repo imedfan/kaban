@@ -3,6 +3,12 @@ import Foundation
 /// Template committed for a new project (§3.1). There are no default models: every `model:` is empty,
 /// so the project starts as `unavailable: pipeline_invalid` until the human picks explicit models.
 public enum PipelineTemplate {
+    public static var files: [String: String] { [
+        ".kaban/pipeline.yaml": defaultYAML,
+        ".kaban/skills/dev.md": "Implement the task and its acceptance criteria. Finish through Kaban MCP.\n",
+        ".kaban/skills/test.md": "Verify the task against its acceptance criteria. Report failures through Kaban MCP.\n",
+        ".kaban/skills/review.md": "Review the result without changing files. Finish through Kaban MCP.\n",
+    ] }
     public static let defaultYAML = """
     version: 1
     board:

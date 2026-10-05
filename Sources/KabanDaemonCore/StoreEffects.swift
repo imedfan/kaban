@@ -22,6 +22,9 @@ extension KabanStore {
             }
             guard (row["status"] as String) == "pending" else { throw StoreError.effectSuperseded }
             let pending = try Self.decode(PendingEffect.self, row["payload"])
+            let owner = try Self.task(pending.taskId, db: db)
+            let production = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [owner.card.projectId.rawValue]).map { try Self.decode(ProjectRecord.self, $0).production != nil } ?? false
+            guard !production else { throw StoreError.unsupportedEffect }
             guard pending.version == 1 else { throw StoreError.unsupportedEffect }
             let command: DurableTaskCommand?
             switch (pending.effect, result) {
