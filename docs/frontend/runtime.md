@@ -45,6 +45,12 @@ Pipeline validation и вычисление итоговой git-политик�
 
 ## Требования к следующему транспортному adapter
 
+Durable wire-инкремент backend добавляет `SettingsChange.schedulerFlags`:
+полный набор флагов в correlated journal event. Nil/отсутствие оставляет текущее
+значение, `[]` снимает флаги. BoardProjection уже принимает это поле и typed
+`settings` из snapshot/settingsChanged. Будущий adapter должен сохранять порядок
+journal и live ephemeral updates; `.ok` не является применением паузы/настроек.
+
 Подписка охватывает все проекты (`projectIds=nil`), а набор дорожек хранится
 отдельно в UserDefaults. Значки скрытых проектов и менюбар используют полную
 проекцию. Incident-события обновляют ленту; агрегаты меняются через ProjectSummary.

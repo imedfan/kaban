@@ -49,6 +49,17 @@ extension Array where Element == TaskEffect {
 final class TaskMachineTests: XCTestCase {
     let base = TestPipelines.base
 
+    func testRetryGrantRejectsCounterOverflowWithoutChangingState() throws {
+        var h = Harness(base, stage: "dev", state: .waitingHuman(.retriesExhausted))
+        let before = h.s
+        let rejected = h.send(.human(.retryStage(grantAttempts: Int.max)))
+        if case .rejected = rejected.outcome {} else { XCTFail("Oversized counter must be rejected") }
+        XCTAssertEqual(h.s, before); XCTAssertTrue(rejected.effects.isEmpty)
+        let stage = try XCTUnwrap(base.stage("dev"))
+        h.ok(.human(.retryStage(grantAttempts: Int.max - stage.retry.maxAttempts)))
+        XCTAssertEqual(h.s.attemptLimit(stage), Int.max, "Representable budgets have no artificial product cap")
+    }
+
     func testHappyPathToDone() {
         var h = Harness(base, stage: "backlog")
         h.ok(.start(runId: "intake"))

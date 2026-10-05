@@ -285,6 +285,24 @@ stages:
 
 **Markdown содержимое задачи (v0.11.24).** `TaskDetail.body: String?` читается из сохранённых данных. `nil` означает неизвестное legacy содержимое и опускается при encoding; `""` — известное пустое содержимое. Старый JSON без поля/null декодируется как nil, известный неверный тип отклоняется. Клиент не заменяет неизвестное body пустой строкой и отключает его редактирование до получения. Согласованные `getSnapshot()`/`getTaskDetail()` читают данные и `seq` одной read transaction; неизвестные обязательные legacy project/detail данные дают явную `incompleteProjection`.
 
+**Durable scheduler flags (инкремент 5 октября).** Ручные паузы Мака/проекта
+хранятся у store и возвращаются в `Snapshot.schedulerFlags`. Correlated
+`settingsChanged` получает совместимое optional поле `schedulerFlags: [SchedulerFlag]?`
+с полным авторитетным набором флагов. Отсутствие/null сохраняет неизвестность
+старого события; `[]` явно снимает флаги. Таким образом pause/resume подтверждаются
+через journal с `commandId` и переживают catch-up/reopen. Изменение вычисляемого
+intake flag публикуется в той же транзакции перехода задачи. Существующий
+эфемерный `schedulerFlagsChanged` сохраняется для live-уведомлений; transport
+должен согласовывать его с snapshot/journal. BoardProjection хранит typed
+settings и применяет поля `settingsChanged` только когда они присутствуют.
+
+Wire mutations управляемого headless-инкремента принимаются через
+`KabanStore.execute(CommandEnvelope)`. Сохраняется оригинальный запрос до
+генерации ID/time; успех и доменный отказ возвращаются повторно без нового
+действия. Conflict/version mismatch не переопределяют receipt исходной команды;
+ошибка БД откатывает весь запрос. Query replies остаются свежими и не занимают
+commandId. Подробные границы — [wire contract](development/backend-wire-commands-2026-10-05.md).
+
 **Долговечные DTO деталей (#14).** `TaskDetail.artifacts: [TaskArtifact]`, `gitGrants: [GitGrantSnapshot]`, `gitDenials: [GitDenialSnapshot]` читаются из долговечных таблиц, а не восстанавливаются из обрезанного журнала. Отсутствующие/null коллекции старого ответа декодируются как `[]`; новые пустые коллекции не кодируются, сохраняя прежние golden fixtures. Существующие `humanRequests`, `suspiciousFiles`, `acceptedFiles` остаются обязательными массивами: отсутствие/null — ошибка декодирования.
 
 - `TaskArtifact { id: ArtifactID, taskId, runId?, stageId?, kind: String, text, createdAt, path? }`. `kind` открытый (`summary`, `diffstat`, `gate_output` и будущие виды); неизвестный вид не теряет текст. `path` — локальная метаинформация, не разрешение на чтение.

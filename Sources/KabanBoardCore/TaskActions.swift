@@ -10,9 +10,9 @@ public struct DemoTaskDraft: Equatable, Sendable {
         self.title = title; self.description = description; self.acceptanceCriteria = acceptanceCriteria
     }
     public var canSubmit: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !title.contains("\0") }
-    public var body: String { description + "\n\n## Критерии приёмки\n" + acceptanceCriteria }
+    public var body: String { description + TaskMarkdown.acceptanceCriteriaSeparator + acceptanceCriteria }
     public init(title: String, body: String) {
-        let separator = "\n\n## Критерии приёмки\n"
+        let separator = TaskMarkdown.acceptanceCriteriaSeparator
         if let range = body.range(of: separator, options: .backwards) {
             self.init(title: title, description: String(body[..<range.lowerBound]), acceptanceCriteria: String(body[range.upperBound...]))
         } else { self.init(title: title, description: body) }

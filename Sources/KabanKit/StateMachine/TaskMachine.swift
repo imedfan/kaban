@@ -591,9 +591,13 @@ private struct Machine {
             return reject("retryStage needs a task in waiting_human (not review)")
         }
         if let grant, grant < 0 { return reject("grantAttempts must be ≥ 0") }
+        let extra = s.extraAttempts.addingReportingOverflow(grant ?? 0)
+        let limit = stage.retry.maxAttempts.addingReportingOverflow(extra.partialValue)
+        guard !extra.overflow, !limit.overflow else { return reject("grantAttempts exceeds the supported attempt counter") }
+        let exhausted = s.attemptsUsed >= limit.partialValue
+        guard !exhausted || limit.partialValue < Int.max else { return reject("No further attempt fits the supported counter") }
         leaveWaiting()
-        s.extraAttempts += grant ?? 0
-        if s.attemptsExhausted(stage) { s.extraAttempts += 1 }
+        s.extraAttempts = extra.partialValue + (exhausted ? 1 : 0)
         s.invalidResultStrikes = 0
         set(.queued(nil))
     }

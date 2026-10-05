@@ -32,8 +32,7 @@ extension KabanStore {
         let request = try Self.encode(settings)
         return try database.write { db in
             if let receipt = try Self.configurationReplay(commandId, request: request, db: db) { return receipt }
-            guard settings.maxConcurrentRuns > 0, settings.quotaOptions.pollInterval > 0,
-                  settings.quotaOptions.thresholdCm.isFinite, settings.quotaOptions.thresholdOm.isFinite else { throw StoreError.settingsInvalid }
+            try Self.validateSettings(settings)
             try db.execute(sql: "INSERT INTO global_settings(id, payload) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [request])
             let event = SettingsChange(key: "global", value: "updated", settings: settings)
             let seq = try Self.journal(.settingsChanged(event), projectId: nil, commandId: commandId, at: at, db: db)
@@ -48,12 +47,13 @@ extension KabanStore {
         }
     }
     public func getTaskDetail(_ taskId: TaskID) throws -> TaskDetail {
-        try database.read { db in
-            let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
-            return TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
-                              suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: d.acceptedFiles, clonePath: d.clonePath,
-                              artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
-        }
+        try database.read { db in try Self.taskDetail(taskId, db: db) }
+    }
+    static func taskDetail(_ taskId: TaskID, db: Database) throws -> TaskDetail {
+        let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
+        return TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
+                          suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: d.acceptedFiles, clonePath: d.clonePath,
+                          artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
     }
     public func getSnapshot() throws -> Snapshot {
         try database.read { db in
@@ -62,10 +62,7 @@ extension KabanStore {
             // A v1 unregistered project or unresolved incident lacks an authoritative projection.
             guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && $0.pipeline == task.pipeline } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
-            let flags = projects.compactMap { project -> SchedulerFlag? in
-                let waiting = tasks.filter { $0.card.projectId == project.summary.id && $0.pipeline.stage($0.machine.stageId)?.kind == .agent && $0.machine.state.status == .waitingHuman }.count
-                return waiting >= project.pipeline.board.maxWaitingHuman ? .intakePaused(project.summary.id) : nil
-            }
+            let flags = try Self.schedulerFlags(db)
             return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map { $0.pipeline.summary(projectId: $0.summary.id, versionHash: $0.version, issues: PipelineValidator.validate(config: $0.pipeline).issues) },
                             tasks: tasks.map(\.card), schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
                             stageLoad: try Self.stageLoads(db), settings: settings)
@@ -82,6 +79,7 @@ extension KabanStore {
         return seq
     }
     static func configurationReplay(_ id: CommandID, request: Data, db: Database) throws -> ConfigurationReceipt? {
+        try rejectWireIdentity(id, db: db)
         if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM command WHERE id = ?)", arguments: [id.uuidString]) == true { throw StoreError.commandIdConflict }
         guard let row = try Row.fetchOne(db, sql: "SELECT request, receipt FROM configuration_command WHERE id = ?", arguments: [id.uuidString]) else { return nil }
         guard (row["request"] as Data) == request else { throw StoreError.commandIdConflict }

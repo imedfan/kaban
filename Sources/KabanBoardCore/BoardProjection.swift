@@ -157,6 +157,7 @@ public struct BoardProjection: Equatable, Sendable {
     public private(set) var incidents: [IncidentID: Incident]
     /// Загрузка стадий из снимка; между снимками её двигает `stageLoadChanged`. Клиент WIP не считает.
     public private(set) var stageLoad: [StageLoad]
+    public private(set) var settings: GlobalSettings?
     public private(set) var pending: PendingCommands
     private var appliedSeqs: Set<Seq>
     private var resolvedIncidentIds: Set<IncidentID>
@@ -180,6 +181,7 @@ public struct BoardProjection: Equatable, Sendable {
         openIncidentCount = snapshot.projects.reduce(0) { $0 + $1.openIncidentCount }
         incidents = [:]
         stageLoad = snapshot.stageLoad
+        settings = snapshot.settings
         pending = PendingCommands()
         appliedSeqs = []
         resolvedIncidentIds = []
@@ -346,6 +348,12 @@ public struct BoardProjection: Equatable, Sendable {
             return .applied
         case .pipelineApplied(let pipeline):
             pipelines[pipeline.projectId] = pipeline
+            appendFeed(envelope)
+            return .applied
+        case .settingsChanged(let change):
+            if let settings = change.settings { self.settings = settings }
+            if let flags = change.schedulerFlags { ephemeral.schedulerFlags = flags }
+            if let commandId = envelope.commandId { pending.clear(commandId: commandId) }
             appendFeed(envelope)
             return .applied
         case .incidentOpened(let incident):

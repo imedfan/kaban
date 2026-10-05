@@ -11,6 +11,14 @@ KabanDaemonCore использует GRDB и содержит durable projects/t
 миграции, journal/outbox, fake driver, scheduler и recovery. Store использует
 существующие Protocol DTO; дополнительная копия контрактов не требуется.
 
+Инкремент [durable wire-команд](development/backend-wire-commands-2026-10-05.md)
+добавляет `KabanStore.execute(CommandEnvelope)`: create/edit/priority,
+move/pause/resume/cancel/retry, Human Review/answer, детали/runs, ручные
+паузы, настройки и metadata зарегистрированного проекта. Оригинальный запрос
+и ответ сохраняются в additive v3; replay предшествует ID/time generation.
+Domain refusal сохраняется без перехода; сбой БД откатывает всё действие.
+Wire-приёмник пока обслуживает только зарегистрированные managed fake проекты.
+
 Managed fake engine — ограниченная portable вертикаль. Четырёхстадийный fake pipeline
 допускается узким внутренним исключением merge_count; общий production-валидатор
 и PipelineSummary продолжают сообщать ошибку. Эффекты git/process симулируются.
@@ -22,10 +30,11 @@ Managed fake engine — ограниченная portable вертикаль. Ч
 
 ## Следующие результаты
 
-1. Реальные wire-команды для frontend: create/edit/move/cancel и settings; повтор
-   commandId сверяет исходный запрос до генерации ID/time. Проверить rollback и replay.
-2. Daemon host/XPC adapter: согласованный snapshot/event handshake, подписка,
+1. Daemon host/XPC adapter и kabanctl: согласованный snapshot/event handshake, подписка,
    reconnect/resync, доставка отказов и повторов без двойного действия.
+   Затем подключение приложения к durable источнику.
+2. Production lifecycle проектов/pipelines и оставшиеся wire-команды: add/remove/relink,
+   pipeline validation/replacement, model override, files/incidents и среда.
 3. Внешний executor с claim/lease, процессами Cursor, git-клонами и гейтами.
    Exactly-once внешних действий не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.
