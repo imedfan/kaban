@@ -1,0 +1,1223 @@
+{
+  "reference_version": "v0.2.1 with base and v0.2 dependencies",
+  "materialized_on": "2026-10-05",
+  "origin": "Existing original design archives and Drive reference inventory from the frontend session; not regenerated screenshots.",
+  "files": [
+    {
+      "path": "design/reference-notes/base.md",
+      "group": "source",
+      "bytes": 9538,
+      "sha256": "f5b4dd9e761bdbf4dd342e89cd963b3561c9b5194e62400dffed95e18cb23265"
+    },
+    {
+      "path": "design/board-dark.html",
+      "group": "source",
+      "bytes": 398,
+      "sha256": "4f775ed6024e3198f167c1d56d43ab91af798ac36850898c57655488e50faebc"
+    },
+    {
+      "path": "design/board.css",
+      "group": "source",
+      "bytes": 4683,
+      "sha256": "002344686c849f5ab3a75c5a68e5cda444c4ff1e44c583137cae7025f2dc0075"
+    },
+    {
+      "path": "design/board.html",
+      "group": "source",
+      "bytes": 385,
+      "sha256": "c99489f06e587302a4e9b693b45ad13f2858d3cfc11c8531ae386813be684de4"
+    },
+    {
+      "path": "design/board.js",
+      "group": "source",
+      "bytes": 13721,
+      "sha256": "6ba6f7721a25a8fed4123ae5604e683180dbe20f1ef66fcbd9b0bffebeeed9bc"
+    },
+    {
+      "path": "design/cards.html",
+      "group": "source",
+      "bytes": 20905,
+      "sha256": "8938d86f3d286cc1109af9245db58e72487a42b32959e45c752edfd60d754941"
+    },
+    {
+      "path": "design/column-settings-general.html",
+      "group": "source",
+      "bytes": 6600,
+      "sha256": "3497aad05569183c29eeeb70c7fcf8ff45dfce137c239557aaf1c18c50ab8e46"
+    },
+    {
+      "path": "design/column-settings-git.html",
+      "group": "source",
+      "bytes": 8386,
+      "sha256": "26dab8fb4fc707728d6de32520bf1cec2fb56a07153a9f2301d3074d44f91281"
+    },
+    {
+      "path": "design/common.css",
+      "group": "source",
+      "bytes": 15018,
+      "sha256": "78c4fa10355a86c3d804683eb58f9d4fc2def0865454f22370d832b15c63887d"
+    },
+    {
+      "path": "design/components.js",
+      "group": "source",
+      "bytes": 11952,
+      "sha256": "76beeb90f1955bc04012830c4289caacec59f1157fa3a16f127d3593c6ef1291"
+    },
+    {
+      "path": "design/human-review.html",
+      "group": "source",
+      "bytes": 7298,
+      "sha256": "3d44a645fc20f3f27883ec65b0a5b2acf5f44c4145b65a339e355a801c8b69c3"
+    },
+    {
+      "path": "design/settings.css",
+      "group": "source",
+      "bytes": 10670,
+      "sha256": "52d03521b10a9c2b8014bdfc8012b1677d76a2b6ddf250791eaf0815dc63c03f"
+    },
+    {
+      "path": "design/settings.js",
+      "group": "source",
+      "bytes": 3513,
+      "sha256": "8bbdf011328408e358ad9fe043ca90a2ab414482bdb3912ecdf2f4ab3cb6bb33"
+    },
+    {
+      "path": "design/task-details.css",
+      "group": "source",
+      "bytes": 8687,
+      "sha256": "a862b2eb70092750943109c48f6abc452d0ecba2ad08970e5274e9327f9f4e6e"
+    },
+    {
+      "path": "design/task-details.html",
+      "group": "source",
+      "bytes": 6575,
+      "sha256": "a5ceaaca25aa17e4338ee55a3a13220a5976fdbe0886c3435f680f744ad86334"
+    },
+    {
+      "path": "design/tokens.css",
+      "group": "source",
+      "bytes": 5103,
+      "sha256": "ac29bcf5c2d1dcd4eb248ef07367eb8b2bca2a6c8d4be0cf127c3b25259c7c9c"
+    },
+    {
+      "path": "design/reference-notes/v0.2.md",
+      "group": "source",
+      "bytes": 10811,
+      "sha256": "78c4b974c86f79ce15fb11cfef62df3076ff80bb5632d729ad367587c4a3fbd9"
+    },
+    {
+      "path": "design/v0.2/board-dark.html",
+      "group": "source",
+      "bytes": 476,
+      "sha256": "204be72e4c7848283771e30f2e3c8e9f85f8cdfaaf7fff3440b92bf9749942fe"
+    },
+    {
+      "path": "design/v0.2/board.html",
+      "group": "source",
+      "bytes": 448,
+      "sha256": "a7e7aa21b91319d772360af15a4d48d92408948246d8a3b8ba81169c7651036e"
+    },
+    {
+      "path": "design/v0.2/build.sh",
+      "group": "source",
+      "bytes": 663,
+      "sha256": "4f35f133fc939043c7886591a21197403627871e98f1ad51519dccd5e684f0da"
+    },
+    {
+      "path": "design/v0.2/cards.html",
+      "group": "source",
+      "bytes": 12074,
+      "sha256": "491c0b43f84fb7e7c1ea19fe26b78cb0230b79de6184f4cac41d480384108ee4"
+    },
+    {
+      "path": "design/v0.2/details-run-limit.html",
+      "group": "source",
+      "bytes": 566,
+      "sha256": "154be7e8c2bdcc49e88072ca1381cb44d2e81fae17965015e7d5609c7f89aab7"
+    },
+    {
+      "path": "design/v0.2/details-substituted-dark.html",
+      "group": "source",
+      "bytes": 576,
+      "sha256": "3caaffc16cc1482bcd7f9837fc3f6b9db73dcff6e672d9743ebb7b822997d618"
+    },
+    {
+      "path": "design/v0.2/details-substituted.html",
+      "group": "source",
+      "bytes": 563,
+      "sha256": "ff9883721ef23c32a427dde2ff5c29230a27c479ac29942072070f8b89c68c65"
+    },
+    {
+      "path": "design/v0.2/details.js",
+      "group": "source",
+      "bytes": 9109,
+      "sha256": "254e7b8bf5c271f4d03430bc6a159e5bff498737077bcc0cac5510a1a750ac84"
+    },
+    {
+      "path": "design/v0.2/mac-quota.html",
+      "group": "source",
+      "bytes": 13448,
+      "sha256": "5a3fb8265e5d55f185e8049aa82b7b7d10bce877c324619bc835b0d3881b5de1"
+    },
+    {
+      "path": "design/v0.2/pipeline-invalid.html",
+      "group": "source",
+      "bytes": 12114,
+      "sha256": "33d6909ac2442fcc4deed6c9928fc407284cd23f8829548362e5c88193e58ba4"
+    },
+    {
+      "path": "design/v0.2/project-mcp.html",
+      "group": "source",
+      "bytes": 9736,
+      "sha256": "c4d1496b32c40c8f2ea9eedf9076c65bc1d079f996f050b965d05820620bab03"
+    },
+    {
+      "path": "design/v0.2/v02.css",
+      "group": "source",
+      "bytes": 12963,
+      "sha256": "dce7605029fa40f38a42d98180a5586e4dae4df170c8bc4bef5e99d82af2113e"
+    },
+    {
+      "path": "design/v0.2/v02.js",
+      "group": "source",
+      "bytes": 14889,
+      "sha256": "860023f338b6325bc4bc2c646250ffc06f05d9749a695e426d8a7b3405e61ef6"
+    },
+    {
+      "path": "design/reference-notes/v0.2.1.md",
+      "group": "source",
+      "bytes": 50405,
+      "sha256": "a3a6b92462c289c1f40d30200a5e4b8d7d9515fec693434e0031ba53aa4a1850"
+    },
+    {
+      "path": "design/v0.2.1/add-project-identity-dark.html",
+      "group": "source",
+      "bytes": 671,
+      "sha256": "4f818e808713e9686e6c9f3a335c3732b78f06de7736420cdd3a8a4a49c89dc0"
+    },
+    {
+      "path": "design/v0.2.1/add-project-identity.html",
+      "group": "source",
+      "bytes": 643,
+      "sha256": "dadbadfbbc0865a4abec57a18f804d428da32a4c37ec4ab791648ef6accc19b6"
+    },
+    {
+      "path": "design/v0.2.1/add-project.css",
+      "group": "source",
+      "bytes": 9084,
+      "sha256": "3e5f9e75c8954ffeef1bf5bcbd4b73c024e35c7d75ff4ccec13f74db87d48f3a"
+    },
+    {
+      "path": "design/v0.2.1/add-project.js",
+      "group": "source",
+      "bytes": 10815,
+      "sha256": "823670148a95d3bff5db75e35997c0ceb2e54e0754c0ebeb169dde21080a60a7"
+    },
+    {
+      "path": "design/v0.2.1/build.sh",
+      "group": "source",
+      "bytes": 897,
+      "sha256": "a18b79449116afc2cdaffa5fcd56f6dd280d2638aab8573ecb58ebe663316ba5"
+    },
+    {
+      "path": "design/v0.2.1/cards-bounce-limits.html",
+      "group": "source",
+      "bytes": 10148,
+      "sha256": "fb1ee3a72ff035d7bb567730a520ec6b8193676d2265723ea1a3deead43b802a"
+    },
+    {
+      "path": "design/v0.2.1/cards.html",
+      "group": "source",
+      "bytes": 14792,
+      "sha256": "21845f420f841552120d0a2e60ecda06fde77cbfb752e29f4adf1cf9b007b01e"
+    },
+    {
+      "path": "design/v0.2.1/details-suspicious-dark.html",
+      "group": "source",
+      "bytes": 693,
+      "sha256": "6f5be2b33fdab6e5ae3330712fd53f9633d91570363a8c8d8b50519be233bbe3"
+    },
+    {
+      "path": "design/v0.2.1/details-suspicious-stale.html",
+      "group": "source",
+      "bytes": 800,
+      "sha256": "0a10d440c8e84fd7ffd8956d680bdc3a39656c7a8c9eab6044740f56a3554ee5"
+    },
+    {
+      "path": "design/v0.2.1/details-suspicious.html",
+      "group": "source",
+      "bytes": 665,
+      "sha256": "dbeb6311202f16b5080295e33f767fd3a289c3aec16558454a9f508d0a5243e0"
+    },
+    {
+      "path": "design/v0.2.1/details21.js",
+      "group": "source",
+      "bytes": 9297,
+      "sha256": "e39f86a9bece36a52b4bafa47cbe138fb4c44794b5217485dd832d19df8cbd5c"
+    },
+    {
+      "path": "design/v0.2.1/project-git.html",
+      "group": "source",
+      "bytes": 15004,
+      "sha256": "b7909223a6ddbf567626da9bad0474ae549e79e5ebd22f40ac8f21b74cb8f9bd"
+    },
+    {
+      "path": "design/v0.2.1/return-sheet-gate-dark.html",
+      "group": "source",
+      "bytes": 736,
+      "sha256": "9c8cf9f29309ed0fc81ed04db88759c24610a4a29f5a71010b0daec859d0b428"
+    },
+    {
+      "path": "design/v0.2.1/return-sheet-gate.html",
+      "group": "source",
+      "bytes": 708,
+      "sha256": "831c027e57f1b30e281e2b9a3c759d27504b51604b700e77e03dd524411dc320"
+    },
+    {
+      "path": "design/v0.2.1/return-sheet-merge.html",
+      "group": "source",
+      "bytes": 710,
+      "sha256": "24958e47bcb585a5569283b1115e44b5c69b2bed5ebdfa4e7489136a7972ccee"
+    },
+    {
+      "path": "design/v0.2.1/return-sheet.css",
+      "group": "source",
+      "bytes": 6141,
+      "sha256": "ddbb445426fc86cbdeb7c5e2a7b63b154d9a0ae0e9ad7f9a2103469b1b4c0658"
+    },
+    {
+      "path": "design/v0.2.1/return-sheet.js",
+      "group": "source",
+      "bytes": 17656,
+      "sha256": "6803e816e19182635825a3ae3eb027cf35d71269f71c4a6709920b08df74f723"
+    },
+    {
+      "path": "design/v0.2.1/stage-git.html",
+      "group": "source",
+      "bytes": 10986,
+      "sha256": "1e67a78a9e8e1bc327eade5a35bda3fa6eb504c1949c05ca82ea254b8850e5da"
+    },
+    {
+      "path": "design/v0.2.1/v021.css",
+      "group": "source",
+      "bytes": 15531,
+      "sha256": "15a45c9105e5e8132f092719f42a37b87a2b90e42268672ed9023484f5d650b5"
+    },
+    {
+      "path": "design/v0.2.1/v021.js",
+      "group": "source",
+      "bytes": 9768,
+      "sha256": "87a81c2a8762678cc36ec1bce32d3f7194d427e23992b1ab0bb10bab533491b6"
+    },
+    {
+      "path": "design/png/01-board-dark.png",
+      "group": "reference-png",
+      "bytes": 1115866,
+      "sha256": "0162602f5bb6fcdb7963b2dc40ac1cc57e874b598953a77f1208d2706cc226b8",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/144Zu7hpA_7SF7w3poZY1iG2u7W9iYsXZ/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/01-board.png",
+      "group": "reference-png",
+      "bytes": 1208580,
+      "sha256": "717591faa183eaa4f1b41aeaec5130a66e07c50484517b7a01776d40374e2ab0",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/15BLvwigEEEjhWq_q3xrRSZbJTpQr7I9C/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/02-cards.png",
+      "group": "reference-png",
+      "bytes": 1509852,
+      "sha256": "191853322589c688e9b1abe8edda99b4cc6c1ad4a9cdc6955262e63f432b921e",
+      "pixels": [
+        2880,
+        4140
+      ],
+      "source_url": "https://drive.google.com/file/d/1dHMpf57QRbxaWosK41YmPw7EeqYkpMkl/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/03-task-details.png",
+      "group": "reference-png",
+      "bytes": 1254126,
+      "sha256": "7cc9a1f937423d859c334c8c0e7ed87276ba906ff79c74ebf34b77089b969c70",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1ykFdZTqx2bBTLlhGi0zXoxc4dCrA63g2/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/03b-human-review.png",
+      "group": "reference-png",
+      "bytes": 1141545,
+      "sha256": "dfec3d4a92be55b06befc6f6d8a7aba2947f7249a21d4a500b526ddba3ea0db4",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1TMIB7J766NhBegvgYvTNPhyQO67Qd8wN/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/04-column-settings-git.png",
+      "group": "reference-png",
+      "bytes": 1000089,
+      "sha256": "90f69fa778c5e508ed5a8039d5bac7c97a653059fc0150f63df6f621bd77ee93",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1VM18SWaB6egshc9lzGU_Ovj54_cXbc59/view?usp=drivesdk"
+    },
+    {
+      "path": "design/png/05-column-settings-general.png",
+      "group": "reference-png",
+      "bytes": 888718,
+      "sha256": "2ee18917ec72b403ec9ed17a3a86de1833ec205c1611f67d239c2e0410f9ad1c",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1AkXtEgslIuuYJqRROZCjAqyPPuau63V1/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/01-board-limits-flags-dark.png",
+      "group": "reference-png",
+      "bytes": 1102601,
+      "sha256": "8d43f93022a29111715e6e07c84880184da73419b31a140244102c459e9ddbfc",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1Aa7NqIBCQoOqYOv5_VmYdcyb5MrDR1Qh/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/01-board-limits-flags.png",
+      "group": "reference-png",
+      "bytes": 1218595,
+      "sha256": "ae5eec8a662928f81c4f4afc4e18f250290be42119c58772376f926c61af765c",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1HJGDqR6-ZEpFFF1USeegon6CN5OmBZsw/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/02-cards-states.png",
+      "group": "reference-png",
+      "bytes": 800023,
+      "sha256": "7476edfaca86476b6f5eb0fdb6063e3a6e18df8f0054c153195a971f40fed1b3",
+      "pixels": [
+        2880,
+        2120
+      ],
+      "source_url": "https://drive.google.com/file/d/10_SU3OJmpPkaH3-KcWRF9kn7GOd7Ekqv/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/03-details-model-substituted-dark.png",
+      "group": "reference-png",
+      "bytes": 1151623,
+      "sha256": "dfe7ff01fe44dc22057d26188052334d1b5c680ba2e0f68741d10309d960b627",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1piS-jx3YyPXdd4MtD1wLjY4x2B93Cz_z/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/03-details-model-substituted.png",
+      "group": "reference-png",
+      "bytes": 1198012,
+      "sha256": "67ac3812dee8d63edb3236946bcdfb237cb5be904e8581d43585437ace747484",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1nZJBjIVEzw3LFZp-dMZD3xAkd4JXAC5Q/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/03b-details-run-limit.png",
+      "group": "reference-png",
+      "bytes": 1191714,
+      "sha256": "4dc726b1000de27995503f0f95ee544d8460103b3a75175ac6c0ba1a21d3e1b4",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1C9lpsc5RAnFYC4RhgxoFs5CFeqWONWd6/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/04-pipeline-invalid.png",
+      "group": "reference-png",
+      "bytes": 971273,
+      "sha256": "e0abb43f73ec2da78b4c24bdfe49bea4b1c8cecf01c64792037ea419e8e20a0b",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1vDqV02m6eFzCaprDTyEAIORBNAj6GSaa/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/05-project-mcp.png",
+      "group": "reference-png",
+      "bytes": 798826,
+      "sha256": "2d52288669f4dd8d3a9f2f990dba2ac9aa093ea5631cf528544c38f18987b4c8",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1Fqbm0KHLVGUW2tLZUUY1lbfKm8WbZs3x/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2/png/06-mac-quota-menubar.png",
+      "group": "reference-png",
+      "bytes": 1243601,
+      "sha256": "75a3c0f9d5972dbc4de02c43de85331d4f1548254e8069df96468a82b378e6a8",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1Q_zCkIUnOCFWrCvOnNaijRe2b45AlCFp/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/01-cards-suspicious.png",
+      "group": "reference-png",
+      "bytes": 746030,
+      "sha256": "6118074bdfe412726d5cd62bea3e05638f67870a7597059371ae913655c63d60",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1md3eX0llVgWlt6hQEaMCmfQBNJVeKaMd/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/01c-cards-bounce-limits.png",
+      "group": "reference-png",
+      "bytes": 616138,
+      "sha256": "3efb7198f04b1fa6311a60099b7cd9272c323641c037228fa7c7c5b006bfc0fc",
+      "pixels": [
+        2880,
+        1440
+      ],
+      "source_url": "https://drive.google.com/file/d/1xZ03lb4NsJ2WA91uuAic6mUOH9XjtEOu/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/02-details-suspicious-dark.png",
+      "group": "reference-png",
+      "bytes": 1196576,
+      "sha256": "622be5155b570f2f05c62d58da13f014fa915409662768407ad02b489fd27c60",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1O7TAgI8cMmSB06_bYXjEogOVAJubRPC0/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/02-details-suspicious.png",
+      "group": "reference-png",
+      "bytes": 1249801,
+      "sha256": "4fcb3fda517a67f8af5fcb7579df3333a653820aeac1106f9600ed7945a6c987",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1OAxJElwmzItdB0YGdlI6BnZ427YJLKcr/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/02b-details-suspicious-stale.png",
+      "group": "reference-png",
+      "bytes": 1266962,
+      "sha256": "286f37a08f2443915e43d463e19e91d0ffc9ec139f0be827034dfac776cb9f4f",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/18EViTya9ITVPfy6AEhOz6dlkVwj0y1vB/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/03-project-git-presets.png",
+      "group": "reference-png",
+      "bytes": 1051024,
+      "sha256": "e83a5c6e518d56b082fda8d55b3b91154224d6f7c37f8ffb93d02ac09137e315",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1EGRG3F1l1i_x7cXPIhTdyHQmHvx_ZO3F/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/04-stage-git-overrides.png",
+      "group": "reference-png",
+      "bytes": 1008583,
+      "sha256": "8437d006dbe737d2c7a22441fafa44aa3d42148de0d56e3ffe34e8d752a228b4",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1swAq8C0NyQl75VraYRBHaYNHIaDJgeaQ/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/05-return-sheet-gate-dark.png",
+      "group": "reference-png",
+      "bytes": 717591,
+      "sha256": "23bb541a96bf7f79bc386a8b92146e57a4378823fd4a8179c9aba783b0a6a06a",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1f1ogzLOHlGc3r-OF7mjyQGYnMF2ajBKg/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/05-return-sheet-gate.png",
+      "group": "reference-png",
+      "bytes": 766120,
+      "sha256": "5951e491311bef35cd624af25bc563047a576ed73a23c4238e5c9ca1bad20230",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1xNnASQqOUCHHZb3a5WCHoDqNOhaR3-iy/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/05b-return-sheet-merge.png",
+      "group": "reference-png",
+      "bytes": 694181,
+      "sha256": "c6e085fbdf961ee45fe4aa5102e1ce08c9d912db0afc7d47c0af5047873a96ed",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1EeVn_OaPKWL4xs7bwrpjxlTP1Bjvsw32/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/06-add-project-identity-dark.png",
+      "group": "reference-png",
+      "bytes": 771809,
+      "sha256": "07f66cadca0684b56dd8c550774dc5b60667bffcbab878b62c56c50687e9fe86",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1A9Nc-hc8xqBUHoryehut3LxnsOJwY4PV/view?usp=drivesdk"
+    },
+    {
+      "path": "design/v0.2.1/png/06-add-project-identity.png",
+      "group": "reference-png",
+      "bytes": 829437,
+      "sha256": "56cac25bc0aa1adbe90b19115ef71f63b867d676f0e0639d4cac8f43131b669e",
+      "pixels": [
+        2880,
+        1800
+      ],
+      "source_url": "https://drive.google.com/file/d/1DPmlCiOekx_HmGSGyWI-7S1in_lztTpk/view?usp=drivesdk"
+    },
+    {
+      "path": "design/brand/README.md",
+      "group": "brand",
+      "bytes": 11205,
+      "sha256": "a96a65ca1e6555b048c1765a26f931e196616b595c4c04435af66a51e480be52"
+    },
+    {
+      "path": "design/brand/font/OFL.txt",
+      "group": "brand",
+      "bytes": 4384,
+      "sha256": "071195d8806e226faeee60259c28ca67b458227af5195a73f5cfcab06e3003bc"
+    },
+    {
+      "path": "design/brand/font/Onest[wght].ttf",
+      "group": "brand",
+      "bytes": 193056,
+      "sha256": "966c5c29b4755da84b6854d5c21dd4eaa2420225d0e9874de602de176d4a9f31"
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_128x128.png",
+      "group": "brand",
+      "bytes": 16680,
+      "sha256": "da2a4bcc03bd169081c0997a7c62ef55dbe193ebf4004985003bf78fad62d835",
+      "pixels": [
+        128,
+        128
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_128x128@2x.png",
+      "group": "brand",
+      "bytes": 51291,
+      "sha256": "60ecc203b8fbc11d164df35ce589b13751bae3faf3ba11f7c89173fc30da4150",
+      "pixels": [
+        256,
+        256
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_16x16.png",
+      "group": "brand",
+      "bytes": 740,
+      "sha256": "735621df68c20014eafbf6d6dafe2cdbc723b11c680013b5880d1177ae652fd9",
+      "pixels": [
+        16,
+        16
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_16x16@2x.png",
+      "group": "brand",
+      "bytes": 1967,
+      "sha256": "ba38feffed0a3e58908d1904ad92f3c29305e07eb3c764b512958f45bd28a265",
+      "pixels": [
+        32,
+        32
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_256x256.png",
+      "group": "brand",
+      "bytes": 51291,
+      "sha256": "60ecc203b8fbc11d164df35ce589b13751bae3faf3ba11f7c89173fc30da4150",
+      "pixels": [
+        256,
+        256
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_256x256@2x.png",
+      "group": "brand",
+      "bytes": 176073,
+      "sha256": "ef223f374f4be32b79a9b03b68f98d2f11624054c7dd4ee6913b3d5a1459b69c",
+      "pixels": [
+        512,
+        512
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_32x32.png",
+      "group": "brand",
+      "bytes": 1967,
+      "sha256": "ba38feffed0a3e58908d1904ad92f3c29305e07eb3c764b512958f45bd28a265",
+      "pixels": [
+        32,
+        32
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_32x32@2x.png",
+      "group": "brand",
+      "bytes": 5788,
+      "sha256": "c13500ee34b899689f51b189374a4838d005fc4d7c4dc91f2ff10d6da5acc77c",
+      "pixels": [
+        64,
+        64
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_512x512.png",
+      "group": "brand",
+      "bytes": 176073,
+      "sha256": "ef223f374f4be32b79a9b03b68f98d2f11624054c7dd4ee6913b3d5a1459b69c",
+      "pixels": [
+        512,
+        512
+      ]
+    },
+    {
+      "path": "design/brand/icon/AppIcon.iconset/icon_512x512@2x.png",
+      "group": "brand",
+      "bytes": 609975,
+      "sha256": "b557a693db10cbc79adc00d854b56945263a344e9d007765adb5e6b2f09c82a6",
+      "pixels": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "path": "design/brand/icon/Kaban.icns",
+      "group": "brand",
+      "bytes": 1092021,
+      "sha256": "e7e342c71e74779d58dd5387272c3c05a4c4b8d5cc6ea46f8d96aefae560fa79"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/details.svg",
+      "group": "brand",
+      "bytes": 508,
+      "sha256": "6c14f888c72f0521c7cfca2952b5e936d5b056763be39f247c295e038ea78f98"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/ears-inner.svg",
+      "group": "brand",
+      "bytes": 290,
+      "sha256": "f7b0335579ae10a4d3b15b6f0c5f5885159060ac82bf7c33ccb7ea0214c92bc8"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/head.svg",
+      "group": "brand",
+      "bytes": 1728,
+      "sha256": "10b110c0b5b14b007647340873187fb470f69e37409fe9da70d5a7f19a183fd2"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/highlight.svg",
+      "group": "brand",
+      "bytes": 472,
+      "sha256": "eb3ce9d46312874a209aa78c1fe8fa71e0bee1fcef78ba6698d4ab7f05d656ce"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/mane.svg",
+      "group": "brand",
+      "bytes": 1372,
+      "sha256": "4b1a69ce8dc53620033ba430ab22e007b7709a49349791b9e844b42aa7492e18"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/snout.svg",
+      "group": "brand",
+      "bytes": 193,
+      "sha256": "edced5099e1927f549c649952d390092a64db3e98ed2d6867004142b7f2c2cf0"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/Assets/tusks.svg",
+      "group": "brand",
+      "bytes": 338,
+      "sha256": "76a1fc1251f2b1e41188b0969d1e02001d1e922e166f169b249c761be5863f87"
+    },
+    {
+      "path": "design/brand/icon/Kaban.icon/icon.json",
+      "group": "brand",
+      "bytes": 2731,
+      "sha256": "9e6cd285e4f5dc1576e8c447b55f27c84b3289647957797651f711ed3be38cb5"
+    },
+    {
+      "path": "design/brand/src/banner-dark.svg",
+      "group": "brand",
+      "bytes": 93421,
+      "sha256": "e70d3bb6b22c8e938e3beb6577edcfc9e3fcb47ab72db494b27f68ec4d3673cc"
+    },
+    {
+      "path": "design/brand/src/banner-light.svg",
+      "group": "brand",
+      "bytes": 93421,
+      "sha256": "6df77f03a2a99508d90254f20cba7a8d418da86f695fd0b70d714840eaaee3a6"
+    },
+    {
+      "path": "design/brand/src/banner-ru-dark.svg",
+      "group": "brand",
+      "bytes": 93914,
+      "sha256": "e97ad8d86cfe39219a850bc9da31356150793b7b947c98f210bbc343540c2402"
+    },
+    {
+      "path": "design/brand/src/banner-ru-light.svg",
+      "group": "brand",
+      "bytes": 93914,
+      "sha256": "cbd406af5476a3bcf0748b942321b0a0c72aec11ba82d9d8fae09b7e8784beba"
+    },
+    {
+      "path": "design/brand/src/kaban-avatar.svg",
+      "group": "brand",
+      "bytes": 18532,
+      "sha256": "b39d9fa6b5125fd5e1159d4673ca511c0fca1269a2280f32be9e33887a310713"
+    },
+    {
+      "path": "design/brand/src/kaban-boar-glass.svg",
+      "group": "brand",
+      "bytes": 18391,
+      "sha256": "4269c38863046a9f4a859d2c3c9330aab56f160ff291775ed147586c8a3a64a4"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-macos-dark.svg",
+      "group": "brand",
+      "bytes": 30429,
+      "sha256": "44083b97ef0b32afb26a12f17da1df8dda325ac606089198498b01f7d8aea0f1"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-macos-mono.svg",
+      "group": "brand",
+      "bytes": 30429,
+      "sha256": "a566dd4a2dba4b41afe6ef5ceda19dcc248df07367cdcfae8efdd4e2bb9db2b8"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-macos-small.svg",
+      "group": "brand",
+      "bytes": 28199,
+      "sha256": "e1dac238c7e70051e39e4afd5338266a09cd54e8360f03b6053fc20079acf238"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-macos.svg",
+      "group": "brand",
+      "bytes": 30429,
+      "sha256": "e00a368beb1bd4c44aec6b4dd2c6d9f12eecbf6a598171bebfa0b0ac13984eb1"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-master-dark.svg",
+      "group": "brand",
+      "bytes": 18493,
+      "sha256": "658a2952da80f6786c89b315e9da70786dfd5581138184f86c48b925a9ce4fa3"
+    },
+    {
+      "path": "design/brand/src/kaban-icon-master.svg",
+      "group": "brand",
+      "bytes": 18493,
+      "sha256": "cc816ed595ea712b93b49857acb45a6c0be3228c64034ecb9ca39ae8a5ab196f"
+    },
+    {
+      "path": "design/brand/src/layers/00-background.svg",
+      "group": "brand",
+      "bytes": 305,
+      "sha256": "34faf7e7353c1c15ee62144097be5eb0118c360427b106e56e8ef8b19bc66f69"
+    },
+    {
+      "path": "design/brand/src/layers/05-mane.svg",
+      "group": "brand",
+      "bytes": 1372,
+      "sha256": "4b1a69ce8dc53620033ba430ab22e007b7709a49349791b9e844b42aa7492e18"
+    },
+    {
+      "path": "design/brand/src/layers/10-head.svg",
+      "group": "brand",
+      "bytes": 1728,
+      "sha256": "10b110c0b5b14b007647340873187fb470f69e37409fe9da70d5a7f19a183fd2"
+    },
+    {
+      "path": "design/brand/src/layers/20-ears-inner.svg",
+      "group": "brand",
+      "bytes": 290,
+      "sha256": "f7b0335579ae10a4d3b15b6f0c5f5885159060ac82bf7c33ccb7ea0214c92bc8"
+    },
+    {
+      "path": "design/brand/src/layers/30-tusks.svg",
+      "group": "brand",
+      "bytes": 338,
+      "sha256": "76a1fc1251f2b1e41188b0969d1e02001d1e922e166f169b249c761be5863f87"
+    },
+    {
+      "path": "design/brand/src/layers/40-snout.svg",
+      "group": "brand",
+      "bytes": 193,
+      "sha256": "edced5099e1927f549c649952d390092a64db3e98ed2d6867004142b7f2c2cf0"
+    },
+    {
+      "path": "design/brand/src/layers/50-eyes-nostrils.svg",
+      "group": "brand",
+      "bytes": 508,
+      "sha256": "6c14f888c72f0521c7cfca2952b5e936d5b056763be39f247c295e038ea78f98"
+    },
+    {
+      "path": "design/brand/src/layers/60-highlight.svg",
+      "group": "brand",
+      "bytes": 472,
+      "sha256": "eb3ce9d46312874a209aa78c1fe8fa71e0bee1fcef78ba6698d4ab7f05d656ce"
+    },
+    {
+      "path": "design/brand/src/lockup-kaban-dark.svg",
+      "group": "brand",
+      "bytes": 39146,
+      "sha256": "6f9a4bd15324e750409084f60652d920755674f12506c67c27b8051a55be1ffc"
+    },
+    {
+      "path": "design/brand/src/lockup-kaban-light.svg",
+      "group": "brand",
+      "bytes": 39146,
+      "sha256": "8a97bf59f8217845ccfe0263478cdfa53c2cb0a62260f31e71a7e7f546a21a98"
+    },
+    {
+      "path": "design/brand/src/lockup-kaban-ru-dark.svg",
+      "group": "brand",
+      "bytes": 39647,
+      "sha256": "4a8595b1f027e2d25fd1ed135af6d3f6a84307281b2a5407d1560ae9e3859e91"
+    },
+    {
+      "path": "design/brand/src/lockup-kaban-ru-light.svg",
+      "group": "brand",
+      "bytes": 39647,
+      "sha256": "dc170d6ae9d29f2724deb1f2ba0940b88d1821b74522c501e9d6ca98bbb9932e"
+    },
+    {
+      "path": "design/brand/src/wordmark-kaban-dark.svg",
+      "group": "brand",
+      "bytes": 8412,
+      "sha256": "5b94c4547983c523bf40571b21c8b1052e27bcb394961d8322b8d5b296317dd6"
+    },
+    {
+      "path": "design/brand/src/wordmark-kaban-light.svg",
+      "group": "brand",
+      "bytes": 8412,
+      "sha256": "7786da7aebbe62946eeb2b0b46db732e1d26e72f4bf2c799f00d319737b4f82e"
+    },
+    {
+      "path": "design/brand/src/wordmark-kaban-ru-dark.svg",
+      "group": "brand",
+      "bytes": 8943,
+      "sha256": "9f0614ed1e2578f7391cba9ca9c3add59fa62b320b301217f5e674c7d577eed8"
+    },
+    {
+      "path": "design/brand/src/wordmark-kaban-ru-light.svg",
+      "group": "brand",
+      "bytes": 8943,
+      "sha256": "7cb3139d87dd96021a204f193040292721aebbf03ff57bd80b766473811bbaa6"
+    },
+    {
+      "path": "design/mascots/README.md",
+      "group": "mascots",
+      "bytes": 21317,
+      "sha256": "82f7ef13bb80b73a1b4eaad13f3d6078c6156b25a29f1f15f0103b6acb453d4e"
+    },
+    {
+      "path": "design/mascots/build.sh",
+      "group": "mascots",
+      "bytes": 1041,
+      "sha256": "bcec956230577bd2584738788cd66104554c41663d015fb8fb8a167908d70004"
+    },
+    {
+      "path": "design/mascots/gen.js",
+      "group": "mascots",
+      "bytes": 3757,
+      "sha256": "201dde2cecc14aa1d8f0f7899481182919e6af913eda35049369ae05dc44a7f2"
+    },
+    {
+      "path": "design/mascots/mascot-kit.js",
+      "group": "mascots",
+      "bytes": 9113,
+      "sha256": "3c38c331532b8c5c86a6d667936bb919b6f6a697342b8cc2313c3e3fe420e6f0"
+    },
+    {
+      "path": "design/mascots/mascots-sheet.png",
+      "group": "mascots",
+      "bytes": 1469885,
+      "sha256": "facc02607fab917fa755f07de7df8782575731783929580c430c0ee33b174f39",
+      "pixels": [
+        2880,
+        4030
+      ]
+    },
+    {
+      "path": "design/mascots/mascots.css",
+      "group": "mascots",
+      "bytes": 4310,
+      "sha256": "c244947eb8d4ce5acd8299101a9404442d5aadecf2fce5886f40bf7afbf3216b"
+    },
+    {
+      "path": "design/mascots/mascots.html",
+      "group": "mascots",
+      "bytes": 10904,
+      "sha256": "ee326a36f4fa5e6700cd4d8f83650e650364d856679718c8b57e6758eb07342d"
+    },
+    {
+      "path": "design/mascots/ref/EdgeTextureView.swift",
+      "group": "mascots",
+      "bytes": 4231,
+      "sha256": "4bd19f57295af83bc09c29118e613f6c2f457c508f1cda483d2e94dfced5a647"
+    },
+    {
+      "path": "design/mascots/ref/MascotKit.swift",
+      "group": "mascots",
+      "bytes": 3653,
+      "sha256": "aca1f2ded8e0c913d6684fdb4edd838f1ccdf9f9c2b45dce21f37929eed89b1b"
+    },
+    {
+      "path": "design/mascots/ref/main.swift",
+      "group": "mascots",
+      "bytes": 963,
+      "sha256": "4371b76feceaa31088fa1071f3c2491fcaf140c6b0e38e7f78e4373355079b73"
+    },
+    {
+      "path": "design/mascots/test-vectors.json",
+      "group": "mascots",
+      "bytes": 3387,
+      "sha256": "095666b4771fc1d16b8d50cfe615d9ad9cf17f30210b1e16cf89f87f198eaea9"
+    },
+    {
+      "path": "design/mascots/textures/0-dots-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 1926,
+      "sha256": "bcdae14a85dd1680a909332151f97be49d549d49077efc7cb941df8f308d2d65"
+    },
+    {
+      "path": "design/mascots/textures/0-dots-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 396,
+      "sha256": "17689b4fd4518bade03ba62ad7565106b4ca48f6a9f26b758e72d9ba5cf6460f"
+    },
+    {
+      "path": "design/mascots/textures/0-dots-light-strip.svg",
+      "group": "mascots",
+      "bytes": 1925,
+      "sha256": "417e593cd4a8116422da23105b746788258b0141009905dfb31234cfb4e63f5e"
+    },
+    {
+      "path": "design/mascots/textures/0-dots-light-tile.svg",
+      "group": "mascots",
+      "bytes": 395,
+      "sha256": "a111a74b50d009aadb00c6b0f5b1de2fb78d8e4b9f738d460f38f36fad1faa21"
+    },
+    {
+      "path": "design/mascots/textures/1-stripes-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 755,
+      "sha256": "e539aec04807d45fb5ea7f3983b9cb86bf1361adc242f704609960b911c65398"
+    },
+    {
+      "path": "design/mascots/textures/1-stripes-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 431,
+      "sha256": "3fba4d88ae1838ec045a318dbbe8fdbbd28765c63dbd56534525cc5deb083d5a"
+    },
+    {
+      "path": "design/mascots/textures/1-stripes-light-strip.svg",
+      "group": "mascots",
+      "bytes": 754,
+      "sha256": "d5cfb8373236357ec6cd0c80d217291fb82e64381facef22fde6f67f5b0e8f94"
+    },
+    {
+      "path": "design/mascots/textures/1-stripes-light-tile.svg",
+      "group": "mascots",
+      "bytes": 430,
+      "sha256": "a6f67c6a8adf7476fd56595da5006ce99a79a47f24d13dd9272b477d45ea6211"
+    },
+    {
+      "path": "design/mascots/textures/2-crosshatch-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 1142,
+      "sha256": "d08ef751e56c16d92df047b014a0ae8da4f8a716f1d74ee6d197ec06d2adb1da"
+    },
+    {
+      "path": "design/mascots/textures/2-crosshatch-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 529,
+      "sha256": "4e240fd3276b8391c3cae44946fda0166077557e36fad95a52e4b58f2502b85d"
+    },
+    {
+      "path": "design/mascots/textures/2-crosshatch-light-strip.svg",
+      "group": "mascots",
+      "bytes": 1141,
+      "sha256": "34d14eaa05470cc619eca0abefbb34e74a98da8b4b692d9006656f3bc16f163a"
+    },
+    {
+      "path": "design/mascots/textures/2-crosshatch-light-tile.svg",
+      "group": "mascots",
+      "bytes": 528,
+      "sha256": "9e3551442029773ab99b2ac045f6510ce81f6ddbda77a4087554f082be74501d"
+    },
+    {
+      "path": "design/mascots/textures/3-waves-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 2143,
+      "sha256": "ccba0c479f27ee2b4aaacdccee7c74e65f73c6f12fcf83c9926c5c3ae467d26f"
+    },
+    {
+      "path": "design/mascots/textures/3-waves-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 479,
+      "sha256": "c53048a0f4d9c07efa077500c681642b3a371e5280db568ba2ea8b2ce218ad4b"
+    },
+    {
+      "path": "design/mascots/textures/3-waves-light-strip.svg",
+      "group": "mascots",
+      "bytes": 2143,
+      "sha256": "d24ddba7d5ad8e4ebe1096d9de80c2e44455e3f2147a01a84227764a28238865"
+    },
+    {
+      "path": "design/mascots/textures/3-waves-light-tile.svg",
+      "group": "mascots",
+      "bytes": 479,
+      "sha256": "f272e95e0d4b6cd4b7d7a486516a3724e445078a7ba2e013edf946ff09657385"
+    },
+    {
+      "path": "design/mascots/textures/4-zigzag-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 540,
+      "sha256": "b42acfe398011442349f47ea5c21cbbbeefc579d60f9f3dbe6e22cec9bbd7b09"
+    },
+    {
+      "path": "design/mascots/textures/4-zigzag-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 331,
+      "sha256": "5b0010d7ef76db6203d5decaa29015a623b43b0ca9d6bf892a76dc4218facaef"
+    },
+    {
+      "path": "design/mascots/textures/4-zigzag-light-strip.svg",
+      "group": "mascots",
+      "bytes": 540,
+      "sha256": "13c7922570811d8277f5a939cc7a312fce2ff7997951c2d1a2b9d6c9da3279da"
+    },
+    {
+      "path": "design/mascots/textures/4-zigzag-light-tile.svg",
+      "group": "mascots",
+      "bytes": 331,
+      "sha256": "ae6c3bb946bba194d3f614bf85857741f0580db3503d1cdeac83542b7e36da8c"
+    },
+    {
+      "path": "design/mascots/textures/5-grid-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 672,
+      "sha256": "667159a548b95f5bb59507b7d3675ddc2958ef1fda65a8156bd9a7aa1aeb0692"
+    },
+    {
+      "path": "design/mascots/textures/5-grid-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 334,
+      "sha256": "804aa3d1a4783513622e01869109f91b50c84b720d3b73ca550cb8a603fc881d"
+    },
+    {
+      "path": "design/mascots/textures/5-grid-light-strip.svg",
+      "group": "mascots",
+      "bytes": 672,
+      "sha256": "2cc17d9943f431540f1745dbdffd3d1a285d938777b75cc94bd7da9a54c4a841"
+    },
+    {
+      "path": "design/mascots/textures/5-grid-light-tile.svg",
+      "group": "mascots",
+      "bytes": 334,
+      "sha256": "6c1697e7f985364981f4d3266259599073f613344ef61f8b7aff59bfb36eba09"
+    },
+    {
+      "path": "design/mascots/textures/6-chevrons-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 985,
+      "sha256": "7245d26b9fb005e12ae45ae446698c5eb80b0573115ee43a358c273b8206992c"
+    },
+    {
+      "path": "design/mascots/textures/6-chevrons-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 376,
+      "sha256": "685e1c78c4018b37484fe115f6212247f51c1331ab1688b4ee628e9ea809453f"
+    },
+    {
+      "path": "design/mascots/textures/6-chevrons-light-strip.svg",
+      "group": "mascots",
+      "bytes": 985,
+      "sha256": "791d6dc67d03b41a8c35ed8b59be24b32a1f2918a4f696e9ec67d1a6538e6154"
+    },
+    {
+      "path": "design/mascots/textures/6-chevrons-light-tile.svg",
+      "group": "mascots",
+      "bytes": 376,
+      "sha256": "4a58ea165ecfb339af50b2b7722982427da3e5b6c54394171503edef2f08716b"
+    },
+    {
+      "path": "design/mascots/textures/7-solid-thin-dark-strip.svg",
+      "group": "mascots",
+      "bytes": 318,
+      "sha256": "abb258e53a89a358735363192f967cd116ab584189f74a69211369f556bb410b"
+    },
+    {
+      "path": "design/mascots/textures/7-solid-thin-dark-tile.svg",
+      "group": "mascots",
+      "bytes": 258,
+      "sha256": "2c609710f999861d3ec7141b2be12309dfd0c116062cc9d79a933c90a8e9f4fa"
+    },
+    {
+      "path": "design/mascots/textures/7-solid-thin-light-strip.svg",
+      "group": "mascots",
+      "bytes": 317,
+      "sha256": "0a3eaec576efe421bdabd148b47114e8da89c78165e0e3286846343dcbc3a18c"
+    },
+    {
+      "path": "design/mascots/textures/7-solid-thin-light-tile.svg",
+      "group": "mascots",
+      "bytes": 257,
+      "sha256": "5e2f59692c803c21412b5568c1a6efb80969dbaa7b4d4b7b392189a020e4db43"
+    }
+  ]
+}

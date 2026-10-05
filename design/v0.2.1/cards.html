@@ -1,0 +1,93 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2.1 — Подозрительные файлы: карточки, лента, токен</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../board.css"><link rel="stylesheet" href="../task-details.css"><link rel="stylesheet" href="../v0.2/v02.css"><link rel="stylesheet" href="v021.css">
+<style>
+html,body{height:900px}
+.sheet{position:relative;width:1440px;height:900px;background:var(--bg-content);padding:26px 36px;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px;font-weight:750;letter-spacing:-.02em}
+.lead{font-size:12px;color:var(--text-2);max-width:1240px;line-height:17px;margin-top:4px}
+h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+h2 .faint{font-weight:500;font-size:11.5px}
+.row{display:flex;gap:10px;align-items:flex-start}
+.cell{width:219px;display:flex;flex-direction:column;gap:6px}
+.cap{font-size:10.5px;color:var(--text-2);line-height:14px}
+.cap .mono{font-size:10px;color:var(--text)}
+.cap b{color:var(--text);font-weight:650}
+.two{display:grid;grid-template-columns:1fr 520px;gap:28px}
+.fd{background:var(--bg-card);border-radius:12px;box-shadow:var(--sh-card);padding:2px 12px}
+.fd .ev:last-child{border-bottom:none}
+.fd .ev{grid-template-columns:22px 1fr 96px}
+.fd .ev .t{font-family:var(--font-mono);font-size:9.5px;letter-spacing:0}
+.box2{background:var(--bg-lane);border-radius:14px;box-shadow:inset 0 0 0 .5px var(--sep);padding:10px 12px}
+.flow{display:grid;grid-template-columns:250px 18px 290px 18px 270px 18px 1fr;align-items:stretch}
+.fs{background:var(--bg-card);border-radius:12px;box-shadow:var(--sh-card);padding:9px 10px;display:flex;flex-direction:column;gap:6px}
+.fs .k{font-size:10px;font-weight:700;color:var(--text-3);letter-spacing:.03em;text-transform:uppercase;display:flex;gap:6px;align-items:center}
+.fs .k .mono{text-transform:none;letter-spacing:0;font-weight:500}
+.arrow2{display:grid;place-items:center;color:var(--text-3)}
+.tok{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+.bigic{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:var(--st-suspicious-bg);color:var(--st-suspicious);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--st-suspicious) 45%,transparent)}
+.sw{display:flex;gap:6px;margin-top:6px}
+.sw span{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:0}
+.sw i{width:18px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 .5px var(--sep-strong)}
+.cmpr{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.mt2{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}
+.mt2 td{padding:5px 0;border-top:.5px solid var(--sep);vertical-align:middle;white-space:nowrap}
+.mt2 td:first-child{width:118px;color:var(--text-2)}
+.mt2 td .mono{font-size:10px}
+.mini{display:flex;gap:8px;align-items:center}
+</style></head>
+<body><div class="sheet" id="root"></div><script src="../components.js"></script><script src="../v0.2/v02.js"></script><script src="v021.js"></script><script src="details21.js"></script>
+<script>
+const C=(o,cap)=>`<div class="cell">${card3(Object.assign({w:219},o))}<div class="cap">${cap}</div></div>`;
+const evc=(cls,icon,h,s,t)=>`<div class="ev ${cls}"><span class="g">${ic(icon,12)}</span><div><div class="h">${h}</div><div class="s">${s}</div></div><span class="t">${t}</span></div>`;
+document.getElementById('root').innerHTML=`
+<div><h1>Kaban v0.2.1 · подозрительные файлы</h1>
+<div class="lead"><span class="mono">waiting_human · suspicious_files</span> (UC-25, F29, арх. v0.11.2 §3.2, §5, §8.2). Это <b>не инцидент</b>: refs не откатываются, в «Инциденты» и <span class="mono">openIncidentCount</span> не попадает, попытка не списывается. Поэтому карточка <b>янтарная</b> (внимание), как остальные <span class="mono">waiting_human</span>, но со своим значком — щит с восклицательным знаком. Данные: <span class="mono">TaskCard.suspiciousFiles</span> = [<span class="mono">SuspiciousFile {path, rule: pattern | size, pattern?, sizeBytes, blob}</span>]. На карточке — имя файла и короткая причина, до двух строк, остальное «+N». Бейджи не используются, правило «не больше двух бейджей» не нарушается.</div></div>
+
+<div><h2>Карточки <span class="faint">статус · причина · строки файлов под заголовком</span></h2>
+<div class="row">
+${C({p:'shop',id:52,t:'Интеграция платёжного шлюза',s:'suspicious',label:'Подозрительные файлы: 3',meta:'14:52',lines:[fl(['.env.local','pattern','.env*']),fl(['orders-dump.sql','size','12,4 МБ'],1)]},'<b>Dev, после гейтов.</b> Шаблон + размер, третий файл ушёл в «+1». Переход Dev → Test остановлен.')}
+${C({p:'kaban',id:23,t:'Подпись релизной сборки',s:'suspicious',label:'Подозрительные файлы: 1',meta:'13:10',lines:[fl(['release.p12','pattern','*.p12'])]},'<b>rule: pattern.</b> На карточке — сработавший <span class="mono">pattern</span>; в панели — «по шаблону *.p12».')}
+${C({p:'mob',id:31,t:'Видео для экрана онбординга',s:'suspicious',label:'Подозрительные файлы: 1',meta:'12:40',lines:[fl(['onboarding.mov','size','48 МБ'])]},'<b>rule: size.</b> «больше 5 МБ» (порог <span class="mono">max_file_mb</span>); размер из <span class="mono">sizeBytes</span>, если есть место.')}
+${C({p:'docs',id:12,t:'Скриншоты для гайда по API',s:'suspicious',label:'Подозрительные файлы: 5',meta:'11:05',lines:[fl(['hero@3x.png','size','7,2 МБ']),fl(['flow-demo.gif','size','9,1 МБ'],3)]},'<b>Длинный список:</b> две строки, остальное «+3». Весь список — в панели.')}
+${C({p:'shop',id:29,t:'Индексы для поиска по SKU',s:'suspicious',label:'Подозрительные файлы: 1',lines:[`<div class="fline gr">${ic('merge',10)}перед слиянием</div>`,fl(['seed-sku.sql','size','6,8 МБ',1])]},'<b>Merge.</b> «Попросить убрать» здесь — «Вернуть с замечанием» (<span class="mono">requestChanges</span>): набор <b>не</b> принимается.')}
+${C({p:'mob',id:33,t:'Конфиг staging для CI',s:'suspicious',label:'Подозрительные файлы: 1',meta:'10:22',sel:true,lines:[fl(['.env.staging','pattern','.env*'])],action:'<span class="btn sm">'+ic('shieldalert',10)+'Открыть файлы</span>'}, '<b>Наведение / выбор:</b> быстрое действие «Открыть файлы» открывает блок решения в панели.')}
+</div></div>
+
+<div><h2>«Принять файлы» · жизненный цикл <span class="faint">без оптимистичного перехода: UI ждёт событие с тем же <span class="mono">commandId</span></span></h2>
+<div class="flow">
+ <div class="fs"><div class="k">1 · набор показан</div><div class="mini"><span class="btn primary">${ic('check',11)}Принять файлы (3)</span></div><div class="cap">Кнопка шлёт <span class="mono">acceptSuspiciousFiles(taskId, files: [{path, blob}])</span> ровно с показанным набором.</div></div>
+ <div class="arrow2">${ic('arrowright',14)}</div>
+ <div class="fs"><div class="k">2 · ждём демон <span class="mono">commandId 7f3e…</span></div><div class="mini"><span class="btn primary pending"><span class="spin"></span>Отправлено…</span><span class="btn sm dis2">${ic('message',10)}Попросить убрать</span></div><div class="cap">Кнопки блока неактивны, карточка не меняется. Обычно доли секунды.</div></div>
+ <div class="arrow2">${ic('arrowright',14)}</div>
+ <div class="fs"><div class="k">3 · <span class="mono">taskUpdated</span> с тем же commandId</div>${card3({w:248,p:'shop',id:52,t:'Интеграция платёжного шлюза',s:'queued',label:'В очереди',meta:'Test'})}<div class="cap">Перепроверка чистая: <span class="mono">suspiciousFiles</span> пуст, задача в Test без нового запуска. «Отправлено…» снимается.</div></div>
+ <div class="arrow2" style="color:var(--text-4)">${ic('chevright',14)}</div>
+ <div class="fs"><div class="k">3′ · ошибка или <span class="mono">stale_suspicious_files</span></div><div class="stale" style="padding:6px 8px">${ic('info',12)}<div><b>Набор файлов изменился — ничего не принято.</b> Правка в клоне, другое окно/CLI или новый rebase в Merge. Список перечитан, новые и изменённые строки подсвечены.</div></div><div class="mini"><span class="btn primary">${ic('check',11)}Принять файлы (3)</span><span class="cap">кнопка снова активна для нового набора; при другой ошибке — текст ошибки, набор прежний</span></div></div>
+</div></div>
+
+<div class="two">
+ <div><h2>Строки ленты <span class="faint">SuspiciousFilesRow по журнальным событиям</span></h2>
+  <div class="fd">
+   ${evc('sf','shieldalert','Найдены подозрительные файлы: 3 <span class="evcode">suspiciousFilesFound</span>','<div class="fl"><span><span class="mono">.env.local</span>412 Б · по шаблону .env*</span><span><span class="mono">certs/stripe-test.pem</span>3,2 КБ · по шаблону *.pem</span><span><span class="mono">fixtures/orders-dump.sql</span>12,4 МБ · больше 5 МБ</span></div>после гейтов Dev, запуск 4 · переход Dev → Test остановлен · попытка не списана','14:52')}
+   ${evc('ok','check','Файлы приняты вами <span class="via">Принять файлы</span> <span class="evcode">suspiciousFilesAccepted</span>','3 файла · перепроверка чистая → Test, без нового запуска агента','14:58')}
+   ${evc('agent','message','Замечание агенту: «Убери из ветки orders-dump.sql»','<span class="mono">answerHuman</span> · набор не принят · новый запуск Dev, проверка после гейтов','15:05')}
+   ${evc('sf','shieldalert','Снова найден подозрительный файл: 1 <span class="evcode">suspiciousFilesFound</span>','после гейтов Dev, запуск 5 · <span class="mono">fixtures/orders-dump.sql</span> 9,8 МБ (новый blob) — после замечания','15:31')}
+   ${evc('ok','check','Файлы приняты вами <span class="via">Перезапустить стадию</span> <span class="evcode">suspiciousFilesAccepted</span>','1 файл · <span class="mono">retryStage</span> принимает текущий набор · новый запуск Dev','15:40')}
+   ${evc('sf','shieldalert','Перед слиянием: подозрительный файл 1 <span class="evcode">suspiciousFilesFound</span>','повторная проверка в Merge · <span class="mono">seed-sku.sql</span> 6,8 МБ · слияние ждёт решения','16:12')}
+  </div></div>
+ <div><h2>Токен и значок <span class="faint">для фронта</span></h2>
+  <div class="box2">
+   <div class="tok"><div class="bigic">${ic('shieldalert',28)}</div><div>
+    <div style="font-size:12.5px;font-weight:700">--st-suspicious = --st-waiting <span class="faint" style="font-weight:500">(алиас, отдельного цвета нет)</span></div>
+    <div class="cap" style="margin-top:2px">Значок: <span class="mono">shieldalert</span> (lucide shield-alert) · SwiftUI <span class="mono">Image(systemName: "exclamationmark.shield")</span>. Цвет — янтарь внимания, как у прочих <span class="mono">waiting_human</span>; отличает только значок.</div>
+    <div class="sw"><span><i style="background:var(--st-suspicious)"></i>--st-suspicious</span><span><i style="background:var(--st-suspicious-bg)"></i>-bg</span><span><i style="background:var(--st-suspicious-fg)"></i>-fg</span></div></div></div>
+   <div class="cmpr"><span class="statpill am">${ic('shieldalert',11)}suspicious_files</span><span class="statpill am">${ic('hand',11)}прочие waiting_human</span><span class="statpill" style="background:var(--st-review-bg);color:var(--st-review-fg)">${ic('usercheck',11)}review</span><span class="cap">Красный (<span class="mono">--st-incident</span>, значок siren) — только <span class="mono">incident</span>.</span></div>
+   <table class="mt2">
+    <tr><td><span class="mono">rule: pattern</span></td><td>${rtag('pattern','.env*')} <span class="cap">&nbsp;шаблон из <span class="mono">SuspiciousFile.pattern</span> как есть</span></td></tr>
+    <tr><td><span class="mono">rule: size</span></td><td><b style="font-size:11px">12,4 МБ</b> ${rtag('size')} <span class="cap">&nbsp;размер — у каждого файла</span></td></tr>
+    <tr><td>ссылка у файла</td><td><span style="color:var(--accent);font-size:11px">${ic('code',10)} дифф</span> <span class="cap">&nbsp;<span class="mono">isText</span> и &lt; <span class="mono">max_file_mb</span> · </span><span style="color:var(--accent);font-size:11px">${ic('folder',10)} Показать в Finder</span> <span class="cap">&nbsp;иначе</span></td></tr>
+    <tr><td>после <span class="mono">stale_…</span></td><td><span class="stag">новый</span> <span class="stag chg">изменён</span> <span class="cap">&nbsp;подсветка строк, убранные — в тексте плашки</span></td></tr>
+    <tr><td><span class="mono">acceptedFiles</span></td><td><span class="cap"><span style="color:var(--st-done)">${ic('check',10)}</span> путь · blob · кто · когда (время по Калининграду)</span></td></tr>
+   </table>
+  </div></div>
+</div>`;
+</script></body></html>

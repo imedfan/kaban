@@ -1,20 +1,37 @@
-# Read-only smoke tools — T11
+# Инструменты проверки Kaban
+
+## Рабочий контекст и дизайн
+
+```sh
+python3 tools/check-project-context.py
+```
+
+Python 3.9+, только standard library. Проверяет локальные ссылки рабочих
+документов, бюджет корневого AGENTS.md и SHA-256/размеры всех закреплённых
+оригиналов design/. Для PNG проверяет исходные размеры; лишний файл без
+manifest и изменение оригинала вызывают ошибку. Проверяет также полные исходные
+документы Drive по SHA-256 и существование их рабочих путей в docs/.
+Рабочие требования можно обновлять; неизменными остаются снимки импорта в архиве.
+Проверка также выполняется в отдельной CI job. Она не заменяет визуальную
+приёмку настоящего окна App.
+
+## YAML и сценарии
 
 Python 3.9+, без SwiftPM и изменений CI. YAML smoke использует
 [PyYAML SafeLoader](https://pyyaml.org/wiki/PyYAMLDocumentation), dependency
 зафиксирована в requirements.txt. Системный Python менять не требуется:
 
 ```sh
-python3 -m venv .venv-team2-tools
-.venv-team2-tools/bin/python -m pip install -r tools/requirements.txt
-.venv-team2-tools/bin/python tools/lint-examples.py
+python3 -m venv /tmp/kaban-tools-venv
+/tmp/kaban-tools-venv/bin/python -m pip install -r tools/requirements.txt
+/tmp/kaban-tools-venv/bin/python tools/lint-examples.py
 python3 tools/scenarios-report.py
 ```
 
 Запускайте из корня checkout; default пути вычисляются относительно scripts,
 поэтому сами Python команды также работают из другого current directory.
-examples/pipelines появятся после [T7 branch](https://github.com/imedfan/kaban/tree/team2/examples-t7-pipelines).
-До принятия T7 передайте directory этого checkout первым аргументом.
+examples/pipelines уже находятся в репозитории. Для проверки другого checkout
+передайте directory первым аргументом.
 Отсутствующий/пустой каталог вызывает ошибку, не green no-op.
 
 lint-examples проверяет YAML синтаксис, mapping root, version/stages/id/kind,

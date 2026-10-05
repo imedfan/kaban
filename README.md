@@ -1,58 +1,52 @@
 # Kaban
 
-Локальное macOS-приложение, «канбан-фабрика». Headless гоняет `cursor-agent` по стадиям канбана: Backlog, Dev, Test, AI Review и Human Review. У каждой стадии своя модель и свой skill, есть WIP-лимиты, ретраи и учёт квот Cursor.
+Локальное macOS-приложение для канбан-пайплайна разработки: задачи проходят
+agent-, gate-, human- и merge-стадии с явными моделями, WIP, ретраями и git-политикой.
+Kaban — основной проект. Текущий код содержит headless-ядро с SQLite/fake engine
+и нативную SwiftUI-доску на mock-клиенте; связь через XPC и реальный Cursor CLI впереди.
 
-Приложение на SwiftUI (macOS 26, Liquid Glass) только рисует доску. Демон `KabanAgent` работает как LaunchAgent и общается с приложением по XPC. Хранилище — GRDB/SQLite (зависимость подключит бэкенд). Ядро на Swift 6 собирается и тестируется на Linux.
+## Начало работы
 
-## Структура репозитория
+- [Текущее состояние](docs/current-state.md) — что реализовано и что осталось в ветках.
+- [Инструкции агента](AGENTS.md) — короткий вход и маршруты чтения.
+- [Рабочие правила](docs/contributing.md) — ветки, проверки, PR и действующая политика.
+- [Сборка и запуск](docs/getting-started.md) — окружение и проверенные команды.
+- [Документация](docs/README.md) — рабочие источники и результаты переноса из Drive.
 
-```
-Package.swift              SwiftPM-пакет (swift-tools-version 6.0)
-Sources/
-  KabanProtocol/           Codable-типы XPC-контракта (архитектор)
-  KabanKit/                ядро демона (бэкенд)
-  KabanBoardCore/          проекция доски без SwiftUI (фронтенд)
-Tests/                     по одному тестовому таргету на модуль
-docs/                      архитектура, спека, планы, журнал решений
-spikes/backend/            спайки бэкенда, наполняется на mbp
-spikes/frontend/           спайки FS-1…FS-9, прогон на mbp (`spikes/frontend/README.md`)
-.github/workflows/ci.yml   сборка и тесты
-```
+## Код
 
-Модули пока пустые: в исходниках только `// TODO`. Типы протокола не объявлены заранее — их добавит архитектор. `KabanBoardCore` зависит от `KabanProtocol` и `KabanKit`. GRDB в пакете нет.
+| Где | Назначение |
+|---|---|
+| Sources/KabanProtocol/ | Codable DTO, команды, snapshot/details и события |
+| Sources/KabanKit/ | YAML/pipeline, git-policy и чистый автомат |
+| Sources/KabanDaemonCore/ | GRDB/SQLite, журнал/effects, fake driver, scheduler и recovery |
+| Sources/KabanBoardCore/ | KabanClient, проекция, BoardSet, pending commands и presentation; только Protocol |
+| App/KabanApp/ и Kaban.xcodeproj | Нативные SwiftUI views и BoardStore; Protocol/BoardCore |
+| Tests/ и Scenarios/M1/ | Unit/integration suites и сценарии |
+| design/ | Закреплённые оригиналы макетов, токенов, бренда и маскотов |
+| spikes/ | Отдельные runtime-эксперименты |
 
-Приложение `Kaban.app`, демон и `kabanctl` в этот каркас не входят: их соберут отдельные PR на macOS. Веха M1 — ядро на Linux (`KabanModel`, автомат, хранилище, планировщик).
+## Проверка
 
-## Сборка и тесты
+Из корня, Swift 6.1+ (на Linux нужны SQLite headers):
 
-Команды выполняются в корне репозитория. Нужен Swift 6.1 или новее.
-
-### Linux
-
-Официальный тулчейн: [swift.org/install](https://www.swift.org/install/).
-
-```bash
+```sh
+python3 tools/check-project-context.py
 swift build
-swift test
+KABAN_SCENARIOS=Scenarios/M1 swift test
 ```
 
-То же в официальном контейнере Swift 6:
+Приложение требует macOS 26+ и полный Xcode с соответствующим SDK.
+SwiftPM-пакет имеет минимум macOS 15. `swift test` не проверяет вид SwiftUI-окна.
+Unsigned app build и запуск описаны в [App/README.md](App/README.md).
 
-```bash
-docker run --rm -v "$PWD":/src -w /src swift:6.1 swift build
-docker run --rm -v "$PWD":/src -w /src swift:6.1 swift test
-```
+## Требования
 
-На каждый push и pull request GitHub Actions гоняет `swift build` и `swift test` в контейнере `swift:6.1`.
+- [Архитектура](docs/architecture-v0.md), [поведение MVP](docs/kaban-mvp-features-usecases.md), [журнал решений](docs/decisions-log.md).
+- [Frontend plan](docs/frontend-plan-v0.md) с отдельными документами экранов; [backend plan](docs/backend-plan-v0.md).
+- [Дизайн и версии](design/README.md), [критерии приёмки](docs/acceptance-criteria-v0.md).
 
-### macOS
-
-Те же `swift build` и `swift test` в корне. Для ядра достаточно Swift 6; приложение и Liquid Glass рассчитаны на macOS 26. Джоба macOS в CI стоит на `macos-latest` и не блокирует сборку (`continue-on-error`): обязательный сигнал — Linux.
-
-## Документы
-
-- [Архитектура v0.10.2](docs/architecture-v0.md) — модули (§2), протокол (§5), спайки (§14), вехи M1–M5 (§15)
-- [Фичи и юзеркейсы v0.7.2](docs/kaban-mvp-features-usecases.md)
-- [План бэкенда](docs/backend-plan-v0.md)
-- [План фронтенда](docs/frontend-plan-v0.md)
-- [Журнал решений](docs/decisions-log.md)
+Документация ведётся в Git; актуальные источники Drive перенесены в docs/.
+Drive остаётся историческим источником. Материалы
+[архива](docs/archive/README.md) и [team2](docs/team2/README.md)
+сохраняют происхождение решений и не ограничивают основную разработку.

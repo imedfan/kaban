@@ -1,0 +1,124 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban — Карточка: все состояния</title>
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="board.css">
+<style>
+html,body{height:2070px}
+.sheet{position:relative;width:1440px;height:2070px;padding:40px 48px;overflow:hidden;background:var(--bg-content)}
+.sheet h1{font-size:26px;font-weight:750;letter-spacing:-.02em}
+.sheet .lead{font-size:13px;color:var(--text-2);margin-top:6px;max-width:820px;line-height:18px}
+.hdr{display:flex;gap:32px;align-items:flex-start}
+.levels{display:flex;gap:8px;margin-top:16px}
+.lvl{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--bg-card);box-shadow:var(--sh-card);font-size:11.5px;line-height:15px}
+.lvl b{display:block;font-size:12px}
+.lvl .sw{width:26px;height:18px;border-radius:5px;flex:none}
+.sec{margin-top:24px}
+.sec h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:10px;letter-spacing:-.005em}
+.sec h2 .faint{font-weight:500;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px 14px}
+.cell{display:flex;flex-direction:column;gap:7px}
+.cap{font-size:11px;line-height:14px;color:var(--text-2)}
+.cap code{font-family:var(--font-mono);font-size:10.5px;color:var(--text);background:var(--bg-control);padding:0 4px;border-radius:4px}
+.cap .slots-i{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.yes,.no{font-size:9.5px;font-weight:650;padding:1px 5px;border-radius:4px}
+.yes{background:var(--st-running-bg);color:var(--st-running-fg)} .no{background:var(--bg-control);color:var(--text-3)}
+.anat{position:relative;width:500px;height:210px;flex:none;margin-top:6px;border-radius:16px;background:var(--bg-card);box-shadow:var(--sh-card);padding:24px 24px}
+.anat .card{position:absolute;left:24px;top:28px;transform:scale(1.25);transform-origin:top left}
+.call{position:absolute;font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.call i{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-weight:700;font-size:10px;display:grid;place-items:center;flex:none}
+.tex-row{display:flex;gap:10px;margin-top:4px}
+.tok{display:grid;grid-template-columns:repeat(13,1fr);gap:8px}
+.tk{border-radius:10px;overflow:hidden;background:var(--bg-card);box-shadow:var(--sh-card);font-size:10px}
+.tk .a{height:22px;background:var(--c)} .tk .b{height:16px;background:var(--cbg);color:var(--cfg);font-weight:650;padding:0 6px;line-height:16px}
+.tk .n{padding:4px 6px 6px;color:var(--text-2);line-height:13px}
+.tk .n b{display:block;color:var(--text);font-size:10.5px}
+.code2{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3)}
+.flags{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.flags .cap{margin-top:4px}
+.prioL{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--text-2)}
+.prioL .n{width:16px;height:16px;border-radius:50%;background:var(--bg-control);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--text)}
+.drag{transform:rotate(-2.5deg);box-shadow:var(--sh-pop)!important}
+.missing{opacity:.6;background:repeating-linear-gradient(135deg,var(--bg-card) 0 6px,var(--bg-control) 6px 12px)!important}
+</style></head>
+<body><div class="sheet" id="root"></div>
+<script src="components.js"></script>
+<script>
+const W=200;
+// C(card, status, reason, description, wip, process)
+const C=(o,st,rs,desc,wip,proc)=>`<div class="cell">${card(Object.assign({w:W},o))}<div class="cap"><code>${st}</code>${rs?` <span class="code2">· ${rs}</span>`:''}<br>${desc}<div class="slots-i"><span class="${wip?'yes':'no'}">WIP-слот: ${wip?'занимает':'нет'}</span><span class="${proc?'yes':'no'}">процесс: ${proc?'да':'нет'}</span></div></div></div>`;
+const levels = [
+ ['var(--bg-card)','Спокойно','queued, paused, done, cancelled — серая статус-строка'],
+ ['var(--st-running)','Активно','running, gating, retry_wait — цветной статус, прогресс'],
+ ['var(--st-waiting)','Внимание','waiting_human, blocked — подложка статус-строки и рамка'],
+ ['var(--st-incident)','Тревога','waiting_human · incident — красная заливка и уведомление'],
+];
+const toks=[['queued','queued'],['running','running'],['gating','gating'],['retry','retry_wait'],['waiting','waiting_human'],['review','· review'],['incident','· incident'],['paused','paused'],['blocked','blocked'],['done','done'],['cancelled','cancelled']];
+document.getElementById('root').innerHTML = `
+<div class="hdr"><div style="flex:1">
+  <h1>Карточка задачи · все статусы</h1>
+  <div class="lead">Единый набор статусов из архитектуры v0.9, раздел 3.2: <code class="mono">queued · running · gating · retry_wait · waiting_human · paused · blocked · done · cancelled</code>, у каждого — <code class="mono">reason</code>. Всё, что требует решения человека, — это <code class="mono">waiting_human</code> с причиной. Всё про целый Мак или проект (rate-limit, Cursor недоступен, пауза, проект недоступен, слияние остановлено) — флаги планировщика: баннер над доской или в шапке дорожки, а не статус карточки. Цвет статуса живёт только в статус-строке и рамке; проект различается маскотом-наклейкой и фактурой левого края.</div>
+  <div class="levels">${levels.map(l=>`<div class="lvl"><span class="sw" style="background:${l[0]};box-shadow:inset 0 0 0 .5px var(--sep-strong)"></span><div><b>${l[1]}</b>${l[2]}</div></div>`).join('')}</div>
+</div>
+<div class="anat">${card({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'running',meta:'12 мин',progress:55,badges:[['ret','возврат 1/3','undo'],['','opus']],w:170})}
+  <span class="call" style="left:250px;top:30px"><i>1</i>наклейка маскота проекта + id</span>
+  <span class="call" style="left:250px;top:58px"><i>2</i>заголовок, максимум 2 строки</span>
+  <span class="call" style="left:250px;top:86px"><i>3</i>бейджи (не статусы), максимум 2</span>
+  <span class="call" style="left:250px;top:114px"><i>4</i>статус-строка: иконка · статус · мета</span>
+  <span class="call" style="left:250px;top:142px"><i>5</i>прогресс run (только «активно»)</span>
+  <span class="call" style="left:250px;top:170px"><i>6</i>фактура края = проект (доступность)</span>
+</div></div>
+
+<div class="sec"><h2><code class="mono">queued</code> · <code class="mono">running</code> · <code class="mono">gating</code> · <code class="mono">retry_wait</code> <span class="faint">WIP стадии считает running + gating + retry_wait</span></h2><div class="grid">
+${C({p:'shop',id:58,t:'Экспорт заказов в CSV для бухгалтерии',s:'queued',meta:'#2'},'queued','','в Backlog или ждёт слота стадии',0,0)}
+${C({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'queued',meta:'первая',prio:'↑',badges:[['ret','возврат 1/3 от Test','undo']]},'queued','приоритет returned','возвращённая идёт раньше новых',0,0)}
+${C({p:'kaban',id:13,t:'Менюбар: счётчик «ждут человека»',s:'queued',label:'Ждёт места',badges:[['','Human Review 5/5','hourglass']]},'queued','','следующая стадия заполнена (обратное давление)',0,0)}
+${C({p:'shop',id:36,t:'Скидки по промокодам',s:'queued',meta:'первая',prio:'↑',badges:[['ret','возврат: конфликт 1/2','merge'],['','+ rebase','branch']]},'queued','возврат после конфликта','конфликт — это возврат в первую agent-стадию; на этот возврат политике добавлен rebase; дальше все стадии и всегда Human Review',0,0)}
+${C({p:'shop',id:61,t:'Rate limit на /auth/login',s:'queued',label:'Не запустится',badges:[['warn','без критериев приёмки','alert']]},'queued','','сохранить можно, запустить нельзя (UC-02)',0,0)}
+${C({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'running',meta:'12 мин',progress:55,badges:[['ret','возврат 1/3','undo'],['','opus']]},'running','','идёт run агента, живой лог в панели',1,1)}
+${C({p:'kaban',id:15,t:'Дорожки: закреплённые заголовки',s:'running',meta:'21 мин',progress:70,badges:[['grant','git ×1 разрешено','key'],['warn','пересечение','layers']]},'running','+ бейджи','неиспользованное git-разрешение и пересечение файлов — бейджи, не статусы',1,1)}
+${C({p:'shop',id:44,t:'Миграция цен в копейки',s:'gating',meta:'swift test · 2/3',progress:66},'gating','','после complete_stage: гейты и проверка результата',1,0)}
+${C({p:'shop',id:29,t:'Индексы для поиска по SKU',s:'gating',label:'Rebase + гейты',meta:'Merge #1',progress:40},'gating','merge-стадия','rebase на main во временном клоне и гейты',1,0)}
+${C({p:'shop',id:34,t:'Логи запросов без PII',s:'retry',meta:'1:40 · 2/3',badges:[['','crash']]},'retry_wait','crash · stall_timeout · wall_timeout · no_final_call · gate_failed','пауза перед повтором: 30 с, 2 мин, 8 мин',1,0)}
+${C({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'retry',label:'Ждёт лимит',meta:'16:40',badges:[['','rate_limit','zap'],['','попытка не списана']]},'retry_wait','rate_limit','run сам получил rate-limit; ждёт снятия флага Мака',1,0)}
+${C({p:'kaban',id:15,t:'Дорожки: закреплённые заголовки',s:'retry',label:'Ждёт Cursor',badges:[['','runner_auth','key'],['','попытка не списана']]},'retry_wait','runner_auth · daemon_restart','run упал на авторизации; ждёт снятия флага runner_unavailable',1,0)}
+</div></div>
+
+<div class="sec"><h2><code class="mono">waiting_human</code> <span class="faint">слот не занимает; в max_waiting_human проекта (3) считается всё, кроме reason = review</span></h2><div class="grid">
+${C({p:'shop',id:35,t:'Кэш каталога в Redis',s:'waiting',label:'Вопрос агента',meta:'18 м',badges:[['','request_human','message']],action:'<span class="btn sm primary">Ответить</span>'},'waiting_human','question','после ответа — в очередь стадии раньше новых, resume сессии',0,0)}
+${C({p:'shop',id:31,t:'Корзина: объединение гостевой и личной',s:'review',meta:'+128 −40',badges:[['ok','гейты ✓'],['','6 файлов']]},'waiting_human','review','стадия Human Review; в лимит не считается',0,0)}
+${C({p:'shop',id:31,t:'Корзина: объединение гостевой и личной',s:'review',meta:'+142 −40',badges:[['ret','после конфликта','merge'],['','Δ 2 файла']]},'waiting_human','review · после конфликта','всегда снова к человеку; отдельно помечено, что изменилось',0,0)}
+${C({p:'shop',id:40,t:'Валидация адреса доставки',s:'waiting',label:'Попытки исчерпаны',meta:'3/3',badges:[['bad','stall 10 мин','timer']],action:'<span class="btn sm">Перезапустить</span><span class="btn sm">Модель</span>'},'waiting_human','retries_exhausted','попытки кончились: лог последней попытки и уведомление',0,0)}
+${C({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'waiting',label:'Лимит возвратов',meta:'5/5',badges:[['ret','Test→Dev 3/3','undo']],action:'<span class="btn sm">Ещё попыток</span><span class="btn sm">Модель</span>'},'waiting_human','bounce_limit','сводка всех замечаний возвратов',0,0)}
+${C({p:'shop',id:36,t:'Скидки по промокодам',s:'waiting',label:'Лимит конфликтов',meta:'2/2',badges:[['ret','конфликт 2/2','merge']]},'waiting_human','conflict_limit','второй конфликт слияния подряд',0,0)}
+${C({p:'kaban',id:18,t:'Ротация логов run по размеру',s:'waiting',label:'Политика git',meta:'5/5 отказов',badges:[['bad','5 отказов за run','ban']],action:'<span class="btn sm">Разрешить…</span><span class="btn sm">Подсказка</span>'},'waiting_human','git_denials','run остановлен на 5-м отказе (UC-17)',0,0)}
+${C({p:'kaban',id:17,t:'Обёртка git: белый список флагов',s:'incident',meta:'main откатан',badges:[['bad','refs/heads/main сдвинут','siren']]},'waiting_human','incident','refs откатаны; сама не продолжится никогда (UC-18)',0,0)}
+${C({p:'kaban',id:12,t:'Ревью: проверка схемы pipeline.yaml',s:'waiting',label:'Правки в read-only',badges:[['bad','правки откатаны','undo']]},'waiting_human','invalid_result','read-only стадия повторно оставила изменения',0,0)}
+</div></div>
+
+<div class="sec"><h2><code class="mono">paused</code> · <code class="mono">blocked</code> · <code class="mono">done</code> · <code class="mono">cancelled</code></h2><div class="grid">
+${C({p:'mob',id:9,t:'Тёмная тема экрана оплаты',s:'paused',meta:'вручную',badges:[['','сессия сохранена']]},'paused','','только ручная пауза задачи; run убит без списания',0,0)}
+${C({p:'shop',id:30,t:'Убрать устаревший /v1/cart',s:'blocked',badges:[['warn','main грязная','alert']]},'blocked','main_dirty','единственная причина blocked: голова очереди слияния, ff-merge упёрся в правки человека',0,0)}
+${C({p:'shop',id:27,t:'Health-check для балансировщика',s:'done',meta:'14:05 → main'},'done','','fast-forward main, клон удалён с задержкой',0,0)}
+${C({p:'shop',id:25,t:'GraphQL-шлюз (отклонено)',s:'cancelled',meta:'вчера'},'cancelled','','отменена или отклонена человеком',0,0)}
+</div></div>
+
+<div class="sec"><h2>Флаги планировщика <span class="faint">не статусы задач: задачи под флагом остаются queued, новые runs не стартуют, текущие доигрывают (архитектура, 3.2)</span></h2><div class="flags">
+<div><div class="flagbar ru">${ic('alert',14)}<b>Cursor недоступен: не выполнен вход</b><span class="rcode">runner_auth</span><span class="sp"></span><span class="btn sm">${ic('refresh',9)}Проверить снова</span></div><div class="cap"><b>Мак · runner_unavailable</b> — agent_missing · agent_not_runnable · agent_not_logged_in · runner_auth. Баннер над доской, одно уведомление на включение</div></div>
+<div><div class="flagbar rl">${ic('zap',14)}<b>Лимит Cursor</b><span>новые запуски не стартуют до 16:40</span><span class="sp"></span><span class="btn sm">Снять cooldown</span></div><div class="cap"><b>Мак · rate_limited</b> — cooldown 15 → 30 → 60 мин. Баннер над доской</div></div>
+<div><div class="flagbar pz">${ic('pause',13)}<b>Пауза доски</b><span>все проекты: новые запуски не стартуют</span><span class="sp"></span><span class="btn sm">${ic('play',9)}Возобновить</span></div><div class="cap"><b>Мак · paused: manual</b> — баннер над доской</div></div>
+<div><div class="lflag fl-pause" style="height:32px;display:flex">${ic('pause',13)}<b>Проект на паузе</b> — новые запуски не стартуют<span class="sp"></span><span class="btn sm">${ic('play',9)}Возобновить</span></div><div class="cap"><b>Проект · paused: manual</b> — в шапке дорожки</div></div>
+<div><div class="lflag fl-intake" style="height:32px;display:flex">${ic('hand',13)}<b>3/3 ждут человека</b> — новые задачи из Backlog не берутся</div><div class="cap"><b>Проект · intake_paused: max_waiting_human</b> — в шапке дорожки, снимается сам</div></div>
+<div><div class="lflag fl-unav" style="height:32px;display:flex">${ic('folder',13)}<b>Проект недоступен:</b> папка не найдена<span class="sp"></span><span class="btn sm">Указать путь…</span><span class="btn sm">${ic('refresh',9)}Проверить снова</span></div><div class="cap"><b>Проект · unavailable</b> — project_missing · no_pipeline · pipeline_invalid. В шапке дорожки</div></div>
+<div><div class="lflag fl-merge" style="height:32px;display:flex">${ic('merge',13)}<b>Слияние остановлено:</b> правки в рабочей копии main<span class="sp"></span><span class="btn sm">${ic('refresh',9)}Проверить снова</span></div><div class="cap"><b>Проект · merge_blocked: main_dirty</b> — в шапке дорожки + голова очереди blocked: main_dirty</div></div>
+</div></div>
+
+<div class="sec"><h2>Модификаторы и порядок бейджей</h2><div class="grid">
+<div class="cell">${card({p:'shop',id:42,t:'Пагинация курсором в /orders',s:'running',meta:'12 мин',progress:55,w:W,chip:'Test'})}<div class="cap"><code>вид «по типу стадии»</code><br>чип исходной стадии; waiting_human любой стадии — в столбце «ждёт человека»</div></div>
+<div class="cell">${card({p:'kaban',id:15,t:'Дорожки: закреплённые заголовки',s:'running',meta:'21 мин',progress:70,w:W,sel:true})}<div class="cap"><code>выбрана</code><br>открыта в панели деталей</div></div>
+<div class="cell"><div class="drag" style="border-radius:10px">${card({p:'mob',id:3,t:'Кэш картинок на диске',s:'queued',meta:'#1',w:W})}</div><div class="cap"><code>перетаскивание</code><br>назад — с подтверждением, run убивается без списания; вперёд через гейты нельзя</div></div>
+<div class="cell"><div class="tex-row">${['shop','kaban','mob','docs'].map(p=>`<div class="card tex-${PROJ[p].tex}" style="width:44px;height:44px;display:grid;place-items:center"><span class="sticker" style="font-size:16px;margin-left:3px">${PROJ[p].m}</span></div>`).join('')}</div><div class="cap"><code>фактура края</code><br>сплошная · полоски · точки · штрихи — проект без цвета и анимации</div></div>
+<div class="cell" style="grid-column:span 2"><div class="prioL"><b style="color:var(--text)">Приоритет бейджей</b> (видно 2, остальное «+N»):<span class="n">1</span>git-разрешение<span class="n">2</span>возвраты / конфликт<span class="n">3</span>пересечение файлов<span class="n">4</span>модель и прочее</div><div class="cap" style="margin-top:6px">Статус всегда в статус-строке и бейджем не дублируется. Ответ на вопрос архитектуры v0.6 (§16) к дизайнеру.</div></div>
+</div></div>
+
+<div class="sec"><h2>Токены статусов <span class="faint">tokens.css · --st-*</span></h2><div class="tok" style="grid-template-columns:repeat(11,1fr)">
+${toks.map(t=>`<div class="tk st-${t[0]}"><div class="a"></div><div class="b">${t[1]}</div><div class="n"><b>--st-${t[0]}</b>фон --st-${t[0]}-bg</div></div>`).join('')}
+</div></div>`;
+</script></body></html>

@@ -1,0 +1,102 @@
+/* Kaban design tokens v0.1 — macOS 26 (Liquid Glass) look
+   Spacing: 4/8 grid. Radii: 6 (chip) / 8 (control) / 10 (card) / 14 (panel) / 18 (window glass). */
+:root {
+  /* typography */
+  --font: -apple-system, "SF Pro Text", "SF Pro", "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  --fs-caption: 10px; --fs-small: 11px; --fs-body: 12px; --fs-callout: 13px; --fs-title3: 15px; --fs-title2: 17px; --fs-title1: 22px;
+
+  /* spacing (4/8) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+  /* radii */
+  --r-chip: 6px; --r-ctl: 8px; --r-card: 10px; --r-panel: 14px; --r-glass: 18px; --r-pill: 999px;
+
+  /* neutrals (light) */
+  --bg-window: #f3f3f6;
+  --bg-content: #eef0f4;
+  --bg-lane: rgba(255,255,255,.55);
+  --bg-column: rgba(120,128,150,.07);
+  --bg-card: #ffffff;
+  --bg-control: rgba(0,0,0,.05);
+  --bg-control-hover: rgba(0,0,0,.08);
+  --text: #1d1d1f;
+  --text-2: #5f6168;
+  --text-3: #8e9097;
+  --text-4: #b4b6bc;
+  --sep: rgba(0,0,0,.09);
+  --sep-strong: rgba(0,0,0,.14);
+  --accent: #0a7aff;
+
+  /* glass */
+  --glass-bg: rgba(255,255,255,.58);
+  --glass-bg-strong: rgba(250,250,252,.74);
+  --glass-border: rgba(255,255,255,.75);
+  --glass-edge: rgba(0,0,0,.08);
+  --glass-blur: saturate(180%) blur(28px);
+  --glass-shadow: 0 8px 32px rgba(30,35,60,.14), 0 1px 2px rgba(30,35,60,.08);
+
+  /* shadows */
+  --sh-card: 0 0.5px 0 rgba(0,0,0,.04), 0 1px 3px rgba(20,24,40,.08), 0 0 0 0.5px rgba(0,0,0,.06);
+  --sh-card-hover: 0 4px 14px rgba(20,24,40,.12), 0 0 0 0.5px rgba(0,0,0,.08);
+  --sh-pop: 0 18px 50px rgba(20,24,40,.22), 0 0 0 0.5px rgba(0,0,0,.1);
+
+  /* task status colors (architecture v0.6 §3.2). --st-X = accent, -bg = tinted surface, -fg = text on tint.
+     waiting_human splits by reason: review -> --st-review (teal), incident -> --st-incident (red), all other reasons -> --st-waiting (orange).
+     --st-conflict is a badge/variant colour (queued after merge conflict, conflict_limit), not a status. */
+  --st-queued: #8e8e93;     --st-queued-bg: #f2f2f4;     --st-queued-fg: #5f6168;
+  --st-running: #0a7aff;    --st-running-bg: #eaf3ff;    --st-running-fg: #0059c7;
+  --st-gating: #5e5ce6;     --st-gating-bg: #efeefe;     --st-gating-fg: #4240b8;
+  --st-retry: #e0a800;      --st-retry-bg: #fff8dc;      --st-retry-fg: #8a6400;
+  --st-waiting: #ff8a00;    --st-waiting-bg: #fff2e3;    --st-waiting-fg: #b45a00;
+  --st-review: #12a5b8;     --st-review-bg: #e6f7f9;     --st-review-fg: #0a7584;
+  --st-paused: #7d8796;     --st-paused-bg: #eef0f3;     --st-paused-fg: #535c6a;
+  --st-blocked: #a2845e;    --st-blocked-bg: #f6f0e8;    --st-blocked-fg: #7a5f3c;
+  --st-conflict: #af52de;   --st-conflict-bg: #f7eefc;   --st-conflict-fg: #8333ad;
+  --st-incident: #e5251b;   --st-incident-bg: #ffe9e7;   --st-incident-fg: #b3140c;
+  --st-done: #30b553;       --st-done-bg: #eaf8ee;       --st-done-fg: #1e7d38;
+  --st-cancelled: #a4a6ad;  --st-cancelled-bg: #f3f3f5;  --st-cancelled-fg: #7c7e85;
+
+  /* stage-kind tints (column header glyphs) */
+  --kind-queue: #8e8e93; --kind-agent: #0a7aff; --kind-gate: #5e5ce6; --kind-human: #12a5b8; --kind-merge: #af52de; --kind-terminal: #30b553;
+
+  /* git policy */
+  --pol-allow: #30b553; --pol-deny: #7d828c; /* v0.2.1: серый, красный только для инцидентов */ --pol-cond: #e0a800; --pol-locked: #6b6e76;
+}
+
+.dark {
+  --pol-deny: #7b7f88;
+  --bg-window: #1c1c1f;
+  --bg-content: #141417;
+  --bg-lane: rgba(255,255,255,.035);
+  --bg-column: rgba(255,255,255,.035);
+  --bg-card: #2a2a2e;
+  --bg-control: rgba(255,255,255,.08);
+  --bg-control-hover: rgba(255,255,255,.12);
+  --text: #f2f2f5;
+  --text-2: #b0b2b9;
+  --text-3: #85878e;
+  --text-4: #5c5e65;
+  --sep: rgba(255,255,255,.08);
+  --sep-strong: rgba(255,255,255,.14);
+  --accent: #3c96ff;
+  --glass-bg: rgba(40,40,46,.55);
+  --glass-bg-strong: rgba(36,36,42,.72);
+  --glass-border: rgba(255,255,255,.12);
+  --glass-edge: rgba(0,0,0,.5);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.4);
+  --sh-card: 0 1px 2px rgba(0,0,0,.35), 0 0 0 0.5px rgba(255,255,255,.07);
+  --sh-pop: 0 18px 50px rgba(0,0,0,.55), 0 0 0 0.5px rgba(255,255,255,.1);
+
+  --st-queued-bg: #2f2f34;   --st-queued-fg: #b0b2b9;
+  --st-running: #3c96ff;     --st-running-bg: #16273d; --st-running-fg: #7db8ff;
+  --st-gating: #8381ff;      --st-gating-bg: #23223f;  --st-gating-fg: #aeacff;
+  --st-retry: #ffd23f;       --st-retry-bg: #362d10;   --st-retry-fg: #ffd966;
+  --st-waiting: #ff9f2e;     --st-waiting-bg: #3a2610; --st-waiting-fg: #ffb763;
+  --st-review: #3cc6d8;      --st-review-bg: #11303a;  --st-review-fg: #74dbe8;
+  --st-paused-bg: #2c3038;   --st-paused-fg: #a9b2c0;
+  --st-blocked: #c4a37a;     --st-blocked-bg: #33291e; --st-blocked-fg: #d9bb94;
+  --st-conflict: #cf7cf6;    --st-conflict-bg: #34203f;--st-conflict-fg: #dfa2fb;
+  --st-incident: #ff453a;    --st-incident-bg: #4a1513;--st-incident-fg: #ff8c85;
+  --st-done: #3fcf68;        --st-done-bg: #15301e;    --st-done-fg: #74e094;
+  --st-cancelled-bg: #2c2c30; --st-cancelled-fg: #8a8c93;
+}

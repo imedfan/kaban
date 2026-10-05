@@ -1,4 +1,4 @@
-# Kaban.app foundation
+# Kaban.app — native SwiftUI client
 
 Open `Kaban.xcodeproj`, select the shared **Kaban** scheme, and run on macOS 26 or later with Xcode 27. The app imports only `KabanProtocol` and `KabanBoardCore` from the local Swift package. The Debug configuration builds the active architecture. Signing is optional for local compilation; an unsigned build requires no signing identity or Keychain changes:
 
@@ -13,6 +13,8 @@ This stage uses `MockKabanClient` with two project fixtures. The toolbar identif
 
 The mock validates each command against its current card, rejects unsupported commands explicitly, and replays the same `commandId` without duplicate effects; reusing it for a different command conflicts. Cards and loads change through correlated journal events. Creation waits for `taskCreated`, including event-before-ack races. Running tasks can be paused; resume queues the same stage instead of restoring a running state. Mock actions demonstrate states and do not control processes or modify repositories. Snapshot resync invalidates stale detail requests and reconciles visible projects and selection.
 
-Card typography, spacing, radii, semantic status colours and suspicious-file rows follow the approved v0.2.1 token/reference archive. The foundation uses native SwiftUI materials and controls. Whole-window visual comparison, exact dark appearance token mapping, mascots, drag-and-drop and keyboard lane navigation remain unverified or pending. Action sheets use native controls; original create-sheet visual fidelity remains pending because that reference is unavailable. This is a structural implementation of the existing design, not a redesign.
+Card typography, spacing, radii, semantic status colours and suspicious-file rows follow the versioned originals in `design/` (see `design/README.md`). The foundation uses native SwiftUI materials and controls. Whole-window visual comparison, exact dark appearance token mapping, mascots, drag-and-drop and keyboard lane navigation remain unverified or pending. Action sheets use native controls; original create-sheet visual fidelity remains pending because that reference is unavailable. This is a structural implementation of the existing design, not a redesign.
 
 Real XPC connection/reconnect, quota/settings editors, pipeline/project editors, incident screens, Human Review actions, daemon registration and signing are later stages. No daemon is installed or started by this app. Settings are not inferred from missing snapshot fields. WIP appears only when authoritative `StageLoad` is available; sidebar/global counts use all projects regardless of which lanes are visible.
+
+The current entry point uses BoardStore/KabanClient/BoardProjection. Reuse this typed path for new screens and actions. HTML/CSS in design are reference sources, not application runtime. Validate the actual WindowGroup in light/dark appearance and at its minimum size; reference-gallery exports do not validate the main window. Current workflow: [AGENTS.md](../AGENTS.md), [frontend plan](../docs/frontend-plan-v0.md), [design](../design/README.md).

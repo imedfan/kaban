@@ -1,0 +1,111 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2 — Этот Мак: квота Cursor + менюбар</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="v02.css">
+<style>
+.menubar{position:absolute;left:0;right:0;top:0;height:24px;z-index:60;display:flex;align-items:center;gap:16px;padding:0 12px;font-size:12.5px;font-weight:500;background:rgba(246,246,250,.72);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);box-shadow:0 .5px 0 rgba(0,0,0,.12)}
+.menubar b{font-weight:700}
+.mbi{display:flex;align-items:center;gap:6px;height:20px;padding:0 7px;border-radius:5px}
+.mbi.on{background:rgba(0,0,0,.12)}
+.mbi .emo{font-family:"Apple Color Emoji","Noto Color Emoji",sans-serif;font-size:13px}
+.mini2{display:flex;flex-direction:column;gap:2px}
+.mini2 i{display:block;width:22px;height:3.5px;border-radius:2px;background:rgba(0,0,0,.14);position:relative;overflow:hidden}
+.mini2 i b{position:absolute;left:0;top:0;bottom:0;background:#1d1d1f;border-radius:2px}
+.mini2 i.am b{background:var(--amber)}
+.win{top:24px!important;height:876px!important;position:absolute!important;width:1110px!important;border-radius:0 12px 0 0;box-shadow:0 20px 60px rgba(20,24,40,.25),0 0 0 .5px rgba(0,0,0,.15)}
+body{background:linear-gradient(135deg,#9fb8e8,#e7b8d8 60%,#f3c9a6)}
+.dd{position:absolute;right:20px;top:27px;width:296px;z-index:70;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;background:rgba(248,248,251,.86);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);box-shadow:0 18px 50px rgba(20,24,40,.25),0 0 0 .5px rgba(0,0,0,.14)}
+.dd-h{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.dd-r{display:flex;align-items:center;gap:8px;height:24px;padding:0 6px;border-radius:6px;font-size:12px}
+.dd-r .ic{color:var(--text-2)} .dd-r .sc{margin-left:auto;color:var(--text-3);font-size:11px}
+.dd-r.hl{background:var(--accent);color:#fff}.dd-r.hl .ic,.dd-r.hl .sc{color:#fff}
+.dd hr{border:0;height:.5px;background:var(--sep-strong);margin:0 -2px}
+.dd .qwbox{padding:8px;border-radius:10px;background:rgba(255,255,255,.6);box-shadow:inset 0 0 0 .5px var(--sep)}
+.cons{display:flex;gap:10px;padding:0 12px 12px;font-size:11.5px;line-height:16px;color:var(--text-2)}
+.kvl{display:grid;grid-template-columns:120px 1fr;gap:4px 10px;padding:0 12px 12px;font-size:11.5px}
+.kvl dt{color:var(--text-3)} .kvl dd{color:var(--text)}
+.rule{display:grid;grid-template-columns:16px 140px 26px 1fr auto;gap:8px;align-items:center;height:28px;padding:0 12px;border-top:.5px solid var(--sep);font-size:11.5px}
+.rule .n{color:var(--text-3);font-variant-numeric:tabular-nums}
+.rule .src{font-size:10.5px;color:var(--text-3)}
+.fam{display:flex;align-items:center;gap:8px;height:26px;padding:0 12px;border-top:.5px solid var(--sep);font-size:11.5px;font-weight:650;background:var(--bg-control)}
+.fam .c{font-weight:500;color:var(--text-3);font-size:10.5px}
+.fam .ic{color:var(--text-3)}
+.mr{display:grid;grid-template-columns:150px 1fr auto;gap:8px;align-items:center;height:24px;padding:0 12px 0 30px;border-top:.5px solid var(--sep);font-size:11.5px}
+.mr .mono{font-size:10.5px}
+.mr .nm{color:var(--text-2)}
+.chkp{font-size:9.5px;font-weight:700;color:var(--amber-fg);background:var(--amber-bg);padding:1px 5px;border-radius:4px;box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--amber) 45%,transparent);white-space:nowrap}
+.miss{font-size:9.5px;font-weight:650;color:var(--text-2);background:var(--bg-control);padding:1px 5px;border-radius:4px;white-space:nowrap}
+.ps2{display:inline-flex;padding:1px;border-radius:5px;background:var(--bg-control)}.ps2 span{font-size:9.5px;font-weight:700;padding:0 5px;height:15px;line-height:15px;border-radius:4px;color:var(--text-3)}.ps2 span.on{background:var(--bg-card);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.bigq{padding:2px 12px 12px}.bigq .qrow{grid-template-columns:26px 1fr auto;font-size:11.5px}.bigq .qbar{height:9px}
+</style></head>
+<body><div id="root"></div><script src="../components.js"></script><script src="v02.js"></script>
+<script>
+const sw=(on)=>`<span class="switch ${on?'':'off'}"></span>`;
+const side=`<div class="proj" style="padding:4px 8px 10px"><span class="mascot" style="--ms:26px"><span class="emo">⚙️</span></span><div><div class="pn" style="font-size:14px;font-weight:650">Настройки Kaban</div><div class="ps">MacBook Pro Артёма</div></div></div>
+ <div class="grp">Этот Мак · не в репозитории</div>
+ ${sit('sliders','Общие')}${sit('cpu','Агенты и потолок')}${sit('terminal','Cursor CLI')}${sit('gauge','Квота Cursor','',true)}${sit('bell','Уведомления')}${sit('rows','Проекты и веса')}
+ <div style="flex:1"></div><div class="hint" style="padding:0 8px">Все эти настройки хранятся в локальной базе Мака.</div>`;
+const stp=(v)=>`<span class="step"><i>−</i><b>${v}</b><i>+</i></span>`;
+const left=`
+<div class="box"><div class="box-h">${ic('gauge',13)}Проверять остаток квоты перед стартом<span class="unoff" style="font-size:9.5px">неофициально</span><span class="sp"></span>${sw(true)}</div>
+ <div class="cons" style="margin-top:8px"><span style="color:var(--amber);flex:none;margin-top:2px">${ic('info',13)}</span><span>У Cursor нет публичного API остатка для личных планов. Kaban будет <b style="color:var(--text)">только читать</b> токен Cursor на этом Маке и вызывать один метод статистики. Без опции лимиты всё равно обрабатываются по ошибкам Cursor.</span></div>
+ <div style="padding:0 12px 10px;display:flex;align-items:center;gap:8px;font-size:11.5px"><span class="check" style="width:14px;height:14px">${ic('check',9)}</span><span>Понимаю и соглашаюсь</span><span class="faint">· согласие 3 окт, 15:40</span><span class="sp"></span><span class="btn sm ghost">Отозвать</span></div>
+ <dl class="kvl"><dt>Токен</dt><dd>свой токен <span class="mono">cursor-agent</span>, иначе Cursor IDE <span class="mono">state.vscdb</span> · только чтение</dd>
+ <dt>Хранение</dt><dd>только в памяти; Kaban токен никогда не обновляет</dd>
+ <dt>Запрос</dt><dd><span class="mono">api2.cursor.sh · GetCurrentPeriodUsage</span></dd>
+ <dt>Не используется</dt><dd>сессия браузера, <span class="mono">usage-summary</span></dd></dl>
+</div>
+<div class="box"><div class="box-h">${ic('timer',13)}Интервал опроса</div>
+ <div style="padding:8px 12px 6px;display:flex;align-items:center;gap:10px"><span class="seg"><span>1 мин</span><span class="on">5 мин</span><span>15 мин</span><span>30 мин</span><span>Своё</span></span><span class="inp" style="width:70px;color:var(--text-3)">— мин</span></div>
+ <div class="hint" style="padding:0 12px 10px">И после каждого запуска. Перед каждым стартом — свежие данные не старше 60 с. Данные старше 30 мин — «нет данных», работает только реакция на ошибки.</div>
+</div>
+<div class="box"><div class="box-h">${ic('sliders',13)}Пороги остатка<span class="sp"></span><span class="faint">ниже порога стадии пула ждут в queued</span></div>
+ <div style="padding:8px 12px 4px;display:flex;gap:24px;font-size:11.5px;align-items:center"><span style="display:flex;gap:8px;align-items:center">${pooltag('cm')} Cm ${stp('10%')}</span><span style="display:flex;gap:8px;align-items:center">${pooltag('om')} Om ${stp('10%')}</span></div>
+ <div class="hint" style="padding:2px 12px 8px">Запас на идущие запуски: число запусков в пуле × средний расход; пока истории нет — 2% на запуск.</div>
+ <div class="bigq">${qbar('cm',46,'сброс 13д 13ч')}${qbar('om',100,'сброс 13д 13ч')}<div class="qnote" style="margin-top:4px"><span><i></i>доля прошедшего цикла</span><span><u></u>порог</span><span class="sp"></span><span>обновлено 2 мин назад</span></div></div>
+</div>`;
+const R=(n,pat,pool,src,act='')=>`<div class="rule"><span class="n">${n}</span><span class="mono">${pat}</span>${pooltag(pool)}<span class="src">${src}</span>${act}</div>`;
+const M=(id,nm,pool,extra='')=>`<div class="mr"><span class="mono">${id}</span><span class="nm">${nm}</span><span style="display:flex;gap:6px;align-items:center">${extra}${pool==='?'?'<span class="ps2"><span>Cm</span><span class="on">Om</span></span>':pooltag(pool)}</span></div>`;
+const F=(n,c,open,extra='')=>`<div class="fam">${ic(open?'chevdown':'chevright',10)}${n}<span class="c">${c}</span><span class="sp"></span>${extra}</div>`;
+const right=`
+<div class="box" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+ <div class="box-h">${ic('layers',13)}Справочник «модель → пул»<span class="sp"></span><span class="faint">сверено 15:02</span></div>
+ <div style="padding:8px 12px 4px;font-size:10.5px;font-weight:700;color:var(--text-3)">ПРАВИЛА · применяются по порядку</div>
+ ${R(1,'composer-*','cm','встроенное',`<span class="faint">${ic('lock',10)}</span>`)}
+ ${R(2,'grok-code-fast-1','cm','исключение · вы, 2 окт','<span class="btn sm">Убрать</span>')}
+ ${R(3,'* (всё остальное)','om','встроенное',`<span class="faint">${ic('lock',10)}</span>`)}
+ <div style="display:flex;align-items:center;gap:8px;padding:10px 12px 8px;border-top:.5px solid var(--sep)"><span class="seg"><span class="on">Все 98</span><span>Проверь пул <span class="badge-n o">3</span></span><span>Cm 3</span><span>Om 95</span></span><span class="sp"></span><span class="iconbtn" style="width:22px;height:22px">${ic('search',11)}</span></div>
+ ${F('Composer','2',true)}
+ ${M('composer-1','Composer 1','cm')}
+ ${M('composer-1-fast','Composer 1 Fast','cm')}
+ ${F('Claude','24',true)}
+ ${M('opus-4.5','Opus 4.5','om','<span class="chkp">флаг: подмена</span>')}
+ ${M('opus-4.1','Opus 4.1','om','<span class="miss">нет в списке с 15:02</span>')}
+ ${M('sonnet-4.5','Sonnet 4.5','om')}
+ ${M('sonnet-4','Sonnet 4','om')}
+ <div class="mr" style="color:var(--text-3)"><span>и ещё 20</span><span></span><span></span></div>
+ ${F('GPT','31',false)}
+ ${F('Gemini','12',false)}
+ ${F('Grok','8',true,'<span class="chkp">проверь пул · 1</span>')}
+ ${M('grok-4','Grok 4','?','<span class="chkp">проверь пул</span>')}
+ ${M('grok-code-fast-1','Grok Code Fast 1','cm','<span class="faint" style="font-size:10px">по исключению</span>')}
+ ${F('DeepSeek','6',false)}
+ ${F('Kimi','3',false,'<span class="chkp">проверь пул · 1</span>')}
+ ${F('Qwen','5',false,'<span class="chkp">проверь пул · 1</span>')}
+ ${F('Другие','7',false)}
+ <div class="hint" style="padding:8px 12px">Новая модель без правила получает «проверь пул» и считается Om. Модель меняет только человек и только на явную: при нехватке квоты задачи ждут в queued.</div>
+</div>`;
+settingsWin2(document.getElementById('root'),{side, title:'Квота Cursor', sub:'Этот Мак · опция, выключена по умолчанию',
+ right:`<div class="capsule glass" style="padding:0 4px"><div class="tbtn">Отменить</div><div class="tbtn primary">${ic('check',12)}Применить</div></div>`,
+ body:`<div class="s-left">${left}</div><div class="s-right" style="width:430px">${right}</div>`,
+ overlay:''});
+document.body.insertAdjacentHTML('afterbegin',`<div class="menubar"><span style="font-size:14px"></span><b>Kaban</b><span>Файл</span><span>Правка</span><span>Вид</span><span>Окно</span><span>Справка</span><span class="sp"></span>
+ <span class="mbi on"><span class="emo">🐗</span><span class="mini2"><i><b style="width:46%"></b></i><i class="am"><b style="width:100%"></b></i></span><span style="font-variant-numeric:tabular-nums">2/4</span></span>
+ <span>${ic('search',13)}</span><span>Сб 3 окт 15:22</span></div>
+ <div class="dd"><div class="dd-h">${mascotFace('🐗','sad',22)}<b>Kaban</b><span class="sp"></span><span class="faint" style="font-size:11px">агенты 2/4</span></div>
+ <div class="qwbox">${quotaWidget({cm:46,om:100})}</div>
+ <div class="dd-r">${ic('hourglass',12)}<span>Om исчерпан · 2 стадии</span><span class="sc">до 17.10</span></div>
+ <div class="dd-r">${ic('hand',12)}<span>Ждут человека</span><span class="sc">4</span></div>
+ <hr>
+ <div class="dd-r hl">${ic('rows',12)}<span>Открыть доску</span><span class="sc">⌘0</span></div>
+ <div class="dd-r">${ic('pause',12)}<span>Пауза всей доски</span></div>
+ <div class="dd-r">${ic('sliders',12)}<span>Настройки…</span><span class="sc">⌘,</span></div></div>`);
+</script></body></html>

@@ -1,0 +1,79 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2 — Проект: MCP для запусков</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="v02.css">
+<style>
+.flag2{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:var(--amber-bg);color:var(--amber-fg);font-size:12px;box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--amber) 45%,transparent)}
+.flag2 .ic{color:var(--amber)} .flag2 b{font-weight:700} .flag2 .s{font-size:11px;opacity:.9;margin-top:1px}
+.srv{display:grid;grid-template-columns:22px 150px 1fr auto auto;gap:10px;align-items:center;padding:0 12px;height:38px;border-top:.5px solid var(--sep);font-size:12px}
+.srv .gl{width:22px;height:22px;border-radius:6px;background:var(--bg-control);display:grid;place-items:center;color:var(--text-2)}
+.srv b{font-weight:650}
+.srv .cmdl{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0}
+.srv .st{font-size:10.5px;color:var(--text-3);white-space:nowrap}
+.srv.flagged{background:color-mix(in srgb,var(--amber-bg) 75%,transparent);box-shadow:inset 3px 0 0 var(--amber)}
+.srv .tagam{font-size:10px;font-weight:700;color:var(--amber-fg);background:var(--amber-bg);padding:1px 6px;border-radius:5px;box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--amber) 45%,transparent);white-space:nowrap}
+.srv.board{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.lockd{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-3)}
+.lockd .switch{opacity:.55}
+.boxh2{display:flex;align-items:center;gap:8px;padding:9px 12px 8px;font-size:12.5px;font-weight:650}
+.boxh2 .mono{font-weight:500;color:var(--text-3)} .boxh2 .faint{font-weight:500;font-size:11px}
+.tools{display:flex;gap:3px;flex-wrap:wrap}
+.srv.board{height:auto;padding:8px 12px}
+.warnbox{display:flex;gap:10px;padding:10px 12px;border-radius:12px;background:var(--bg-card);box-shadow:0 0 0 1px color-mix(in srgb,var(--amber) 55%,transparent);font-size:11.5px;line-height:16px;color:var(--text)}
+.warnbox .ic{color:var(--amber);flex:none;margin-top:2px}
+.steps{padding:4px 12px 12px;display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--text-2);line-height:15px}
+.steps div{display:grid;grid-template-columns:18px 1fr;gap:6px}
+.steps i{font-style:normal;width:16px;height:16px;border-radius:8px;background:var(--bg-control);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--text-2)}
+</style></head>
+<body><div id="root"></div><script src="../components.js"></script><script src="v02.js"></script>
+<script>
+const sw=(on)=>`<span class="switch ${on?'':'off'}"></span>`;
+const srv=(name,cmd,state,on,cls='',extra='')=>`<div class="srv ${cls}"><span class="gl">${ic('plug',12)}</span><span><b>${name}</b></span><span class="cmdl">${cmd}</span><span>${extra}<span class="st">${state}</span></span>${sw(on)}</div>`;
+const side=`<div class="proj" style="padding:4px 8px 10px">${mascotFace('🐙','sad',26)}<div><div class="pn" style="font-size:14px;font-weight:650">mobile-app</div><div class="ps mono">~/dev/mobile-app · main</div></div></div>
+ <div class="grp">Стадии пайплайна</div>
+ ${sit('inbox','Backlog','queue')}${sit('hammer','Dev','agent')}${sit('flask','Test','agent')}${sit('eye','AI Review','agent')}${sit('usercheck','Human Review','human')}${sit('merge','Merge','merge')}${sit('circlecheck','Done','terminal')}
+ <div class="grp">Проект · pipeline.yaml</div>${sit('shield','Git-политика проекта')}${sit('folder','Рабочая копия задачи')}${sit('hand','Лимиты и возвраты')}
+ <div class="grp">Этот Мак · не в репозитории</div>${sit('plug','MCP для запусков','',true,true)}${sit('cpu','Вес и личный максимум')}${sit('sparkles','Маскот')}
+ <div style="flex:1"></div>
+ <div class="hint" style="padding:0 8px">Белый список MCP хранится в локальной базе этого Мака и в репозиторий не коммитится.</div>`;
+const left=`
+<div class="flag2">${ic('plug',16)}<div><b>Запуски проекта остановлены: CLI видит лишний MCP-сервер «jira»</b><div class="s">Найден в <span class="mono">cursor-agent mcp list</span> вне собранного конфига · проверка 15:20. Включите «jira» явно или уберите его из окружения CLI.</div></div><span class="sp"></span><span class="btn sm">${ic('refresh',9)}Проверить снова</span></div>
+<div class="box"><div class="boxh2">${ic('lock',12)}Сервер доски<span class="faint">всегда первый, отключить нельзя</span></div>
+ <div class="srv board"><span class="gl" style="color:var(--accent)">${ic('rows',12)}</span><span><b>kaban</b></span><span class="tools"><span class="cc l">get_task_context</span><span class="cc l">report_progress</span><span class="cc l">complete_stage</span><span class="cc l">return_to_stage</span><span class="cc l">request_human</span></span><span class="lockd">${ic('lock',10)}всегда</span><span class="lockd">${sw(true)}</span></div>
+ <div class="hint" style="padding:6px 12px 9px">127.0.0.1, токен запуска только в окружении процесса: <span class="mono">\${env:KABAN_RUN_TOKEN}</span>, в файлы не пишется.</div></div>
+<div class="box"><div class="boxh2">${ic('folder',12)}Из проекта <span class="mono">.cursor/mcp.json</span><span class="sp"></span><span class="faint">по умолчанию выключены</span></div>
+ ${srv('figma','http://127.0.0.1:3845/mcp','выключен',false)}
+ ${srv('sentry','npx -y @sentry/mcp-server','включён · Dev',true)}
+</div>
+<div class="box"><div class="boxh2">${ic('user',12)}Личные <span class="mono">~/.cursor/mcp.json</span><span class="sp"></span><span class="faint">по умолчанию выключены</span></div>
+ ${srv('jira','npx -y mcp-atlassian --jira-url https://acme.atlassian.net','выключен',false,'flagged','<span class="tagam">виден CLI вне конфига</span> ')}
+ ${srv('github','docker run ghcr.io/github/github-mcp-server','выключен',false)}
+ ${srv('postgres-local','npx -y @modelcontextprotocol/server-postgres postgres://localhost/app','выключен',false)}
+ ${srv('context7','npx -y @upstash/context7-mcp','включён · Dev, AI Review',true)}
+</div>
+<div class="warnbox">${ic('alert',14)}<div><b>Проверка результата видит только дифф ветки.</b> Действия агента через включённые серверы — тикеты в Jira, правки в Figma, запросы в базу — она не заметит и не откатит. Включайте только серверы, которым доверяете в автоматических запусках этого проекта. Разрешение даётся по имени сервера.</div></div>`;
+const right=`
+<div class="box"><div class="boxh2">${ic('code',12)}Конфиг следующего запуска<span class="sp"></span><span class="faint">Dev</span></div>
+<div style="padding:0 12px 12px"><div class="yaml"><span class="cm">// собирает демон на каждый запуск</span>
+{ <span class="k">"mcpServers"</span>: {
+  <span class="k">"kaban"</span>: { <span class="k">"url"</span>: <span class="s">"http://127.0.0.1:7341/mcp"</span>,
+    <span class="k">"headers"</span>: { <span class="k">"Authorization"</span>:
+      <span class="s">"Bearer \${env:KABAN_RUN_TOKEN}"</span> } },
+  <span class="k">"sentry"</span>:   { <span class="cm">… из .cursor/mcp.json</span> },
+  <span class="k">"context7"</span>: { <span class="cm">… из ~/.cursor/mcp.json</span> }
+} }</div></div></div>
+<div class="box"><div class="boxh2">${ic('layers',12)}MCP по стадиям<span class="sp"></span><span class="faint">выбор только из списка слева</span></div>
+ <div style="padding:0 12px 10px"><table class="stages-mini">
+  <tr><td>Dev</td><td>kaban · sentry · context7</td></tr>
+  <tr><td>Test</td><td>kaban</td></tr>
+  <tr><td>AI Review</td><td>kaban · context7</td></tr>
+ </table></div></div>
+<div class="box"><div class="boxh2">${ic('shieldcheck',12)}Перед каждым запуском</div>
+ <div class="steps">
+  <div><i>1</i><span>Демон собирает конфиг: сервер доски + серверы стадии, которые есть в этом списке.</span></div>
+  <div><i>2</i><span>Сверяет с <span class="mono">cursor-agent mcp list</span>. Хоть один лишний сервер — запуск не стартует (fail closed), проект получает флаг.</span></div>
+  <div><i>3</i><span>Перед проверкой результата <span class="mono">.cursor/mcp.json</span> в клоне возвращается к версии из <span class="mono">main</span>.</span></div>
+ </div></div>`;
+settingsWin2(document.getElementById('root'),{side,
+ title:'MCP для запусков', sub:'mobile-app · настройки проекта на этом Маке',
+ right:`<div class="capsule glass" style="padding:0 4px"><div class="tbtn">Отменить</div><div class="tbtn primary">${ic('check',12)}Применить</div></div>`,
+ body:`<div class="s-left">${left}</div><div class="s-right" style="width:380px">${right}</div>`});
+</script></body></html>

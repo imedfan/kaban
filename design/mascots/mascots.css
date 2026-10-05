@@ -1,0 +1,57 @@
+html,body{height:var(--H,1500px)}
+.sheet{position:relative;width:1440px;min-height:100%;padding:36px 48px 40px;background:var(--bg-content)}
+.sheet h1{font-size:26px;font-weight:750;letter-spacing:-.02em}
+.lead{font-size:13px;color:var(--text-2);margin-top:6px;max-width:1040px;line-height:18px}
+.sec{margin-top:26px}
+.sec h2{font-size:13.5px;font-weight:700;display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.sec h2 .faint{font-weight:500;font-size:12px}
+.groups{display:flex;flex-wrap:wrap;gap:12px}
+.grp{background:var(--bg-lane);box-shadow:inset 0 0 0 .5px var(--sep);border-radius:12px;padding:8px 10px 10px}
+.grp h3{font-size:11px;font-weight:650;color:var(--text-2);margin:0 2px 6px}
+.grp h3 span{font-weight:450;color:var(--text-3)}
+.mcs{display:flex;gap:8px}
+.mc{width:96px;background:var(--bg-card);border-radius:9px;box-shadow:var(--sh-card);padding:7px 7px 6px;display:flex;flex-direction:column;gap:5px}
+.mc-top{display:flex;align-items:center;gap:6px}
+.em20{font-size:20px;line-height:1;font-family:"Apple Color Emoji","Noto Color Emoji",sans-serif}
+.em16{font-size:16px;line-height:1;font-family:"Apple Color Emoji","Noto Color Emoji",sans-serif}
+.mc-name{font-size:11px;font-weight:600;display:flex;justify-content:space-between}
+.mc-name i{font-style:normal;font-family:var(--font-mono);font-size:10px;color:var(--text-3);font-weight:400}
+.stk{display:flex;align-items:center;gap:4px;height:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:var(--bg-lane);box-shadow:inset 0 0 0 .5px var(--sep);align-items:center}
+.chips .lbl{font-size:11px;color:var(--text-3);margin-right:6px;width:92px}
+.chips.dark{background:#1c1c1f}
+.dark .chips .lbl, .chips.dark .lbl{color:#85878e}
+.texs{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
+.tx{display:flex;flex-direction:column;gap:7px}
+.tx .tname{font-size:12px;font-weight:650}
+.tx .tname i{font-style:normal;font-family:var(--font-mono);font-size:10px;color:var(--text-3);font-weight:400;margin-left:4px}
+.tx .darkbox{background:#141417;border-radius:10px;padding:7px}
+.tx .lightbox{background:var(--bg-lane);border-radius:10px;padding:7px;box-shadow:inset 0 0 0 .5px var(--sep)}
+.zoom{display:flex;gap:8px;align-items:flex-start}
+.zoom svg{border-radius:6px;box-shadow:0 0 0 .5px var(--sep)}
+.params{font-family:var(--font-mono);font-size:9.5px;line-height:13px;color:var(--text-2);letter-spacing:0}
+.card.tex-k0::before,.card.tex-k1::before,.card.tex-k2::before,.card.tex-k3::before,.card.tex-k4::before,.card.tex-k5::before,.card.tex-k6::before,.card.tex-k7::before{display:none}
+.card .edge{position:absolute;left:0;top:0;z-index:1;pointer-events:none}
+.card-body{padding-left:12px}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.strip .lane{padding:0 7px 8px}
+.strip .lane-h{gap:6px;padding:0 2px}
+.strip .lane-h .ln{font-size:12.5px}
+.strip .cards{display:flex;flex-direction:column;gap:7px}
+.anim{font-size:10.5px;color:var(--text-3);margin:-3px 2px 6px;height:14px;display:flex;gap:4px;align-items:center}
+.anim code{font-family:var(--font-mono);font-size:10px;background:var(--bg-control);color:var(--text-2);padding:0 4px;border-radius:4px}
+.anim .red{color:var(--st-incident-fg)}
+.bump{font-size:10px;color:var(--text-2);background:var(--bg-control);border-radius:5px;padding:2px 6px;margin:0 2px 6px;line-height:13px}
+.strip-dark{margin-top:10px;padding:10px;border-radius:14px;background:#141417}
+.states{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.st-box{border-radius:12px;padding:12px 14px;background:var(--bg-lane);box-shadow:inset 0 0 0 .5px var(--sep)}
+.st-box.dark{background:#1c1c1f;box-shadow:none}
+.st-row{display:flex;gap:18px;align-items:flex-start}
+.st-i{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px;text-align:center}
+.st-i .t{font-size:11px;font-weight:600;color:var(--text)}
+.st-i .d{font-size:10px;line-height:13px;color:var(--text-3)}
+.st-i code{font-family:var(--font-mono);font-size:10px}
+.m-alarm-wrap{position:relative;display:inline-block}
+.m-alarm-wrap .badge-n{position:absolute;top:-6px;right:-10px;box-shadow:0 0 0 2px var(--bg-window)}
+.note{font-size:11px;line-height:15px;color:var(--text-2);margin-top:8px}
+.foot{margin-top:18px;font-size:10.5px;color:var(--text-3)}
