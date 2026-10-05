@@ -35,6 +35,11 @@ jobs:
         env:
           KABAN_SCENARIOS: Scenarios/M1
 
+      - name: Daemon and CLI process smoke
+        run: |
+          kaban_bin_dir="$(swift build --show-bin-path)"
+          python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"
+
   macos:
     name: macOS (native app)
     runs-on: macos-26
@@ -60,3 +65,8 @@ jobs:
         run: swift test
         env:
           KABAN_SCENARIOS: Scenarios/M1
+
+      - name: Daemon and CLI process smoke
+        run: |
+          kaban_bin_dir="$(swift build --show-bin-path)"
+          python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"

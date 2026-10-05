@@ -39,7 +39,10 @@ public final class KabanStore: Sendable {
         guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM task WHERE id = ?", arguments: [id.rawValue]) else { throw StoreError.taskMissing }
         return try decode(DurableTask.self, data)
     }
-    static func seq(_ db: Database) throws -> Seq { try Int64.fetchOne(db, sql: "SELECT COALESCE(MAX(seq), 0) FROM event") ?? 0 }
+    static func seq(_ db: Database) throws -> Seq {
+        // AUTOINCREMENT survives retention, even when the entire journal is deleted.
+        try Int64.fetchOne(db, sql: "SELECT seq FROM sqlite_sequence WHERE name = 'event'") ?? 0
+    }
     static func replay(_ id: CommandID, request: Data, db: Database) throws -> DurableReceipt? {
         try rejectWireIdentity(id, db: db)
         if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM configuration_command WHERE id = ?)", arguments: [id.uuidString]) == true { throw StoreError.commandIdConflict }

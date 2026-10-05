@@ -61,6 +61,7 @@ flowchart LR
 | `KabanAgentDrivers` | `AgentDriver` + `CursorCLIDriver` (аргументы, парсер stream-json → `AgentEvent`) | `KabanProtocol` | macOS + Linux |
 | `KabanHTTP` | loopback-сервер: MCP доски и `/git/check` | `KabanDaemonCore` | macOS + Linux |
 | `KabanGit` | клоны задач, fetch, rebase, ff-merge, diffstat, снимки refs | Foundation | macOS + Linux |
+| `KabanTransport` | клиент durable команд, bounded catch-up/live polling, reconnect/resync, development stdio; XPCSession adapter на macOS 26 | `KabanProtocol` | macOS + Linux (XPC только macOS) |
 | `KabanBoardCore` | состояние доски в приложении: применение снимка и событий, набор проектов (`BoardSetStore`), фильтры, оптимистичные команды | **только `KabanProtocol`** | macOS + Linux |
 | `KabanGitShim` (executable) | обёртка `git` для PATH агента | — | macOS |
 | `KabanDaemon` (executable) | сборка всего, Seatbelt, launchd, XPC listener | всё демонное | macOS |
@@ -275,6 +276,19 @@ stages:
 - `subscribe(fromSeq, projectIds?)` — досылка из `event` после `fromSeq`, затем живые события. Если `fromSeq` старше хранимого журнала — сигнал `resyncRequired`, клиент берёт снимок заново.
 - Каждая команда несёт `commandId` (UUID от клиента); ответ содержит `commandId` и `seq` порождённого события, а журнальное событие — тот же `commandId` в `payload`. UI не делает оптимистичных переходов: карточка ждёт событие с этим `commandId`.
 
+**Транспортный инкремент 5 октября 2026.** Additive `DaemonRequest`/`DaemonResponse`
+оборачивают существующие DTO. `DaemonService` обслуживает snapshot, command и
+bounded `JournalPage(fromSeq, latestSeq, events, resyncRequired)`. В этом инкременте
+subscribe использует pull pages всего глобального журнала: catch-up без паузы,
+затем polling каждые 200 мс; projectIds filter пока не реализован. Пропуск событий
+чужих проектов без продвижения глобального cursor запрещён. Снимок и каждая
+страница читаются одной read transaction. Клиент продвигает cursor лишь через
+последний доставленный event, а не до latestSeq неполной страницы; retention gap
+или cursor впереди БД требуют нового snapshot. High-water mark берётся из
+AUTOINCREMENT и переживает удаление всего журнала. XPC transport требует same-team
+signature; private stdio является явным development transport. Подробные границы,
+таймауты, backpressure и проверки — [daemon transport](development/backend-daemon-transport-2026-10-05.md).
+
 **Дополнение контракта 4 октября 2026 (решения #9–12, #14, #44).**
 
 - `answerHuman` продолжает только `agent`-стадию из `waiting_human` с любой причиной; на остальных типах стадий возвращает `invalid_state`. Human Review использует `approve` / `requestChanges` / `reject`, gate/merge — разрешённые для состояния `retryStage` / `moveTask` / `requestChanges` / `cancelTask`. Ответ не принимает подозрительные файлы.
@@ -311,7 +325,7 @@ commandId. Подробные границы — [wire contract](development/bac
 
 **Начальные настройки клиента.** `Snapshot.settings: GlobalSettings?`; `nil` от старого сервера означает «настройки неизвестны», а не значения по умолчанию. `GlobalSettings { maxConcurrentRuns: Int, quotaOptions: QuotaOptions, quotaConsentedAt: Date? }` использует существующий typed `QuotaOptions`; обязательные значения поставляет daemon. `SettingsChange` сохраняет совместимые `key/value` и добавляет optional `settings: GlobalSettings` — авторитетный снимок после изменения. Клиент не выводит consent или числовые лимиты из строк и не подменяет отсутствие настроек defaults. Снимок и обновление настроек имеют одно представление и относятся к указанному `seq`.
 
-Это контракт Codable, а не реализованные XPC handlers, чтение БД или живое исполнение команды. M1 store/scheduler с fake driver обязан сохранять полный TaskMachine state и pipeline snapshot входа в стадию; commandId dedup, обновление проекций, journal и effects outbox находятся в одной транзакции. Реальное исполнение git/process effects и их подтверждение остаются отдельной вехой.
+Контракт Codable обслуживается durable store и XPC/CLI transport в описанном выше ограниченном инкременте. M1 store/scheduler с fake driver сохраняет полный TaskMachine state и pipeline snapshot входа в стадию; commandId dedup, обновление проекций, journal и effects outbox находятся в одной транзакции. Реальное исполнение git/process effects и их подтверждение остаются отдельной вехой.
 
 **Журнальные события** (имеют `seq`, переживают переподключение): изменения задач и их статусов, проекты, настройки, версии пайплайна, инциденты, git-отказы и разрешения, вопросы и ответы.
 **Эфемерные** (без `seq`, при переподключении приходят текущим значением в снимке): `schedulerFlagsChanged` (все флаги из 3.2 с причинами и временем cooldown), `modelFlagsChanged`, `quotaUpdated { cm?, om?, billingCycleStart?, billingCycleEnd?, fetchedAt }` (`nil` — «нет данных», а не 0%), `modelCatalogChanged`, результат проверки раннера, результат валидации ручной правки пайплайна, прогресс run, живой лог.
@@ -500,7 +514,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 
 Срез разработки от 4 октября 2026 описан в [контракте headless M1](development/m1-headless-contract.md). Кандидат реализации добавляет additive v2 schema поверх опубликованной v1: явные project/settings/Markdown detail, согласованные Protocol queries, стабильные per-effect IDs и атомарные simulated result/reducer/journal/ack, конечный scheduler tick с durable human admission и weighted cursor. Приёмка конкретного PR опирается на его результаты тестов по HC-матрице; наличие этого описания не подтверждает выполнение всех HC-критериев.
 
-Fake-срез работает только на внутренней фиксированной цепочке `queue → agent → human → terminal` без hooks/gates. Для неё managed fake API исключает лишь ошибку `merge_count`; общий production validator по-прежнему требует merge. Protocol summary сохраняет production validation issues (включая `merge_count`) и `isValid = false`; fake fixture не подтверждает валидность production `.kaban/pipeline.yaml`. Fake driver явно записывает симуляцию; git, Cursor, сеть, XPC, квота, авторизация, реальные гейты и процессы не исполняются. Полный M1, общий scheduler для произвольного pipeline, retention API и весь M2 остаются отдельной работой. Клиентский инкремент использует mock adapter; соединение с этой БД через XPC ещё не входит в срез.
+Fake-срез работает только на внутренней фиксированной цепочке `queue → agent → human → terminal` без hooks/gates. Для неё managed fake API исключает лишь ошибку `merge_count`; общий production validator по-прежнему требует merge. Protocol summary сохраняет production validation issues (включая `merge_count`) и `isValid = false`; fake fixture не подтверждает валидность production `.kaban/pipeline.yaml`. Fake driver явно записывает симуляцию; git, Cursor, сеть, квота, авторизация, реальные гейты и процессы не исполняются. XPC/CLI transport добавлен отдельным рабочим инкрементом выше. Полный M1, общий scheduler для произвольного pipeline, retention API и весь M2 остаются отдельной работой. Приложение использует mock adapter; его подключение к готовому transport остаётся следующим инкрементом.
 
 ## 16. Открытые вопросы
 
