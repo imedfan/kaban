@@ -1,0 +1,68 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2.1 — Стадия Dev: переопределения git</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="../v0.2/v02.css"><link rel="stylesheet" href="v021.css">
+<style>.pol td{overflow:visible}.ovt tr.pd .desc{display:block;margin:1px 0 0;line-height:12px}table.pol{table-layout:auto}.pol th{width:auto!important}</style></head>
+<body><div id="root"></div><script src="../components.js"></script><script src="../v0.2/v02.js"></script><script src="v021.js"></script>
+<script>
+const fr=(l,v)=>`<div class="fr"><span>${l}</span>${v}</div>`;
+const R={a:'<span class="res a"><i></i>разрешено</span>', d:'<span class="res d"><i></i>запрещено</span>', c:'<span class="res c"><i></i>по условию</span>',
+ o:'<span class="res o"><i></i>нет в пресете</span>', dp:'<span class="res dp"><i></i>запрещено проектом</span>'};
+const sw=(on,dis)=>`<span class="switch sm ${on?'on2':'off'}" ${dis?'style="opacity:.4"':''}></span>`;
+const inh=`<span class="faint" style="font-size:11px">наследует</span>`;
+const row=(cmd,proj,on,stage,res,extra='',cls='',dis=false,desc='')=>`<tr class="${on?'on':''} ${cls}"><td><span class="cmdn">${cmd}</span>${desc?`<span class="desc">${desc}</span>`:''}</td><td class="ghost2">${proj} <span class="fromp">из проекта</span>${extra}</td><td>${sw(on,dis)}</td><td>${stage}</td></tr>`;
+const tipPD=`<span class="tip tw"><span>Запрет проекта стадия не снимает · <a>Изменить в проекте</a></span></span>`;
+const tabs=[['tag','Основное'],['gauge','Пропускная способность'],['bot','Исполнитель'],['shield','Права и git'],['box','Окружение'],['login','Вход'],['gates','Гейты'],['route','Переходы'],['timer','Надёжность'],['plug','Хуки']].map(t=>`<span class="${t[1]==='Права и git'?'on':''}">${ic(t[0],12)}${t[1]}</span>`).join('');
+const left=`
+<div class="fbox"><h3>${ic('shield',13)}Доступ агента<span class="k">stages[1].agent.permissions</span></h3>
+ ${fr('Доступ',`<span class="seg"><span class="on">Запись</span><span>Только чтение</span></span>`)}
+ <div class="hint">«Только чтение» сужает любой пресет до <span class="mono">status diff log show</span>: переопределения ниже тогда не действуют, а изменения после запуска дают <span class="mono">waiting_human · invalid_result</span>.</div></div>
+<div class="box" style="overflow:hidden"><div class="box-h">${ic('branch',13)}Git · переопределения стадии <span class="faint">своего пресета у стадии нет</span><span class="sp"></span><span class="rst">${ic('rotateccw',10)}Сбросить всё к проекту</span></div>
+ <div class="inhs">${ic('shield',12)}Пресет проекта: <b>Стандартный</b><span class="fromp">из проекта</span><span>· проект: + <span class="mono">stash</span>, − <span class="mono">cherry-pick</span></span><span class="sp"></span><a style="color:var(--accent)">Изменить в проекте ${ic('chevright',9)}</a></div>
+ <table class="pol ovt" style="margin-top:6px">
+  <tr><th>Команда</th><th>Политика проекта</th><th>Переопр.</th><th>Стадия Dev</th></tr>
+  <tr class="lock"><td><span>${ic('lock',10)} Жёсткие правила · 7</span></td><td><span class="res l">${ic('lock',10)}всегда запрещено</span></td><td>${sw(false,true)}</td><td><span class="faint" style="font-size:11px">не настраивается</span></td></tr>
+  ${row('status · diff · log · show',R.a,false,inh,R.a)}
+  ${row('add · commit · restore --staged',R.a,false,inh,R.a)}
+  ${row('cherry-pick',R.dp,false,tipPD,R.d,'','pd',true,'перенос чужих коммитов')}
+  ${row('stash',R.a,true,`<span class="pop dd"><i></i>Запретить${ic('chevdown',9)}</span><span class="ovr n">сужено</span><span class="rst">${ic('rotateccw',9)}к проекту</span>`,R.d)}
+  ${row('rebase',R.o,true,`<span class="pop c"><i></i>Разрешить при условии${ic('chevdown',9)}</span><span class="rst">${ic('rotateccw',9)}к проекту</span>`,R.c)}
+  <tr class="on"><td></td><td colspan="3" style="height:24px!important;font-size:10.5px;color:var(--text-2)"><span class="whn" style="margin:0">when: return_reason == merge_conflict</span> — только на возврате после конфликта слияния</td></tr>
+  ${row('reset',R.o,false,inh,R.o)}
+ </table>
+ <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:11px;color:var(--text-2);border-top:.5px solid var(--sep)"><span><b style="color:var(--text-2);font-weight:650">нет в пресете</b> — можно <span class="mono">extend</span>; <b style="color:var(--text-2);font-weight:650">запрещено проектом</b> — только <span class="mono">deny</span><br>${ic('info',9)} Правила сопоставляются по началу команды: запрет <span class="mono">restore</span> закрыл бы и <span class="mono">restore --staged</span></span><span class="sp"></span><span class="ovr new" style="margin:0">новое</span>не сохранено</div>
+</div>
+<div class="hint" style="padding:0 4px">${ic('info',10)} Если проект переведут на «Строгий»: агент не коммитит — коммит стадии делает демон из резюме (<span class="mono">summary</span>). Переопределения стадии при этом сохраняются.</div>`;
+const right=`
+<div class="box"><div class="box-h">${ic('shieldcheck',13)}Итоговая политика стадии Dev</div>
+ <div class="eff">
+  <div class="grp2"><div class="lab">Разрешено</div>
+   <div class="srow"><div class="chips"><span class="cc a">status</span><span class="cc a">diff</span><span class="cc a">log</span><span class="cc a">show</span><span class="cc a">add</span><span class="cc a">commit</span><span class="cc a">restore --staged</span></div><span class="ovr inh">унаследовано</span></div></div>
+  <div class="grp2"><div class="lab">По условию</div>
+   <div class="srow"><div class="chips"><span class="cc c">rebase</span><span class="w2">when: return_reason == merge_conflict</span></div><span class="ovr p">переопределено</span></div></div>
+  <div class="grp2"><div class="lab">Запрещено</div>
+   <div class="srow"><div class="chips"><span class="cc d">stash</span></div><span class="ovr n">сужено</span></div>
+   <div class="srow"><div class="chips"><span class="cc d">cherry-pick</span><span class="w2"><span class="mono">git.deny</span> проекта</span></div><span class="ovr inh">унаследовано</span></div>
+   <div class="srow"><div class="chips"><span class="w2" style="color:var(--text-3)">Нет в пресете (из каталога):</span><span class="cc o">reset</span><span class="cc o">…</span></div></div>
+   <div class="srow"><span class="w2">Всё вне каталога — запрещено</span></div></div>
+  <div class="grp2"><div class="lab">${ic('lock',10)}Жёсткие правила · <span class="mono" style="font-weight:500">hardInvariants</span></div>
+   <div class="srow hard"><div class="chips hchips"><span class="cc l hc" title="push">Без push<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="remote">Remotes не меняются<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="config">Git config и hooks не меняются<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="tag">Теги не трогаются<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="force">Без принудительных флагов<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="foreign_refs"><span class="mono">main</span> и чужие ветки не двигаются<span class="inf">${ic('info',9)}</span></span><span class="cc l hc" title="kaban_dir"><span class="mono">.kaban/</span> только для демона<span class="inf">${ic('info',9)}</span></span></div></div></div>
+  <div class="hint">Одна строка — один <span class="mono">GitRule.source</span>. Жёсткие — <span class="mono">hardInvariants</span> в порядке массива, без <span class="mono">source</span>: короткая подпись спеки §1.5, полный текст — в поповере ⓘ. Запрет сильнее разрешения.</div>
+ </div></div>
+<div class="box"><div class="box-h">Другие стадии</div>
+ <div class="eff" style="gap:0;padding-top:4px"><table class="stages-mini">
+  <tr><td>Test</td><td>без переопределений <span class="ovr inh">из проекта</span></td></tr>
+  <tr><td>AI Review</td><td>read-only <span class="ovr n">сужено до чтения</span></td></tr>
+ </table></div></div>
+<div class="yaml"><span class="cm"># .kaban/pipeline.yaml · stages[1]</span>
+<span class="k">- id:</span> dev
+  <span class="k">git:</span>                 <span class="cm"># только переопределения</span>
+    <span class="k">extend:</span> [rebase]
+    <span class="k">when:</span> return_reason == merge_conflict
+<span class="ad">+   deny: [stash]</span>
+<span class="cm"># when — только для extend; deny — всегда (§8.2)</span>
+<span class="cm"># extend не снимает git.deny проекта (cherry-pick) — §8.4</span></div>`;
+settingsWin2(document.getElementById('root'),{side:side21(null,'Dev'),
+ title:'Dev · настройки стадии', sub:'shop-api · kind: agent · id: dev (не меняется)',
+ right:`<span class="valid">${ic('circlecheck',12)}Файл валиден</span><div class="capsule glass"><div class="tbtn">${ic('code',13)}pipeline.yaml</div></div><div class="capsule glass" style="padding:0 4px"><div class="tbtn">Отменить</div><div class="tbtn primary">${ic('check',12)}Сохранить и закоммитить</div></div>`,
+ tabs, body:`<div class="s-left">${left}</div><div class="s-right" style="width:380px">${right}</div>`,
+ foot:`${ic('info',12)}<span>Стадия хранит только отличия от проекта. Сохранение коммитит <span class="mono">.kaban/</span>; действует с новых запусков.</span><span class="sp"></span><span class="dirty"></span><span>1 несохранённое изменение</span>`});
+</script></body></html>

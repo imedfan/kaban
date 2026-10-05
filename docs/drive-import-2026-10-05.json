@@ -1,0 +1,237 @@
+{
+  "imported_on": "2026-10-05",
+  "source_folder": "https://drive.google.com/drive/folders/1UEqVURZaSrLOXVW_0Mr7ArvIGytfxBjR",
+  "git_baseline": "69dbacf9fcce77662d6b495adc0f240ee1d7b4ff",
+  "policy": "Git is the maintained source. Drive files were read, not changed. Latest per-name documents were compared with Git; older duplicates and archive folders were excluded.",
+  "files": [
+    {
+      "drive_id": "1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs",
+      "title": "architecture-v0.md",
+      "drive_url": "https://drive.google.com/file/d/1q-TwZPODCOF_pogtXJU5N8niNp1ePLEs/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:42:37.111Z",
+      "source_bytes": 113806,
+      "source_sha256": "f274d67a2c7e8f4ed2052853e8a614890ebb7c944e1229adf9f3f476eea1ba75",
+      "source_path": "docs/archive/drive-2026-10-05/architecture-v0.md",
+      "working_path": "docs/architecture-v0.md",
+      "disposition": "superseded by newer Git baseline; source retained in archive"
+    },
+    {
+      "drive_id": "1z7MT3ezZ5V7d5BoIBWaMjnTg_iHMSFKQ",
+      "title": "kaban-mvp-features-usecases.md",
+      "drive_url": "https://drive.google.com/file/d/1z7MT3ezZ5V7d5BoIBWaMjnTg_iHMSFKQ/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:43:19.085Z",
+      "source_bytes": 124938,
+      "source_sha256": "d96e2ed1def4bc1e76c524f22d7d81e43aa1876994eaa66c3d410c36db159bab",
+      "source_path": "docs/archive/drive-2026-10-05/kaban-mvp-features-usecases.md",
+      "working_path": "docs/kaban-mvp-features-usecases.md",
+      "disposition": "same as Git baseline; working body retained, changelog routed to archive"
+    },
+    {
+      "drive_id": "1LXl5tv4Wjw6CNfNbs8vezjLSxgkZWtc_",
+      "title": "frontend-plan-v0.md",
+      "drive_url": "https://drive.google.com/file/d/1LXl5tv4Wjw6CNfNbs8vezjLSxgkZWtc_/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:43:24.886Z",
+      "source_bytes": 298361,
+      "source_sha256": "1b6fbf8e8892ac02fe10eda4b778d130f759e82faf9cedead24b917c2d43effb",
+      "source_path": "docs/archive/drive-2026-10-05/frontend-plan-v0.md",
+      "working_path": "docs/frontend-plan-v0.md",
+      "disposition": "superseded by newer Git baseline; source retained in archive"
+    },
+    {
+      "drive_id": "19dtdvSF302OIOkrvqYaL1H1WAvXvDI6l",
+      "title": "backend-plan-v0.md",
+      "drive_url": "https://drive.google.com/file/d/19dtdvSF302OIOkrvqYaL1H1WAvXvDI6l/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:43:42.038Z",
+      "source_bytes": 14328,
+      "source_sha256": "aff2adc567fcc8684ca2a0b343d374c5502f299fffcedfac1f6c69ecef64baaf",
+      "source_path": "docs/archive/drive-2026-10-05/backend-plan-v0.md",
+      "working_path": "docs/backend-plan-v0.md",
+      "disposition": "superseded by newer Git baseline; source retained in archive"
+    },
+    {
+      "drive_id": "14z297h5-6AOABSw-53kHCtnntKW_NxAv",
+      "title": "acceptance-criteria-v0.md",
+      "drive_url": "https://drive.google.com/file/d/14z297h5-6AOABSw-53kHCtnntKW_NxAv/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:43:31.607Z",
+      "source_bytes": 17814,
+      "source_sha256": "d70f1b52606ad99a964bfe12f7d9423fc0ad7d96017917b3caac7c5810c1aa72",
+      "source_path": "docs/archive/drive-2026-10-05/acceptance-criteria-v0.md",
+      "working_path": "docs/acceptance-criteria-v0.md",
+      "disposition": "already in Git; verified byte-for-byte against Drive"
+    },
+    {
+      "drive_id": "1AGNwKUwZ_YcOzh0A3LAg2zUWx-_71wxx",
+      "title": "decisions-log.md",
+      "drive_url": "https://drive.google.com/file/d/1AGNwKUwZ_YcOzh0A3LAg2zUWx-_71wxx/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:45:26.995Z",
+      "source_bytes": 19815,
+      "source_sha256": "5d24b0277d385e0bf555f969f00037ef258017054d200a5d01b65ede0d565d80",
+      "source_path": "docs/archive/drive-2026-10-05/decisions-log.md",
+      "working_path": "docs/decisions-log.md",
+      "disposition": "superseded by newer Git baseline; source retained in archive"
+    },
+    {
+      "drive_id": "1gFTTLm0mnM7eJ5iOOyWVee8PX8jeiVK4",
+      "title": "takeover-report-2026-10-04.md",
+      "drive_url": "https://drive.google.com/file/d/1gFTTLm0mnM7eJ5iOOyWVee8PX8jeiVK4/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:45:45.123Z",
+      "source_bytes": 9122,
+      "source_sha256": "11d7a99613fcd062545abb09f8a70416ad4b82a806f84e3693de3207145ac5da",
+      "source_path": "docs/archive/drive-2026-10-05/development/takeover-report-2026-10-04.md",
+      "working_path": "docs/development/takeover-report-2026-10-04.md",
+      "disposition": "already in Git; verified byte-for-byte against Drive"
+    },
+    {
+      "drive_id": "1HTDDQvqmtUzOJIgebf7f3e_r1LhwW4-l",
+      "title": "merge-order.md",
+      "drive_url": "https://drive.google.com/file/d/1HTDDQvqmtUzOJIgebf7f3e_r1LhwW4-l/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:45:39.958Z",
+      "source_bytes": 7231,
+      "source_sha256": "7715a20948d7bfb06431f3adf111eac95167526c16475a99b48e3237daf5cd20",
+      "source_path": "docs/archive/drive-2026-10-05/development/merge-order.md",
+      "working_path": "docs/development/merge-order.md",
+      "disposition": "superseded by newer Git baseline; source retained in archive"
+    },
+    {
+      "drive_id": "1tUKJMefOAo-Sgrzfqgk4kymvjcQIugNZ",
+      "title": "first-increment.md",
+      "drive_url": "https://drive.google.com/file/d/1tUKJMefOAo-Sgrzfqgk4kymvjcQIugNZ/view?usp=drivesdk",
+      "modified_time": "2026-10-04T15:45:34.674Z",
+      "source_bytes": 3575,
+      "source_sha256": "91440287c294a9ecdd7a8d6f63aaaef999c7889cf848a23ddf3fea9920c1ed46",
+      "source_path": "docs/archive/drive-2026-10-05/development/first-increment.md",
+      "working_path": "docs/development/first-increment.md",
+      "disposition": "already in Git; verified byte-for-byte against Drive"
+    },
+    {
+      "drive_id": "16ZXAH75q7_290Kisr9JQ3PaAixb1TQHr",
+      "title": "kanban-factory-research.md",
+      "drive_url": "https://drive.google.com/file/d/16ZXAH75q7_290Kisr9JQ3PaAixb1TQHr/view?usp=drivesdk",
+      "modified_time": "2026-10-03T14:53:49.585Z",
+      "source_bytes": 40065,
+      "source_sha256": "fb141f4174c2793db4169cc521c3f60ae6bfaeac5a11c8ab671eb1c52a11bc02",
+      "source_path": "docs/archive/drive-2026-10-05/research/kanban-factory-research.md",
+      "working_path": "docs/research/kanban-factory-research.md",
+      "disposition": "dated research; rationale, not a product contract"
+    },
+    {
+      "drive_id": "1nkYOY5wVThzqAQdbColw8hzebJlLJ8io",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1nkYOY5wVThzqAQdbColw8hzebJlLJ8io/view?usp=drivesdk",
+      "modified_time": "2026-10-03T14:54:08.431Z",
+      "source_bytes": 3282,
+      "source_sha256": "f58c91db8833f54870376fcbe4b2276662ddf303f6565f687a7c36c27b3d5073",
+      "source_path": "docs/archive/drive-2026-10-05/presentation/README.md",
+      "working_path": "docs/archive/drive-2026-10-05/presentation/README.md",
+      "disposition": "historical approved presentation; older source versions"
+    },
+    {
+      "drive_id": "1U6zqiDf90dBeCpjMyYsnH_Us7UErsXu_",
+      "title": "kaban-presentation.html",
+      "drive_url": "https://drive.google.com/file/d/1U6zqiDf90dBeCpjMyYsnH_Us7UErsXu_/view?usp=drivesdk",
+      "modified_time": "2026-10-03T14:53:53.028Z",
+      "source_bytes": 10783861,
+      "source_sha256": "ee99189816345d64dae94e833a3bdeec58b4971c356c7172a203d4a9a501fd68",
+      "source_path": "docs/archive/drive-2026-10-05/presentation/kaban-presentation.html",
+      "working_path": "docs/archive/drive-2026-10-05/presentation/kaban-presentation.html",
+      "disposition": "historical approved presentation; older source versions"
+    },
+    {
+      "drive_id": "1Q8mdh0vxg6hYc93LzALUP4ATNva5NdL9",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1Q8mdh0vxg6hYc93LzALUP4ATNva5NdL9/view?usp=drivesdk",
+      "modified_time": "2026-10-03T14:53:53.137Z",
+      "source_bytes": 9538,
+      "source_sha256": "f5b4dd9e761bdbf4dd342e89cd963b3561c9b5194e62400dffed95e18cb23265",
+      "source_path": "docs/archive/drive-2026-10-05/design/base.md",
+      "working_path": "docs/design/base.md",
+      "disposition": "visual-reference; complete body with local navigation updates"
+    },
+    {
+      "drive_id": "1NGj_QU0qf2qcz7dE1GvAnhIq6cfUC9kb",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1NGj_QU0qf2qcz7dE1GvAnhIq6cfUC9kb/view?usp=drivesdk",
+      "modified_time": "2026-10-03T22:17:29.472Z",
+      "source_bytes": 10811,
+      "source_sha256": "78c4b974c86f79ce15fb11cfef62df3076ff80bb5632d729ad367587c4a3fbd9",
+      "source_path": "docs/archive/drive-2026-10-05/design/v0.2.md",
+      "working_path": "docs/design/v0.2.md",
+      "disposition": "visual-reference; complete body with local navigation updates"
+    },
+    {
+      "drive_id": "1de7UIDxv2xq9OXPy5zDzHqQ2gf-x750Q",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1de7UIDxv2xq9OXPy5zDzHqQ2gf-x750Q/view?usp=drivesdk",
+      "modified_time": "2026-10-04T02:11:48.320Z",
+      "source_bytes": 50405,
+      "source_sha256": "a3a6b92462c289c1f40d30200a5e4b8d7d9515fec693434e0031ba53aa4a1850",
+      "source_path": "docs/archive/drive-2026-10-05/design/v0.2.1.md",
+      "working_path": "docs/design/v0.2.1.md",
+      "disposition": "visual-reference; complete body with local navigation updates"
+    },
+    {
+      "drive_id": "1J4uCMT_I8ViX66G23I4lGZwTDlxSqffN",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1J4uCMT_I8ViX66G23I4lGZwTDlxSqffN/view?usp=drivesdk",
+      "modified_time": "2026-10-03T23:10:38.769Z",
+      "source_bytes": 11205,
+      "source_sha256": "a96a65ca1e6555b048c1765a26f931e196616b595c4c04435af66a51e480be52",
+      "source_path": "docs/archive/drive-2026-10-05/design/brand.md",
+      "working_path": "docs/design/brand.md",
+      "disposition": "visual-reference; complete body with local navigation updates"
+    },
+    {
+      "drive_id": "1Tc5rVEidRRCYnV8HMWrlYV092Da9NEeB",
+      "title": "README.md",
+      "drive_url": "https://drive.google.com/file/d/1Tc5rVEidRRCYnV8HMWrlYV092Da9NEeB/view?usp=drivesdk",
+      "modified_time": "2026-10-04T00:42:01.986Z",
+      "source_bytes": 21317,
+      "source_sha256": "82f7ef13bb80b73a1b4eaad13f3d6078c6156b25a29f1f15f0103b6acb453d4e",
+      "source_path": "docs/archive/drive-2026-10-05/design/mascots.md",
+      "working_path": "docs/design/mascots.md",
+      "disposition": "visual-reference; complete body with local navigation updates"
+    },
+    {
+      "drive_id": "1oszVHm1jwJ6HvuQKCnr9Z-6PTICnfJ6_t3csqTWcpk0",
+      "title": "second-team-checklist-v2.txt",
+      "drive_url": "https://docs.google.com/document/d/1oszVHm1jwJ6HvuQKCnr9Z-6PTICnfJ6_t3csqTWcpk0/edit?usp=drivesdk",
+      "modified_time": "2026-10-04T06:41:31.773Z",
+      "source_bytes": 70340,
+      "source_sha256": "aae78841bf2c3922a9cbd2da4a1e1f92c4ae96bafb66608f4e60e1838b08b3a3",
+      "source_path": "docs/archive/drive-2026-10-05/second-team-checklist-v2.txt",
+      "working_path": "docs/archive/drive-2026-10-05/second-team-checklist-v2.txt",
+      "disposition": "historical; second-team restrictions revoked by user"
+    }
+  ],
+  "excluded_older_versions": [
+    {
+      "drive_id": "1ICLUxRMEcPHCWv9FxyMjDd_clD7DAfcn",
+      "title": "kaban-mvp-features-usecases.md",
+      "modified_time": "2026-10-04T01:31:34.211Z",
+      "reason": "Older same-name version; newer file selected and compared with Git"
+    },
+    {
+      "drive_id": "14Kn2qWBIncDBcWLTg1jS9smDq_Abepcs",
+      "title": "architecture-v0.md",
+      "modified_time": "2026-10-04T01:31:32.656Z",
+      "reason": "Older same-name version; newer file selected and compared with Git"
+    },
+    {
+      "drive_id": "1KqL0k8u8l_Dd989XoKkldL_OiHU9MC9q",
+      "title": "frontend-plan-v0.md",
+      "modified_time": "2026-10-04T01:00:03.727Z",
+      "reason": "Older same-name version; newer file selected and compared with Git"
+    },
+    {
+      "drive_id": "11mqPvZ__JLf6OhIOQHQ4-b6av2q50ewo",
+      "title": "architecture-v0.md",
+      "modified_time": "2026-10-04T01:00:01.956Z",
+      "reason": "Older same-name version; newer file selected and compared with Git"
+    }
+  ],
+  "excluded_folders": [
+    "kaban/docs/archive",
+    "kaban/design/archive",
+    "kaban/penpot-backups"
+  ]
+}

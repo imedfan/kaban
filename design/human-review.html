@@ -1,0 +1,71 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban — Human Review</title>
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="board.css"><link rel="stylesheet" href="task-details.css">
+<style>
+.statpill.rev{background:var(--st-review);color:#fff}
+.path span.curr{color:#fff;background:var(--st-review)}
+.hr-body{flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px}
+.sec2{border-radius:12px;background:var(--bg-card);box-shadow:var(--sh-card);padding:10px 12px}
+.sec2 h4{font-size:12px;font-weight:650;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.sec2 h4 .faint{font-weight:500;font-size:11px;margin-left:auto}
+.sec2.cf{box-shadow:0 0 0 1px color-mix(in srgb,var(--st-running) 45%,transparent);background:color-mix(in srgb,var(--st-running-bg) 70%,var(--bg-card))}
+.sec2.cf h4{color:var(--st-running-fg)}
+.fl{display:flex;align-items:center;gap:8px;font-size:11.5px;height:20px}
+.fl .mono{color:var(--text)} .fl .p{color:var(--st-done-fg);font-family:var(--font-mono);font-size:10.5px;margin-left:auto} .fl .m{color:var(--st-incident-fg);font-family:var(--font-mono);font-size:10.5px;width:28px;text-align:right}
+.bar{width:60px;height:5px;border-radius:3px;background:var(--bg-control);overflow:hidden;display:flex}.bar i{background:var(--st-done)}.bar b{background:var(--st-incident)}
+.stg2{display:grid;grid-template-columns:90px 1fr auto;gap:4px 10px;font-size:11.5px;align-items:baseline}
+.stg2 .n{font-weight:650}.stg2 .d{color:var(--text-2)}.stg2 .r{font-size:10.5px;color:var(--st-done-fg);font-weight:650}
+.gt{display:flex;gap:6px;flex-wrap:wrap}
+.gt span{font-family:var(--font-mono);font-size:10.5px;background:var(--st-done-bg);color:var(--st-done-fg);padding:2px 7px;border-radius:5px}
+.actbar{display:flex;align-items:center;gap:6px;padding:10px 12px 12px;border-top:0.5px solid var(--sep);position:relative}
+.btn.lg{height:28px;padding:0 12px;font-size:12.5px;border-radius:8px}
+.pop2{position:absolute;bottom:52px;left:150px;width:350px;border-radius:14px;background:var(--bg-card);box-shadow:var(--sh-pop);padding:12px 14px;z-index:5;display:flex;flex-direction:column;gap:9px}
+.pop2::after{content:"";position:absolute;bottom:-6px;left:240px;width:12px;height:12px;background:var(--bg-card);transform:rotate(45deg);box-shadow:2px 2px 2px rgba(0,0,0,.06)}
+.pop2 h5{font-size:13px;font-weight:700}
+.opt{display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:8px 10px;border-radius:9px;box-shadow:inset 0 0 0 1px var(--sep-strong)}
+.opt.on{box-shadow:inset 0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 4%,var(--bg-card))}
+.rad{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--sep-strong);flex:none;margin-top:1px}
+.opt.on .rad{box-shadow:inset 0 0 0 4px var(--accent)}
+.opt b{font-weight:650;display:block}.opt .hint{margin-top:2px}
+.opt .cbk{margin-top:7px}
+.pop2 .row{display:flex;gap:6px;justify-content:flex-end}
+</style></head>
+<body><div id="root"></div><script src="components.js"></script><script src="board.js"></script>
+<script>
+const f=(n,p,m)=>`<div class="fl">${ic('file',11)}<span class="mono">${n}</span><span class="p">+${p}</span><span class="m">−${m}</span><span class="bar"><i style="width:${p/(p+m)*100}%"></i><b style="width:${m/(p+m)*100}%"></b></span></div>`;
+const panel = `<div class="panel">
+ <div class="p-head">
+  <div class="p-row">${mascotFace('🦊','work',22)}<span class="p-id">SHOP-31</span><span class="p-crumb">shop-api · Human Review</span><span class="sp"></span>
+   <span class="iconbtn">${ic('more',14)}</span><span class="iconbtn">${ic('x',13)}</span></div>
+  <div class="p-title">Слияние гостевой корзины</div>
+  <div class="p-meta"><span class="statpill rev">${ic('usercheck',11)}waiting_human · review</span><span class="bdg ret" style="height:20px">${ic('merge',10)}после конфликта</span>
+   <span class="chipm mono">${ic('branch',10)}kaban/31-guest-cart-merge</span><span class="chipm">6 файлов · +128 −40</span></div>
+  <div class="path"><span class="done">Backlog</span>${ic('chevright',10)}<span class="done">Dev</span>${ic('chevright',10)}<span class="done">Test</span>${ic('chevright',10)}<span class="done">AI Review</span>${ic('chevright',10)}<span class="curr">Human Review</span>${ic('chevright',10)}<span>Merge</span>${ic('chevright',10)}<span>Done</span></div>
+ </div>
+ <div class="hr-body">
+  <div class="sec2 cf"><h4>${ic('merge',12)}Изменено при разрешении конфликта<span class="faint">rebase на main после SHOP-29 · возврат 1/2</span></h4>
+   ${f('Sources/Cart/CartMerge.swift',14,3)}${f('Sources/Cart/Session.swift',6,1)}</div>
+  <div class="sec2"><h4>${ic('history',12)}Резюме стадий</h4><div class="stg2">
+   <span class="n">Dev</span><span class="d">Объединение по SKU, гостевая корзина переносится при входе; после конфликта — rebase и правка Session.</span><span class="r">2 попытки</span>
+   <span class="n">Test</span><span class="d">Критерии приёмки 4/4, добавлено 11 тестов.</span><span class="r">✓</span>
+   <span class="n">AI Review</span><span class="d">Замечаний нет; предложено вынести лимит количества в константу.</span><span class="r">✓</span></div></div>
+  <div class="sec2"><h4>${ic('gates',12)}Гейты после rebase</h4><div class="gt"><span>✓ swift build · 1:12</span><span>✓ swift test · 214</span><span>✓ swiftlint</span></div></div>
+  <div class="sec2"><h4>${ic('file',12)}Файлы<span class="faint">git diff --stat main...branch · 4 коммита</span></h4>
+   ${f('Sources/Cart/CartMerge.swift',62,18)}${f('Sources/Cart/Session.swift',21,9)}${f('Tests/CartTests/MergeTests.swift',38,0)}<div class="fl faint" style="font-size:11px">и ещё 3 файла</div></div>
+ </div>
+ <div class="actbar">
+  <div class="pop2"><h5>Отклонить SHOP-31</h5>
+   <div class="opt on"><span class="rad"></span><div><b>Отменить задачу</b><div class="hint">cancelled · клон удаляется</div>
+     <div class="cbk"><span class="check off"></span>Сохранить ветку как <span class="mono">kaban/archive/SHOP-31</span></div></div></div>
+   <div class="opt"><span class="rad"></span><div style="flex:1"><b>Вернуть в стадию</b><div class="hint">без комментария, в лимиты возвратов не входит</div>
+     <div style="margin-top:6px"><span class="btn sm">Dev ${ic('chevdown',9)}</span></div></div></div>
+   <div class="row"><span class="btn">Не отклонять</span><span class="btn danger">Отклонить</span></div>
+  </div>
+  <span class="btn lg">${ic('external',12)}Cursor</span>
+  <span class="btn lg">${ic('undo',12)}Вернуть с комментарием ${ic('chevdown',9)}</span>
+  <span class="btn lg pressed">${ic('x',12)}Отклонить…</span>
+  <span class="sp"></span>
+  <span class="btn lg primary">${ic('check',12)}Одобрить</span>
+ </div>
+</div>`;
+renderBoard(document.getElementById('root'), {overlay: panel});
+</script></body></html>

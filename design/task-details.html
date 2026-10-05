@@ -1,0 +1,51 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban — Детали задачи</title>
+<link rel="stylesheet" href="common.css"><link rel="stylesheet" href="board.css"><link rel="stylesheet" href="task-details.css"></head>
+<body><div id="root"></div><script src="components.js"></script><script src="board.js"></script>
+<script>
+const refusal = (time, n, cmd, rule, opts={}) => `<div class="ev"><span class="g">${ic(opts.hard?'lock':'ban',12)}</span><div>
+  <div class="h"><span class="lbl">Отказ git</span><span class="cmd">${cmd}</span></div>
+  <div class="s">Dev · обёртка git · ${rule} · отказ ${n} из 5</div>
+  ${opts.hard ? `<div class="s" style="margin-top:2px">${ic('lock',10)} не настраивается: пушит и сливает в <span class="mono">main</span> только Kaban</div>`
+   : opts.granted ? `<div class="chain">
+      <div class="ch"><span class="cd"></span><b>Разрешено один раз</b> · вы, 14:26<span class="evn">gitGrantCreated</span></div>
+      <div class="ch"><span class="cd"></span><b>Агент узнал</b> · в ответе MCP, 14:27<span class="evn">gitGrantDelivered · mcp_response</span></div>
+      <div class="ch"><span class="cd"></span><b>Использовано</b> · повтор прошёл, 14:27<span class="evn">gitGrantConsumed</span></div></div>`
+   : `<div class="acts"><span class="btn sm">${ic('check',10)}Разрешить один раз</span><span class="btn sm">${ic('shield',10)}Добавить в политику</span><span class="only">${ic('user',10)}только человек</span></div>`}
+  </div><span class="t">${time}</span></div>`;
+const panel = `<div class="panel">
+ <div class="p-head">
+  <div class="p-row">${mascotFace('🐗','alarm',22)}<span class="p-id">KBN-17</span><span class="p-crumb">kaban · Dev</span><span class="sp"></span>
+   <span class="btn">${ic('external',11)}Открыть в Cursor</span><span class="iconbtn">${ic('more',14)}</span><span class="iconbtn">${ic('x',13)}</span></div>
+  <div class="p-title">Обёртка git: белый список флагов</div>
+  <div class="p-meta"><span class="statpill alarm">${ic('siren',11)}waiting_human · incident</span>
+   <span class="chipm">${ic('refresh',10)}попытка 2 из 3</span><span class="chipm mono">${ic('branch',10)}kaban/17-git-shim-flags</span>
+   <span class="chipm">${ic('bot',10)}gpt-5</span></div>
+  <div class="path"><span class="done">Backlog</span>${ic('chevright',10)}<span class="cur">Dev</span>${ic('chevright',10)}<span>Lint</span>${ic('chevright',10)}<span>AI Review</span>${ic('chevright',10)}<span>Human Review</span>${ic('chevright',10)}<span>Merge</span>${ic('chevright',10)}<span>Done</span></div>
+ </div>
+ <div class="incident">
+  <div class="inc-h">${ic('siren',14)}<b>Инцидент: агент сдвинул main</b><span class="opened">открыт 14:32</span><span class="note"><span class="bellwrap">${ic('bell',11)}</span>высокая важность</span></div>
+  <div class="inc-b">
+   <dl class="kv">
+    <dt>Что изменилось</dt><dd class="refline">refs/heads/main a41c9e2 → 7f03b18</dd>
+    <dt>Откатано</dt><dd><span class="ok">${ic('check',10)} refs/heads/main → a41c9e2</span> · демон, 14:32</dd>
+    <dt>Запуск</dt><dd>Dev · попытка 2 · 14:21–14:32 · git в обход обёртки · <a style="color:var(--accent)">лог агента</a></dd>
+   </dl>
+   <div class="acthint">${ic('info',10)} Инцидент закроется, когда вы выберете действие по задаче</div>
+   <div class="inc-acts"><span class="btn primary">${ic('undo',11)}Вернуть с замечанием</span><span class="btn">${ic('bot',11)}Модель</span><span class="btn">${ic('shield',11)}Ужесточить политику</span><span class="btn pressed">${ic('x',11)}Отменить…</span></div>
+   <div class="confirm"><div class="cr"><b>Отменить задачу?</b><span class="muted">клон удаляется, задача → cancelled</span><span class="sp"></span><span class="btn sm">Не отменять</span><span class="btn sm danger">Отменить задачу</span></div><span class="cbk"><span class="check off"></span>Сохранить ветку как <span class="mono">kaban/archive/KBN-17</span><span class="faint">· иначе ветка удаляется</span></span></div>
+  </div>
+ </div>
+ <div class="tabs"><span class="on">Лента</span><span>Живой лог</span><span>Сводка</span><span>Попытки <span class="n">2</span></span><span>Разрешения git <span class="n">1</span></span></div>
+ <div class="meter">${ic('ban',12)}<span>Отказы git за запуск: <b>4/5</b></span><span class="segs"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="sp"></span><span>на 5-м — стоп: <span class="mono">waiting_human · git_denials</span></span></div>
+ <div class="feed">
+  <div class="ev"><span class="g">${ic('terminal',12)}</span><div><div class="h"><span class="cmd">/usr/bin/git update-ref refs/heads/main HEAD</span><span class="bypass">обход обёртки</span></div><div class="s">tool call · shell · exit 0</div></div><span class="t">14:31</span></div>
+  ${refusal('14:29',4,'git rebase main','правило проекта <span class="mono">deny: rebase main</span>')}
+  ${refusal('14:28',3,'git push origin kaban/17-git-shim-flags','жёсткое правило <span class="mono">push</span>',{hard:true})}
+  ${refusal('14:25',2,'git stash','нет в списке разрешённых',{granted:true})}
+  ${refusal('14:23',1,'git checkout main','правило проекта <span class="mono">deny: checkout main</span>')}
+  <div class="ev"><span class="g">${ic('play',11)}</span><div><div class="h">Запуск Dev · попытка 2</div><div class="s">клон прогрет: warm_paths <span class="mono">.build</span> за 2,1 с · on_create пропущен</div></div><span class="t">14:21</span></div>
+ </div>
+ <div class="composer"><b class="cl">${ic('message',12)}Замечание агенту</b><span class="ph">например: «не трогай main, работай только в своей ветке»</span><span class="btn sm primary">Отправить и продолжить стадию</span></div>
+</div>`;
+renderBoard(document.getElementById('root'), {selected:'KBN-17', overlay: panel});
+</script></body></html>

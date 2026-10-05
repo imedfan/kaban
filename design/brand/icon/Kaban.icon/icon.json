@@ -1,0 +1,134 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "extended-srgb:0.64314,0.42353,0.26275,1.00000",
+          "extended-srgb:0.18431,0.09412,0.04314,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "extended-srgb:0.29020,0.17255,0.09804,1.00000",
+          "extended-srgb:0.07059,0.03529,0.01569,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Highlight",
+      "layers": [
+        {
+          "name": "Highlight",
+          "image-name": "highlight.svg",
+          "blend-mode": "plus-lighter",
+          "opacity": 0.45,
+          "glass": false
+        }
+      ],
+      "specular": false,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    },
+    {
+      "name": "Snout",
+      "layers": [
+        {
+          "name": "Eyes & nostrils",
+          "image-name": "details.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "extended-srgb:0.16471,0.09020,0.04314,1.00000"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Snout",
+          "image-name": "snout.svg",
+          "glass": true
+        },
+        {
+          "name": "Tusks",
+          "image-name": "tusks.svg",
+          "glass": true
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    },
+    {
+      "name": "Head",
+      "layers": [
+        {
+          "name": "Inner ears",
+          "image-name": "ears-inner.svg",
+          "glass": false,
+          "opacity": 0.85
+        },
+        {
+          "name": "Head",
+          "image-name": "head.svg",
+          "glass": true
+        },
+        {
+          "name": "Bristles",
+          "image-name": "mane.svg",
+          "glass": true
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.35
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

@@ -1,0 +1,76 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2.1 — Лимиты возвратов и запусков на карточке</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../board.css"><link rel="stylesheet" href="../task-details.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="../v0.2/v02.css"><link rel="stylesheet" href="v021.css">
+<style>
+html,body{height:720px}
+.sheet{position:relative;width:1440px;height:720px;background:var(--bg-content);padding:24px 36px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:22px;font-weight:750;letter-spacing:-.02em}
+.lead{font-size:12px;color:var(--text-2);max-width:1300px;line-height:17px;margin-top:4px}
+.lead .mono,.cap .mono,.mt3 .mono{font-size:10.5px;color:var(--text)}
+h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+h2 .faint{font-weight:500;font-size:11.5px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 22px}
+.cell{display:flex;gap:10px;align-items:flex-start}
+.cap{font-size:10.5px;color:var(--text-2);line-height:14px;flex:1;min-width:0}
+.cap b{color:var(--text);font-weight:650}
+.cap q{quotes:"«" "»";color:var(--text);font-weight:600}
+.bot{display:grid;grid-template-columns:1fr 430px;gap:24px}
+.mt3{width:100%;border-collapse:collapse;font-size:11px;background:var(--bg-card);border-radius:12px;box-shadow:var(--sh-card);overflow:hidden}
+.mt3 th{font-size:10px;font-weight:650;color:var(--text-3);text-align:left;padding:6px 10px;border-bottom:.5px solid var(--sep)}
+.mt3 td{padding:5px 10px;border-top:.5px solid var(--sep);white-space:nowrap;vertical-align:middle}
+.mt3 tr:first-child td{border-top:none}
+.mt3 td .mono{font-size:10px}
+.mt3 .rs{font-family:var(--font-mono);font-size:10px;color:var(--st-waiting-fg);background:var(--st-waiting-bg);padding:1px 5px;border-radius:4px}
+.fd{background:var(--bg-card);border-radius:12px;box-shadow:var(--sh-card);padding:2px 12px}
+.fd .ev:last-child{border-bottom:none}
+.fd .ev{grid-template-columns:22px 1fr 38px}.fd .ev .h{font-size:11.5px}
+.fd .ev .t{font-family:var(--font-mono);font-size:9.5px;letter-spacing:0}
+.old{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+.old .card{opacity:.5;filter:grayscale(.4)}
+.vtag{display:inline-block;font-size:9.5px;font-weight:700;color:var(--text-3);background:var(--bg-control);padding:1px 6px;border-radius:5px;margin-bottom:3px}
+</style></head>
+<body><div class="sheet" id="root"></div><script src="../components.js"></script><script src="../v0.2/v02.js"></script><script src="v021.js"></script>
+<script>
+const W=292;
+const C=(o,cap)=>`<div class="cell">${card3(Object.assign({w:W,s:'waiting',label:'Лимит возвратов'},o))}<div class="cap">${cap}</div></div>`;
+const gl=(icon,t)=>`<div class="fline gr">${ic(icon,10)}${t}</div>`;
+const evc=(cls,icon,h,s,t)=>`<div class="ev ${cls}"><span class="g">${ic(icon,12)}</span><div><div class="h">${h}</div><div class="s">${s}</div></div><span class="t">${t}</span></div>`;
+const M=t=>`<span class="mono">${t}</span>`;
+document.getElementById('root').innerHTML=`
+<div><h1>Kaban v0.2.1 · лимиты возвратов и запусков на карточке</h1>
+<div class="lead">${M('waiting_human · bounce_limit / conflict_limit / run_limit')} (спека v0.8.14 §1.3, подписи полей — §4.1; арх. v0.11.14 §3.1, §3.3). Причина на карточке и в ленте — <b>«Лимит возвратов»</b> с уточнением, какой лимит сработал, теми же словами, что подпись поля в §4.1. Цвет — янтарь внимания (${M('--st-waiting')}), не красный: это не инцидент. Не больше двух бейджей. Заменяет «Лимит конфликтов 2/2» карточки SHOP-36 из v0.1 (${M('cards.html')}) и «Лимит запусков 12/12» из v0.2 — те файлы заморожены (их показывает презентация).</div></div>
+
+<div><h2>Карточки <span class="faint">статус · причина в подвале: «Лимит возвратов» + уточнение · серой строкой — где стоит задача</span></h2>
+<div class="g3">
+${C({p:'shop',id:36,t:'Скидки по промокодам',meta:'при конфликте, 2 из 2',sel:true,badges:[['ret','Merge → Dev','merge']],lines:[gl('merge','стоит в Merge · ждёт решения')],action:'<span class="btn sm">Ещё попыток</span><span class="btn sm">Вернуть с замечанием</span>'},
+ `<b>${M('conflict_limit')}</b> · §1.3: <q>при конфликте, 2 из 2</q>. Поле ${M('on_conflict.limit')} merge-стадии — <q>Лимит возвратов при конфликте</q> (§4.1), по умолч. 2. Задача остаётся в Merge (арх. §3.3); «Вернуть с замечанием» в лимиты не идёт.`)}
+${C({p:'kaban',id:21,t:'Миграция схемы событий',meta:'при красном гейте, 3 из 3',badges:[['ret','Checks → Dev','gates']],lines:[gl('gates','стоит в Checks · ждёт решения')]},
+ `<b>${M('bounce_limit')}</b> · §1.3: <q>при красном гейте, 3 из 3</q>. Поле ${M('on_fail.limit')} gate-стадии — <q>Лимит возвратов при красном гейте</q> (§4.1), по умолч. 3. Задача остаётся в Checks.`)}
+${C({p:'shop',id:42,t:'Пагинация курсором в /orders',meta:'Test → Dev, 3 из 3',badges:[['ret','всего 3/5','undo']]},
+ `<b>${M('bounce_limit')}</b> · §1.3: <q>Test → Dev, 3 из 3</q> (пример спеки дословно). Поле ${M('returns_to.limit')} пары — <q>Лимит возвратов</q> (§4.1), по умолч. 3.`)}
+${C({p:'mob',id:27,t:'Офлайн-кэш ленты',meta:'AI Review → Dev, 2 из 2',badges:[['ret','всего 2/5','undo']]},
+ `<b>${M('bounce_limit')}</b> · ${M('returns_to.limit')} пары AI Review → Dev, по умолч. 2 (§1.3). §1.3: <q>AI Review → Dev, 2 из 2</q> (пример спеки v0.8.16), форма <q>&lt;откуда&gt; → &lt;куда&gt;, N из M</q>, имена стадий из пайплайна.`)}
+${C({p:'shop',id:44,t:'Цены в копейках во всём API',meta:'общий, 5 из 5',badges:[['ret','Test → Dev 2/3','undo'],['ret','Checks → Dev 2/3','gates']],lines:[gl('merge','и конфликт 1/2')]},
+ `<b>${M('bounce_limit')}</b> · §1.3: <q>общий, 5 из 5</q>. Поле ${M('bounce_limit_total')} — <q>Общий лимит возвратов</q> (§4.1), по умолч. 5. Пары не исчерпаны, сработала сумма ${M('bounceByReason')}: 2 + 2 + 1.`)}
+${C({p:'docs',id:14,t:'Поиск по справочнику API',s:'runlimit',label:'Лимит запусков на задачу',meta:'12 из 12',badges:[['','12 автозапусков','cpu']]},
+ `<b>${M('run_limit')}</b> · §1.3: заголовок <q>Лимит запусков на задачу</q>, уточнение <q>12 из 12</q>. Поле ${M('max_runs_per_task')} (§4.1), по умолч. 12. Не возврат: считаются автозапуски, действие человека обнуляет счётчик (§1.4).`)}
+</div></div>
+
+<div class="bot">
+ <div><h2>Поле → подпись → текст причины <span class="faint">одни и те же слова в редакторе пайплайна, на карточке и в ленте</span></h2>
+  <table class="mt3">
+   <tr><th>Поле YAML (${M('{label}')})</th><th>Подпись поля (§4.1)</th><th>Уточнение на карточке (§1.3)</th><th>Причина</th><th>По умолч.</th></tr>
+   <tr><td>${M('returns_to.limit')}</td><td>Лимит возвратов (у пары)</td><td>Test → Dev, 3 из 3 · AI Review → Dev, 2 из 2</td><td><span class="rs">bounce_limit</span></td><td>3 / 2</td></tr>
+   <tr><td>${M('on_fail.limit')}</td><td>Лимит возвратов при красном гейте</td><td>при красном гейте, 3 из 3</td><td><span class="rs">bounce_limit</span></td><td>3</td></tr>
+   <tr><td>${M('on_conflict.limit')}</td><td>Лимит возвратов при конфликте</td><td>при конфликте, 2 из 2</td><td><span class="rs">conflict_limit</span></td><td>2</td></tr>
+   <tr><td>${M('bounce_limit_total')}</td><td>Общий лимит возвратов</td><td>общий, 5 из 5</td><td><span class="rs">bounce_limit</span></td><td>5</td></tr>
+   <tr><td>${M('max_runs_per_task')}</td><td>Лимит запусков на задачу</td><td>12 из 12</td><td><span class="rs">run_limit</span></td><td>12</td></tr>
+  </table></div>
+ <div><h2>Лента <span class="faint">та же формулировка</span></h2>
+  <div class="fd">
+   ${evc('am','merge','Лимит возвратов · при конфликте, 2 из 2 <span class="evcode">conflict_limit</span>','второй конфликт rebase в Merge · задача ждёт решения в Merge','16:20')}
+   ${evc('am','cpu','Лимит запусков на задачу · 12 из 12 <span class="evcode">run_limit</span>','12 автоматических запусков без действия человека · история запусков в панели','17:02')}
+  </div>
+  <div class="old">${card3({w:210,p:'shop',id:36,t:'Скидки по промокодам',s:'waiting',label:'Лимит конфликтов',meta:'2/2',badges:[['ret','конфликт 2/2','merge']]})}<div class="cap"><span class="vtag">v0.1 · заменено</span><br>Старая подпись SHOP-36 из ${M('design/cards.html')}. Файл не правится (заморожен для презентации); актуальная — первая карточка выше.</div></div>
+ </div>
+</div>`;
+</script></body></html>

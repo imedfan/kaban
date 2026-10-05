@@ -1,0 +1,79 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban v0.2.1 — Проект: права и git</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../settings.css"><link rel="stylesheet" href="../v0.2/v02.css"><link rel="stylesheet" href="v021.css">
+<style>.lk2.wide{align-items:center}.lk2.wide .ic{margin-top:0}.lk2.wide .src{flex:none;margin-left:auto;text-align:right}.locks{position:relative}.lk2 .src{color:var(--text-2);font-size:10.5px}.lk2 .src .mono{font-size:10px;color:var(--text-2)}.lk2 .inf{display:grid;place-items:center;width:15px;height:15px;margin-left:5px;border-radius:50%;color:var(--text-3)}.lk2 .inf .ic{color:var(--text-3)!important}.lk2.on{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent)}.lk2.on .inf{background:var(--accent);}.lk2.on .inf .ic{color:#fff!important}.hpop{position:absolute;left:12px;top:92px;background:rgba(250,250,252,.93)!important;width:452px;z-index:40;border-radius:12px;padding:10px 12px 9px;font-size:11px;line-height:15.5px;color:var(--text)}.hpop:before{content:"";position:absolute;top:-6px;left:349px;width:12px;height:12px;transform:rotate(45deg);background:rgba(250,250,252,.96);box-shadow:inset .5px .5px 0 var(--glass-border),-.5px -.5px 0 var(--sep)}.hpop .ph{display:flex;align-items:center;gap:6px;font-weight:700;font-size:11.5px;margin-bottom:4px}.hpop .ph .ic{color:var(--pol-locked)}.hpop .ph .mono{font-weight:500;color:var(--text-2)}.hpop .mono{font-size:10.5px;white-space:nowrap}.hpop .pf{margin-top:6px;padding-top:5px;border-top:.5px solid var(--sep);font-size:10px;color:var(--text-3)}.pol td{height:25px;overflow:visible}.lk2{height:23px}.lk2.wide{min-height:23px;padding:4px 9px}.locks{gap:4px 10px;padding-bottom:8px}table.pol{table-layout:auto}.pol th{width:auto!important}</style></head>
+<body><div id="root"></div><script src="../components.js"></script><script src="../v0.2/v02.js"></script><script src="v021.js"></script>
+<script>
+const cc=(c,t)=>`<span class="cc ${c}">${t}</span>`;
+const R={a:'<span class="res a"><i></i>разрешено</span>', d:'<span class="res d"><i></i>запрещено</span>', o:'<span class="res o"><i></i>нет в пресете</span>', x:'<span class="res o"><i></i>вне списка</span>', dp:'<span class="res dp"><i></i>запрещено проектом</span>'};
+const P={inh:`<span class="pop n">Из пресета${ic('chevdown',9)}</span>`, a:`<span class="pop a"><i></i>Разрешено${ic('chevdown',9)}</span>`, d:`<span class="pop d"><i></i>Запрещено${ic('chevdown',9)}</span>`};
+const row=(cmd,desc,pre,proj,res,cls='',ovr='')=>`<tr class="${cls}"><td><span class="cmdn">${cmd}</span>${desc?`<span class="desc">${desc}</span>`:''}</td><td>${pre}</td><td>${proj}${ovr}</td><td>${res}</td></tr>`;
+const left=`
+<div class="box"><div class="box-h">${ic('shield',13)}Пресет проекта <span class="faint">стадии наследуют его и хранят только переопределения · по умолчанию «Стандартный»</span><span class="sp"></span><span class="faint mono" style="font-size:10px">git.preset</span></div>
+ <div class="presets">
+  <div class="preset"><b><span class="radio"></span>Строгий</b>
+   <div class="pl2"><span>Агенту</span><span class="chips">${cc('a','status')}${cc('a','diff')}${cc('a','log')}${cc('a','show')}<span class="faint" style="font-size:10.5px">только чтение</span></span>
+   <span>Коммитит</span><span><b style="color:var(--text);font-size:11px;font-weight:650;display:inline">только демон</b>: один коммит стадии после зелёных гейтов и проверки результата, сообщение — <span class="mono">summary</span> из <span class="mono">complete_stage</span> (пустое → <span class="mono">kaban: &lt;стадия&gt; &lt;задача&gt;</span>)</span></div></div>
+  <div class="preset on"><span class="tagp">в проекте</span><b><span class="radio"></span>Стандартный</b>
+   <div class="pl2"><span>Агенту</span><span class="chips">чтение +${cc('a','add')}${cc('a','commit')}${cc('a','restore --staged')}<span class="faint" style="font-size:10.5px">в своей ветке</span></span>
+   <span>Коммитит</span><span><b style="color:var(--text);font-size:11px;font-weight:650;display:inline">агент</b> + страховочный коммит демона после гейтов</span></div></div>
+  <div class="preset"><b><span class="radio"></span>Свободный</b>
+   <div class="pl2"><span>Агенту</span><span class="chips">стандартный +${cc('a','stash')}${cc('a','rebase')}${cc('a','reset')}<span class="faint" style="font-size:10.5px">в т. ч. <span class="mono">--hard</span></span></span>
+   <span>Где</span><span>только в пределах своей ветки: цель — коммит ветки задачи не старше её базы</span>
+   <span>Коммитит</span><span><b style="color:var(--text);font-size:11px;font-weight:650;display:inline">агент</b> + страховочный коммит демона</span></div>
+   <div class="note2">${ic('shieldcheck',10)}песочница и проверка результата работают всегда</div></div>
+ </div>
+ <div class="hint" style="padding:0 12px 10px;margin-top:-4px">Смена пресета — правка <span class="mono">.kaban/</span> через <span class="mono">updatePipeline</span>, действует с новых запусков, идущие доигрывают по своему снимку. Read-only стадия сужает любой пресет до чтения.</div></div>
+
+<div class="box"><div class="box-h">${ic('lock',13)}Жёсткие правила <span class="faint">во всех трёх пресетах · не снимает ни пресет, ни проект, ни стадия</span></div>
+ <div class="locks">
+  <div class="lk2">${ic('lock',11)}<span class="mono">push</span><span class="src">Без push</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2">${ic('lock',11)}<span class="mono">remote</span><span class="src">Remotes не меняются</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2">${ic('lock',11)}<span class="mono">config</span><span class="src">Git config и hooks не меняются</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2">${ic('lock',11)}<span class="mono">tag</span><span class="src">Теги не трогаются</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2 on">${ic('lock',11)}<span class="mono">force</span><span class="src">Без принудительных флагов</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2">${ic('lock',11)}<span class="mono">foreign_refs</span><span class="src"><span class="mono">main</span> и чужие ветки не двигаются</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="lk2 wide">${ic('lock',11)}<span class="mono">kaban_dir</span><span class="src"><span class="mono">.kaban/</span> только для демона</span><span class="inf">${ic('info',10)}</span></div>
+  <div class="hpop glass-strong"><div class="ph">${ic('lock',11)}Без принудительных флагов <span class="mono">force</span></div><span class="mono">--force*</span> на любой команде (по префиксу, в том числе безвредный <span class="mono">rebase --force-rebase</span>: простое правило важнее), <span class="mono">-f</span> там, где он принудительный (<span class="mono">checkout</span>, <span class="mono">switch</span>, <span class="mono">add</span>, <span class="mono">rm</span>, <span class="mono">mv</span>, <span class="mono">clean</span>, <span class="mono">worktree</span>, <span class="mono">submodule</span>, в том числе в связках вроде <span class="mono">-fd</span>). <span class="mono">grep -f</span>, <span class="mono">blame -f</span>, <span class="mono">ls-files -f</span> разрешены. Любой <span class="mono">clean</span> без <span class="mono">-n</span>/<span class="mono">--dry-run</span> запрещён (в том числе <span class="mono">clean -i</span> и <span class="mono">clean</span> без <span class="mono">-f</span>), разрешён только пробный прогон: удаление неотслеживаемых файлов не отменить.<div class="pf">Полный текст — спека §1.5 · по наведению или клику на ⓘ · закрыть — Esc</div></div>
+ </div>
+ <div class="lkn">${ic('info',11)}<span>Порядок — как в <span class="mono">hardInvariants</span> (<span class="mono">HardInvariant.all</span>, арх. v0.11.14 §8.2); на плитке короткая подпись, полный текст спеки §1.5 — в поповере ⓘ. Слияние в <span class="mono">main</span> делает демон — это не правило.</span></div></div>
+
+<div class="box" style="overflow:hidden"><div class="box-h">${ic('terminal',13)}Команды проекта <span class="faint">поверх пресета: <span class="mono">git.allow</span> / <span class="mono">git.deny</span></span><span class="sp"></span><span class="btn sm">${ic('plus',10)}Команда</span></div>
+ <table class="pol" style="margin-top:6px">
+  <tr><th>Команда</th><th>Пресет «Стандартный»</th><th>Проект</th><th>Итог для проекта</th></tr>
+  ${row('status · diff · log · show','',R.a,P.inh,R.a)}
+  ${row('add · commit','в ветке задачи',R.a,P.inh,R.a)}
+  ${row('restore --staged','',R.a,P.inh,R.a)}
+  ${row('cherry-pick','перенос чужих коммитов',R.o,P.d,R.dp,'','<span class="ovr p">переопр.</span>')}
+  ${row('stash','',R.o,P.a,R.a,'new','<span class="ovr p">переопр.</span>')}
+  ${row('rebase · reset','',R.o,P.inh,R.o)}
+ </table>
+ <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:11px;color:var(--text-2)"><span class="ovr p" style="margin:0">переопр.</span>проект отличается от пресета · «нет в пресете» — в каталоге, но не разрешена и не запрещена<span class="sp"></span><span class="ovr new" style="margin:0">новое</span>не сохранено</div>
+</div>`;
+const right=`
+<div class="box"><div class="box-h">${ic('shieldcheck',13)}Итоговая политика стадий</div>
+ <div class="eff" style="gap:0;padding-top:4px"><div class="hint" style="margin-bottom:4px">пресет → проект → стадия; метка — последний слой, изменивший итог (<span class="mono">GitRule.source</span>); запрет сильнее разрешения</div><table class="stages-mini">
+  <tr><td>Dev</td><td><span class="sg">как проект <span class="ovr inh">унаследовано</span></span><span class="sg"><span class="mono">rebase</span> по условию <span class="ovr p">переопределено</span></span><span class="sg"><span class="mono">stash</span> <span class="ovr n">сужено</span></span></td></tr>
+  <tr><td>Test</td><td><span class="sg">как проект <span class="ovr inh">унаследовано</span></span></td></tr>
+  <tr><td>AI Review</td><td><span class="sg">read-only: <span class="mono">status diff log show</span></span><span class="sg">− <span class="mono">add commit restore --staged stash</span> <span class="ovr n">сужено до чтения</span></span><span class="sg">− <span class="mono">cherry-pick</span> <span class="ovr inh">унаследовано</span></span><span class="sg" style="color:var(--text-3)">нет в пресете: <span class="mono">rebase reset</span></span></td></tr>
+  <tr><td>Human Review<br>Merge</td><td>агента нет — только демон</td></tr>
+ </table>
+ <div class="hint">Переопределения правятся в редакторе стадии: вкладка «Права и git». <a style="color:var(--accent)">Открыть Dev →</a></div></div></div>
+<div class="box"><div class="box-h">${ic('key',13)}Отказы и «разрешить один раз»</div>
+ <div class="eff"><div class="hint" style="color:var(--text-2)">Отказ обёртки <span class="mono">git</span> — тихая строка в ленте задачи. 5 отказов за запуск → <span class="mono">waiting_human · git_denials</span>. «Разрешить один раз» живёт до конца задачи и в политику не пишется; «Добавить в политику…» открывает эту вкладку с правилом из отказа.</div></div></div>
+<div class="yaml"><span class="cm"># .kaban/pipeline.yaml · политика проекта</span>
+<span class="k">git:</span>
+  <span class="k">preset:</span> standard     <span class="cm"># strict | standard | permissive</span>
+<span class="ad">+ allow: [stash]</span>
+  <span class="k">deny:</span>  [cherry-pick]  <span class="cm"># перенос чужих коммитов</span>
+<span class="cm"># жёсткие правила не перечисляются — действуют всегда</span>
+<span class="k">stages:</span>
+  <span class="k">- id:</span> dev
+    <span class="k">git:</span>               <span class="cm"># только переопределения</span>
+      <span class="k">extend:</span> [rebase]
+      <span class="k">when:</span> return_reason == merge_conflict</div>`;
+settingsWin2(document.getElementById('root'),{side:side21('git'),
+ title:'Права и git', sub:'shop-api · политика проекта · .kaban/pipeline.yaml → git',
+ right:`<span class="valid">${ic('circlecheck',12)}Файл валиден</span><div class="capsule glass"><div class="tbtn">${ic('code',13)}pipeline.yaml</div></div><div class="capsule glass" style="padding:0 4px"><div class="tbtn">Отменить</div><div class="tbtn primary">${ic('check',12)}Сохранить и закоммитить</div></div>`,
+ body:`<div class="s-left">${left}</div><div class="s-right" style="width:380px">${right}</div>`,
+ foot:`${ic('info',12)}<span>Демон проверит файл и закоммитит только <span class="mono">.kaban/</span> в <span class="mono">main</span>. Новые правила — со следующего запуска; идущие доигрывают со старыми.</span><span class="sp"></span><span class="dirty"></span><span>1 несохранённое изменение</span>`});
+</script></body></html>

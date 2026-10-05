@@ -1,0 +1,90 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Kaban — маскоты и фактуры (кит v1)</title>
+<link rel="stylesheet" href="../common.css"><link rel="stylesheet" href="../board.css"><link rel="stylesheet" href="mascots.css"></head>
+<body><div class="sheet" id="root"></div>
+<script src="../components.js"></script><script src="mascot-kit.js"></script>
+<script>
+const K = MascotKit, M = K.MASCOTS, T = K.TEXTURES;
+const GROUPS = [['forest','Лес'],['home','Домашние'],['north','Север'],['savanna','Саванна'],['reptiles','Рептилии'],['water','Вода'],['wings','Крылья и сказка']]; // display order only; indices come from MASCOTS
+// register kit projects for components.js card()
+const addProj = (id, m, tex, name, key) => { PROJ[id] = {name, m, tex:'k'+tex, key}; return id; };
+const edgeSVG = (t, h, mode) => `<svg class="edge" width="${K.W}" height="${h}" viewBox="0 0 ${K.W} ${h}">${K.textureSVG(t, h, mode, {uid: Math.random().toString(36).slice(2,7)})}</svg>`;
+function paintEdges(rootEl) {
+  rootEl.querySelectorAll('.card').forEach(c => {
+    const m = c.className.match(/tex-k(\d)/); if (!m) return;
+    const dark = !!c.closest('.dark'); c.insertAdjacentHTML('afterbegin', edgeSVG(T[+m[1]], Math.ceil(c.offsetHeight), dark ? 'dark' : 'light'));
+  });
+}
+let h = `<h1>Маскоты и фактуры проектов · кит v1</h1>
+<div class="lead">Проект на доске узнаётся по маскоту и фактуре левого края карточки, цвет карточки — только статус. Правило «seed → маскот + фактура» детерминированное: FNV-1a 64 по UTF-8 байтам <span class="mono">ProjectSummary.mascotSeed</span> (String), маскот = h % 30, фактура = (h / 30) % 8; совпадение пары на доске — сдвиг фактуры у проекта, добавленного позже, только в отображении. Эмодзи здесь нарисованы Noto Color Emoji, на macOS 26 будут Apple Color Emoji: в набор взяты только одиночные кодпоинты Emoji ≤ 13.0 без ZWJ и VS16.</div>`;
+
+// ---- 1. mascots
+h += `<div class="sec"><h2>1 · 30 маскотов <span class="faint">чип шапки дорожки 24 pt · эмодзи 20 и 16 pt · наклейка на карточке</span></h2><div class="groups">`;
+for (const [g, title] of GROUPS) {
+  const ms = M.filter(x => x.group === g);
+  h += `<div class="grp"><h3>${title} <span>· ${ms.length}</span></h3><div class="mcs">` + ms.map(x => `<div class="mc">
+    <div class="mc-top">${mascotFace(x.emoji,'none',24)}<span class="em20">${x.emoji}</span><span class="em16">${x.emoji}</span></div>
+    <div class="mc-name"><span>${x.ru}</span><i>#${x.index}</i></div>
+    <div class="stk"><span class="sticker">${x.emoji}</span><span class="tid">PRJ-${100 + x.index}</span></div></div>`).join('') + `</div></div>`;
+}
+h += `</div>
+<div class="chips" style="margin-top:10px"><span class="lbl">Светлая · 24 pt</span>${M.map(x => mascotFace(x.emoji,'none',24)).join('')}</div>
+<div class="chips dark" style="margin-top:6px"><span class="lbl">Тёмная · 24 pt</span>${M.map(x => mascotFace(x.emoji,'none',24)).join('')}</div>
+<div class="chips" style="margin-top:6px"><span class="lbl">Сайдбар · 22 pt</span>${M.map(x => mascotFace(x.emoji,'none',22)).join('')}</div>
+<div class="chips" style="margin-top:6px;gap:10px"><span class="lbl">Без чипа · 16 pt</span>${M.map(x => `<span class="em16">${x.emoji}</span>`).join('')}</div></div>`;
+
+// ---- 2. textures
+h += `<div class="sec"><h2>2 · 8 фактур левого края <span class="faint">полоса 6 pt по всей высоте карточки, обрезана формой карточки · чернила #000 (светлая) / #FFF (тёмная) с прозрачностью · без цвета</span></h2><div class="texs">`;
+const desc = t => ({
+  dots: `r ${t.r} · шаг ${t.pitch}<br>центры (1.5,1.5) (4.5,4.5)`,
+  stripes: `45° «/» · линия ${t.stroke}<br>шаг ⟂ ${t.spacing} (по Y ${(t.spacing*Math.SQRT2).toFixed(3)})`,
+  crosshatch: `±45° · линия ${t.stroke}<br>шаг ⟂ ${t.spacing}`,
+  waves: `x = ${t.centerX} + ${t.amplitude}·sin(2πy/${t.wavelength})<br>линия ${t.stroke}, round`,
+  zigzag: `x ${t.xMin}↔${t.xMax} · период ${t.period}<br>линия ${t.stroke}, miter`,
+  grid: `шаг ${t.pitch}, сдвиг ${t.offset}<br>линия ${t.stroke}`,
+  chevrons: `«v» x ${t.xMin}…${t.xMax}, глубина ${t.depth}<br>шаг ${t.period}, линия ${t.stroke}`,
+  solid: `полоса ${t.barWidth} от края<br>остальное пусто`,
+})[t.kind];
+for (const t of T) {
+  const pid = addProj('tx'+t.index, '🐗', t.index, 'demo', 'KBN');
+  const c = (s, label) => card({p: pid, id: 40 + t.index, t: 'Задача проекта', s, label, w: 142});
+  const zoom = mode => `<svg width="48" height="96" viewBox="0 0 12 24"><rect width="12" height="24" fill="${mode==='dark'?'#2A2A2E':'#FFFFFF'}"/>${K.textureSVG(t, 24, mode, {uid:'z'})}</svg>`;
+  h += `<div class="tx"><div class="tname">${t.ru}<i>#${t.index} ${t.key}</i></div>
+    <div class="lightbox">${c('queued')}</div><div class="darkbox dark">${c('running')}</div>
+    <div class="zoom">${zoom('light')}${zoom('dark')}<div class="params" style="align-self:flex-end">×4<br>6 × 24 pt</div></div><div class="params">${desc(t)}<br>α светлая ${t.opacity.light.toFixed(2)} · тёмная ${t.opacity.dark.toFixed(2)}</div></div>`;
+}
+h += `</div></div>`;
+
+// ---- 3. board strip, 6 projects (added in this order)
+const added = [['p-kaban','kaban','KBN'],['p-site','site','SITE'],['shop-api','shop-api','SHOP'],['mobile-app','mobile-app','MOB'],['docs-site','docs-site','DOC'],['p-crm-4','crm','CRM']];
+const res = K.resolveBoard(added.map(([id]) => ({id, seed: id})));
+const LANES = [
+  {st:'work',  anim:'<code>.pulse</code> агенты работают', cards:[{s:'running', t:'Импорт пайплайна из YAML', meta:'Dev · 4 мин'}, {s:'queued', t:'Тесты KabanBoardCore'}]},
+  {st:'sleep', anim:'<code>.breathe</code> спит', cards:[{s:'done', t:'Лендинг: новые скриншоты'}, {s:'paused', t:'Перевод README'}]},
+  {st:'wave',  anim:'<code>.wiggle</code> ждёт человека', cards:[{s:'review', t:'Скидки в корзине', meta:'Human Review'}, {s:'running', t:'Webhook оплаты', meta:'Test'}]},
+  {st:'happy', anim:'<code>.bounce</code> один раз на Done', cards:[{s:'done', t:'Push-уведомления iOS'}, {s:'gating', t:'Сборка Android'}]},
+  {st:'alarm', anim:'<span class="red">кольцо + бейдж <code>.pulse</code></span> инцидент', cards:[{s:'incident', t:'Агент изменил .github/workflows', meta:'1 инцидент'}, {s:'queued', t:'Поиск по документации'}]},
+  {st:'none',  anim:'статично · нет активности', cards:[{s:'queued', t:'Экспорт сделок в CSV'}, {s:'cancelled', t:'Старый импорт'}]},
+];
+const lanesHTML = () => added.map(([id, name, key], i) => {
+  const r = res[id], L = LANES[i], pid = addProj('b'+i, M[r.mascot].emoji, r.texture, name, key);
+  const face = L.st === 'alarm' ? `<span class="m-alarm-wrap">${mascotFace(M[r.mascot].emoji,'alarm',24)}<span class="badge-n r">1</span></span>` : mascotFace(M[r.mascot].emoji, L.st, 24);
+  const bump = r.bumped ? `<div class="bump">↻ ${M[r.mascot].emoji} уже у «kaban»: фактура ${T[r.baseTexture].ru} → ${T[r.texture].ru} (только вид)</div>` : `<div class="bump" style="visibility:hidden">.</div>`;
+  return `<div class="lane"><div class="lane-h">${ic('chevdown',12,'chev')}${face}<b class="ln">${name}</b><span class="sp"></span><span class="faint mono" style="font-size:9.5px">${T[r.texture].key}</span></div>
+    <div class="anim">${L.anim}</div>${bump}
+    <div class="cards">${L.cards.map((c, j) => card({p: pid, id: 10 + j + i * 3, w: 199, ...c})).join('')}</div></div>`;
+}).join('');
+h += `<div class="sec"><h2>3 · Доска: 6 проектов <span class="faint">seed = id проекта, порядок добавления слева направо; анимация только в шапке дорожки и сайдбаре, на карточке — статичная наклейка</span></h2>
+<div class="strip">${lanesHTML()}</div><div class="strip-dark dark"><div class="strip">${lanesHTML()}</div></div></div>`;
+
+// ---- 4. states
+const stI = (m, st, t, d) => `<div class="st-i">${st === 'alarm' ? `<span class="m-alarm-wrap">${mascotFace(m,'alarm',30)}<span class="badge-n r">2</span></span>` : mascotFace(m, st, 30)}<div class="t">${t}</div><div class="d">${d}</div></div>`;
+const states = m => `<div class="st-row">${stI(m,'sleep','Спит','<code>.breathe</code><br>нет задач в работе')}${stI(m,'work','Работает','<code>.pulse</code><br>есть running')}${stI(m,'wave','Ждёт человека','<code>.wiggle</code><br>waiting_human')}${stI(m,'happy','Готово','<code>.bounce</code> ×1<br>задача → Done')}${stI(m,'alarm','Инцидент','красное кольцо + бейдж <code>.pulse</code><br>openIncidentCount > 0')}</div>`;
+h += `<div class="sec"><h2>4 · Состояния маскота <span class="faint">приоритет: инцидент > ждёт > работает > готово > спит · Reduce Motion — всё статично, кольцо и бейдж остаются</span></h2>
+<div class="states"><div class="st-box">${states('🦉')}</div><div class="st-box dark">${states('🦉')}</div></div>
+<div class="note">Красный — только инцидент: кольцо вокруг чипа маскота, красный бейдж со счётчиком <span class="mono">openIncidentCount</span> и красная рамка карточки (<span class="mono">lv-alarm</span>). Фактура края у инцидентной карточки не меняется и остаётся бесцветной. В остальных состояниях маскот не краснеет и не получает предупреждающих знаков.</div></div>
+<div class="foot">design/mascots · mascot-kit.js (JS) и ref/MascotKit.swift (Swift) дают одинаковые векторы — test-vectors.json · фактуры: textures/*.svg · сборка: build.sh</div>`;
+
+document.getElementById('root').innerHTML = h;
+paintEdges(document.getElementById('root'));
+document.documentElement.style.setProperty('--H', Math.ceil(document.getElementById('root').scrollHeight) + 'px');
+</script></body></html>
