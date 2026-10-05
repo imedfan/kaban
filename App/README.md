@@ -1,20 +1,52 @@
 # Kaban.app — native SwiftUI client
 
-Open `Kaban.xcodeproj`, select the shared **Kaban** scheme, and run on macOS 26 or later with Xcode 27. The app imports only `KabanProtocol` and `KabanBoardCore` from the local Swift package. The Debug configuration builds the active architecture. Signing is optional for local compilation; an unsigned build requires no signing identity or Keychain changes:
+Open `Kaban.xcodeproj`, select **Kaban**, and run on macOS 26+ with a full Xcode.
+The main WindowGroup uses `BoardView`, `BoardStore`, `KabanClient` and
+`BoardProjection`. `AppFixture` supplies Protocol DTOs through `MockKabanClient`;
+the views do not implement a second task state machine.
+
+The board, project sidebar, task cards, detail overlay and action sheets follow
+the composition and light/dark tokens pinned in [design](../design/README.md).
+The macOS window keeps system traffic lights; product controls retain visible
+text at a stable size. The board scrolls horizontally when its columns cannot
+fit. Details overlay the board without squeezing columns.
+
+Create, edit, move, cancel and task pause/resume use typed commands. Selection,
+status and pending operations resolve through correlated journal events.
+Cmd-N creates a task; Cmd-F focuses search; Escape closes details. Project
+visibility persists in UserDefaults. Task data remains in memory for this launch.
+
+Project settings display the values supplied by the current snapshot. Settings
+editing, global/project pause, quota, Human Review decisions and file acceptance
+still need client/backend support. Missing quota and policy values display as
+unknown. No daemon, Cursor process or system registration is started.
 
 ```sh
 xcodebuild -project Kaban.xcodeproj -scheme Kaban \
-  -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath /tmp/kaban-board-derived CODE_SIGNING_ALLOWED=NO build
-swift test --filter Team2TakeoverFrontendFoundationTests
+  -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-polish-app \
+  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban
 ```
 
-This stage uses `MockKabanClient` with two project fixtures. The toolbar identifies demo data. The sidebar context menu shows or hides projects, and the board persists the visible project set in app UserDefaults. Selecting a task loads typed `TaskDetail` through the client. New tasks are created in the selected project’s Backlog with a title, Markdown description, and an explicit acceptance criteria section composed into the existing `createTask(title, body)` contract. Known Markdown bodies can be edited exactly; legacy `TaskDetail.body == nil` disables body editing and sends title-only changes without replacing unknown content. Move uses the existing drop rules with interruption confirmation, and cancellation explicitly offers branch preservation. Empty projects/boards, pending commands, failures, and stale task selection have native affordances.
+Opt-in QA uses the **actual application WindowGroup** with isolated in-memory
+board preferences. These arguments are inactive during an ordinary launch:
 
-The mock validates each command against its current card, rejects unsupported commands explicitly, and replays the same `commandId` without duplicate effects; reusing it for a different command conflicts. Cards and loads change through correlated journal events. Creation waits for `taskCreated`, including event-before-ack races. Running tasks can be paused; resume queues the same stage instead of restoring a running state. Mock actions demonstrate states and do not control processes or modify repositories. Snapshot resync invalidates stale detail requests and reconciles visible projects and selection.
+```sh
+/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
+  --export-live-window /tmp/kaban-board.png --qa-theme light
+/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
+  --export-live-window /tmp/kaban-details.png --qa-state details --qa-theme dark
+/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
+  --ui-smoke /tmp/kaban-ui-smoke.json
+```
 
-Card typography, spacing, radii, semantic status colours and suspicious-file rows follow the versioned originals in `design/` (see `design/README.md`). The foundation uses native SwiftUI materials and controls. Whole-window visual comparison, exact dark appearance token mapping, mascots, drag-and-drop and keyboard lane navigation remain unverified or pending. Action sheets use native controls; original create-sheet visual fidelity remains pending because that reference is unavailable. This is a structural implementation of the existing design, not a redesign.
+Other QA states: `minimum`, `long`, `empty`, `hidden`, `search`, `no-results`,
+`project`, `quota`, `review`, `create`, `edit`, `move`, `cancel`, `error`.
+The smoke checks the mounted window, typed action/event flow and real menu
+shortcuts. AppKit view caching captures layout but does not prove compositor
+fidelity, VoiceOver, manual pointer interactions or every accessibility setting.
 
-Real XPC connection/reconnect, quota/settings editors, pipeline/project editors, incident screens, Human Review actions, daemon registration and signing are later stages. No daemon is installed or started by this app. Settings are not inferred from missing snapshot fields. WIP appears only when authoritative `StageLoad` is available; sidebar/global counts use all projects regardless of which lanes are visible.
-
-The current entry point uses BoardStore/KabanClient/BoardProjection. Reuse this typed path for new screens and actions. HTML/CSS in design are reference sources, not application runtime. Validate the actual WindowGroup in light/dark appearance and at its minimum size; reference-gallery exports do not validate the main window. Current workflow: [AGENTS.md](../AGENTS.md), [frontend plan](../docs/frontend-plan-v0.md), [design](../design/README.md).
+The older `Reference*` views remain comparison tools. Their gallery captures
+and separate `ReferenceDemo` fixtures are not the main application runtime and
+are not evidence of main-window acceptance. Historical reports in
+`docs/development/frontend-design-parity-2026-10-04.md` describe earlier revisions.
