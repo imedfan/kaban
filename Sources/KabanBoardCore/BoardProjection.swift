@@ -69,6 +69,7 @@ public struct BoardFeedItem: Equatable, Sendable {
     public var taskId: TaskID? {
         switch event {
         case .taskTransitioned(let transition): transition.taskId
+        case .wipRestored(let restore): restore.taskId
         case .humanRequested(let request): request.taskId
         case .humanAnswered(let answer): answer.taskId
         case .gitDenied(let denial): denial.taskId

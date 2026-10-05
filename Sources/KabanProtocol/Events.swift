@@ -45,6 +45,8 @@ public enum JournalEvent: Hashable, Sendable {
     case suspiciousFilesAccepted(SuspiciousFilesAccepted)
     /// Загрузка WIP стадии изменилась; шлётся в той же транзакции, что и `taskUpdated` (§3.2, v0.11.2).
     case stageLoadChanged(StageLoad)
+    case wipRestored(WIPRestore)
+    case cursorEnvironmentChanged(CursorEnvironment)
     /// Событие более новой версии демона. Клиент его пропускает и, если нужно, берёт снимок заново.
     case unknown(type: String)
 }
@@ -186,6 +188,8 @@ extension JournalEvent: Codable {
         case .suspiciousFilesFound: "suspiciousFilesFound"
         case .suspiciousFilesAccepted: "suspiciousFilesAccepted"
         case .stageLoadChanged: "stageLoadChanged"
+        case .wipRestored: "wipRestored"
+        case .cursorEnvironmentChanged: "cursorEnvironmentChanged"
         case .unknown(let t): t
         }
     }
@@ -218,6 +222,8 @@ extension JournalEvent: Codable {
         case "suspiciousFilesFound": self = .suspiciousFilesFound(try d(SuspiciousFilesFound.self))
         case "suspiciousFilesAccepted": self = .suspiciousFilesAccepted(try d(SuspiciousFilesAccepted.self))
         case "stageLoadChanged": self = .stageLoadChanged(try d(StageLoad.self))
+        case "wipRestored": self = .wipRestored(try d(WIPRestore.self))
+        case "cursorEnvironmentChanged": self = .cursorEnvironmentChanged(try d(CursorEnvironment.self))
         default: self = .unknown(type: type)
         }
     }
@@ -246,6 +252,8 @@ extension JournalEvent: Codable {
         case .suspiciousFilesFound(let v): try c.encode(v, forKey: .data)
         case .suspiciousFilesAccepted(let v): try c.encode(v, forKey: .data)
         case .stageLoadChanged(let v): try c.encode(v, forKey: .data)
+        case .wipRestored(let v): try c.encode(v, forKey: .data)
+        case .cursorEnvironmentChanged(let v): try c.encode(v, forKey: .data)
         case .unknown: break
         }
     }
@@ -277,8 +285,12 @@ public struct PipelineDraftValidation: Codable, Hashable, Sendable {
     /// `projectGitPolicy` для превью в редакторе. `nil`, только если черновик не разобрался как YAML (`yaml_syntax`)
     /// или его корень не mapping; при прочих ошибках поле заполнено (арх. v0.11.10 §3.1).
     public var resolved: PipelineSummary?
-    public init(projectId: ProjectID, contentHash: String, issues: [ValidationIssue], resolved: PipelineSummary? = nil) {
+    /// Optional for legacy validation events. Version binding travels in the required new draft DTO.
+    public var baseVersionHash: String?
+    public init(projectId: ProjectID, contentHash: String, issues: [ValidationIssue], resolved: PipelineSummary? = nil,
+                baseVersionHash: String? = nil) {
         self.projectId = projectId; self.contentHash = contentHash; self.issues = issues; self.resolved = resolved
+        self.baseVersionHash = baseVersionHash
     }
 }
 public struct RunProgress: Codable, Hashable, Sendable {

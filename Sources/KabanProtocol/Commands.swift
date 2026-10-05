@@ -17,8 +17,11 @@ public enum Command: Codable, Hashable, Sendable {
     case setMascot(projectId: ProjectID, seed: String)
     case setProjectWeight(projectId: ProjectID, weight: Int, maxRuns: Int?)
     // Пайплайн и политика
-    case updatePipeline(projectId: ProjectID, contentHash: String)
+    /// New clients transfer the exact YAML and its base version in `draft`. Hash-only legacy
+    /// requests require a server-side draft; they must never apply whichever text happens to exist.
+    case updatePipeline(projectId: ProjectID, contentHash: String, draft: PipelineDraft? = nil)
     case validatePipeline(projectId: ProjectID, content: String)
+    case validatePipelineDraft(draft: PipelineDraft)
     // Детали
     case getTaskDetail(taskId: TaskID)
     // Задачи
@@ -31,6 +34,8 @@ public enum Command: Codable, Hashable, Sendable {
     case cancelTask(taskId: TaskID, keepBranch: Bool)
     case retryStage(taskId: TaskID, grantAttempts: Int?)
     case setModelOverride(taskId: TaskID, stageId: StageID, model: ModelID?)
+    /// The server checks ownership of both run and ref; no arbitrary git ref or path is accepted.
+    case restoreWIP(taskId: TaskID, runId: RunID, wipRef: String)
     // Человек
     case answerHuman(taskId: TaskID, text: String, requestId: HumanRequestID?)
     case approve(taskId: TaskID)
@@ -52,6 +57,8 @@ public enum Command: Codable, Hashable, Sendable {
     case setMaxConcurrentRuns(count: Int)
     // Среда
     case checkEnvironment
+    case getCursorEnvironment
+    case configureCursor(environment: CursorEnvironment)
     case recheck(scope: RecheckScope)
     // Модели и квота
     case listModels
@@ -142,6 +149,8 @@ public enum CommandResult: Codable, Hashable, Sendable {
     case incidents([Incident])
     case runs([RunSummary])
     case taskDetail(TaskDetail)
+    case pipelineDraft(PipelineDraftValidation)
+    case cursorEnvironment(CursorEnvironment)
     case error(CommandError)
 }
 
@@ -172,6 +181,12 @@ public struct CommandError: Codable, Hashable, Sendable, Error {
     /// `addProject` / `setProjectIdentity`: автора нет нигде, имя/почта пустые после обрезки или содержат
     /// перенос строки / NUL; детали в `params` (`missing`, `invalid`, найденные `name`/`email`); ничего не изменено.
     public static let identityRequiredCode = "identity_required"
+    public static let unsupportedCommandCode = "unsupported_command"
+    public static let unsupportedOperationCode = "unsupported_operation"
+    public static let stalePipelineDraftCode = "stale_pipeline_draft"
+    public static let pipelineHashMismatchCode = "pipeline_hash_mismatch"
+    public static let logUnavailableCode = "log_unavailable"
+    public static let logOffsetExpiredCode = "log_offset_expired"
 }
 
 /// Автор коммитов демона в проекте (§8.2): передаётся в git явно `-c user.name=… -c user.email=…`.

@@ -7,26 +7,7 @@ import KabanBoardCore
 @testable import KabanTransport
 
 final class DaemonTransportTests: XCTestCase {
-    func fixture() throws -> KabanStore {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        let store = try KabanStore(path: root.appendingPathComponent("db.sqlite").path)
-        let pipeline = try XCTUnwrap(PipelineValidator.validate(yaml: """
-        version: 1
-        stages:
-          - {id: queue, name: Queue, kind: queue, on_success: agent}
-          - id: agent
-            name: Agent
-            kind: agent
-            agent: {harness: cursor-cli, model: fake, skill: test.md, permissions: write, mcp: [kaban]}
-            on_success: review
-          - {id: review, name: Review, kind: human, on_success: done}
-          - {id: done, name: Done, kind: terminal}
-        """).config)
-        _ = try store.registerProject(.init(id: "p", name: "P", path: "/not-read", mascotSeed: "p"), pipeline: pipeline, commandId: UUID(), at: Date())
-        return store
-    }
+    func fixture() throws -> KabanStore { try makeDaemonTransportFixture(on: self) }
     func testSnapshotSubscribeHandshakeAndPartialPagesMatchAuthoritativeProjection() async throws {
         let store = try fixture()
         // Use the same store as the subscriber; another client can commit between snapshot and subscribe.
@@ -178,4 +159,25 @@ private actor LostReplyTransport: DaemonTransport {
         }
         return response
     }
+}
+
+func makeDaemonTransportFixture(on testCase: XCTestCase) throws -> KabanStore {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    testCase.addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+    let store = try KabanStore(path: root.appendingPathComponent("db.sqlite").path)
+    let pipeline = try XCTUnwrap(PipelineValidator.validate(yaml: """
+    version: 1
+    stages:
+      - {id: queue, name: Queue, kind: queue, on_success: agent}
+      - id: agent
+        name: Agent
+        kind: agent
+        agent: {harness: cursor-cli, model: fake, skill: test.md, permissions: write, mcp: [kaban]}
+        on_success: review
+      - {id: review, name: Review, kind: human, on_success: done}
+      - {id: done, name: Done, kind: terminal}
+    """).config)
+    _ = try store.registerProject(.init(id: "p", name: "P", path: "/not-read", mascotSeed: "p"), pipeline: pipeline, commandId: UUID(), at: Date())
+    return store
 }

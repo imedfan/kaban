@@ -1,0 +1,33 @@
+[
+  {
+    "connecting" : {
+
+    }
+  },
+  {
+    "synchronizing" : {
+
+    }
+  },
+  {
+    "connected" : {
+
+    }
+  },
+  {
+    "reconnecting" : {
+      "lastSeq" : 1042
+    }
+  },
+  {
+    "disconnected" : {
+      "_0" : {
+        "code" : "transport_failure",
+        "message" : "Соединение прервано",
+        "params" : {
+
+        }
+      }
+    }
+  }
+]

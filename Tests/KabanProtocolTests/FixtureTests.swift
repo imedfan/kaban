@@ -35,4 +35,6 @@ final class FixtureTests: XCTestCase {
     func testJournalEvents() throws { try check("journal-events.json", Samples.events) }
     func testEphemeralEvents() throws { try check("ephemeral-events.json", Samples.ephemeral) }
     func testCommands() throws { try check("commands.json", Samples.commands) }
+    func testExtendedDaemonContracts() throws { try check("daemon-contracts.json", WireContractExamples.values) }
+    func testConnectionStates() throws { try check("connection-states.json", WireContractExamples.connections) }
 }

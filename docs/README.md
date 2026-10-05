@@ -16,6 +16,7 @@ Git — основное место ведения документации. А�
 | [Спецификация MVP](kaban-mvp-features-usecases.md) | Фичи и пользовательские сценарии |
 | [Frontend plan](frontend-plan-v0.md) | Короткий маршрут к runtime и отдельным экранам |
 | [Backend plan](backend-plan-v0.md) | Реализованный fake-срез и следующий путь исполнения |
+| [Backend MVP BE-01–20](development/backend-mvp-tasks.md) | Порученная очередь реализации, зависимости и критерии каждой задачи |
 | [Дизайн](design/README.md) / [визуальные исходники](../design/README.md) | Полные документы дизайнера, версии, токены, оригинальные PNG |
 | [Приёмка MVP](acceptance-criteria-v0.md) / [UI-приёмка](frontend/acceptance.md) | Критерии готовности пользовательского результата |
 

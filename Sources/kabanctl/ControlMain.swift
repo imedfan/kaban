@@ -20,6 +20,10 @@ struct ControlMain {
                 kabanctl [transport options] send ENVELOPE.json
                 kabanctl [transport options] subscribe SEQ
                 kabanctl [transport options] watch [SEQ]
+                kabanctl [transport options] capabilities
+                kabanctl [transport options] synchronize
+                kabanctl [transport options] session
+                kabanctl [transport options] log RUN_ID OFFSET
                 Default transport: signed XPC, macOS 26+. send preserves the supplied commandId.
                 watch emits snapshot/event JSON lines; resync replaces state with a new snapshot.
                 """)
@@ -43,6 +47,13 @@ struct ControlMain {
             do {
                 switch arguments.first {
                 case "snapshot" where arguments.count == 1: try printJSON(await client.getSnapshot())
+                case "capabilities" where arguments.count == 1: try printJSON(await client.capabilities())
+                case "synchronize" where arguments.count == 1: try printJSON(await client.synchronize())
+                case "log" where arguments.count == 3:
+                    guard let offset = Int64(arguments[2]) else { throw CLIError.arguments }
+                    try printJSON(await client.readLog(runId: .init(rawValue: arguments[1]), fromOffset: offset))
+                case "session" where arguments.count == 1:
+                    for try await update in client.sessionUpdates() { try printUpdate(update) }
                 case "send" where arguments.count == 2:
                     let envelope = try DaemonWire.decode(CommandEnvelope.self, from: Data(contentsOf: URL(fileURLWithPath: arguments[1])))
                     let reply = try await client.send(envelope)
@@ -58,10 +69,7 @@ struct ControlMain {
                         seq = value
                     } else { seq = nil }
                     for try await update in client.updates(after: seq) {
-                        switch update {
-                        case .snapshot(let snapshot): try printJSON(DaemonResponse(.snapshot(snapshot)))
-                        case .event(let event): try printJSON(event)
-                        }
+                        try printUpdate(update)
                     }
                 default: throw CLIError.arguments
                 }
@@ -70,6 +78,15 @@ struct ControlMain {
         } catch {
             try? FileHandle.standardError.write(contentsOf: Data("kabanctl: \(error)\n".utf8))
             exit(1)
+        }
+    }
+    private static func printUpdate(_ update: DaemonUpdate) throws {
+        switch update {
+        case .snapshot(let value): try printJSON(DaemonResponse(.snapshot(value)))
+        case .event(let value): try printJSON(value)
+        case .replacement(let value): try printJSON(DaemonResponse(.replacement(value)))
+        case .ephemeral(let value): try printJSON(value)
+        case .connection(let value): try printJSON(value)
         }
     }
     private static func printJSON<T: Encodable>(_ value: T) throws {

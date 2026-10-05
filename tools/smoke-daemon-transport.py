@@ -37,6 +37,12 @@ def main():
             return run("send", str(path), success=success)
 
         assert run("snapshot")["seq"] == 0
+        capabilities = run("capabilities")
+        commands = {entry["name"]: entry["support"] for entry in capabilities["commands"]}
+        assert commands["restoreWIP"] == "unsupported" and commands["createTask"] == "managedFakeOnly"
+        replacement = run("synchronize")
+        assert replacement["snapshot"]["seq"] == 0 and replacement["cursor"]["offset"] == 0
+        assert replacement["current"] == []
         pause = envelope("pauseAll")
         receipt = send(pause)
         assert receipt["seq"] == 1 and "ok" in receipt["result"], receipt
@@ -79,6 +85,17 @@ def main():
             owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"snapshot": {}}}) + "\n")
             owner.stdin.flush()
             assert read_reply()["result"]["snapshot"]["_0"]["seq"] == 3
+            owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"synchronize": {}}}) + "\n")
+            owner.stdin.flush()
+            synced = read_reply()["result"]["replacement"]["_0"]
+            assert synced["snapshot"]["seq"] == 3
+            owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"ephemeral": {"after": synced["cursor"], "limit": 1}}}) + "\n")
+            owner.stdin.flush()
+            live = read_reply()["result"]["ephemeral"]["_0"]
+            assert live["events"] == [] and live["nextCursor"] == synced["cursor"] and not live["resetRequired"]
+            owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"readLog": {"runId": "missing", "fromOffset": 0, "limit": 1}}}) + "\n")
+            owner.stdin.flush()
+            assert read_reply()["result"]["error"]["_0"]["code"] == "unsupported_operation"
             duplicate = subprocess.run([str(daemon), "--stdio", "--database", str(database)], input="", text=True, capture_output=True, timeout=5)
             assert duplicate.returncode != 0 and "writerAlreadyRunning" in duplicate.stderr, duplicate.stderr
             owner.stdin.write("malformed\n")
@@ -88,7 +105,7 @@ def main():
             owner.stdin.close()
             owner.wait(timeout=5)
         assert run("snapshot")["seq"] == 3
-    print("Daemon/CLI smoke passed: reopen/replay, refusal, conflict, catch-up, retention, single writer and malformed input.")
+    print("Daemon/CLI smoke passed: capabilities, replacement/live cursors, unavailable logs, reopen/replay, refusal, conflict, catch-up, retention, single writer and malformed input.")
 
 
 if __name__ == "__main__":

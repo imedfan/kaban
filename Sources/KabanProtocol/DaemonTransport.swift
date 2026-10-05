@@ -7,6 +7,10 @@ public struct DaemonRequest: Codable, Hashable, Sendable {
         case snapshot
         case subscribe(fromSeq: Seq, limit: Int)
         case command(CommandEnvelope)
+        case capabilities
+        case synchronize
+        case ephemeral(after: EphemeralCursor, limit: Int)
+        case readLog(runId: RunID, fromOffset: Int64, limit: Int)
     }
     public var protocolVersion: Int
     public var operation: Operation
@@ -22,6 +26,10 @@ public struct DaemonResponse: Codable, Hashable, Sendable {
         case events(JournalPage)
         case command(CommandReply)
         case error(CommandError)
+        case capabilities(DaemonCapabilities)
+        case replacement(SnapshotReplacement)
+        case ephemeral(EphemeralPage)
+        case log(LogPage)
     }
     public var protocolVersion: Int
     public var result: Result
@@ -60,6 +68,7 @@ public enum DaemonWire {
     public static let machService = "app.kaban.agent"
     public static let maxPageSize = 256
     public static let maxMessageBytes = 8 * 1_024 * 1_024
+    public static let maxPipelineBytes = 1_024 * 1_024
 
     public static func encode<T: Encodable>(_ value: T) throws -> Data {
         let data = try KabanCoding.makeEncoder().encode(value)

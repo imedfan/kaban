@@ -7,8 +7,8 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`cb849f0` (приняты #63–69, включая native UI #67 и durable wire #69).
-Транспортный backend-инкремент ниже подготовлен в `codex/backend-daemon-transport` от этой базы.
+`8d992e6` (приняты #63–70, включая native UI #67, durable wire #69 и transport #70).
+BE-01 ниже подготовлен в `codex/backend-wire-contracts` от этой базы.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
@@ -20,7 +20,7 @@
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
 | DaemonCore | GRDB store, миграции v1–v3, durable state/journal/effects, wire-команды, ручные паузы/settings, bounded fake driver, scheduler, recovery, DaemonService и journal pages | Wire пока для managed fake проектов; git/process effects симулируются |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl | Рабочий инкремент; без LaunchAgent packaging, проверки Developer ID и подключения App |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; BE-01 добавляет capabilities и отдельную session/ephemeral границу | Transport принят #70; BE-01 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -57,6 +57,10 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 ## Ближайшие результаты
 
+Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
+Текущий результат — BE-01; следующим берётся BE-02 (production lifecycle проектов).
+Все BE-02–20 ещё требуют реализации и собственной приёмки.
+
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
 2. Подключение frontend к durable командной границе через готовый транспорт:
@@ -91,7 +95,7 @@ MCP, quota poller и системной регистрации. Это кома�
 
 ## Backend: daemon transport и kabanctl
 
-Рабочий инкремент — [контракт и проверки](development/backend-daemon-transport-2026-10-05.md).
+Принято в main в PR #70 — [контракт и проверки](development/backend-daemon-transport-2026-10-05.md).
 `KabanDaemon` открывает выбранную SQLite под эксклюзивной process lease,
 выполняет recovery и обслуживает `DaemonService`. `KabanTransport` зависит только
 от Protocol; команды повторяют исходный envelope при потере ответа. Снимок
@@ -112,6 +116,21 @@ send исходного JSON envelope, subscribe и watch. Для headless smoke
 fake driver или внешние effects: этот инкремент проверяет транспорт и сохранение
 команд. Production lifecycle проектов, исполнитель, App integration и системная
 регистрация следуют отдельно. Наличие бинарника не означает готовность M1/MVP.
+
+## Backend: BE-01 wire-контракты
+
+Рабочий инкремент — [матрица и проверки](development/backend-wire-contracts-2026-10-05.md).
+`synchronize` согласует snapshot.seq с независимым cursor эфирного канала;
+bounded replay/current, restart/retention, journal barriers и connection states
+доступны в opt-in `sessionUpdates()`. Старые snapshot/watch остаются совместимыми.
+Capabilities перечисляет все команды и отличает managed fake от production support.
+
+PipelineDraft переносит точный YAML, project/base version и SHA-256. Сервер
+проверяет binding и производственный validator, отдаёт resolved validation;
+save пока явно недоступен. Типы log pages/tail, Cursor environment и WIP restore
+подготовлены; реальное log storage, configuration и restore effect ещё не реализованы.
+Эфирный publisher не выдумывает данные отсутствующего Cursor/model/quota producer.
+App всё ещё использует mock; новые UI-сценарии и визуальная приёмка не заявляются.
 
 ## Какие источники читать
 

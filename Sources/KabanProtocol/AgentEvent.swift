@@ -21,3 +21,16 @@ public struct LogBatch: Codable, Hashable, Sendable {
         self.runId = runId; self.fromOffset = fromOffset; self.nextOffset = nextOffset; self.events = events
     }
 }
+
+/// Offsets count normalized AgentEvent records, not bytes or raw stdout lines. Unavailable
+/// or expired logs are errors, not empty successful pages. A completed run may still have pages.
+public struct LogPage: Codable, Hashable, Sendable {
+    public var batch: LogBatch
+    public var availableFromOffset: Int64
+    public var endOffset: Int64
+    public var isComplete: Bool
+    public init(batch: LogBatch, availableFromOffset: Int64, endOffset: Int64, isComplete: Bool) {
+        self.batch = batch; self.availableFromOffset = availableFromOffset
+        self.endOffset = endOffset; self.isComplete = isComplete
+    }
+}
