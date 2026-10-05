@@ -58,6 +58,7 @@ extension KabanStore {
         let settings = try Self.settings(db)
         let project = try Self.project(task.card.projectId, db: db)
         guard project.summary.availability == .available else { return false }
+        guard try !Self.isManuallyPaused(project.summary.id, db: db) else { return false }
         let tasks = try allTasks(db)
         let projectTasks = tasks.filter { $0.card.projectId == task.card.projectId }
         switch stage.kind {

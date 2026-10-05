@@ -72,7 +72,10 @@ extension KabanStore {
             case .requestHuman: d.runs[index].status = .succeeded; d.runs[index].endReason = .askedHuman
             case .completeStage: d.runs[index].status = .succeeded; d.runs[index].endReason = .completed
             case .daemonRestarted: d.runs[index].status = .killed; d.runs[index].endReason = .daemonRestart; d.runs[index].countsTowardLimits = false
-            case .pause: d.runs[index].status = .killed; d.runs[index].endReason = .pausedByHuman
+            case .pause:
+                d.runs[index].status = .killed; d.runs[index].endReason = .pausedByHuman; d.runs[index].countsTowardLimits = false
+            case .move, .cancel, .reject:
+                d.runs[index].status = .killed; d.runs[index].endReason = .movedByHuman; d.runs[index].countsTowardLimits = false
             default: d.runs[index].status = .killed
             }
         }

@@ -7,10 +7,11 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`960a190326ea30199b763c648c0ee961ac014fc4` (приняты #63–66 и контекст #68).
-Правка UI PR #67 основана на этой базе. Локальная ветка с именем main
+`92e3d73` (приняты #63–68, включая native UI #67).
+Backend-инкремент ниже подготовлен в `codex/backend-wire-commands` от этой базы.
+Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код базы, а не обещания из старых планов.
+Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
 
 ## Что есть в основном коде
 
@@ -18,19 +19,19 @@
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции, durable state/journal/effects, bounded fake driver, scheduler, recovery | Git/process effects симулируются |
+| DaemonCore | GRDB store, миграции v1–v3, durable state/journal/effects, wire-команды, ручные паузы/settings, bounded fake driver, scheduler, recovery | Wire пока для managed fake проектов; XPC отсутствует, git/process effects симулируются |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 Mock-задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
-в UserDefaults. Настройки, квота и фактические агентские процессы пока не подключены.
+в UserDefaults. Настройки, квота и фактические агентские процессы пока не подключены к приложению.
 Полный M1/MVP не принят; ограничения fake engine описаны в
 [headless contract](development/m1-headless-contract.md).
 
-## UI в открытом PR #67
+## UI, принятый в PR #67
 
-Правка `codex/frontend-polish` интегрирует актуальный main и продолжает PR #67.
+PR #67 принят в main; правка `13941e9` интегрирует типизированный клиент.
 Основной WindowGroup теперь использует `BoardView` / `BoardStore` / `KabanClient`
 и Protocol fixtures из `AppFixture`, а не строковый автомат `ReferenceDemo`.
 Сохранённые `Reference*` views остаются инструментом сравнения и не являются
@@ -55,15 +56,37 @@ Mock-задачи живут в памяти текущего запуска. Н
 
 ## Ближайшие результаты
 
-1. Ревью исправленного UI PR #67, ручная проверка окна и завершение
-   оставшихся экранов настроек/Human Review по закреплённым макетам.
+1. Ручная проверка принятого UI и завершение оставшихся экранов
+   настроек/Human Review по закреплённым макетам.
 2. Daemon host/XPC adapter: snapshot/subscription handshake, reconnect/resync,
-   retry того же commandId и durable backend команды для frontend-действий.
+   retry того же commandId и подключение frontend к durable командной границе.
 3. Реальные Cursor/git/MCP/gates, целевые isolation-спайки и квота.
 4. Полная сценарная, визуальная и доступностная приёмка; упаковка/подпись.
 
 Это порядок ориентации, а не запрет выполнять другую явно порученную задачу.
 Каждый инкремент должен давать проверяемый пользовательский результат.
+
+## Backend: durable wire-команды
+
+Рабочий инкремент 5 октября — [контракт и проверки](development/backend-wire-commands-2026-10-05.md).
+`KabanStore.execute` принимает существующий `CommandEnvelope` и возвращает
+`CommandReply`. Создание/редактирование/приоритет/перенос/отмена, пауза/возобновление,
+retry, answer/approve/requestChanges/reject, details/runs и часть settings/project
+metadata используют SQLite. Успех и доменный отказ воспроизводятся после reopen;
+повтор исходного запроса не генерирует новые ID/time. Сбой записи receipt откатывает
+state/detail/journal/outbox. Неподдержанные команды возвращают `unsupported_command`.
+
+Ручные паузы Мака/проекта сохраняются отдельно от задач и блокируют новый
+admission/execution; результаты текущих runs продолжают приниматься. Изменение
+флагов фиксируется correlated `settingsChanged.schedulerFlags`; `[]` снимает
+флаги, nil сохраняет неизвестность старого DTO. BoardProjection принимает настройки
+и флаги из journal, а не из ответа `.ok`. Markdown остаётся единым body;
+критерии извлекаются по текущему соглашению task editor.
+
+Приложение продолжает использовать MockKabanClient. Регистрация проекта остаётся
+внутренним bounded fake API; нет production lifecycle, XPC, реального git/Cursor,
+MCP, quota poller и системной регистрации. Это командная граница для
+следующего транспортного инкремента, не готовность всего M1/MVP.
 
 ## Какие источники читать
 

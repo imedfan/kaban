@@ -25,6 +25,7 @@ public final class KabanStore: Sendable {
             try db.execute(sql: "CREATE TABLE effect_outbox (id TEXT PRIMARY KEY NOT NULL REFERENCES command(id), task_id TEXT NOT NULL REFERENCES task(id), payload BLOB NOT NULL)")
         }
         migrator.registerMigration("m1_engine_v2", migrate: Self.migrateEngine)
+        migrator.registerMigration("m1_wire_v3", migrate: Self.migrateWire)
         try migrator.migrate(database)
     }
 
@@ -40,6 +41,7 @@ public final class KabanStore: Sendable {
     }
     static func seq(_ db: Database) throws -> Seq { try Int64.fetchOne(db, sql: "SELECT COALESCE(MAX(seq), 0) FROM event") ?? 0 }
     static func replay(_ id: CommandID, request: Data, db: Database) throws -> DurableReceipt? {
+        try rejectWireIdentity(id, db: db)
         if try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM configuration_command WHERE id = ?)", arguments: [id.uuidString]) == true { throw StoreError.commandIdConflict }
         guard let row = try Row.fetchOne(db, sql: "SELECT request, receipt FROM command WHERE id = ?", arguments: [id.uuidString]) else { return nil }
         guard (row["request"] as Data) == request else { throw StoreError.commandIdConflict }
@@ -92,6 +94,7 @@ public final class KabanStore: Sendable {
     static func apply(_ command: DurableTaskCommand, taskId: TaskID, commandId: CommandID, at: Date, request: Data, db: Database) throws -> DurableReceipt {
         if let receipt = try Self.replay(commandId, request: request, db: db) { return receipt }
         let previousLoad = try Self.stageLoads(db)
+        let previousFlags = try Self.schedulerFlags(db)
         var task = try Self.task(taskId, db: db)
         let before = task.machine
         let result = TaskMachine.transition(before, command.event, pipeline: task.pipeline)
@@ -99,8 +102,10 @@ public final class KabanStore: Sendable {
         try Self.validateManagedCommand(command, task: task, at: at, db: db)
         var first: Seq?
         if case .applied = result.outcome {
-            if result.state.state.status == .cancelled || result.state.state.status == .done || result.state.state.status == .paused || command == .daemonRestarted {
-                // Final tasks must never deliver an obsolete queued launch after cancellation.
+            let invocationEnded = result.state.stageId != before.stageId || result.state.currentRunId != before.currentRunId
+            let stopped = [.cancelled, .done, .paused].contains(result.state.state.status)
+            if invocationEnded || stopped || command == .daemonRestarted {
+                // A stage exit or interrupted invocation must never deliver its old launch/gate result.
                 try Self.supersedeEffects(taskId: taskId, db: db)
             }
             task.machine = result.state
@@ -122,6 +127,7 @@ public final class KabanStore: Sendable {
             if first == nil { first = seq }
         }
         try Self.recordChangedLoads(from: previousLoad, commandId: commandId, at: at, db: db)
+        try Self.recordChangedSchedulerFlags(from: previousFlags, commandId: commandId, at: at, db: db)
         let receipt = DurableReceipt(commandId: commandId, firstSeq: first, lastSeq: try Self.seq(db), task: task)
         try Self.saveReceipt(receipt, request: request, db: db)
         let pending = result.effects.filter { effect in

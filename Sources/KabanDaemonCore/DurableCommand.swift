@@ -9,6 +9,10 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case requestHuman(RunID, question: String)
     case answer(text: String, requestId: HumanRequestID?)
     case approve
+    case requestChanges(comments: String, target: StageID?)
+    case reject(target: RejectTarget, keepBranch: Bool)
+    case move(StageID)
+    case retryStage(grantAttempts: Int?)
     case pause
     case resume
     case resultClean
@@ -23,6 +27,10 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .requestHuman(let id, let question): .requestHuman(runId: id, question: question)
         case .answer(let text, let request): .human(.answer(text: text, requestId: request))
         case .approve: .human(.approve)
+        case .requestChanges(let comments, let target): .human(.requestChanges(comments: comments, target: target))
+        case .reject(let target, let keep): .human(.reject(target: target, keepBranch: keep))
+        case .move(let stage): .human(.move(stage: stage))
+        case .retryStage(let grant): .human(.retryStage(grantAttempts: grant))
         case .pause: .human(.pause)
         case .resume: .human(.resume)
         case .resultClean: .resultChecked(.clean)

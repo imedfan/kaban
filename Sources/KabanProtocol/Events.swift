@@ -69,8 +69,11 @@ public struct SettingsChange: Codable, Hashable, Sendable {
     public var value: String
     /// Authoritative settings after the change. Legacy key/value remains for older clients.
     public var settings: GlobalSettings?
-    public init(key: String, value: String, settings: GlobalSettings? = nil) {
-        self.key = key; self.value = value; self.settings = settings
+    /// Complete authoritative flag set after a durable scheduler change. nil is legacy/unknown;
+    /// an empty array explicitly clears flags. Live ephemeral updates retain their existing DTO.
+    public var schedulerFlags: [SchedulerFlag]?
+    public init(key: String, value: String, settings: GlobalSettings? = nil, schedulerFlags: [SchedulerFlag]? = nil) {
+        self.key = key; self.value = value; self.settings = settings; self.schedulerFlags = schedulerFlags
     }
 }
 
