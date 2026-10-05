@@ -10,7 +10,13 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
 
 @MainActor @Observable final class BoardStore {
     private let client: any KabanClient
-    private let boardSet = BoardSetStore(storage: DefaultsStorage())
+    private let boardSet: BoardSetStore
+    var screen: BoardScreen = .board
+    var filter: BoardFilter = .all
+    var query = ""
+    var searchRequest = 0
+    var sheet: TaskSheetRoute?
+    var qaLayoutRevision = 0
     var projection: BoardProjection?
     var visibleIDs: [ProjectID] = []
     var selectedProjectID: ProjectID?
@@ -24,7 +30,10 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private var taskReadFloors: [TaskID: Seq] = [:]
     private var didConnect = false
 
-    init(client: any KabanClient) { self.client = client }
+    init(client: any KabanClient, storage: any KeyValueStoring = DefaultsStorage()) {
+        self.client = client
+        self.boardSet = BoardSetStore(storage: storage)
+    }
     func connect() async {
         guard !didConnect else { return }
         didConnect = true
@@ -138,6 +147,41 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
             if editor { editorError = error.localizedDescription } else { self.error = error.localizedDescription }
             return false
         }
+    }
+    var runningCount: Int { projection?.tasks.values.filter { $0.state == .running || $0.state == .gating }.count ?? 0 }
+    var waitingCount: Int { projection?.tasks.values.filter { $0.state.status == .waitingHuman }.count ?? 0 }
+    func matches(_ id: TaskID) -> Bool {
+        guard let card = projection?.tasks[id] else { return false }
+        let acceptsFilter = filter == .all || (filter == .waiting && card.state.status == .waitingHuman) || (filter == .incidents && card.state == .waitingHuman(.incident))
+        return acceptsFilter && (query.isEmpty || card.title.localizedCaseInsensitiveContains(query) || card.id.rawValue.localizedCaseInsensitiveContains(query))
+    }
+    func mascot(_ id: ProjectID) -> MascotPick {
+        let projects = boardSet.addedOrder.compactMap { id -> (id: String, seed: String)? in
+            guard let project = projection?.projects[id] else { return nil }
+            return (id.rawValue, project.mascotSeed)
+        }
+        return MascotKit.resolveBoard(projects)[id.rawValue] ?? MascotKit.pick(seed: projection?.projects[id]?.mascotSeed ?? id.rawValue)
+    }
+    func projectStatus(_ id: ProjectID) -> String {
+        if (projection?.projects[id]?.openIncidentCount ?? 0) > 0 { return "incident" }
+        if projection?.tasks.values.contains(where: { $0.projectId == id && $0.state.status == .waitingHuman }) == true { return "waiting" }
+        if projection?.ephemeral.schedulerFlags.contains(.projectPaused(id)) == true { return "paused" }
+        return projection?.tasks.values.contains(where: { $0.projectId == id && $0.state == .running }) == true ? "running" : "queued"
+    }
+    func projectCaption(_ id: ProjectID) -> String {
+        guard let project = projection?.projects[id] else { return "Нет данных" }
+        if project.availability == .missing { return "Папка недоступна" }
+        if projection?.pipelines[id]?.isValid == false { return "Пайплайн некорректен" }
+        if projection?.ephemeral.schedulerFlags.contains(.projectPaused(id)) == true { return "Новые запуски на паузе" }
+        let waiting = projection?.tasks.values.filter { $0.projectId == id && $0.state.status == .waitingHuman }.count ?? 0
+        if waiting > 0 { return "Ждут человека · \(waiting)" }
+        if projection?.tasks.values.contains(where: { $0.projectId == id && $0.state == .running }) == true { return "В работе" }
+        let queued = projection?.tasks.values.filter { $0.projectId == id && $0.state.status == .queued }.count ?? 0
+        return queued > 0 ? "В очереди · \(queued)" : "Очередь пуста"
+    }
+    func beginCreation(_ projectID: ProjectID? = nil) {
+        guard let id = projectID ?? selectedProjectID, creation.commandID == nil else { return }
+        selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
     func hide(_ id: ProjectID) { boardSet.hide(id); visibleIDs = boardSet.visibleProjectIds }
     func show(_ id: ProjectID) { boardSet.show(id); visibleIDs = boardSet.visibleProjectIds }

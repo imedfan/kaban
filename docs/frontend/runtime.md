@@ -5,7 +5,7 @@
 
 ## Реальные точки входа
 
-- `App/KabanApp/KabanApp.swift` создаёт BoardStore с MockKabanClient.
+- `App/KabanApp/KabanApp.swift` создаёт BoardStore с типизированным MockKabanClient из AppFixture.
 - `App/KabanApp/BoardStore.swift` связывает views с клиентом, проекцией и выбором задачи.
 - `Sources/KabanBoardCore/KabanClient.swift` содержит типизированный клиентский интерфейс и mock.
 - `BoardProjection`, `PendingCommands`, `BoardSetStore`, `DropRules` находятся в BoardCore.
