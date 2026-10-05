@@ -32,12 +32,17 @@ struct DaemonMain {
             let store = try KabanStore(path: path)
             // Recovery changes running/gating invocations only. No external processes are spawned.
             try store.recoverProjectOperations()
+            try store.recoverPipelineOperations()
             try store.refreshProjectLocations()
+            try store.refreshPipelines()
             _ = try store.recover(passId: UUID(), at: Date())
             let service = DaemonService(store: store)
             let observer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "app.kaban.project-observer"))
             observer.schedule(deadline: .now() + 2, repeating: 2)
-            observer.setEventHandler { @Sendable in try? store.refreshProjectLocations() }
+            observer.setEventHandler { @Sendable in
+                try? store.refreshProjectLocations()
+                try? store.refreshPipelines()
+            }
             observer.resume()
             defer { observer.cancel() }
             if arguments.contains("--stdio") {

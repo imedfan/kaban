@@ -10,8 +10,21 @@ extension KabanStore {
     public func execute(_ envelope: CommandEnvelope, now: () -> Date = { Date() },
                         makeTaskID: () -> TaskID = { TaskID(rawValue: UUID().uuidString.lowercased()) }) throws -> CommandReply {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
         let request = try Self.encode(envelope)
+        let validating: ProjectID?
+        switch envelope.command {
+        case .validatePipeline(let id, _): validating = id
+        case .validatePipelineDraft(let draft): validating = draft.projectId
+        default: validating = nil
+        }
+        if let validating, envelope.protocolVersion == KabanCoding.protocolVersion {
+            do {
+                if let reply = try database.read({ try Self.wireReplay(envelope.commandId, request: request, db: $0) }) { return reply }
+            } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            try refreshPipelines(only: validating)
+        }
         return try database.write { db in
             do {
                 if let reply = try Self.wireReplay(envelope.commandId, request: request, db: db) { return reply }
@@ -38,9 +51,13 @@ extension KabanStore {
                 do {
                     let project = try Self.project(draft.projectId, db: db)
                     try draft.checkBinding(projectId: project.summary.id, currentVersionHash: project.projectedPipeline.versionHash, requestedHash: draft.contentHash)
+                    if project.production != nil {
+                        try draft.checkSourceBinding(currentSourceHash: project.projectedPipeline.sourceHash, emptySourceHash: project.production?.source?.files.isEmpty == true ? project.projectedPipeline.sourceHash : nil)
+                    }
                     let validation = try Self.validateDraftContent(projectId: draft.projectId, content: draft.content, db: db)
                     var result = validation.draftValidation(projectId: draft.projectId, contentHash: draft.contentHash)
                     result.baseVersionHash = project.projectedPipeline.versionHash
+                    result.baseSourceHash = project.projectedPipeline.sourceHash
                     return .init(commandId: envelope.commandId, seq: nil, result: .pipelineDraft(result))
                 } catch let error as CommandError { return .init(commandId: envelope.commandId, seq: nil, result: .error(error)) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
@@ -148,15 +165,12 @@ extension KabanStore {
         }
     }
 
-    private static func validateDraftContent(projectId: ProjectID, content: String, db: Database) throws -> PipelineValidation {
+    static func validateDraftContent(projectId: ProjectID, content: String, db: Database) throws -> PipelineValidation {
         _ = try project(projectId, db: db)
         guard content.utf8.count <= DaemonWire.maxPipelineBytes else { throw invalidRequest("Черновик пайплайна превышает лимит размера.") }
-        let active = Set(try allTasks(db).filter {
-            $0.card.projectId == projectId && ![.done, .cancelled].contains($0.machine.state.status)
-        }.map { $0.machine.stageId })
         // No fake merge exception. Missing production MCP allowlist is an empty allowlist,
         // so selected external servers produce warnings instead of being silently approved.
-        return PipelineValidator.validate(yaml: content, context: .init(stagesWithActiveTasks: active))
+        return PipelineValidator.validate(yaml: content, context: try pipelineContext(projectId, db: db))
     }
 
     private static func transitionCommand(_ command: Command) -> (TaskID, DurableTaskCommand)? {

@@ -50,6 +50,7 @@ extension KabanStore {
             case .removeProject(let id):
                 return try database.write { db in
                     _ = try Self.project(id, db: db)
+                    try Self.requireNoProjectIntent(id, db: db)
                     let at = now(), previousFlags = try Self.schedulerFlags(db)
                     // Keep durable history and enqueue cancellation/archival effects before hiding the project.
                     for task in try Self.allTasks(db) where task.card.projectId == id && ![.done, .cancelled].contains(task.machine.state.status) {
@@ -90,6 +91,7 @@ extension KabanStore {
                 return try finishProjectOperation(operation)
             case .relinkProject(let id, let path):
                 var record = try database.read { db in try Self.project(id, db: db) }
+                try database.read { try Self.requireNoProjectIntent(id, db: $0) }
                 guard record.production != nil else { throw CommandError(code: "unsupported_command", message: "Переподключение доступно для локальных проектов.") }
                 let repository = try LocalGitRepository(path: path)
                 try checkProjectPath(repository.path, repositoryID: repository.repositoryID, excluding: id)
@@ -100,15 +102,44 @@ extension KabanStore {
                 return try finishProjectOperation(operation)
             case .recheck(.project(let id)):
                 let observed = try database.read { db in try Self.project(id, db: db) }
+                try database.read { try Self.requireNoProjectIntent(id, db: $0) }
                 guard observed.production != nil else { throw CommandError(code: "unsupported_command", message: "Проверка папки доступна для локальных проектов.") }
                 let availability = Self.locationAvailability(observed.summary.path)
+                var source: PipelineSource?, sourceError: CommandError?
+                var edits = observed.projectedPipeline.hasUncommittedEdits
+                var workingFile: PipelineSource.File?, workingError: CommandError?
+                if availability == .available {
+                    do {
+                        let repository = try LocalGitRepository(path: observed.summary.path)
+                        guard repository.repositoryID == observed.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
+                        source = try repository.pipelineSource(); edits = try repository.hasConfigurationEdits(); sourceError = nil
+                        if edits {
+                            do { workingFile = try repository.workingPipelineFile() }
+                            catch let error as CommandError { workingError = error }
+                        }
+                    } catch let error as CommandError {
+                        source = nil; edits = observed.projectedPipeline.hasUncommittedEdits; sourceError = error
+                    }
+                } else { source = nil; edits = observed.projectedPipeline.hasUncommittedEdits; sourceError = nil }
                 return try database.write { db in
                     let previousFlags = try Self.schedulerFlags(db)
+                    let previousLoads = try Self.stageLoads(db)
                     var record = try Self.project(id, db: db)
                     guard record.summary.path == observed.summary.path else { throw CommandError(code: "project_changed", message: "Путь изменился; повторите проверку.") }
                     record.summary.availability = availability
+                    if let source { try Self.applyPipelineSource(source, edits: edits, record: &record, db: db) }
+                    else if let sourceError {
+                        record.production?.unavailableReason = .pipelineInvalid
+                        record.production?.pipelineSummary.versionHash = nil
+                        record.production?.pipelineSummary.sourceHash = nil
+                        record.production?.pipelineSummary.issues = [.init(path: ".kaban/", code: sourceError.code, message: sourceError.message, severity: .error, params: sourceError.params)]
+                    }
+                    try Self.applyUncommittedValidation(workingFile, error: workingError, record: &record, db: db)
                     _ = try Self.saveUpdatedProject(record, commandId: envelope.commandId, at: now(), db: db)
+                    _ = try Self.journal(.pipelineApplied(record.projectedPipeline), projectId: id, commandId: envelope.commandId, at: now(), db: db)
+                    try Self.recordChangedLoads(from: previousLoads, commandId: envelope.commandId, at: now(), db: db)
                     try Self.recordChangedSchedulerFlags(from: previousFlags, commandId: envelope.commandId, at: now(), db: db)
+                    if record.production?.unavailableReason == nil { try Self.resumePipelineTransitions(id, at: now(), db: db) }
                     let reply = CommandReply(commandId: envelope.commandId, seq: try Self.seq(db), result: .ok)
                     try Self.saveProjectReply(reply, request: request, db: db)
                     return reply
@@ -176,21 +207,19 @@ extension KabanStore {
                 }
             }
         }
-        var refreshed: ProjectRecord?
-        if case .addProject = operation.envelope.command {
-            do { refreshed = Self.productionRecord(operation.record.summary, repositoryID: repository.repositoryID, yaml: try repository.pipeline()) }
-            catch let error as CommandError where ["pipeline_invalid", "git_operation_limit"].contains(error.code) {
-                var record = Self.productionRecord(operation.record.summary, repositoryID: repository.repositoryID, yaml: nil)
-                record.production?.unavailableReason = .pipelineInvalid
-                record.production?.pipelineSummary.issues = [.init(path: ".kaban/pipeline.yaml", code: error.code, message: error.message, severity: .error)]
-                refreshed = record
-            }
+        var source: PipelineSource?, sourceError: CommandError?
+        do { source = try repository.pipelineSource() }
+        catch let error as CommandError { sourceError = error }
+        let configurationEdits = try repository.hasConfigurationEdits()
+        var workingFile: PipelineSource.File?, workingError: CommandError?
+        if configurationEdits {
+            do { workingFile = try repository.workingPipelineFile() }
+            catch let error as CommandError { workingError = error }
         }
-        if refreshed != nil { refreshed?.production?.pipelineSummary.hasUncommittedEdits = try repository.hasConfigurationEdits() }
         return try database.write { db in
             let envelope = operation.envelope, request = try Self.encode(envelope), previousFlags = try Self.schedulerFlags(db)
             let previousLoads = try Self.stageLoads(db)
-            var record = refreshed ?? operation.record
+            var record = operation.record
             let added: Bool
             if case .addProject = envelope.command { added = true }
             else {
@@ -201,13 +230,25 @@ extension KabanStore {
                 record = current
             }
             try db.execute(sql: "INSERT INTO project(id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [record.summary.id.rawValue, try Self.encode(record)])
+            if let source {
+                try Self.applyPipelineSource(source, edits: configurationEdits, record: &record, db: db)
+                try Self.applyUncommittedValidation(workingFile, error: workingError, record: &record, db: db)
+                try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
+            } else if let sourceError {
+                record.production?.unavailableReason = .pipelineInvalid
+                record.production?.pipelineSummary.versionHash = nil
+                record.production?.pipelineSummary.sourceHash = nil
+                record.production?.pipelineSummary.issues = [.init(path: sourceError.params["path"] ?? ".kaban/", code: sourceError.code, message: sourceError.message, severity: .error)]
+                try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
+            }
             try db.execute(sql: "INSERT INTO project_path(project_id, path, repository_id) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET path = excluded.path, repository_id = excluded.repository_id", arguments: [record.summary.id.rawValue, record.summary.path, record.production!.repositoryID])
             _ = try Self.journal(added ? .projectAdded(record.summary) : .projectUpdated(record.summary), projectId: record.summary.id, commandId: envelope.commandId, at: operation.at, db: db)
-            if added {
+            if added || source != nil || sourceError != nil {
                 _ = try Self.journal(.pipelineApplied(record.projectedPipeline), projectId: record.summary.id, commandId: envelope.commandId, at: operation.at, db: db)
                 try Self.recordChangedLoads(from: previousLoads, commandId: envelope.commandId, at: operation.at, db: db)
             }
             try Self.recordChangedSchedulerFlags(from: previousFlags, commandId: envelope.commandId, at: operation.at, db: db)
+            if record.production?.unavailableReason == nil { try Self.resumePipelineTransitions(record.summary.id, at: operation.at, db: db) }
             let reply = CommandReply(commandId: envelope.commandId, seq: try Self.seq(db), result: .ok)
             try Self.saveProjectReply(reply, request: request, db: db)
             try db.execute(sql: "DELETE FROM project_operation WHERE id = ?", arguments: [envelope.commandId.uuidString])

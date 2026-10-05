@@ -24,7 +24,14 @@ applicable journal/live event и refusal для каждой новой опер
 Pipeline editor переносит YAML в PipelineDraft с обязательной nullable базовой
 версией и SHA-256 точного UTF-8. `validatePipelineDraft` возвращает resolved draft
 и issues; update переносит тот же draft и hash, сервер повторно сверяет проект и
-базу. Старые validate/update декодируются. Для restoreWIP и Cursor configuration
+базу. BE-03 добавляет optional `PipelineSummary.sourceHash` и
+`PipelineDraft.baseSourceHash`: при valid main первый равен versionHash, при
+invalid/missing YAML сохраняет identity committed assets. Для исправления
+непустого invalid source обязателен baseSourceHash; nullable baseVersionHash
+остаётся обязательным полем старого draft. `uncommittedIssues` отделены от issues
+committed main и не делают его невалидным. Новые поля проверены отдельными
+compatibility tests; старые golden fixtures сохранены, malformed известные поля
+отклоняются. Старые validate/update декодируются. Для restoreWIP и Cursor configuration
 есть типы, но действия недоступны до соответствующих BE-задач; сервер явно отказывает.
 
 ## 8. Протокол и фикстуры (дельта v0.5–v0.5.5)

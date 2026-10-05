@@ -287,10 +287,12 @@ public struct PipelineDraftValidation: Codable, Hashable, Sendable {
     public var resolved: PipelineSummary?
     /// Optional for legacy validation events. Version binding travels in the required new draft DTO.
     public var baseVersionHash: String?
+    public var baseSourceHash: String?
     public init(projectId: ProjectID, contentHash: String, issues: [ValidationIssue], resolved: PipelineSummary? = nil,
-                baseVersionHash: String? = nil) {
+                baseVersionHash: String? = nil, baseSourceHash: String? = nil) {
         self.projectId = projectId; self.contentHash = contentHash; self.issues = issues; self.resolved = resolved
         self.baseVersionHash = baseVersionHash
+        self.baseSourceHash = baseSourceHash
     }
 }
 public struct RunProgress: Codable, Hashable, Sendable {

@@ -7,8 +7,8 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`6508caa` (приняты #63–71, включая native UI #67, durable wire #69, transport #70 и BE-01 #71).
-BE-02 ниже подготовлен в `codex/backend-project-lifecycle` от этой базы.
+`ff74c43` (приняты #63–72, включая native UI #67, transport #70, BE-01 #71 и BE-02 #72).
+BE-03 ниже подготовлен в `codex/backend-pipeline-storage` от этой базы ([PR #73](https://github.com/imedfan/kaban/pull/73), открыт).
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
@@ -19,8 +19,8 @@ BE-02 ниже подготовлен в `codex/backend-project-lifecycle` от 
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции v1–v4, durable state/journal/effects, wire-команды, ручные паузы/settings, bounded fake driver, scheduler, recovery, DaemonService и journal pages | Production project lifecycle/Backlog; запуск pipeline и task effects ещё fake |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral и observer папок проектов | Transport/BE-01 приняты #70/71; BE-02 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| DaemonCore | GRDB store, миграции v1–v5, durable state/journal/effects, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, bounded fake driver и scheduler | Production Backlog и версии пайплайна; запуск задач и task effects ещё fake |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral и observer папок/пайплайнов | Transport/BE-01/BE-02 приняты #70–72; BE-03 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -58,8 +58,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 ## Ближайшие результаты
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
-BE-01 принят в #71; BE-02 реализован в текущем инкременте.
-Следующий — BE-03 (production pipeline storage/apply). BE-03–20 ещё не завершены.
+BE-01/BE-02 приняты в #71/#72; BE-03 реализован в текущем инкременте.
+Следующий — BE-04 (production scheduler). BE-04–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -127,14 +127,14 @@ Capabilities перечисляет все команды и отличает ma
 
 PipelineDraft переносит точный YAML, project/base version и SHA-256. Сервер
 проверяет binding и производственный validator, отдаёт resolved validation;
-save пока явно недоступен. Типы log pages/tail, Cursor environment и WIP restore
+сохранение локального пайплайна добавлено в BE-03 ниже. Типы log pages/tail, Cursor environment и WIP restore
 подготовлены; реальное log storage, configuration и restore effect ещё не реализованы.
 Эфирный publisher не выдумывает данные отсутствующего Cursor/model/quota producer.
 App всё ещё использует mock; новые UI-сценарии и визуальная приёмка не заявляются.
 
 ## Backend: BE-02 локальные проекты
 
-Рабочий инкремент — [lifecycle и проверки](development/backend-project-lifecycle-2026-10-05.md).
+Принято в main в PR #72 — [lifecycle и проверки](development/backend-project-lifecycle-2026-10-05.md).
 Add/remove/relink, local branches, gate suggestions и recheck(project) работают через
 wire; author/canonical path/common Git dir/main проверяются до регистрации.
 Шаблон коммитит только `.kaban/` через isolated index и CAS, сохраняя dirty checkout.
@@ -146,7 +146,27 @@ Host наблюдает missing folder на startup и background timer; relink 
 сохраняет details/receipts; пользовательский root не удаляется. Физические kill/
 archive/cleanup effects ждут executor BE-05/06. Production start/scheduler ещё
 заблокированы; fake registration/driver не подменяют настоящее исполнение.
-Pipeline apply/reload следует в BE-03. App остаётся на MockKabanClient.
+Pipeline apply/reload добавлен в BE-03 ниже. App остаётся на MockKabanClient.
+
+## Backend: BE-03 версии пайплайна
+
+Рабочий инкремент — [хранилище и проверки](development/backend-pipeline-storage-2026-10-05.md).
+Демон читает immutable blobs из локального `main:.kaban/`, сохраняет полные валидные
+версии и referenced skills из того же коммита. Typed draft связывает точный YAML
+с проектом и базовой версией; `sourceHash` позволяет безопасно исправлять invalid main.
+Apply коммитит только `.kaban/` через isolated index/CAS и durable intent; unrelated
+dirty/staged файлы и более поздние правки редактора сохраняются. Существующий YAML
+на диске не заменяется: основной UI-контракт записывает draft перед командой,
+а отличающаяся рабочая копия остаётся отмечена как неприменённые правки.
+
+Startup, recheck и двухсекундный observer публикуют committed issues, отдельно
+проверяют рабочий YAML и автоматически подхватывают ручные коммиты. Невалидный main
+блокирует новые привязки/переходы; завершение зафиксированного run принимается,
+stage exit откладывается до валидного reload. RunSpec фиксирует pipeline, assets,
+identity и git policy; следующий запуск привязывается к новой версии. Удаление
+занятой стадии/смена её kind запрещены, WIP shrink не вытесняет задачи.
+Production scheduling/процессы, gates и merge executor следуют в BE-04–08;
+проверка завершения использует сохранённые invocation fixtures. App не подключён.
 
 ## Какие источники читать
 

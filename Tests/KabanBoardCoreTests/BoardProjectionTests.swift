@@ -91,7 +91,10 @@ final class BoardProjectionTests: XCTestCase {
     }
 
     func testProjectAndPipelineEventsUpdateLanes() {
-        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [Fix.card("t-1")], pipelines: []))
+        let removed = StageLoad(projectId: Fix.project, stageId: "old", wipUsed: 0, wipLimit: 2)
+        let retained = StageLoad(projectId: Fix.project, stageId: "dev", wipUsed: 1, wipLimit: 2)
+        let unrelated = StageLoad(projectId: Fix.other, stageId: "old", wipUsed: 0, wipLimit: 3)
+        var projection = BoardProjection(snapshot: Fix.snapshot(seq: 1, tasks: [Fix.card("t-1")], pipelines: [], stageLoad: [removed, retained, unrelated]))
         XCTAssertEqual(projection.lanes()[0].columns.count, 0)
         let added = Fix.project(Fix.other, name: "site")
         XCTAssertEqual(projection.apply(Fix.envelope(2, .projectAdded(added), projectId: Fix.other)), .applied)
@@ -102,6 +105,7 @@ final class BoardProjectionTests: XCTestCase {
         XCTAssertEqual(projection.projectOrder, [Fix.project, Fix.other])
         let pipeline = Fix.pipeline([Fix.stage("backlog", .queue, order: 2), Fix.stage("dev", .agent, order: 0)])
         XCTAssertEqual(projection.apply(Fix.envelope(4, .pipelineApplied(pipeline))), .applied)
+        XCTAssertEqual(Set(projection.stageLoad), [retained, unrelated])
         XCTAssertEqual(projection.lanes().first?.columns.map(\.stage.id.rawValue), ["dev", "backlog"])
         XCTAssertEqual(projection.apply(Fix.envelope(5, .projectRemoved(Fix.project))), .applied)
         XCTAssertNil(projection.projects[Fix.project])

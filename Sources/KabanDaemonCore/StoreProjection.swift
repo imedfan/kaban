@@ -41,7 +41,8 @@ extension KabanStore {
         }
     }
     public func createTask(card: TaskCard, body: String, commandId: CommandID, at: Date) throws -> DurableReceipt {
-        try database.write { db in
+        projectOperations.lock(); defer { projectOperations.unlock() }
+        return try database.write { db in
             let project = try Self.project(card.projectId, db: db)
             let request = try Self.encode(Request(kind: "managed_create", taskId: card.id, body: Self.encode(ManagedCreation(card: card, body: body, pipeline: project.pipeline))))
             return try Self.createTask(card: card, pipeline: project.pipeline, commandId: commandId, at: at, request: request, managed: true, body: body, db: db)

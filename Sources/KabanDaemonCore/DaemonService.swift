@@ -54,10 +54,9 @@ public struct DaemonService: Sendable {
              .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .recheck,
              .createTask, .editTask, .setPriority, .cancelTask, .getTaskDetail, .getRunHistory,
              .pauseProject, .resumeProject, .setMascot, .setProjectWeight, .setProjectIdentity,
-             .validatePipeline, .validatePipelineDraft: .supported
+             .validatePipeline, .validatePipelineDraft, .updatePipeline: .supported
         case .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject: .managedFakeOnly
-        case .updatePipeline,
-             .setModelOverride, .restoreWIP, .acceptSuspiciousFiles, .allowGitOnce, .addDenialToPolicy,
+        case .setModelOverride, .restoreWIP, .acceptSuspiciousFiles, .allowGitOnce, .addDenialToPolicy,
              .revokeGitGrant, .resumeAfterRateLimit, .checkEnvironment, .getCursorEnvironment,
              .configureCursor, .listModels, .refreshModelCatalog, .setModelPoolRule,
              .removeModelPoolRule, .clearModelFlag, .listProjectMcpServers, .setProjectMcpAllowlist,

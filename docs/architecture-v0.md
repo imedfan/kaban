@@ -1,6 +1,6 @@
-# Kaban: архитектура MVP (черновик v0.11.24)
+# Kaban: архитектура MVP (черновик v0.11.25)
 
-Рабочая техническая спецификация v0.11.24. Утверждённые решения — [decisions-log](decisions-log.md); фактическая реализация — [current-state](current-state.md). Предложения и спайки сохраняют свои пометки.
+Рабочая техническая спецификация v0.11.25. Утверждённые решения — [decisions-log](decisions-log.md); фактическая реализация — [current-state](current-state.md). Предложения и спайки сохраняют свои пометки.
 
 Решения, на которых стоит документ: macOS 26 минимум; Swift-демон через launchd и тонкий SwiftUI-клиент; одна SQLite через GRDB на все проекты; агент в MVP только Cursor CLI; MCP доски по HTTP на loopback с токеном на запуск; Developer ID без App Store; изоляция задачи через `git clone --local`; слияние локально в `main`; бюджета в долларах в MVP нет; стадии абстрактные и задаются `.kaban/pipeline.yaml`; в Human Review сводка изменений и «Открыть в Cursor» вместо своего диффа.
 
@@ -136,11 +136,33 @@ stages:
 
 **Источник правды — закоммиченный `main:.kaban/`.** Демон читает `git show main:.kaban/pipeline.yaml`, а не файл на диске, поэтому переключение ветки или незакоммиченная правка в рабочей копии человека правила не меняют. Копии в клонах задач игнорируются, а проверка результата (8.2) отклоняет любые изменения агента в `.kaban/`.
 
+В BE-03 ref разрешается один раз, затем файлы читаются по immutable blob IDs.
+Версия хэширует sorted asset snapshot `.kaban/` (пути, режимы и байты) плюс
+закоммиченные skills, на которые YAML ссылается вне `.kaban/`. Незакоммиченные
+копии этих skills в коммит пайплайна не входят. `versionHash` существует только
+для валидного main; отдельный `sourceHash` идентифицирует и невалидный/пустой
+snapshot. Каждый запуск фиксирует immutable RunSpec с pipeline, assets, identity
+и effective git policy; новые настройки применяются со следующего запуска.
+
 **Запись.**
 - Из настроек UI: приложение атомарно пишет файл и вызывает `updatePipeline(projectId, contentHash)`. Демон синхронно валидирует и, если всё в порядке, автокоммитит `git commit --only -- .kaban/` под блокировкой очереди слияния проекта; ответ — либо новая версия, либо список `ValidationIssue`. Остальные правки человека в рабочей копии не трогаются.
 - Ручная правка файла: FSEvents ловит изменение, демон валидирует и публикует состояние «есть незакоммиченные правки пайплайна» с результатом проверки. Молча не коммитим: в настройках кнопка «Применить» (тот же `updatePipeline`), либо человек коммитит сам.
 - Новый проект без `.kaban/`: в диалоге добавления галочка «создать шаблон и закоммитить» (по умолчанию включена). Моделей по умолчанию нет: шаблон коммитится с пустыми `model:`, и проект сразу получает `unavailable: pipeline_invalid` со списком стадий без модели. Без закоммиченного пайплайна проект добавляется, но задачи не запускаются, на дорожке плашка «нет пайплайна». Задачи в Backlog создавать можно в обоих случаях.
 - Чистая рабочая копия для добавления проекта не нужна.
+
+Реализация BE-03 сохраняет этот контракт через isolated index, `commit-tree` и
+CAS локального main: репозиторные hooks/filters/signers не запускаются, unrelated
+index entries сохраняются. До публикации ref записывается durable intent;
+receipt, версия, проекция и journal завершаются атомарно, повтор/стартовое recovery
+сверяют Git facts. Более новый descendant main не откатывается. Применение требует
+checkout main и явного автора; вместо переключения ветки возвращается диагностика.
+Существующий файл YAML не перезаписывается при apply/recovery, чтобы сохранить
+конкурентный editor save; если UI ещё не записал точный draft, его старая копия
+остаётся dirty. Отсутствующий YAML создаётся эксклюзивно. Ручные правки/main сейчас
+наблюдаются bounded polling раз в две секунды и при startup/recheck; FSEvents
+остаётся целевым механизмом. `uncommittedIssues` относятся к рабочему YAML,
+`issues` — к committed main. Stage exit текущего run при invalid main сохраняется
+в БД и возобновляется после valid reload без повторного исполнения run.
 
 **Валидация** (JSON Schema + семантика в `KabanKit`). Ошибки — `ValidationIssue { path: "stages[2].wip", stageId?, code, message, severity, params }`, путь к полю и стадия для подсветки в настройках. Коды (enum в `KabanProtocol`): `yaml_syntax`, `duplicate_id`, `unknown_stage`, `on_success_cycle`, `git_hard_invariant`, `model_missing`, `model_auto_forbidden`, `wip_out_of_range`, `no_return_target`, а также коды разбора и границ (`type_mismatch`, `missing_field`, `unknown_key`, `invalid_value`, `limit_out_of_range` и др., полный список с описаниями в `ValidationCode`). `params: [String: String]` — подстановки для текста кода из словаря спеки §4.1 (`line`, `n`, `min`, `max`, …); клиент собирает текст из словаря и `params`, а без перевода или при пустых `params` показывает `message` как есть, неизвестный код — общей строкой с кодом. Цвет и блокировку «Сохранить» клиент берёт по `severity`, а не по коду. `updatePipeline` некорректную версию не коммитит, «Сохранить» в UI при ошибках неактивна, черновик живёт только в редакторе. Если некорректная версия попала в `main` ручным коммитом, проект получает `unavailable: pipeline_invalid`: идущие runs доигрывают, новые не стартуют и задачи не переходят между стадиями, флаг гаснет сам, когда в `main` появляется корректная версия (правило «работаем на последней валидной» с v0.10 снято).
 - `id` уникальны; одна `queue`-стадия входа, одна `merge`, есть `terminal`;
@@ -248,7 +270,9 @@ stages:
 
 - `project` — стабильный id, путь и bookmark папки, базовая ветка, вес, личный максимум, маскот, `available | missing`;
 - `settings` — `max_concurrent_runs`, курсор обхода, состояние пауз и cooldown; опция квоты (выключена, согласие, время согласия), интервал опроса (1, 5, 15, 30 мин или своё), пороги Cm и Om (по умолчанию 10%);
-- `pipeline_version` — снимки валидных версий;
+- `pipeline_version` — снимки валидных версий, включая committed config assets;
+- `pipeline_operation` — durable план Git/file apply до receipt; `run_spec` —
+  immutable вход каждой попытки; `pipeline_deferred` — ожидающий valid reload stage exit (BE-03, additive v5);
 - `task` — `stage_id`, `status`, `reason`, хэш версии пайплайна при входе в стадию, приоритет, `bounce_by_reason`, ветка, путь клона, `session_id` для resume;
 - `run` — попытка: стадия, номер, pid, pgid, время старта процесса, запрошенная модель (id) и фактическое имя из `init`, `counts_toward_limits`, статус, `end_reason`, exit code, usage, путь к логу, счётчик git-отказов;
 - `git_grant` — разовые git-разрешения (раздел 8.3);
@@ -328,10 +352,15 @@ signature; private stdio является явным development transport. По
   prefix — `log_offset_expired` (params содержат доступное смещение). Сбой/overflow
   явен; resume идёт с последнего потреблённого nextOffset. Хранилище логов — BE-16;
   до него сервер отвечает `unsupported_operation` и capabilities.readLog=false.
-- `PipelineDraft { projectId, baseVersionHash, contentHash, content }` переносит
+- `PipelineDraft { projectId, baseVersionHash, baseSourceHash?, contentHash, content }` переносит
   точный UTF-8 YAML. Hash — `sha256:` + 64 lowercase hex, без нормализации пробелов
   или перевода строк. `baseVersionHash` обязателен на проводе, explicit null
-  означает отсутствие committed pipeline при начале редактирования. `updatePipeline`
+  означает отсутствие валидной committed версии при начале редактирования.
+  Optional `baseSourceHash` сверяется с `PipelineSummary.sourceHash`; для непустого
+  invalid source он обязателен (`pipeline_source_required`). Valid legacy draft
+  связывается через baseVersionHash; полностью пустой source допускает null base.
+  `sourceHash`/`versionHash` — identity полного asset snapshot, `contentHash` —
+  только точного YAML. `updatePipeline`
   совместимо добавляет optional `draft`; hash-only legacy запрос без серверного
   черновика получает `pipeline_draft_required`. Project/base/hash сверяются в
   транзакции до принятия: `stale_pipeline_draft` либо `pipeline_hash_mismatch`.
@@ -341,8 +370,10 @@ signature; private stdio является явным development transport. По
   возвращает тот же resolver, paths и issues; optional `baseVersionHash` добавлен
   к validation DTO/events для legacy-совместимости. Query не расходует commandId.
   Старый validatePipeline возвращает прежний pipelineVersion/validationIssues.
-  Save/commit/recovery файлового эффекта остаётся BE-03; пока updatePipeline
-  даже после успешных binding checks отвечает unsupported_command.
+  Optional baseSourceHash возвращается и в validation DTO. BE-03 выполняет
+  updatePipeline для local production проектов и отвечает новой версией либо
+  issues/диагностикой; pipelineApplied подтверждает committed состояние.
+  Fake registration остаётся ограниченным внутренним API, fake save недоступен.
 - `getCursorEnvironment` / `configureCursor(environment: CursorEnvironment)`:
   executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
   argv и произвольный env не передаются. Query reply — cursorEnvironment,

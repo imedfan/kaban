@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Exercise real daemon/CLI processes with temporary storage, without launchd or Cursor."""
 import argparse
+import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import select
 import sqlite3
@@ -144,6 +146,26 @@ def main():
         gate_query = envelope("detectGates")
         gate_query["command"]["detectGates"] = {"projectId": project_id}
         assert send(gate_query)["result"]["gates"]["_0"] == ["swift build", "swift test"]
+        # Exact transported YAML fixes the committed invalid template. The source identity also
+        # binds nil-version drafts, and every response is reopened in a new daemon process.
+        pipeline = snapshot["pipelines"][0]
+        pipeline_file = repo / ".kaban/pipeline.yaml"
+        valid_yaml = re.sub(r"^(\s+model:).*", r"\1 smoke-model", pipeline_file.read_text(), flags=re.MULTILINE)
+        content_hash = "sha256:" + hashlib.sha256(valid_yaml.encode()).hexdigest()
+        draft = {"projectId": project_id, "baseVersionHash": None, "baseSourceHash": pipeline["sourceHash"], "contentHash": content_hash, "content": valid_yaml}
+        validation = envelope("validatePipelineDraft")
+        validation["command"]["validatePipelineDraft"] = {"draft": draft}
+        resolved = send(validation)["result"]["pipelineDraft"]["_0"]
+        assert not any(issue["severity"] == "error" for issue in resolved["issues"]), resolved
+        update = envelope("updatePipeline")
+        update["command"]["updatePipeline"] = {"projectId": project_id, "contentHash": content_hash, "draft": draft}
+        pipeline_file.write_text(valid_yaml)
+        applied = send(update)
+        assert "pipelineVersion" in applied["result"] and send(update) == applied
+        assert pipeline_file.read_text() == valid_yaml
+        assert git("diff", "--cached", "--binary", "--", "tracked.txt") == staged
+        assert git("diff", "--binary", "--", "tracked.txt") == unstaged
+        assert run("snapshot")["pipelines"][0]["versionHash"] == applied["result"]["pipelineVersion"]["hash"]
         moved = root / "moved-project"
         owner = subprocess.Popen([str(daemon), "--stdio", "--database", str(database)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
@@ -152,6 +174,21 @@ def main():
                 owner.stdin.flush()
                 return read_reply()["result"]["snapshot"]["_0"]
             assert owner_snapshot()["projects"][0]["availability"] == "available"
+            # Live committed reload must run on the background observer without restarting.
+            pipeline_file.write_text(valid_yaml.replace("model: smoke-model", "model: auto"))
+            git("add", ".kaban")
+            git("commit", "-m", "Manual invalid pipeline")
+            deadline = time.monotonic() + 8
+            while not any(issue["code"] == "model_auto_forbidden" for issue in owner_snapshot()["pipelines"][0]["issues"]):
+                assert time.monotonic() < deadline, "Live pipeline observer did not reload main"
+                time.sleep(0.2)
+            pipeline_file.write_text(valid_yaml)
+            git("add", ".kaban")
+            git("commit", "-m", "Fix manual pipeline")
+            deadline = time.monotonic() + 8
+            while owner_snapshot()["pipelines"][0].get("versionHash") is None:
+                assert time.monotonic() < deadline, "Live pipeline observer did not clear invalid main"
+                time.sleep(0.2)
             repo.rename(moved)
             deadline = time.monotonic() + 8
             while owner_snapshot()["projects"][0]["availability"] != "missing":
@@ -179,7 +216,7 @@ def main():
         detail["command"]["getTaskDetail"] = {"taskId": task_id}
         archived = send(detail)["result"]["taskDetail"]["_0"]
         assert archived["task"]["state"]["status"] == "cancelled"
-    print("Daemon/CLI smoke passed: wire sessions/replay/retention, real project/template/dirty checkout, Backlog, gates, missing folder/relink, removal/history and single writer.")
+    print("Daemon/CLI smoke passed: wire sessions/replay/retention, real project/template/pipeline apply/live reload/dirty checkout, Backlog, gates, missing folder/relink, removal/history and single writer.")
 
 
 if __name__ == "__main__":
