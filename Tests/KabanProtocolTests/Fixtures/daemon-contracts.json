@@ -1,0 +1,1383 @@
+[
+  {
+    "name" : "capabilities",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "error" : {
+          "_0" : {
+            "code" : "protocol_mismatch",
+            "message" : "Несовместимая версия",
+            "params" : {
+
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "capabilities" : {
+
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "capabilities" : {
+          "_0" : {
+            "commands" : [
+              {
+                "name" : "createTask",
+                "support" : "managedFakeOnly"
+              },
+              {
+                "name" : "restoreWIP",
+                "support" : "unsupported"
+              }
+            ],
+            "operations" : [
+              {
+                "name" : "readLog",
+                "supported" : false
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "live" : {
+      "afterSeq" : 1042,
+      "at" : "2026-10-04T08:00:00.000Z",
+      "cursor" : {
+        "offset" : 1,
+        "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+      },
+      "event" : {
+        "data" : {
+          "lastActivityAt" : "2026-10-04T08:00:00.000Z",
+          "message" : "Проверяю",
+          "runId" : "r-11",
+          "taskId" : "t-1"
+        },
+        "type" : "runProgress"
+      }
+    },
+    "name" : "synchronize",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "error" : {
+          "_0" : {
+            "code" : "incomplete_projection",
+            "message" : "Неполная проекция",
+            "params" : {
+
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "synchronize" : {
+
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "replacement" : {
+          "_0" : {
+            "current" : [
+              {
+                "afterSeq" : 1042,
+                "at" : "2026-10-04T08:00:00.000Z",
+                "cursor" : {
+                  "offset" : 1,
+                  "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+                },
+                "event" : {
+                  "data" : {
+                    "lastActivityAt" : "2026-10-04T08:00:00.000Z",
+                    "message" : "Проверяю",
+                    "runId" : "r-11",
+                    "taskId" : "t-1"
+                  },
+                  "type" : "runProgress"
+                }
+              }
+            ],
+            "cursor" : {
+              "offset" : 1,
+              "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+            },
+            "snapshot" : {
+              "modelFlags" : [
+
+              ],
+              "openIncidentCount" : 0,
+              "pipelines" : [
+                {
+                  "defaultReturnStage" : "dev",
+                  "gitCommandCatalog" : [
+                    "status",
+                    "diff",
+                    "log",
+                    "show",
+                    "add",
+                    "commit",
+                    "restore",
+                    "stash",
+                    "rebase",
+                    "reset",
+                    "cherry-pick"
+                  ],
+                  "gitPreset" : "standard",
+                  "hasUncommittedEdits" : false,
+                  "issues" : [
+                    {
+                      "code" : "mcp_not_allowlisted",
+                      "message" : "Сервер «linear» выключен в белом списке проекта и не будет подключён",
+                      "params" : {
+
+                      },
+                      "path" : "stages[1].agent.mcp[1]",
+                      "severity" : "warning"
+                    }
+                  ],
+                  "maxRunsPerTask" : 12,
+                  "maxWaitingHuman" : 3,
+                  "projectGitPolicy" : {
+                    "allowed" : [
+                      {
+                        "rule" : "status",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "diff",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "log",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "show",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "add",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "commit",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "restore --staged",
+                        "source" : "preset"
+                      },
+                      {
+                        "rule" : "stash",
+                        "source" : "project"
+                      }
+                    ],
+                    "committer" : "agent_with_safety_commit",
+                    "conditional" : [
+
+                    ],
+                    "denied" : [
+                      {
+                        "rule" : "cherry-pick",
+                        "source" : "project"
+                      }
+                    ],
+                    "hardInvariants" : [
+                      "push",
+                      "remote",
+                      "config",
+                      "tag",
+                      "force",
+                      "foreign_refs",
+                      "kaban_dir"
+                    ],
+                    "preset" : "standard",
+                    "readOnly" : false
+                  },
+                  "projectId" : "p-kaban",
+                  "stages" : [
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "icon" : "tray",
+                        "order" : 0
+                      },
+                      "gates" : [
+
+                      ],
+                      "id" : "backlog",
+                      "kind" : "queue",
+                      "name" : "Backlog",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ]
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "color" : "blue",
+                        "hidden" : false,
+                        "icon" : "hammer",
+                        "order" : 1
+                      },
+                      "gates" : [
+
+                      ],
+                      "gitPolicy" : {
+                        "allowed" : [
+                          {
+                            "rule" : "status",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "diff",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "log",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "show",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "add",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "commit",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "restore --staged",
+                            "source" : "preset"
+                          }
+                        ],
+                        "committer" : "agent_with_safety_commit",
+                        "conditional" : [
+                          {
+                            "allowed" : [
+                              {
+                                "rule" : "rebase",
+                                "source" : "stage"
+                              }
+                            ],
+                            "returnReason" : "merge_conflict"
+                          }
+                        ],
+                        "denied" : [
+                          {
+                            "rule" : "cherry-pick",
+                            "source" : "project"
+                          },
+                          {
+                            "rule" : "stash",
+                            "source" : "stage"
+                          }
+                        ],
+                        "hardInvariants" : [
+                          "push",
+                          "remote",
+                          "config",
+                          "tag",
+                          "force",
+                          "foreign_refs",
+                          "kaban_dir"
+                        ],
+                        "preset" : "standard",
+                        "readOnly" : false
+                      },
+                      "id" : "dev",
+                      "kind" : "agent",
+                      "maxAttempts" : 3,
+                      "model" : "claude-4.5-opus",
+                      "name" : "Разработка",
+                      "onSuccess" : "test",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ],
+                      "wip" : 3
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "order" : 2
+                      },
+                      "gates" : [
+
+                      ],
+                      "gitPolicy" : {
+                        "allowed" : [
+                          {
+                            "rule" : "status",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "diff",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "log",
+                            "source" : "preset"
+                          },
+                          {
+                            "rule" : "show",
+                            "source" : "preset"
+                          }
+                        ],
+                        "committer" : "agent_with_safety_commit",
+                        "conditional" : [
+
+                        ],
+                        "denied" : [
+                          {
+                            "rule" : "cherry-pick",
+                            "source" : "project"
+                          },
+                          {
+                            "rule" : "add",
+                            "source" : "stage"
+                          },
+                          {
+                            "rule" : "commit",
+                            "source" : "stage"
+                          },
+                          {
+                            "rule" : "restore --staged",
+                            "source" : "stage"
+                          },
+                          {
+                            "rule" : "stash",
+                            "source" : "stage"
+                          }
+                        ],
+                        "hardInvariants" : [
+                          "push",
+                          "remote",
+                          "config",
+                          "tag",
+                          "force",
+                          "foreign_refs",
+                          "kaban_dir"
+                        ],
+                        "preset" : "standard",
+                        "readOnly" : true
+                      },
+                      "id" : "test",
+                      "kind" : "agent",
+                      "maxAttempts" : 3,
+                      "model" : "composer-1",
+                      "name" : "Тесты",
+                      "onSuccess" : "checks",
+                      "readOnly" : true,
+                      "returnsTo" : [
+                        {
+                          "limit" : 3,
+                          "stage" : "dev"
+                        }
+                      ],
+                      "wip" : 2
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "order" : 3
+                      },
+                      "gates" : [
+                        "swift build",
+                        "swift test"
+                      ],
+                      "id" : "checks",
+                      "kind" : "gate",
+                      "name" : "Проверки",
+                      "onFail" : {
+                        "limit" : 3,
+                        "stage" : "dev"
+                      },
+                      "onSuccess" : "review",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ]
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "order" : 4
+                      },
+                      "gates" : [
+
+                      ],
+                      "id" : "review",
+                      "kind" : "human",
+                      "name" : "Human Review",
+                      "onSuccess" : "merge",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ],
+                      "wip" : 2
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "order" : 5
+                      },
+                      "gates" : [
+
+                      ],
+                      "id" : "merge",
+                      "kind" : "merge",
+                      "name" : "Слияние",
+                      "onConflict" : {
+                        "limit" : 2,
+                        "stage" : "dev"
+                      },
+                      "onSuccess" : "done",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ],
+                      "wip" : 1
+                    },
+                    {
+                      "display" : {
+                        "collapsed" : false,
+                        "hidden" : false,
+                        "order" : 6
+                      },
+                      "gates" : [
+
+                      ],
+                      "id" : "done",
+                      "kind" : "terminal",
+                      "name" : "Готово",
+                      "readOnly" : false,
+                      "returnsTo" : [
+
+                      ]
+                    }
+                  ],
+                  "versionHash" : "sha256:9f2c"
+                }
+              ],
+              "projects" : [
+                {
+                  "availability" : "available",
+                  "baseBranch" : "main",
+                  "id" : "p-kaban",
+                  "identity" : {
+                    "email" : "artem@example.com",
+                    "name" : "Artem Palkin"
+                  },
+                  "mascotSeed" : "p-kaban",
+                  "name" : "kaban",
+                  "openIncidentCount" : 1,
+                  "path" : "/Users/artem/dev/kaban",
+                  "weight" : 1
+                }
+              ],
+              "protocolVersion" : 1,
+              "schedulerFlags" : [
+
+              ],
+              "seq" : 1042,
+              "stageLoad" : [
+
+              ],
+              "tasks" : [
+                {
+                  "attempt" : 1,
+                  "bounceByReason" : {
+
+                  },
+                  "branch" : "kaban/t-1-x",
+                  "hasAcceptanceCriteria" : true,
+                  "id" : "t-1",
+                  "maxAttempts" : 3,
+                  "model" : "claude-4.5-opus",
+                  "overlapsWith" : [
+
+                  ],
+                  "priority" : 0,
+                  "projectId" : "p-kaban",
+                  "runsSinceHuman" : 2,
+                  "stageId" : "dev",
+                  "state" : {
+                    "status" : "running"
+                  },
+                  "suspiciousFiles" : [
+
+                  ],
+                  "title" : "Парсер stream-json",
+                  "unusedGitGrants" : 0,
+                  "updatedAt" : "2026-10-04T08:00:00.000Z"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "live" : {
+      "afterSeq" : 1042,
+      "at" : "2026-10-04T08:00:00.000Z",
+      "cursor" : {
+        "offset" : 1,
+        "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+      },
+      "event" : {
+        "data" : {
+          "lastActivityAt" : "2026-10-04T08:00:00.000Z",
+          "message" : "Проверяю",
+          "runId" : "r-11",
+          "taskId" : "t-1"
+        },
+        "type" : "runProgress"
+      }
+    },
+    "name" : "ephemeral",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "error" : {
+          "_0" : {
+            "code" : "invalid_request",
+            "message" : "Некорректный курсор",
+            "params" : {
+
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "ephemeral" : {
+          "after" : {
+            "offset" : 0,
+            "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+          },
+          "limit" : 1
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "ephemeral" : {
+          "_0" : {
+            "events" : [
+              {
+                "afterSeq" : 1042,
+                "at" : "2026-10-04T08:00:00.000Z",
+                "cursor" : {
+                  "offset" : 1,
+                  "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+                },
+                "event" : {
+                  "data" : {
+                    "lastActivityAt" : "2026-10-04T08:00:00.000Z",
+                    "message" : "Проверяю",
+                    "runId" : "r-11",
+                    "taskId" : "t-1"
+                  },
+                  "type" : "runProgress"
+                }
+              }
+            ],
+            "fromCursor" : {
+              "offset" : 0,
+              "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+            },
+            "latestCursor" : {
+              "offset" : 1,
+              "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+            },
+            "nextCursor" : {
+              "offset" : 1,
+              "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+            },
+            "resetRequired" : false
+          }
+        }
+      }
+    }
+  },
+  {
+    "name" : "readLog",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "error" : {
+          "_0" : {
+            "code" : "log_unavailable",
+            "message" : "Лог недоступен",
+            "params" : {
+
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "readLog" : {
+          "fromOffset" : 0,
+          "limit" : 1,
+          "runId" : "r-11"
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "log" : {
+          "_0" : {
+            "availableFromOffset" : 0,
+            "batch" : {
+              "events" : [
+                {
+                  "message" : {
+                    "role" : "assistant",
+                    "text" : "Готово"
+                  }
+                }
+              ],
+              "fromOffset" : 0,
+              "nextOffset" : 1,
+              "runId" : "r-11"
+            },
+            "endOffset" : 1,
+            "isComplete" : true
+          }
+        }
+      }
+    }
+  },
+  {
+    "live" : {
+      "afterSeq" : 1042,
+      "at" : "2026-10-04T08:00:00.000Z",
+      "cursor" : {
+        "offset" : 1,
+        "sessionId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D02"
+      },
+      "event" : {
+        "data" : {
+          "baseVersionHash" : "sha256:9f2c",
+          "contentHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad",
+          "issues" : [
+
+          ],
+          "projectId" : "p-kaban",
+          "resolved" : {
+            "defaultReturnStage" : "dev",
+            "gitCommandCatalog" : [
+
+            ],
+            "gitPreset" : "standard",
+            "hasUncommittedEdits" : false,
+            "issues" : [
+
+            ],
+            "maxRunsPerTask" : 12,
+            "maxWaitingHuman" : 3,
+            "projectId" : "p-kaban",
+            "stages" : [
+              {
+                "display" : {
+                  "collapsed" : false,
+                  "hidden" : false,
+                  "order" : 0
+                },
+                "gates" : [
+
+                ],
+                "id" : "backlog",
+                "kind" : "queue",
+                "name" : "Backlog",
+                "onSuccess" : "dev",
+                "readOnly" : false,
+                "returnsTo" : [
+
+                ]
+              },
+              {
+                "display" : {
+                  "collapsed" : false,
+                  "hidden" : false,
+                  "order" : 1
+                },
+                "gates" : [
+
+                ],
+                "id" : "dev",
+                "kind" : "agent",
+                "model" : "explicit-model",
+                "name" : "Dev",
+                "onSuccess" : "review",
+                "readOnly" : false,
+                "returnsTo" : [
+
+                ],
+                "wip" : 3
+              },
+              {
+                "display" : {
+                  "collapsed" : false,
+                  "hidden" : false,
+                  "order" : 2
+                },
+                "gates" : [
+
+                ],
+                "id" : "review",
+                "kind" : "human",
+                "name" : "Review",
+                "onSuccess" : "merge",
+                "readOnly" : false,
+                "returnsTo" : [
+
+                ],
+                "wip" : 5
+              },
+              {
+                "display" : {
+                  "collapsed" : false,
+                  "hidden" : false,
+                  "order" : 3
+                },
+                "gates" : [
+
+                ],
+                "id" : "merge",
+                "kind" : "merge",
+                "name" : "Merge",
+                "onConflict" : {
+                  "limit" : 2,
+                  "stage" : "dev"
+                },
+                "onSuccess" : "done",
+                "readOnly" : false,
+                "returnsTo" : [
+
+                ],
+                "wip" : 1
+              },
+              {
+                "display" : {
+                  "collapsed" : false,
+                  "hidden" : false,
+                  "order" : 4
+                },
+                "gates" : [
+
+                ],
+                "id" : "done",
+                "kind" : "terminal",
+                "name" : "Done",
+                "readOnly" : false,
+                "returnsTo" : [
+
+                ]
+              }
+            ]
+          }
+        },
+        "type" : "pipelineDraftValidated"
+      }
+    },
+    "name" : "validatePipelineDraft",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "stale_pipeline_draft",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "validatePipelineDraft" : {
+                "draft" : {
+                  "baseVersionHash" : "sha256:9f2c",
+                  "content" : "version: 1\nstages:\n  - {id: backlog, name: Backlog, kind: queue, on_success: dev}\n  - id: dev\n    name: Dev\n    kind: agent\n    wip: 3\n    agent: {model: explicit-model, skill: dev.md}\n    on_success: review\n  - {id: review, name: Review, kind: human, wip: 5, on_success: merge}\n  - {id: merge, name: Merge, kind: merge, wip: 1, on_success: done}\n  - {id: done, name: Done, kind: terminal}",
+                  "contentHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad",
+                  "projectId" : "p-kaban"
+                }
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "pipelineDraft" : {
+                "_0" : {
+                  "baseVersionHash" : "sha256:9f2c",
+                  "contentHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad",
+                  "issues" : [
+
+                  ],
+                  "projectId" : "p-kaban",
+                  "resolved" : {
+                    "defaultReturnStage" : "dev",
+                    "gitCommandCatalog" : [
+
+                    ],
+                    "gitPreset" : "standard",
+                    "hasUncommittedEdits" : false,
+                    "issues" : [
+
+                    ],
+                    "maxRunsPerTask" : 12,
+                    "maxWaitingHuman" : 3,
+                    "projectId" : "p-kaban",
+                    "stages" : [
+                      {
+                        "display" : {
+                          "collapsed" : false,
+                          "hidden" : false,
+                          "order" : 0
+                        },
+                        "gates" : [
+
+                        ],
+                        "id" : "backlog",
+                        "kind" : "queue",
+                        "name" : "Backlog",
+                        "onSuccess" : "dev",
+                        "readOnly" : false,
+                        "returnsTo" : [
+
+                        ]
+                      },
+                      {
+                        "display" : {
+                          "collapsed" : false,
+                          "hidden" : false,
+                          "order" : 1
+                        },
+                        "gates" : [
+
+                        ],
+                        "id" : "dev",
+                        "kind" : "agent",
+                        "model" : "explicit-model",
+                        "name" : "Dev",
+                        "onSuccess" : "review",
+                        "readOnly" : false,
+                        "returnsTo" : [
+
+                        ],
+                        "wip" : 3
+                      },
+                      {
+                        "display" : {
+                          "collapsed" : false,
+                          "hidden" : false,
+                          "order" : 2
+                        },
+                        "gates" : [
+
+                        ],
+                        "id" : "review",
+                        "kind" : "human",
+                        "name" : "Review",
+                        "onSuccess" : "merge",
+                        "readOnly" : false,
+                        "returnsTo" : [
+
+                        ],
+                        "wip" : 5
+                      },
+                      {
+                        "display" : {
+                          "collapsed" : false,
+                          "hidden" : false,
+                          "order" : 3
+                        },
+                        "gates" : [
+
+                        ],
+                        "id" : "merge",
+                        "kind" : "merge",
+                        "name" : "Merge",
+                        "onConflict" : {
+                          "limit" : 2,
+                          "stage" : "dev"
+                        },
+                        "onSuccess" : "done",
+                        "readOnly" : false,
+                        "returnsTo" : [
+
+                        ],
+                        "wip" : 1
+                      },
+                      {
+                        "display" : {
+                          "collapsed" : false,
+                          "hidden" : false,
+                          "order" : 4
+                        },
+                        "gates" : [
+
+                        ],
+                        "id" : "done",
+                        "kind" : "terminal",
+                        "name" : "Done",
+                        "readOnly" : false,
+                        "returnsTo" : [
+
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "journal" : {
+      "at" : "2026-10-04T08:00:00.000Z",
+      "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+      "event" : {
+        "data" : {
+          "defaultReturnStage" : "dev",
+          "gitCommandCatalog" : [
+
+          ],
+          "gitPreset" : "standard",
+          "hasUncommittedEdits" : false,
+          "issues" : [
+
+          ],
+          "maxRunsPerTask" : 12,
+          "maxWaitingHuman" : 3,
+          "projectId" : "p-kaban",
+          "stages" : [
+            {
+              "display" : {
+                "collapsed" : false,
+                "hidden" : false,
+                "order" : 0
+              },
+              "gates" : [
+
+              ],
+              "id" : "backlog",
+              "kind" : "queue",
+              "name" : "Backlog",
+              "onSuccess" : "dev",
+              "readOnly" : false,
+              "returnsTo" : [
+
+              ]
+            },
+            {
+              "display" : {
+                "collapsed" : false,
+                "hidden" : false,
+                "order" : 1
+              },
+              "gates" : [
+
+              ],
+              "id" : "dev",
+              "kind" : "agent",
+              "model" : "explicit-model",
+              "name" : "Dev",
+              "onSuccess" : "review",
+              "readOnly" : false,
+              "returnsTo" : [
+
+              ],
+              "wip" : 3
+            },
+            {
+              "display" : {
+                "collapsed" : false,
+                "hidden" : false,
+                "order" : 2
+              },
+              "gates" : [
+
+              ],
+              "id" : "review",
+              "kind" : "human",
+              "name" : "Review",
+              "onSuccess" : "merge",
+              "readOnly" : false,
+              "returnsTo" : [
+
+              ],
+              "wip" : 5
+            },
+            {
+              "display" : {
+                "collapsed" : false,
+                "hidden" : false,
+                "order" : 3
+              },
+              "gates" : [
+
+              ],
+              "id" : "merge",
+              "kind" : "merge",
+              "name" : "Merge",
+              "onConflict" : {
+                "limit" : 2,
+                "stage" : "dev"
+              },
+              "onSuccess" : "done",
+              "readOnly" : false,
+              "returnsTo" : [
+
+              ],
+              "wip" : 1
+            },
+            {
+              "display" : {
+                "collapsed" : false,
+                "hidden" : false,
+                "order" : 4
+              },
+              "gates" : [
+
+              ],
+              "id" : "done",
+              "kind" : "terminal",
+              "name" : "Done",
+              "readOnly" : false,
+              "returnsTo" : [
+
+              ]
+            }
+          ],
+          "versionHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad"
+        },
+        "type" : "pipelineApplied"
+      },
+      "projectId" : "p-kaban",
+      "seq" : 1043
+    },
+    "name" : "updatePipeline",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "pipeline_hash_mismatch",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "updatePipeline" : {
+                "contentHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad",
+                "draft" : {
+                  "baseVersionHash" : "sha256:9f2c",
+                  "content" : "version: 1\nstages:\n  - {id: backlog, name: Backlog, kind: queue, on_success: dev}\n  - id: dev\n    name: Dev\n    kind: agent\n    wip: 3\n    agent: {model: explicit-model, skill: dev.md}\n    on_success: review\n  - {id: review, name: Review, kind: human, wip: 5, on_success: merge}\n  - {id: merge, name: Merge, kind: merge, wip: 1, on_success: done}\n  - {id: done, name: Done, kind: terminal}",
+                  "contentHash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad",
+                  "projectId" : "p-kaban"
+                },
+                "projectId" : "p-kaban"
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "pipelineVersion" : {
+                "hash" : "sha256:1cc95e7754f89c2a736cf28c33428c15a9f68b57127ff3b9357a55254e6359ad"
+              }
+            },
+            "seq" : 1043
+          }
+        }
+      }
+    }
+  },
+  {
+    "name" : "getCursorEnvironment",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "unsupported_command",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "getCursorEnvironment" : {
+
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "cursorEnvironment" : {
+                "_0" : {
+                  "executablePath" : "/usr/local/bin/cursor-agent"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "journal" : {
+      "at" : "2026-10-04T08:00:00.000Z",
+      "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+      "event" : {
+        "data" : {
+          "executablePath" : "/usr/local/bin/cursor-agent"
+        },
+        "type" : "cursorEnvironmentChanged"
+      },
+      "seq" : 1043
+    },
+    "name" : "configureCursor",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "unsupported_command",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "configureCursor" : {
+                "environment" : {
+                  "executablePath" : "/usr/local/bin/cursor-agent"
+                }
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "ok" : {
+
+              }
+            },
+            "seq" : 1043
+          }
+        }
+      }
+    }
+  },
+  {
+    "journal" : {
+      "at" : "2026-10-04T08:00:00.000Z",
+      "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+      "event" : {
+        "data" : {
+          "runId" : "r-11",
+          "taskId" : "t-1",
+          "wipRef" : "refs/kaban/wip/r-11"
+        },
+        "type" : "wipRestored"
+      },
+      "projectId" : "p-kaban",
+      "seq" : 1043
+    },
+    "name" : "restoreWIP",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "unsupported_command",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "restoreWIP" : {
+                "runId" : "r-11",
+                "taskId" : "t-1",
+                "wipRef" : "refs/kaban/wip/r-11"
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "ok" : {
+
+              }
+            },
+            "seq" : 1043
+          }
+        }
+      }
+    }
+  }
+]

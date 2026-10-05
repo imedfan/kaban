@@ -27,6 +27,21 @@ extension KabanStore {
             case .getRunHistory(let id):
                 do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(try Self.taskDetail(id, db: db).runs)) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            case .validatePipeline(let projectId, let content):
+                do {
+                    let validation = try Self.validateDraftContent(projectId: projectId, content: content, db: db)
+                    return .init(commandId: envelope.commandId, seq: nil, result: validation.commandResult(contentHash: PipelineContentHash.sha256(content)))
+                } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            case .validatePipelineDraft(let draft):
+                do {
+                    let project = try Self.project(draft.projectId, db: db)
+                    try draft.checkBinding(projectId: project.summary.id, currentVersionHash: project.version, requestedHash: draft.contentHash)
+                    let validation = try Self.validateDraftContent(projectId: draft.projectId, content: draft.content, db: db)
+                    var result = validation.draftValidation(projectId: draft.projectId, contentHash: draft.contentHash)
+                    result.baseVersionHash = project.version
+                    return .init(commandId: envelope.commandId, seq: nil, result: .pipelineDraft(result))
+                } catch let error as CommandError { return .init(commandId: envelope.commandId, seq: nil, result: .error(error)) }
+                catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             default: break
             }
             var reply: CommandReply?
@@ -110,9 +125,17 @@ extension KabanStore {
             do { record.summary.identity = try identity.validated() }
             catch let error as GitIdentityRequired { throw StoreError.rejected(error.commandError) }
             return ok(try saveUpdatedProject(record, commandId: id, at: now(), db: db))
+        case .updatePipeline(let projectId, let hash, let draft):
+            guard let draft else {
+                throw StoreError.rejected(.init(code: "pipeline_draft_required", message: "Передайте точный YAML и базовую версию в draft."))
+            }
+            let project = try project(projectId, db: db)
+            do { try draft.checkBinding(projectId: projectId, currentVersionHash: project.version, requestedHash: hash) }
+            catch let error as CommandError { throw StoreError.rejected(error) }
+            throw StoreError.rejected(.init(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна требует production lifecycle проекта.", params: ["command": envelope.command.name.rawValue]))
         default:
             guard let (taskId, command) = transitionCommand(envelope.command) else {
-                throw StoreError.rejected(CommandError(code: "unsupported_command", message: "Команда ещё не поддерживается этим backend."))
+                throw StoreError.rejected(CommandError(code: CommandError.unsupportedCommandCode, message: "Команда ещё не поддерживается этим backend.", params: ["command": envelope.command.name.rawValue]))
             }
             let task = try managedTask(taskId, db: db)
             let at = now()
@@ -121,6 +144,17 @@ extension KabanStore {
             guard receipt.firstSeq != nil else { throw invalidState("Команда не изменила состояние задачи.") }
             return ok(receipt.lastSeq)
         }
+    }
+
+    private static func validateDraftContent(projectId: ProjectID, content: String, db: Database) throws -> PipelineValidation {
+        _ = try project(projectId, db: db)
+        guard content.utf8.count <= DaemonWire.maxPipelineBytes else { throw invalidRequest("Черновик пайплайна превышает лимит размера.") }
+        let active = Set(try allTasks(db).filter {
+            $0.card.projectId == projectId && ![.done, .cancelled].contains($0.machine.state.status)
+        }.map { $0.machine.stageId })
+        // No fake merge exception. Missing production MCP allowlist is an empty allowlist,
+        // so selected external servers produce warnings instead of being silently approved.
+        return PipelineValidator.validate(yaml: content, context: .init(stagesWithActiveTasks: active))
     }
 
     private static func transitionCommand(_ command: Command) -> (TaskID, DurableTaskCommand)? {

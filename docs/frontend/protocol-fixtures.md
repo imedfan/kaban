@@ -5,6 +5,28 @@
 Имена DTO и команд сверять с `Sources/KabanProtocol/`; числовые ссылки 3.x сохранены из исходного плана.
 Предложения фронта остаются предложениями. Макеты и токены — [design](../../design/README.md).
 
+## BE-01: transport/session и новые запросы
+
+Текущий дополнительный контракт — архитектура §5 и
+[BE-01](../development/backend-wire-contracts-2026-10-05.md). Golden examples
+`Tests/KabanProtocolTests/Fixtures/daemon-contracts.json` содержат request, response,
+applicable journal/live event и refusal для каждой новой операции. Read/capabilities
+не создают journal events; log events идут внутри LogBatch. Connection states
+проверяются отдельной `connection-states.json`. Существующие golden/legacy fixtures
+сохранены; success example будущей операции не заменяет capabilities backend.
+
+`sessionUpdates()` публикует connection/replacement/journal/ephemeral. Frontend
+заменяет проекцию на snapshot, применяет current значения и продолжает от двух
+раздельных cursors; live envelope никогда не становится EventEnvelope с новым seq.
+`connected` означает завершённый catch-up; pending commands не снимаются этим
+состоянием или `.ok`. App integration ещё не выполнена.
+
+Pipeline editor переносит YAML в PipelineDraft с обязательной nullable базовой
+версией и SHA-256 точного UTF-8. `validatePipelineDraft` возвращает resolved draft
+и issues; update переносит тот же draft и hash, сервер повторно сверяет проект и
+базу. Старые validate/update декодируются. Для restoreWIP и Cursor configuration
+есть типы, но действия недоступны до соответствующих BE-задач; сервер явно отказывает.
+
 ## 8. Протокол и фикстуры (дельта v0.5–v0.5.5)
 
 Что добавить в `KabanProtocol` и в фикстуры `MockKabanClient` (`KabanKit` приложение не импортирует, арх. §2). Решения — из журнала, имена — из арх. v0.11.1.

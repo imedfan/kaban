@@ -26,6 +26,14 @@ final class XPCTransportTests: XCTestCase {
         XCTAssertEqual(page.events.first?.commandId, envelope.commandId)
         let repeated = try await client.send(envelope)
         XCTAssertEqual(repeated, reply)
+        let replacement = try await client.synchronize()
+        XCTAssertEqual(replacement.snapshot.seq, reply.seq)
+        try service.publishEphemeral(.runnerChecked(.init(ok: true, version: "fixture", checkedAt: Date())))
+        let live = try await client.ephemeral(after: replacement.cursor)
+        XCTAssertEqual(live.events.count, 1)
+        XCTAssertEqual(live.events.first?.afterSeq, reply.seq)
+        let capabilities = try await client.capabilities()
+        XCTAssertEqual(capabilities, DaemonService.capabilities)
         await transport.close()
     }
     func testUnansweredXPCRequestTimesOutAndTaskCancellationFinishes() async throws {

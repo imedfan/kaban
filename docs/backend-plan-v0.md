@@ -34,6 +34,13 @@ XPC адаптеры macOS 26, reconnect/resync клиент и kabanctl. Live s
 использует polling глобального журнала. Host выполняет recovery, но ещё не запускает
 scheduler/executor loop; приложение не подключено.
 
+Порученная очередь — [BE-01–20](development/backend-mvp-tasks.md). BE-01 расширяет
+контракт replacement/session, эфирного потока, log pages, version-bound draft,
+Cursor environment и WIP restore. Реализация backend-функций за этими контрактами
+проверяется по capabilities, а не по наличию enum case; границы —
+[BE-01](development/backend-wire-contracts-2026-10-05.md). Следующий инкремент BE-02
+подключает production lifecycle проектов.
+
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement

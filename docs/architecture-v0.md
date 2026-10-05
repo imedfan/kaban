@@ -289,6 +289,77 @@ AUTOINCREMENT и переживает удаление всего журнала
 signature; private stdio является явным development transport. Подробные границы,
 таймауты, backpressure и проверки — [daemon transport](development/backend-daemon-transport-2026-10-05.md).
 
+**BE-01: расширенный совместимый wire-контракт.** Версия протокола остаётся 1;
+старые snapshot/subscribe/command и обязательные DTO-поля сохраняются. Новые
+операции включаются явно; старый backend вправе отказать в неизвестной операции.
+
+- `capabilities -> DaemonCapabilities`: полный каталог wire-команд (`name`,
+  `support: supported | managedFakeOnly | unsupported`) и transport operations
+  (`name`, `supported`). `managedFakeOnly` означает durable API только для
+  зарегистрированных bounded fake проектов; ни git, ни процесс не исполнены.
+  Неизвестные имена новых capabilities сохраняются строками. Недоступность
+  возвращается `unsupported_command`/`unsupported_operation`, без пустого успеха.
+- `synchronize -> SnapshotReplacement { snapshot, cursor, current }`: snapshot
+  читается одной транзакцией под lock эфирного publisher. `current` — последние
+  известные значения эфирных событий, `cursor: EphemeralCursor { sessionId,
+  offset }` относится к экземпляру service. Catch-up журнала начинается ровно
+  с `snapshot.seq`; эфира — с `cursor`. Отсутствующий producer не порождает
+  вымышленные model/runner/quota/progress данные.
+- `ephemeral(after: EphemeralCursor, limit) -> EphemeralPage { fromCursor,
+  nextCursor, latestCursor, events, resetRequired }`. `EphemeralEnvelope` содержит
+  `cursor`, `afterSeq`, `at`, `event`. Durable `seq` у него отсутствует;
+  `afterSeq` — barrier: клиент сначала догоняет journal до него. Частичная страница
+  продвигает только `nextCursor`. Restart, обрезанный prefix или cursor впереди
+  текущего service требуют replacement, а не пропуска. Replay ring и current
+  ограничены отдельно: 512 записей и 4 МиБ каждый; отказ publisher не продвигает
+  cursor. Старое значение live scheduler flags не перекрывает более новое
+  durable `settingsChanged.schedulerFlags` или replacement snapshot.
+- `DaemonConnectionState` — локальное состояние клиента: connecting,
+  synchronizing, connected, reconnecting(lastSeq?), disconnected(error).
+  `sessionUpdates()` отдаёт его вместе с replacement, journal и ephemeral;
+  connected наступает после catch-up обоих потоков. Во время reconnect/sync
+  frontend отключает новые команды; pending reconciliation — задача интеграции App.
+  Старый `updates(after:)` сохраняет snapshot/event-only поведение.
+- `readLog(runId, fromOffset, limit) -> LogPage { batch: LogBatch,
+  availableFromOffset, endOffset, isComplete }`; offsets считают нормализованные
+  AgentEvent records, не байты JSONL. `nextOffset - fromOffset == events.count`.
+  `tailLog` клиента опрашивает страницы раз в 200 мс на live EOF; завершает поток
+  после всех страниц completed run. Удалённый лог — `log_unavailable`, потерянный
+  prefix — `log_offset_expired` (params содержат доступное смещение). Сбой/overflow
+  явен; resume идёт с последнего потреблённого nextOffset. Хранилище логов — BE-16;
+  до него сервер отвечает `unsupported_operation` и capabilities.readLog=false.
+- `PipelineDraft { projectId, baseVersionHash, contentHash, content }` переносит
+  точный UTF-8 YAML. Hash — `sha256:` + 64 lowercase hex, без нормализации пробелов
+  или перевода строк. `baseVersionHash` обязателен на проводе, explicit null
+  означает отсутствие committed pipeline при начале редактирования. `updatePipeline`
+  совместимо добавляет optional `draft`; hash-only legacy запрос без серверного
+  черновика получает `pipeline_draft_required`. Project/base/hash сверяются в
+  транзакции до принятия: `stale_pipeline_draft` либо `pipeline_hash_mismatch`.
+  Максимум YAML — 1 МиБ. Клиентский успешный validate не даёт права пропустить
+  проверку актуальности и production validation при save.
+- `validatePipelineDraft(draft) -> CommandResult.pipelineDraft(PipelineDraftValidation)`
+  возвращает тот же resolver, paths и issues; optional `baseVersionHash` добавлен
+  к validation DTO/events для legacy-совместимости. Query не расходует commandId.
+  Старый validatePipeline возвращает прежний pipelineVersion/validationIssues.
+  Save/commit/recovery файлового эффекта остаётся BE-03; пока updatePipeline
+  даже после успешных binding checks отвечает unsupported_command.
+- `getCursorEnvironment` / `configureCursor(environment: CursorEnvironment)`:
+  executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
+  argv и произвольный env не передаются. Query reply — cursorEnvironment,
+  применённая настройка подтверждается journal cursorEnvironmentChanged.
+  Реальная настройка/check/login — BE-07/20, сейчас unsupported_command.
+- `restoreWIP(taskId, runId, wipRef)` адресует сохранённый run/ref задачи, без пути
+  или разрешения на произвольный git ref. Сервер обязан проверить ownership,
+  актуальное состояние и WIP metadata; событие wipRestored несёт тот же набор
+  идентификаторов и correlated commandId. Restore не пишет main и не подменяет
+  receipt run; real effect реализуется в BE-18/19, сейчас unsupported_command.
+
+Fixtures запросов, ответов, applicable events и отказов —
+`Tests/KabanProtocolTests/Fixtures/daemon-contracts.json`; connection states —
+`connection-states.json`. Success examples задают будущий контракт, но не объявляют
+поддержку backend-функций. [Матрица BE-01](development/backend-wire-contracts-2026-10-05.md)
+указывает проверенное исполнение и оставшиеся зависимости.
+
 **Дополнение контракта 4 октября 2026 (решения #9–12, #14, #44).**
 
 - `answerHuman` продолжает только `agent`-стадию из `waiting_human` с любой причиной; на остальных типах стадий возвращает `invalid_state`. Human Review использует `approve` / `requestChanges` / `reject`, gate/merge — разрешённые для состояния `retryStage` / `moveTask` / `requestChanges` / `cancelTask`. Ответ не принимает подозрительные файлы.
