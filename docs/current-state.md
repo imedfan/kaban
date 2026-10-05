@@ -8,7 +8,7 @@
 
 Проверенная после git fetch база реализации: `origin/main` —
 `ff74c43` (приняты #63–72, включая native UI #67, transport #70, BE-01 #71 и BE-02 #72).
-BE-03 ниже подготовлен в `codex/backend-pipeline-storage` от этой базы.
+BE-03 ниже подготовлен в `codex/backend-pipeline-storage` от этой базы ([PR #73](https://github.com/imedfan/kaban/pull/73), открыт).
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.

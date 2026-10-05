@@ -1,7 +1,8 @@
 # BE-03: версии и применение production пайплайна
 
 База — `ff74c43` (`origin/main`, BE-02 принят в PR #72). Ветка —
-`codex/backend-pipeline-storage`. PR указан в [очереди задач](backend-mvp-tasks.md).
+`codex/backend-pipeline-storage`. [PR #73](https://github.com/imedfan/kaban/pull/73)
+открыт в main; выполнение отмечено в [очереди задач](backend-mvp-tasks.md).
 
 ## Реализованный сценарий
 
