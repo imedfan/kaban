@@ -26,9 +26,8 @@ jobs:
           KABAN_SCENARIOS: Scenarios/M1
 
   macos:
-    name: macOS (optional)
-    runs-on: macos-latest
-    continue-on-error: true
+    name: macOS (native app)
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +43,8 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath "$derived_data" \
             ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+          "$derived_data/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban" \
+            --demo-smoke "$RUNNER_TEMP/kaban-native-smoke.json"
 
       - name: Test
         run: swift test

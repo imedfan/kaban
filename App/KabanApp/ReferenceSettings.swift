@@ -4,41 +4,58 @@ struct ReferenceSettings: View {
     @Bindable var demo: ReferenceDemo
     let theme: ReferenceTheme
     let kind: String
-    private var settingsProject:String{["general","stage-git-base","pipeline-invalid"].contains(kind) ? "kaban":kind=="project-mcp" ? "mobile-app":"shop-api"}
+    private var settingsProject: String { demo.selectedProject }
     private var stage: Bool {kind=="stage-git" || kind=="stage-git-base" || kind=="general" || kind=="pipeline-invalid"}
-    private var title: String {switch kind{case "stage-git","stage-git-base":"Dev · настройки стадии";case "general":"Dev · настройки стадии";case "pipeline-invalid":"Test · настройки стадии";case "project-mcp":"MCP для запусков";case "mac-quota":"Квота Cursor";default:"Права и git"}}
+    private var invalid: Bool { kind == "pipeline-invalid" ? !demo.pipelineErrors.isEmpty : kind == "general" ? !demo.stallValid : false }
+    private var title: String {switch kind{case "stage-git","stage-git-base":"Dev · настройки стадии";case "general":"Dev · настройки стадии";case "pipeline-invalid":"Test · настройки стадии";case "project-mcp":"MCP для запусков";case "mac-quota":"Квота Cursor";case "identity-settings":"Автор коммитов";case "suspicious-settings":"Подозрительные файлы";default:"Права и git"}}
     var body: some View {
         ZStack(alignment:.topLeading){ReferenceBackdrop(theme:theme)
             sidebar.frame(width:232).padding(8)
             VStack(alignment:.leading,spacing:10){
-                HStack(spacing:8){VStack(alignment:.leading,spacing:2){Text(title).font(.system(size:15,weight:.bold));Text(kind=="mac-quota" ? "Этот Мак · хранится у демона" : "\(settingsProject) · \(stage ? "kind: agent · id: dev (не меняется)":"Проект · .kaban/ в репозитории")").font(.system(size:11)).foregroundStyle(theme.faint)};Spacer();Label(kind=="pipeline-invalid" || kind=="general" ? "Ошибка в файле":"Файл валиден",systemImage:kind=="pipeline-invalid" || kind=="general" ? "exclamationmark.triangle":"checkmark.circle").font(.system(size:11.5,weight:.semibold)).foregroundStyle(theme.status(kind=="pipeline-invalid" || kind=="general" ? "waiting":"done").2);ReferenceButton(title:"pipeline.yaml",icon:"chevron.left.forwardslash.chevron.right",theme:theme){demo.sheet="yaml"};ReferenceButton(title:"Отменить",theme:theme){demo.cancelSettings()};ReferenceButton(title:"Сохранить и закоммитить",icon:"checkmark",primary:true,theme:theme){save()}.disabled(kind=="pipeline-invalid" || (kind=="general" && demo.stageFields["Таймаут зависания"]=="0 мин"))}.frame(height:46)
-                if stage {HStack(spacing:1){ForEach(["Основное","Пропускная способность","Исполнитель","Права и git","Окружение","Вход","Гейты","Переходы","Надёжность","Хуки"],id:\.self){tab in Button{demo.route=tab=="Права и git" ? "stage-git":tab=="Исполнитель" ? "pipeline-invalid":"general"}label:{Text(tab).font(.system(size:12,weight:activeTab(tab) ? .semibold:.medium)).padding(.horizontal,10).frame(height:24).background(activeTab(tab) ? theme.card:.clear,in:RoundedRectangle(cornerRadius:7))}.buttonStyle(.plain)}}.padding(3).background(theme.control,in:RoundedRectangle(cornerRadius:10))}
-                ScrollView{content}.scrollIndicators(.hidden)
-                HStack{Image(systemName:kind=="general" || kind=="pipeline-invalid" ? "exclamationmark.triangle":"info.circle");Text(kind=="stage-git" ? "Стадия хранит только отличия от проекта. Сохранение коммитит .kaban/; действует с новых запусков.":kind=="general" ? "Ошибка в stages[1].timeouts.stall — сохранить нельзя; демон работает на последней валидной версии.":"Изменения действуют с новых запусков. Демо хранит настройки в памяти.");Spacer();Circle().fill(demo.unsaved ? theme.accent:.clear).frame(width:7);Text(demo.unsaved ? "1 несохранённое изменение":"Сохранено в демо")}.font(.system(size:11.5)).foregroundStyle(theme.secondary).frame(height:52).overlay(alignment:.top){theme.line.frame(height:0.5)}
+                HStack(spacing:8){VStack(alignment:.leading,spacing:2){Text(title).font(.system(size:15,weight:.bold));Text(kind=="mac-quota" ? "Этот Мак · хранится у демона" : "\(settingsProject) · \(stage ? "kind: agent · id: dev (не меняется)":"Проект · .kaban/ в репозитории")").font(.system(size:11)).foregroundStyle(theme.faint)};Spacer();Label(invalid ? "Ошибка в файле":"Файл валиден",systemImage: invalid ? "exclamationmark.triangle":"checkmark.circle").font(.system(size:11.5,weight:.semibold)).foregroundStyle(theme.status(invalid ? "waiting":"done").2);ReferenceButton(title:"pipeline.yaml",icon:"chevron.left.forwardslash.chevron.right",theme:theme){demo.sheet="yaml"};ReferenceButton(title:"Отменить",theme:theme){demo.cancelSettings()};ReferenceButton(title:"Сохранить и закоммитить",icon:"checkmark",primary:true,theme:theme){save()}.disabled(invalid)}.frame(height:46)
+                if stage {ScrollView(.horizontal) { HStack(spacing:1){ForEach(["Основное","Пропускная способность","Исполнитель","Права и git","Окружение","Вход","Гейты","Переходы","Надёжность","Хуки"],id:\.self){tab in Button{demo.activeSettingsTab=tab;demo.route=tab=="Права и git" ? "stage-git":tab=="Исполнитель" ? "pipeline-invalid":"general"}label:{Text(tab).font(.system(size:12,weight:activeTab(tab) ? .semibold:.medium)).padding(.horizontal,10).frame(height:24).background(activeTab(tab) ? theme.card:.clear,in:RoundedRectangle(cornerRadius:7))}.buttonStyle(.plain)}}.padding(3).background(theme.control,in:RoundedRectangle(cornerRadius:10)) }.scrollIndicators(.hidden)}
+                ScrollViewReader { proxy in
+                    GeometryReader { geometry in
+                    ScrollView([.horizontal, .vertical]) { content.frame(width: max(1168, geometry.size.width)) }.scrollIndicators(.hidden)
+                        .onChange(of: demo.activeSettingsTab) { _, tab in
+                            let names = ["Основное": "Идентичность и вид", "Окружение": "Окружение и рабочая копия", "Хуки": "Хуки и уведомления"]
+                            withAnimation { proxy.scrollTo(names[tab] ?? tab, anchor: .top) }
+                        }
+                    }
+                }
+                HStack{Image(systemName:kind=="general" || kind=="pipeline-invalid" ? "exclamationmark.triangle":"info.circle");Text(kind=="stage-git" ? "Стадия хранит только отличия от проекта. Сохранение коммитит .kaban/; действует с новых запусков.":kind=="general" && invalid ? "Ошибка в stages[1].timeouts.stall — сохранить нельзя; демон работает на последней валидной версии.":"Изменения действуют с новых запусков. Демо хранит настройки в памяти.");Spacer();Circle().fill(demo.unsaved ? theme.accent:.clear).frame(width:7);Text(demo.unsaved ? "1 несохранённое изменение":"Сохранено в демо")}.font(.system(size:11.5)).foregroundStyle(theme.secondary).frame(height:52).overlay(alignment:.top){theme.line.frame(height:0.5)}
             }.padding(.leading,256).padding(.trailing,16).padding(.top,6)
         }.foregroundStyle(theme.text)
     }
     private var sidebar: some View {
-        VStack(alignment:.leading,spacing:4){HStack(spacing:8){ForEach([UInt32(0xff5f57),0xfebc2e,0x28c840],id:\.self){Circle().fill(Color(hex:$0)).frame(width:12,height:12)};Spacer();Button{demo.route="board"}label:{Image(systemName:"sidebar.left")}.buttonStyle(.plain)}.frame(height:18).padding(.bottom,14)
-            HStack(spacing:8){ReferenceMascot(emoji:settingsProject=="kaban" ? "🐗":settingsProject=="mobile-app" ? "🐙":"🦊",theme:theme,state:"waiting",size:26);VStack(alignment:.leading){Text(settingsProject).font(.system(size:13,weight:.semibold));Text("~/dev/\(settingsProject) · main").font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)}}.padding(8)
-            section("Стадии")
-            ForEach(ReferenceDemo.stages,id:\.self){s in nav(s,icon:s=="Dev" ? "hammer":s=="Test" ? "flask":"circle",route:s=="Test" ? "pipeline-invalid":"general",active:stage && (kind=="pipeline-invalid" ? s=="Test":s=="Dev"))}
-            section("Проект · .kaban/ в репозитории")
-            nav("Права и git",icon:"shield",route:"project-git",active:kind=="project-git")
-            nav("Подозрительные файлы",icon:"exclamationmark.shield",route:"suspicious-settings")
-            nav("Рабочая копия и окружение",icon:"shippingbox",route:"general")
+        let historical = ["general", "stage-git-base"].contains(kind)
+        let stages = historical ? ["Backlog", "Dev", "Lint", "AI Review", "Human Review", "Merge", "Done"] : ReferenceDemo.stages
+        let icons = ["Backlog": "tray", "Dev": "hammer", "Test": "flask", "Lint": "checklist", "AI Review": "eye", "Human Review": "person.crop.circle.badge.checkmark", "Merge": "arrow.triangle.merge", "Done": "checkmark.circle"]
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack { ReferenceTrafficLights(); Spacer(); Button { demo.route = "board" } label: { Image(systemName: "sidebar.left") }.buttonStyle(.plain) }.frame(height: 18).padding(.bottom, 14)
+            HStack(spacing: 8) {
+                ReferenceMascot(emoji: settingsProject == "kaban" ? "🐗" : settingsProject == "mobile-app" ? "🐙" : "🦊", theme: theme, state: "waiting", size: 26)
+                VStack(alignment: .leading) { Text(kind == "mac-quota" ? "Этот Мак" : settingsProject).font(.system(size: 13, weight: .semibold)); Text(kind == "mac-quota" ? "Локальные настройки" : "~/dev/\(settingsProject) · main").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint) }
+            }.padding(8)
+            section("Стадии пайплайна")
+            ForEach(stages, id: \.self) { name in nav(name, icon: icons[name] ?? "circle", route: name == "Test" ? "pipeline-invalid" : "general", active: stage && (kind == "pipeline-invalid" ? name == "Test" : name == "Dev")) }
+            section(historical ? "Проект · pipeline.yaml" : "Проект · .kaban/ в репозитории")
+            nav(historical ? "Git-политика проекта" : "Права и git", icon: "shield", route: "project-git", active: kind == "project-git")
+            if !historical { nav("Подозрительные файлы", icon: "exclamationmark.shield", route: "suspicious-settings") }
+            nav("Рабочая копия задачи", icon: "folder", route: "general")
+            nav("Лимиты и возвраты", icon: "hand.raised", route: "general")
             section("Проект · на этом Маке")
-            nav("MCP для запусков",icon:"powerplug",route:"project-mcp",active:kind=="project-mcp")
-            nav("Вес и личный максимум",icon:"cpu",route:"general")
-            nav("Маскот",icon:"sparkles",route:"mascots")
-            nav("Автор коммитов",icon:"person",route:"identity-settings")
-            section("Этот Мак")
-            nav("Квота Cursor",icon:"gauge.with.dots.needle.50percent",route:"mac-quota",active:kind=="mac-quota")
-            nav("Доска",icon:"rectangle.split.3x1",route:"board")
-            Spacer();Text("Демонстрационные данные").font(.system(size:10)).foregroundStyle(theme.faint).padding(8)
-        }.padding(.init(top:14,leading:10,bottom:10,trailing:10)).background(theme.glass,in:RoundedRectangle(cornerRadius:18)).overlay(RoundedRectangle(cornerRadius:18).stroke(theme.line,lineWidth:0.5))
+            if !historical { nav("MCP для запусков", icon: "powerplug", route: "project-mcp", active: kind == "project-mcp") }
+            nav("Вес и личный максимум", icon: "cpu", route: "general")
+            nav("Маскот", icon: "sparkles", route: "mascots")
+            if !historical { nav("Автор коммитов", icon: "person", route: "identity-settings", active: kind == "identity-settings") }
+            if kind == "mac-quota" { section("Этот Мак"); nav("Квота Cursor", icon: "gauge.with.dots.needle.50percent", route: "mac-quota", active: true) }
+            Spacer()
+            Text("Источник правды — закоммиченный main:.kaban/pipeline.yaml. Сохранение коммитит только .kaban/.").font(.system(size: 10.5)).foregroundStyle(theme.faint).padding(8)
+            nav("Доска", icon: "rectangle.split.3x1", route: "board")
+        }.padding(.init(top: 14, leading: 10, bottom: 10, trailing: 10)).background(theme.glass, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(theme.line, lineWidth: 0.5))
     }
-    private func activeTab(_ tab:String)->Bool{kind=="general" ? tab=="Основное":kind=="pipeline-invalid" ? tab=="Исполнитель":tab=="Права и git"}
+    private func activeTab(_ tab:String)->Bool{kind=="general" ? tab==demo.activeSettingsTab:kind=="pipeline-invalid" ? tab=="Исполнитель":tab=="Права и git"}
     private func section(_ s:String)->some View {Text(s).font(.system(size:10.5,weight:.semibold)).foregroundStyle(theme.faint).padding(.horizontal,8).padding(.top,10).padding(.bottom,2)}
     private func nav(_ s:String,icon:String,route:String,active:Bool=false)->some View {Button{demo.route=route}label:{HStack(spacing:8){Image(systemName:icon).font(.system(size:12));Text(s).font(.system(size:12.5));Spacer()}.padding(.horizontal,8).frame(height:26).foregroundStyle(active ? .white:theme.text).background(active ? theme.accent:.clear,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(.plain)}
     @ViewBuilder private var content: some View {
@@ -51,7 +68,11 @@ struct ReferenceSettings: View {
         case "project-mcp":mcp
         case "mac-quota":quota
         case "identity-settings":identity
-        default:ReferenceBox(title:"Подозрительные файлы",theme:theme){Text("patterns: [.env*, *.pem, *.p12]\nmax_file_mb: 5\nallow: []").font(.system(size:12,design:.monospaced));Text("Экран отсутствует в оригинальных макетах; функциональная демо-форма использует утверждённые компоненты.").font(.system(size:11)).foregroundStyle(theme.faint)}
+        default: ReferenceBox(title: "Подозрительные файлы", theme: theme) {
+            TextField("Шаблоны", text: $demo.filePatterns).textFieldStyle(.roundedBorder)
+            TextField("Максимальный размер файла · МБ", text: $demo.maxFileMB).textFieldStyle(.roundedBorder)
+            TextField("Исключения", text: $demo.fileAllow).textFieldStyle(.roundedBorder)
+        }
         }
     }
     private var projectGit: some View {
@@ -77,13 +98,21 @@ struct ReferenceSettings: View {
     private func policyTable(stage:Bool)->some View {
         VStack(spacing:0){HStack{Text("Команда").frame(maxWidth:.infinity,alignment:.leading);Text(stage ? "Политика проекта":"Пресет").frame(width:130);Text(stage ? "Переопр.":"Проект").frame(width:65);Text(stage ? "Стадия Dev":"Итог").frame(width:180,alignment:.leading)}.font(.system(size:10.5,weight:.semibold)).foregroundStyle(theme.faint).frame(height:28)
             ForEach(["Жёсткие правила · 7","status · diff · log · show","add · commit · restore --staged","cherry-pick","stash","rebase","reset"],id:\.self){cmd in
-                HStack(spacing:8){Text(cmd).font(.system(size:11,design:.monospaced)).frame(maxWidth:.infinity,alignment:.leading);Text(cmd=="cherry-pick" ? "запрещено проектом":cmd=="rebase" || cmd=="reset" ? "нет в пресете":"разрешено").font(.system(size:10.5)).foregroundStyle(theme.faint).frame(width:130,alignment:.leading)
-                    if stage {Toggle("",isOn:Binding(get:{demo.stageOverrides[cmd] != nil},set:{on in if on{demo.stageOverrides[cmd]="Разрешить"}else{demo.stageOverrides.removeValue(forKey:cmd)};demo.unsaved=true})).labelsHidden().toggleStyle(.switch).controlSize(.mini).frame(width:65).disabled(cmd=="cherry-pick" || cmd.hasPrefix("Жёсткие"));if demo.stageOverrides[cmd] != nil {Picker("",selection:Binding(get:{demo.stageOverrides[cmd] ?? "Наследует"},set:{demo.stageOverrides[cmd]=$0;demo.unsaved=true})){ForEach(["Наследует","Разрешить","Запретить","Разрешить при условии"],id:\.self){Text($0).tag($0)}}.labelsHidden().font(.system(size:10.5)).frame(width:180)}else{Text(cmd=="cherry-pick" ? "Запрет проекта стадия не снимает":"наследует").font(.system(size:10.5)).foregroundStyle(theme.faint).frame(width:180,alignment:.leading)}}else{Text(cmd=="stash" ? "allow":"—").font(.system(size:11,design:.monospaced)).frame(width:65);Text(cmd=="cherry-pick" ? "запрещено проектом":cmd=="rebase" || cmd=="reset" ? "нет в пресете":"разрешено").font(.system(size:11,weight:.semibold)).foregroundStyle(cmd=="cherry-pick" ? theme.secondary:theme.status("done").2).frame(width:180,alignment:.leading)}
+                HStack(spacing:8){Text(cmd).font(.system(size:11,design:.monospaced)).frame(maxWidth:.infinity,alignment:.leading);Text(projectPolicy(cmd)).font(.system(size:10.5)).foregroundStyle(theme.faint).frame(width:130,alignment:.leading)
+                    if stage {Toggle("",isOn:Binding(get:{demo.stageOverrides[cmd] != nil},set:{on in if on{demo.stageOverrides[cmd]="Разрешить"}else{demo.stageOverrides.removeValue(forKey:cmd)};demo.unsaved=true})).labelsHidden().toggleStyle(.switch).controlSize(.mini).frame(width:65).disabled(cmd=="cherry-pick" || cmd.hasPrefix("Жёсткие"));if demo.stageOverrides[cmd] != nil {Picker("",selection:Binding(get:{demo.stageOverrides[cmd] ?? "Наследует"},set:{demo.stageOverrides[cmd]=$0;demo.unsaved=true})){ForEach(["Наследует","Разрешить","Запретить","Разрешить при условии"],id:\.self){Text($0).tag($0)}}.labelsHidden().font(.system(size:10.5)).frame(width:180)}else{Text(cmd=="cherry-pick" ? "Запрет проекта стадия не снимает":"наследует").font(.system(size:10.5)).foregroundStyle(theme.faint).frame(width:180,alignment:.leading)}}else{Text(cmd=="stash" ? "allow":"—").font(.system(size:11,design:.monospaced)).frame(width:65);Text(projectPolicy(cmd)).font(.system(size:11,weight:.semibold)).foregroundStyle(cmd=="cherry-pick" ? theme.secondary:theme.status("done").2).frame(width:180,alignment:.leading)}
                 }.frame(height:stage && cmd=="cherry-pick" ? 36:30).overlay(alignment:.bottom){theme.line.frame(height:0.5)}
             }
         }
     }
-    private var effective: some View {VStack(alignment:.leading,spacing:9){ForEach(["Разрешено","По условию","Запрещено"],id:\.self){s in VStack(alignment:.leading,spacing:4){Text(s).font(.system(size:10.5,weight:.semibold)).foregroundStyle(theme.faint);Text(s=="Разрешено" ? (demo.readonly ? "status  diff  log  show":"status  diff  log  show  add  commit  restore --staged"):s=="По условию" ? "rebase · when: return_reason == merge_conflict":"stash · сужено\ncherry-pick · унаследовано\nНет в пресете (из каталога): reset …\nВсё вне каталога — запрещено").font(.system(size:10.5,design:.monospaced)).foregroundStyle(theme.status(s=="Разрешено" ? "done":s=="По условию" ? "retry":"queued").2)}}}}
+    private func projectPolicy(_ command: String) -> String {
+        if command.hasPrefix("Жёсткие") { return "запрещено всегда" }
+        if command == "cherry-pick" { return "запрещено проектом" }
+        if command == "status · diff · log · show" { return "разрешено" }
+        if command == "stash" { return "разрешено проектом" }
+        if command == "rebase" || command == "reset" { return demo.preset == "Свободный" ? "разрешено" : "нет в пресете" }
+        return demo.preset == "Строгий" ? "нет в пресете" : "разрешено"
+    }
+    private var effective: some View {VStack(alignment:.leading,spacing:9){ForEach(["Разрешено","По условию","Запрещено"],id:\.self){s in VStack(alignment:.leading,spacing:4){Text(s).font(.system(size:10.5,weight:.semibold)).foregroundStyle(theme.faint);Text(s=="Разрешено" ? (demo.readonly || demo.preset == "Строгий" ? "status  diff  log  show":"status  diff  log  show  add  commit  restore --staged"):s=="По условию" ? "rebase · when: return_reason == merge_conflict":"stash · сужено\ncherry-pick · унаследовано\nНет в пресете (из каталога): reset …\nВсё вне каталога — запрещено").font(.system(size:10.5,design:.monospaced)).foregroundStyle(theme.status(s=="Разрешено" ? "done":s=="По условию" ? "retry":"queued").2)}}}}
     private var general: some View {
         HStack(alignment:.top,spacing:10){
             VStack(spacing:10){formBox("Идентичность и вид",rows:[("id","dev"),("Имя","Разработка"),("Иконка и цвет","hammer · синий"),("Порядок","2"),("Свёрнут по умолчанию","нет"),("Скрыт","нет")]);formBox("Пропускная способность",rows:[("WIP-лимит","2"),("Приоритет","возвращённые → отвеченные → по очереди")]);formBox("Исполнитель",rows:[("Харнес","Cursor CLI"),("Модель","gpt-5"),("Скилл (роль)",".kaban/skills/dev.md")])}
@@ -98,17 +127,18 @@ struct ReferenceSettings: View {
     private func formBox(_ title:String,rows:[(String,String)])->some View {
         ReferenceBox(title:title,theme:theme){
             ForEach(Array(rows.enumerated()),id:\.offset){_,row in
-                HStack(spacing:8){Text(row.0).font(.system(size:11.5)).foregroundStyle(theme.secondary).frame(width:112,alignment:.leading);generalControl(row.0,row.1)}
+                HStack(spacing:8){Text(row.0).font(.system(size:11.5)).foregroundStyle(theme.secondary).frame(width:112,alignment:.leading).fixedSize(horizontal:false,vertical:true);generalControl(row.0,row.1)}
             }
             if title=="Идентичность и вид" {hint("Переименование и перестановка задачи не ломают — они ссылаются на id.")}
             if title=="Пропускная способность" {hint("WIP ниже текущего числа задач никого не прерывает: новые просто не стартуют («3/2»).")}
             if title=="Исполнитель" {hint("Смена модели и скилла действует со следующего запуска.")}
             if title=="Окружение и рабочая копия" {hint("Клон git clone --local на задачу; прогрев warm_paths: [.build] и on_create задаются на проект ›")}
+            if title=="Гейты", demo.stageFields["Команда 3"] != nil { HStack { Text("Команда 3").font(.system(size: 11.5)).foregroundStyle(theme.secondary).frame(width: 112, alignment: .leading); generalControl("Команда 3", "") } }
             if title=="Гейты" {HStack(spacing:6){ReferenceButton(title:"Команда",icon:"plus",small:true,theme:theme){demo.stageFields["Команда 3"]="";demo.unsaved=true};ReferenceButton(title:"Предложить по файлам сборки",icon:"sparkles",small:true,theme:theme){demo.stageFields["Команда"]="swift build";demo.stageFields["Команда 2"]="swift test";demo.unsaved=true}}}
             if title=="Переходы" {hint("Возвраты только назад по цепочке; общий потолок на задачу — 5.")}
-            if title=="Надёжность" {Text("⚠ stages[1].timeouts.stall: от 1 до 120 мин").font(.system(size:10.5)).foregroundStyle(theme.status("incident").2)}
+            if title=="Надёжность", !demo.stallValid {Text("⚠ stages[1].timeouts.stall: от 1 до 120 мин").font(.system(size:10.5)).foregroundStyle(theme.status("waiting").2)}
             if title=="Хуки и уведомления" {HStack{ForEach(["waiting_human","review","done"],id:\.self){key in Toggle(key,isOn:Binding(get:{demo.stageFields[key] != "off" && (key != "done" || demo.stageFields[key]=="on")},set:{demo.stageFields[key]=$0 ? "on":"off";demo.unsaved=true})).toggleStyle(.referenceCheckbox).font(.system(size:10.5))}}}
-        }
+        }.id(title)
     }
     @ViewBuilder private func generalControl(_ key:String,_ fallback:String)->some View {
         switch key {
@@ -125,12 +155,12 @@ struct ReferenceSettings: View {
             let options=key=="Модель" ? ["gpt-5","composer-1","opus-4.5"]:key=="При успехе" ? ["→ Lint","→ Test","→ AI Review"]:["повтор стадии","вернуть в Dev","ждать человека"]
             Picker("",selection:field(key,options[0])){ForEach(options,id:\.self){Text($0).tag($0)}}.labelsHidden().controlSize(.small)
         case "Приоритет","Сюда возвращают":
-            HStack(spacing:4){ForEach(key=="Приоритет" ? ["возвращённые","→","отвеченные","→","по очереди"]:["AI Review ≤ 2","конфликт ≤ 2"],id:\.self){part in if part=="→"{Text(part).font(.system(size:10))}else{ReferenceChip(title:part,theme:theme)}}}
+            ReferenceFlow(spacing:4){ForEach(key=="Приоритет" ? ["возвращённые","→","отвеченные","→","по очереди"]:["AI Review ≤ 2","конфликт ≤ 2"],id:\.self){part in if part=="→"{Text(part).font(.system(size:10))}else{ReferenceChip(title:part,theme:theme)}}}
         case "MCP":HStack{ReferenceChip(title:"kaban",theme:theme);ReferenceButton(title:"",icon:"plus",small:true,theme:theme){demo.route="project-mcp"};Spacer()}
         case "Git-политика":Button("Стандартный · 2 переопределения ›"){demo.route="stage-git"}.buttonStyle(.plain).font(.system(size:10.5));Spacer()
         case "Иконка и цвет":HStack(spacing:6){ReferenceChip(title:"⚒ hammer",theme:theme);ReferenceChip(title:"● синий",theme:theme)};Spacer()
         default:
-            TextField(fallback,text:field(key,fallback)).textFieldStyle(.plain).font(.system(size:11.5,design:["Паузы","Переменные","Секреты","Скилл (роль)","На выходе"].contains(key) ? .monospaced:.default)).padding(.horizontal,7).frame(height:22).background(theme.content,in:RoundedRectangle(cornerRadius:6)).overlay(RoundedRectangle(cornerRadius:6).stroke(key=="Таймаут зависания" && demo.stageFields[key]=="0 мин" ? theme.status(kind=="general" ? "incident":"waiting").0:theme.line,lineWidth:0.5))
+            TextField(fallback,text:field(key,fallback)).textFieldStyle(.plain).font(.system(size:11.5,design:["Паузы","Переменные","Секреты","Скилл (роль)","На выходе"].contains(key) ? .monospaced:.default)).padding(.horizontal,7).frame(height:22).background(theme.content,in:RoundedRectangle(cornerRadius:6)).overlay(RoundedRectangle(cornerRadius:6).stroke(key=="Таймаут зависания" && demo.stageFields[key]=="0 мин" ? theme.status("waiting").0:theme.line,lineWidth:0.5))
         }
     }
     private var pipeline: some View {
@@ -139,10 +169,14 @@ struct ReferenceSettings: View {
                 ReferenceBox(title:"⌕ поиск модели     ⟳",theme:theme){Text("CURSOR · ПУЛ Cm").font(.system(size:10,weight:.bold)).foregroundStyle(theme.faint);modelRow("Composer 1","composer-1","Cm");Text("ИМЕННЫЕ · ПУЛ Om").font(.system(size:10,weight:.bold)).foregroundStyle(theme.faint);modelRow("Sonnet 4.5","sonnet-4.5","Om",highlight:true);modelRow("Opus 4.5 · флаг: подменяется","opus-4.5","Om");modelRow("GPT-5","gpt-5","Om");modelRow("Gemini 2.5 Pro","gemini-2.5-pro","Om");modelRow("Grok 4 · проверь пул","grok-4","Om?");hint("Живой список cursor-agent --list-models, сверен 15:02 · 98 моделей. Auto нет: модель стадии всегда явная.")}
             }.frame(maxWidth:.infinity)
             VStack(spacing:10){ReferenceBox(title:"MCP стадии · stages[2].mcp",theme:theme){hint("Выбор только из белого списка проекта. Сервер доски есть всегда.");ForEach(["kaban","sentry","figma","context7"],id:\.self){name in VStack(alignment:.leading,spacing:4){HStack{Toggle(name,isOn:Binding(get:{demo.stageFields["mcp:"+name] != "off" && (name != "context7" || demo.stageFields["mcp:"+name]=="on")},set:{demo.stageFields["mcp:"+name]=$0 ? "on":"off";demo.unsaved=true})).toggleStyle(.referenceCheckbox).disabled(name=="kaban");Spacer();Text(name=="kaban" ? "🔒 всегда":name=="figma" ? "выключен в проекте":name=="context7" ? "личный · включён":"проект · включён").font(.system(size:10)).foregroundStyle(theme.faint)};if name=="figma"{Text("⚠ Не подключится: сервер выключен в белом списке проекта. MCP для запусков →").font(.system(size:10.5)).foregroundStyle(theme.status("waiting").2)}}.font(.system(size:11.5)).padding(.vertical,5).overlay(alignment:.bottom){theme.line.frame(height:0.5)}};hint("Предупреждение не блокирует сохранение.")};ReferenceBox(title:"Права · stages[2].permissions",theme:theme){HStack{Text("Доступ").font(.system(size:11));generalControl("Доступ","Запись")};Button("наследует проект · вкладка «Права и git» ›"){demo.route="stage-git"}.buttonStyle(.plain).font(.system(size:10.5))}}.frame(maxWidth:.infinity)
-            VStack(spacing:10){ReferenceBox(title:"Проверка пайплайна",theme:theme){hint("ОШИБКА блокирует «Сохранить» · ПРЕДУПРЕЖДЕНИЕ не блокирует");validation("У агентской стадии Test нет модели","stages[2].model · model_required","ошибка");validation("AI Review: auto запрещён — нужна явная модель","stages[4].model · model_auto_forbidden","ошибка");validation("Test: MCP «figma» выключен в белом списке и не подключится","stages[2].mcp[1] · mcp_not_allowlisted","предупр.")};ReferenceBox(title:"Модели агентских стадий",theme:theme){Text("Dev           composer-1 · Cm\nTest           ⚠ нет модели · выбирается сейчас\nAI Review   ⚠ auto — запрещено").font(.system(size:11.5)).lineSpacing(7)};ReferenceBox(title:"🔒 «Сохранить» неактивна, пока есть ошибки",theme:theme){hint("Версия с ошибками не попадёт в main; черновик живёт только в этом редакторе. Предупреждения сохранению не мешают.")};yaml("# черновик в редакторе · в main не попадёт\nstages:\n  - id: test\n    kind: agent\n    model:           # model_required\n    mcp: [kaban, sentry, figma]\n  - id: ai-review\n    model: auto      # запрещено")}.frame(width:400)
+            VStack(spacing:10){ReferenceBox(title:"Проверка пайплайна",theme:theme){hint("ОШИБКА блокирует «Сохранить» · ПРЕДУПРЕЖДЕНИЕ не блокирует");if demo.model.isEmpty { validation("У агентской стадии Test нет модели","stages[2].model · model_required","ошибка") };if demo.requestedModel == "auto" { validation("AI Review: auto запрещён — нужна явная модель","stages[4].model · model_auto_forbidden","ошибка") };validation("Test: MCP «figma» выключен в белом списке и не подключится","stages[2].mcp[1] · mcp_not_allowlisted","предупр.")};ReferenceBox(title:"Модели агентских стадий",theme:theme) {
+                    Text("Dev           composer-1 · Cm").font(.system(size:11.5))
+                    Text("Test           \(demo.model.isEmpty ? "⚠ нет модели · выбирается сейчас" : demo.model)").font(.system(size:11.5))
+                    HStack { Text("AI Review").font(.system(size:11.5)); Picker("Модель AI Review", selection: $demo.requestedModel) { ForEach(["auto", "composer-1", "sonnet-4.5", "opus-4.5"],id: \.self) { Text($0).tag($0) } }.labelsHidden().controlSize(.small) }
+                };ReferenceBox(title:"🔒 «Сохранить» неактивна, пока есть ошибки",theme:theme){hint("Версия с ошибками не попадёт в main; черновик живёт только в этом редакторе. Предупреждения сохранению не мешают.")};yaml("# черновик в редакторе · в main не попадёт\nstages:\n  - id: test\n    kind: agent\n    model:           # model_required\n    mcp: [kaban, sentry, figma]\n  - id: ai-review\n    model: auto      # запрещено")}.frame(width:400)
         }
     }
-    private func modelRow(_ name:String,_ id:String,_ pool:String,highlight:Bool=false)->some View{Button{demo.model=id;demo.unsaved=true}label:{HStack{Text(name).font(.system(size:11.5));Spacer();Text(id).font(.system(size:10,design:.monospaced));ReferenceChip(title:pool,theme:theme)}.padding(.horizontal,6).frame(height:26).foregroundStyle(highlight ? .white:theme.text).background(highlight ? theme.accent:.clear,in:RoundedRectangle(cornerRadius:3))}.buttonStyle(.plain)}
+    private func modelRow(_ name:String,_ id:String,_ pool:String,highlight:Bool=false)->some View{Button{demo.model=id;demo.unsaved=true}label:{HStack{Text(name).font(.system(size:11.5));Spacer();Text(id).font(.system(size:10,design:.monospaced));ReferenceChip(title:pool,theme:theme)}.padding(.horizontal,6).frame(height:26).foregroundStyle((highlight && demo.model.isEmpty) || demo.model == id ? .white:theme.text).background((highlight && demo.model.isEmpty) || demo.model == id ? theme.accent:.clear,in:RoundedRectangle(cornerRadius:3))}.buttonStyle(.plain)}
     private func validation(_ title:String,_ path:String,_ severity:String)->some View{HStack(alignment:.top,spacing:6){Image(systemName:"exclamationmark.triangle");VStack(alignment:.leading,spacing:3){Text(title).font(.system(size:11.5,weight:.semibold));Text(path).font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)};Spacer();Text(severity).font(.system(size:9.5))}.foregroundStyle(theme.status("waiting").2).padding(.vertical,8).overlay(alignment:.bottom){theme.line.frame(height:0.5)}}
     private var mcp: some View {
         HStack(alignment:.top,spacing:12){VStack(spacing:10){
@@ -159,9 +193,9 @@ struct ReferenceSettings: View {
         HStack(alignment:.top,spacing:12){VStack(spacing:10){ReferenceBox(title:"Квота Cursor · неофициально",theme:theme){Toggle("Получать квоту Cursor (неофициальный API)",isOn:$demo.quotaConsent).toggleStyle(.referenceCheckbox).font(.system(size:12));Text("Источник токена: Cursor на этом Маке · только чтение").font(.system(size:11)).foregroundStyle(theme.faint);Picker("Интервал",selection:$demo.quotaInterval){ForEach(["1 мин","5 мин","15 мин","30 мин","Свой"],id:\.self){Text($0).tag($0)}}.pickerStyle(.segmented);HStack{Text("Порог Cm");Slider(value:$demo.quotaThresholdCm,in:0...100,step:1);Text("\(Int(demo.quotaThresholdCm))%").frame(width:36)};HStack{Text("Порог Om");Slider(value:$demo.quotaThresholdOm,in:0...100,step:1);Text("\(Int(demo.quotaThresholdOm))%").frame(width:36)};ReferenceQuotaBars(theme:theme);Text("Квота неизвестна → новые запуски не стартуют; это не 0%.").font(.system(size:11)).foregroundStyle(theme.faint)};ReferenceBox(title:"Справочник «модель → пул» · 98 моделей",theme:theme){Text("Сначала правила: composer-* → Cm; ручные исключения; остальное → Om").font(.system(size:11)).foregroundStyle(theme.secondary);TextField("Поиск моделей / проверь пул",text:$demo.search).textFieldStyle(.roundedBorder);ForEach(["Composer · composer-1 · Cm","Anthropic · sonnet-4.5 · Om","Anthropic · opus-4.5 · Om","OpenAI · gpt-5 · Om","xAI · grok-code-fast-1 · проверь пул"].filter{demo.search.isEmpty || $0.localizedCaseInsensitiveContains(demo.search)},id:\.self){Text($0).font(.system(size:11.5)).padding(.vertical,5)}}}.frame(maxWidth:.infinity)
             VStack(spacing:10){ReferenceBox(title:"Kaban · менюбар",theme:theme){HStack{Image(systemName:"circle.grid.cross");Text("▰▰  Cm / Om")}.font(.system(size:12));ReferenceQuotaBars(theme:theme);Divider();Text("Работают 2 / 4 агента\nЖдут человека 4\nИнциденты 0").font(.system(size:12));ReferenceButton(title:"Открыть доску",theme:theme){demo.route="board"};ReferenceButton(title:"Настройки квоты",theme:theme){demo.route="mac-quota"};ReferenceButton(title:"Пауза",theme:theme){demo.action("Пауза Мака")}};ReferenceBox(title:"Нет данных",theme:theme){ReferenceQuotaBars(theme:theme,unknown:true)}}.frame(width:380)}
     }
-    private var identity:some View {ReferenceBox(title:"Имя и почта                 ProjectSummary.identity",theme:theme){TextField("Имя",text:$demo.identityName).textFieldStyle(.roundedBorder);TextField("Почта",text:$demo.identityEmail).textFieldStyle(.roundedBorder);Text("Автор хранится на этом Маке, не в .kaban/. Демо сохраняет только в память текущего запуска.").font(.system(size:11)).foregroundStyle(theme.faint);ReferenceButton(title:"Изменить…",theme:theme){demo.identities["shop-api"]=(demo.identityName,demo.identityEmail);demo.notice="Демо: автор изменён в памяти"}}}
+    private var identity:some View {ReferenceBox(title:"Имя и почта                 ProjectSummary.identity",theme:theme){TextField("Имя",text:$demo.identityName).textFieldStyle(.roundedBorder);TextField("Почта",text:$demo.identityEmail).textFieldStyle(.roundedBorder);Text("Автор хранится на этом Маке, не в .kaban/. Демо сохраняет только в память текущего запуска.").font(.system(size:11)).foregroundStyle(theme.faint);ReferenceButton(title:"Изменить…",theme:theme){if demo.validateIdentity(submitted:true) {demo.identities[demo.selectedProject]=(demo.identityName,demo.identityEmail);demo.notice="Автор коммитов сохранён"}}}}
     private func yaml(_ s:String)->some View{Text(s).font(.system(size:10.5,design:.monospaced)).lineSpacing(3).foregroundStyle(Color(hex:0xd6d9e0)).padding(10).frame(maxWidth:.infinity,alignment:.leading).background(Color(hex:0x1d1f24),in:RoundedRectangle(cornerRadius:9)).textSelection(.enabled)}
-    private func save(){demo.applySettings();if kind=="pipeline-invalid"{demo.flagsCleared.insert("pipeline")};demo.notice="Демо: настройки сохранены в памяти текущего запуска"}
+    private func save(){guard !invalid else { return }; demo.applySettings();if kind=="pipeline-invalid"{demo.flagsCleared.insert("pipeline")};demo.notice="Демо: настройки сохранены в памяти текущего запуска"}
 }
 
 struct ReferenceHardRules: View {

@@ -50,7 +50,7 @@ struct ReferenceButton: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 if let icon { Image(systemName: icon).font(.system(size: small ? 10 : 11)) }
-                Text(title).font(.system(size: small ? 11 : 12, weight: .medium))
+                Text(title).font(.system(size: small ? 11 : 12, weight: .medium)).fixedSize()
             }.padding(.horizontal, small ? 8 : 10).frame(height: small ? 20 : 24)
                 .foregroundStyle(primary ? .white : theme.text)
                 .background(primary ? theme.accent : theme.card, in: RoundedRectangle(cornerRadius: small ? 6 : 7))
@@ -65,7 +65,7 @@ struct ReferenceChip: View {
     var tone: String? = nil
     var mono = false
     var body: some View {
-        Text(title).font(.system(size: 10.5, weight: .medium, design: mono ? .monospaced : .default))
+        Text(title).font(.system(size: 10.5, weight: .medium, design: mono ? .monospaced : .default)).fixedSize()
             .padding(.horizontal, 6).padding(.vertical, 2)
             .foregroundStyle(tone.map { theme.status($0).2 } ?? theme.secondary)
             .background(tone.map { theme.status($0).1 } ?? theme.control, in: RoundedRectangle(cornerRadius: 5))
@@ -95,7 +95,7 @@ struct ReferenceBox<Content: View>: View {
     private static var headerInfo:[String:(String,String)]{["Идентичность и вид":("tag","id, display"),"Пропускная способность":("gauge.with.dots.needle.50percent","wip, priority"),"Исполнитель":("cpu","agent"),"Права":("shield","permissions, mcp, git"),"Окружение и рабочая копия":("shippingbox","env, workspace"),"Вход":("rectangle.portrait.and.arrow.right","inputs"),"Гейты":("checklist","gates"),"Переходы":("arrow.triangle.branch","on_success, returns_to"),"Надёжность":("timer","retry, timeouts"),"Хуки и уведомления":("powerplug","hooks, notify")]}
     var body: some View {
         VStack(alignment: .leading,spacing: 8) {
-            HStack(spacing:6){if let item=Self.headerInfo[title]{Image(systemName:item.0).font(.system(size:13));Text(title).font(.system(size:12.5,weight:.semibold));Spacer();Text(item.1).font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)}else{Text(title).font(.system(size:12.5,weight:.semibold))}}
+            HStack(spacing:6){if let item=Self.headerInfo[title]{Image(systemName:item.0).font(.system(size:13)).foregroundStyle(theme.accent);Text(title).font(.system(size:12.5,weight:.semibold));Spacer();Text(item.1).font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)}else{Text(title).font(.system(size:12.5,weight:.semibold))}}
             content()
         }.padding(12).frame(maxWidth: .infinity,alignment: .leading)
             .background(theme.card,in: RoundedRectangle(cornerRadius: 12))
@@ -275,3 +275,48 @@ struct ReferenceCheckboxStyle:ToggleStyle {
     }
 }
 extension ToggleStyle where Self==ReferenceCheckboxStyle {static var referenceCheckbox:Self{.init()}}
+
+struct ReferenceTrafficLights: View {
+    @State private var hovered = false
+    private let labels = ["Закрыть окно", "Свернуть окно", "Развернуть окно"]
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3) { index in
+                Button {
+                    let window = NSApplication.shared.keyWindow
+                    switch index {
+                    case 0: window?.performClose(nil)
+                    case 1: window?.miniaturize(nil)
+                    default: window?.toggleFullScreen(nil)
+                    }
+                } label: {
+                    Circle().fill(Color(hex: [0xff5f57, 0xfebc2e, 0x28c840][index]))
+                        .overlay { if hovered { Image(systemName: ["xmark", "minus", "plus"][index]).font(.system(size: 7, weight: .bold)).foregroundStyle(.black.opacity(0.6)) } }
+                        .frame(width: 12, height: 12)
+                }.buttonStyle(.plain).accessibilityLabel(labels[index])
+            }
+        }.onHover { hovered = $0 }
+    }
+}
+
+/// Native wrapping layout for metadata chips and small controls.
+struct ReferenceFlow: Layout {
+    var spacing: CGFloat = 6
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        positions(width: proposal.width ?? 600, subviews: subviews).size
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let layout = positions(width: bounds.width, subviews: subviews)
+        for (index, view) in subviews.enumerated() { view.place(at: CGPoint(x: bounds.minX + layout.points[index].x, y: bounds.minY + layout.points[index].y), anchor: .topLeading, proposal: .unspecified) }
+    }
+    private func positions(width: CGFloat, subviews: Subviews) -> (size: CGSize, points: [CGPoint]) {
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        var points: [CGPoint] = []
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
+            points.append(CGPoint(x: x, y: y)); x += size.width + spacing; rowHeight = max(rowHeight, size.height)
+        }
+        return (CGSize(width: width, height: y + rowHeight), points)
+    }
+}

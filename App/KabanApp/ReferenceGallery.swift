@@ -3,40 +3,39 @@ import KabanBoardCore
 
 struct ReferenceFrame: Identifiable, Codable {
     let id: String
-    let source: String
     let width: Double
     let height: Double
     let dark: Bool
     let route: String
     static let all: [ReferenceFrame] = [
-        .init(id:"base/01-board",source:"board.html",width:1440,height:900,dark:false,route:"board-base"),
-        .init(id:"base/01-board-dark",source:"board-dark.html",width:1440,height:900,dark:true,route:"board-base"),
-        .init(id:"base/02-cards",source:"cards.html",width:1440,height:2070,dark:false,route:"cards-base"),
-        .init(id:"base/03-task-details",source:"task-details.html",width:1440,height:900,dark:false,route:"incident"),
-        .init(id:"base/03b-human-review",source:"human-review.html",width:1440,height:900,dark:false,route:"review"),
-        .init(id:"base/04-column-settings-git",source:"column-settings-git.html",width:1440,height:900,dark:false,route:"stage-git-base"),
-        .init(id:"base/05-column-settings-general",source:"column-settings-general.html",width:1440,height:900,dark:false,route:"general"),
-        .init(id:"v0.2/01-board-limits-flags",source:"v0.2/board.html",width:1440,height:900,dark:false,route:"board-v02"),
-        .init(id:"v0.2/01-board-limits-flags-dark",source:"v0.2/board-dark.html",width:1440,height:900,dark:true,route:"board-v02"),
-        .init(id:"v0.2/02-cards-states",source:"v0.2/cards.html",width:1440,height:1060,dark:false,route:"cards-v02"),
-        .init(id:"v0.2/03-details-model-substituted",source:"v0.2/details-substituted.html",width:1440,height:900,dark:false,route:"substituted"),
-        .init(id:"v0.2/03-details-model-substituted-dark",source:"v0.2/details-substituted-dark.html",width:1440,height:900,dark:true,route:"substituted"),
-        .init(id:"v0.2/03b-details-run-limit",source:"v0.2/details-run-limit.html",width:1440,height:900,dark:false,route:"run-limit"),
-        .init(id:"v0.2/04-pipeline-invalid",source:"v0.2/pipeline-invalid.html",width:1440,height:900,dark:false,route:"pipeline-invalid"),
-        .init(id:"v0.2/05-project-mcp",source:"v0.2/project-mcp.html",width:1440,height:900,dark:false,route:"project-mcp"),
-        .init(id:"v0.2/06-mac-quota-menubar",source:"v0.2/mac-quota.html",width:1440,height:900,dark:false,route:"mac-quota"),
-        .init(id:"v0.2.1/01-cards-suspicious",source:"v0.2.1/cards.html",width:1440,height:900,dark:false,route:"cards-suspicious"),
-        .init(id:"v0.2.1/01c-cards-bounce-limits",source:"v0.2.1/cards-bounce-limits.html",width:1440,height:720,dark:false,route:"cards-bounce"),
-        .init(id:"v0.2.1/02-details-suspicious",source:"v0.2.1/details-suspicious.html",width:1440,height:900,dark:false,route:"suspicious"),
-        .init(id:"v0.2.1/02-details-suspicious-dark",source:"v0.2.1/details-suspicious-dark.html",width:1440,height:900,dark:true,route:"suspicious"),
-        .init(id:"v0.2.1/02b-details-suspicious-stale",source:"v0.2.1/details-suspicious-stale.html",width:1440,height:900,dark:false,route:"stale"),
-        .init(id:"v0.2.1/03-project-git-presets",source:"v0.2.1/project-git.html",width:1440,height:900,dark:false,route:"project-git"),
-        .init(id:"v0.2.1/04-stage-git-overrides",source:"v0.2.1/stage-git.html",width:1440,height:900,dark:false,route:"stage-git"),
-        .init(id:"v0.2.1/05-return-sheet-gate",source:"v0.2.1/return-sheet-gate.html",width:1440,height:900,dark:false,route:"return-gate"),
-        .init(id:"v0.2.1/05-return-sheet-gate-dark",source:"v0.2.1/return-sheet-gate-dark.html",width:1440,height:900,dark:true,route:"return-gate"),
-        .init(id:"v0.2.1/05b-return-sheet-merge",source:"v0.2.1/return-sheet-merge.html",width:1440,height:900,dark:false,route:"return-merge"),
-        .init(id:"v0.2.1/06-add-project-identity",source:"v0.2.1/add-project-identity.html",width:1440,height:900,dark:false,route:"add-project"),
-        .init(id:"v0.2.1/06-add-project-identity-dark",source:"v0.2.1/add-project-identity-dark.html",width:1440,height:900,dark:true,route:"add-project")
+        .init(id:"base/01-board",width:1440,height:900,dark:false,route:"board-base"),
+        .init(id:"base/01-board-dark",width:1440,height:900,dark:true,route:"board-base"),
+        .init(id:"base/02-cards",width:1440,height:2070,dark:false,route:"cards-base"),
+        .init(id:"base/03-task-details",width:1440,height:900,dark:false,route:"incident"),
+        .init(id:"base/03b-human-review",width:1440,height:900,dark:false,route:"review"),
+        .init(id:"base/04-column-settings-git",width:1440,height:900,dark:false,route:"stage-git-base"),
+        .init(id:"base/05-column-settings-general",width:1440,height:900,dark:false,route:"general"),
+        .init(id:"v0.2/01-board-limits-flags",width:1440,height:900,dark:false,route:"board-v02"),
+        .init(id:"v0.2/01-board-limits-flags-dark",width:1440,height:900,dark:true,route:"board-v02"),
+        .init(id:"v0.2/02-cards-states",width:1440,height:1060,dark:false,route:"cards-v02"),
+        .init(id:"v0.2/03-details-model-substituted",width:1440,height:900,dark:false,route:"substituted"),
+        .init(id:"v0.2/03-details-model-substituted-dark",width:1440,height:900,dark:true,route:"substituted"),
+        .init(id:"v0.2/03b-details-run-limit",width:1440,height:900,dark:false,route:"run-limit"),
+        .init(id:"v0.2/04-pipeline-invalid",width:1440,height:900,dark:false,route:"pipeline-invalid"),
+        .init(id:"v0.2/05-project-mcp",width:1440,height:900,dark:false,route:"project-mcp"),
+        .init(id:"v0.2/06-mac-quota-menubar",width:1440,height:900,dark:false,route:"mac-quota"),
+        .init(id:"v0.2.1/01-cards-suspicious",width:1440,height:900,dark:false,route:"cards-suspicious"),
+        .init(id:"v0.2.1/01c-cards-bounce-limits",width:1440,height:720,dark:false,route:"cards-bounce"),
+        .init(id:"v0.2.1/02-details-suspicious",width:1440,height:900,dark:false,route:"suspicious"),
+        .init(id:"v0.2.1/02-details-suspicious-dark",width:1440,height:900,dark:true,route:"suspicious"),
+        .init(id:"v0.2.1/02b-details-suspicious-stale",width:1440,height:900,dark:false,route:"stale"),
+        .init(id:"v0.2.1/03-project-git-presets",width:1440,height:900,dark:false,route:"project-git"),
+        .init(id:"v0.2.1/04-stage-git-overrides",width:1440,height:900,dark:false,route:"stage-git"),
+        .init(id:"v0.2.1/05-return-sheet-gate",width:1440,height:900,dark:false,route:"return-gate"),
+        .init(id:"v0.2.1/05-return-sheet-gate-dark",width:1440,height:900,dark:true,route:"return-gate"),
+        .init(id:"v0.2.1/05b-return-sheet-merge",width:1440,height:900,dark:false,route:"return-merge"),
+        .init(id:"v0.2.1/06-add-project-identity",width:1440,height:900,dark:false,route:"add-project"),
+        .init(id:"v0.2.1/06-add-project-identity-dark",width:1440,height:900,dark:true,route:"add-project")
     ]
 }
 
@@ -47,8 +46,9 @@ struct ReferenceFrameView: View {
     var body:some View {
         Group {
             switch frame.route {
-            case "board-base","board-v02":ReferenceBoard(demo:demo,theme:theme,latest:false)
-            case "incident","review","substituted","run-limit","suspicious","stale":ReferenceBoard(demo:demo,theme:theme,overlay:frame.route)
+            case "board": ReferenceBoard(demo:demo,theme:theme)
+            case "board-base","board-v02":ReferenceBoard(demo:demo,theme:theme,version:frame.route == "board-base" ? "base" : "v02")
+            case "incident","review","substituted","run-limit","suspicious","stale":ReferenceBoard(demo:demo,theme:theme,overlay:frame.route,version:["incident","review"].contains(frame.route) ? "base" : ["substituted","run-limit"].contains(frame.route) ? "v02" : "latest")
             case "return-gate","return-merge":returnPage
             case "add-project":addProjectPage
             case "cards-base","cards-v02":ReferenceHistoricalCards(demo:demo,theme:theme,version2:frame.route=="cards-v02")
@@ -63,12 +63,68 @@ struct ReferenceFrameView: View {
             HStack(alignment:.top,spacing:22){ForEach([false,true],id:\.self){filled in VStack(alignment:.leading,spacing:7){HStack{ReferenceChip(title:filled ? "б":"а",theme:theme);Text(filled ? "Вписано замечание → «Вернуть с замечанием»":"Поле пустое → «Принять файлы и вернуть»").font(.system(size:12.5,weight:.bold))};ZStack(alignment:.top){ReferenceDetails(demo:demo,theme:theme,kind:merge ? "merge":"gate");theme.text.opacity(theme.dark ? 0.38:0.11);ReferenceReturnFixture(theme:theme,merge:merge,filled:filled).padding(.horizontal,20).padding(.top,122)}.frame(maxWidth:.infinity,maxHeight:.infinity).clipShape(RoundedRectangle(cornerRadius:18));Text(filled ? "Замечание вписано. requestChanges(taskId, comments, target: dev). Набор не принят: после гейтов Dev проверка пройдёт заново. Возврат ручной, счётчики не растут.":"Пустое поле. moveTask(stage: dev): пары «путь + blob» пишутся в task_accepted_file, идёт suspiciousFilesAccepted. Попытка не списывается. «Подставить…» переключит кнопку.").font(.system(size:10.5)).foregroundStyle(theme.secondary)}}}.frame(maxHeight:.infinity)
         }.padding(.horizontal,32).padding(.top,22).padding(.bottom,18).background(theme.content)
     }
-    private var addProjectPage:some View {
-        VStack(alignment:.leading,spacing:11){Text("Kaban v0.2.1 · «Добавить проект» · автор коммитов").font(.system(size:21,weight:.bold));Text("Все коммиты демона и агента подписаны автором проекта GitIdentity { name, email } через -c user.name/email. addProject(path, createTemplate, identity?): нет автора или имя / почта пустые → identity_required, проект не создаётся; детали — CommandError.params. Ошибки оранжевые.").font(.system(size:11.5)).foregroundStyle(theme.secondary)
-            HStack(alignment:.top,spacing:18){ForEach(0...2,id:\.self){mode in VStack(alignment:.leading,spacing:7){HStack{ReferenceChip(title:["а","б","в"][mode],theme:theme);Text(["Обычный путь · автор из git","Ответ identity_required","Повтор с пустой почтой"][mode]).font(.system(size:12.5,weight:.bold))};ZStack(alignment:.top){miniWindow;theme.text.opacity(theme.dark ? 0.42:0.16);ReferenceAddProjectFixture(theme:theme,mode:mode).padding(.horizontal,16).padding(.top,30)}.frame(height:466).clipShape(RoundedRectangle(cornerRadius:18));Text(["Без identity. Демон читает git config. Есть имя и почта — проект добавлен, автор сохранён.","Первый отказ: missing=email, name=Артём Палкин. Имя подставлено, фокус в первом отсутствующем поле, без подсветки.","Отказ вызову с identity: поле из missing / invalid с обводкой, здесь «Укажите почту»."][mode]).font(.system(size:10.5)).foregroundStyle(theme.secondary)}}}
-            HStack(alignment:.top,spacing:18){VStack(alignment:.leading,spacing:6){Text("Настройки проекта · «Автор коммитов»").font(.system(size:12.5,weight:.bold));ReferenceBox(title:"Автор коммитов · shop-api",theme:theme){Text("Имя      Артём Палкин\nПочта    artem@example.com").font(.system(size:12));ReferenceButton(title:"Изменить…",small:true,theme:theme){demo.route="identity-settings"};Text("setProjectIdentity · с новых коммитов").font(.system(size:10,design:.monospaced)).foregroundStyle(theme.faint)}}.frame(width:640);VStack(alignment:.leading,spacing:6){Text("г  Первый отказ, invalid: name").font(.system(size:12.5,weight:.bold));ReferenceAddProjectFixture(theme:theme,mode:3,inset:true)};VStack(alignment:.leading,spacing:6){Text("Старый демон").font(.system(size:12,weight:.semibold));ReferenceBox(title:"Старый демон        nil",theme:theme){Text("Имя     —\nПочта   —").font(.system(size:12));ReferenceButton(title:"Изменить…",small:true,theme:theme){demo.route="identity-settings"}}}.frame(width:236)}
+    private var addProjectPage: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Text("Kaban v0.2.1 · «Добавить проект» · автор коммитов").font(.system(size:21,weight:.bold))
+            Text("Все коммиты демона и агента подписаны автором проекта GitIdentity { name, email } через -c user.name=… -c user.email=…; глобальный конфиг в работе демона не участвует (арх. v0.11.21 §5, §8.2, спека v0.8.23 UC-01). addProject(path, createTemplate, identity?): нет автора или имя / почта пустые (одни пробелы — тоже) → identity_required, проект не создаётся; детали — CommandError.params: missing, invalid (name | email | name,email), найденные name / email. Каждое поле — ровно в одном виде; отклонённое значение не возвращается. Ошибки оранжевые.")
+                .font(.system(size:11.5)).foregroundStyle(theme.secondary).fixedSize(horizontal:false,vertical:true)
+            HStack(alignment: .top, spacing: 18) {
+                ForEach(0...2, id: \.self) { mode in
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack { ReferenceChip(title:["а","б","в"][mode],theme:theme); Text(["Обычный путь · автор из git","Ответ identity_required","Повтор с пустой почтой"][mode]).font(.system(size:12.5,weight:.bold)) }
+                        ZStack(alignment: .top) {
+                            miniWindow
+                            theme.text.opacity(theme.dark ? 0.42:0.16)
+                            ReferenceAddProjectFixture(theme:theme,mode:mode).padding(.horizontal,16).padding(.top,30)
+                        }.frame(height:466).clipShape(RoundedRectangle(cornerRadius:18))
+                        Text(["Без identity. Демон читает git -C <repo> config (репозиторий, глобальный, системный). Есть имя и почта — проект добавлен, автор сохранён у демона.","Первый отказ без identity: missing=email, name=Артём Палкин. Имя подставлено («из настроек git»), уточнение «нашлось только имя», фокус в первом поле из missing / invalid, без подсветки.","Отказ вызову с identity: поля из missing / invalid с обводкой, здесь «Укажите почту». Без ключей — только общий текст."][mode])
+                            .font(.system(size:10.5)).foregroundStyle(theme.secondary).fixedSize(horizontal:false,vertical:true)
+                    }.frame(maxWidth:.infinity,alignment:.leading)
+                }
+            }
+            HStack(alignment:.top,spacing:18) {
+                VStack(alignment:.leading,spacing:6) {
+                    Text("Настройки проекта · «Автор коммитов»").font(.system(size:12.5,weight:.bold))
+                    authorSettingsPreview
+                }.frame(width:640)
+                VStack(alignment:.leading,spacing:6) {
+                    Text("г  Первый отказ, invalid: name").font(.system(size:12.5,weight:.bold))
+                    ReferenceAddProjectFixture(theme:theme,mode:3,inset:true).padding(.horizontal,12)
+                        .frame(height:198,alignment:.top).background(theme.lane,in:RoundedRectangle(cornerRadius:18)).clipShape(RoundedRectangle(cornerRadius:18))
+                }.frame(maxWidth:.infinity)
+                VStack(alignment:.leading,spacing:6) {
+                    Text("Старый демон").font(.system(size:12,weight:.semibold))
+                    ReferenceBox(title:"Старый демон        nil",theme:theme) {
+                        Text("Имя     —\nПочта   —").font(.system(size:12))
+                        ReferenceButton(title:"Изменить…",small:true,theme:theme) { demo.route="identity-settings" }
+                    }
+                    Text("ProjectSummary.identity = nil → «—»; «Изменить…» доступна, те же проверки и тексты, что в листе.").font(.system(size:10.5)).foregroundStyle(theme.secondary).fixedSize(horizontal:false,vertical:true)
+                }.frame(width:236)
+            }
             Spacer(minLength:0)
         }.padding(.horizontal,32).padding(.top,20).padding(.bottom,16).background(theme.content)
+    }
+    private var authorSettingsPreview: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack { ReferenceMascot(emoji: "🦊", theme: theme, state: "waiting", size: 22); VStack(alignment: .leading) { Text("shop-api").font(.system(size: 12, weight: .semibold)); Text("~/dev/shop-api · main").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(theme.faint) } }
+                Text("Стадии · Проект · .kaban/ …").font(.system(size: 10.5)).foregroundStyle(theme.faint)
+                Text("Проект · на этом Маке").font(.system(size: 10.5)).foregroundStyle(theme.faint)
+                Label("MCP для запусков", systemImage: "powerplug")
+                Label("Вес и личный максимум", systemImage: "cpu")
+                Label("Маскот", systemImage: "sparkles")
+                Label("Автор коммитов", systemImage: "person").frame(maxWidth: .infinity, alignment: .leading).padding(5).foregroundStyle(.white).background(theme.accent,in:RoundedRectangle(cornerRadius:6))
+            }.font(.system(size: 11)).padding(8).frame(width: 214).background(theme.lane)
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Автор коммитов").font(.system(size: 14, weight: .bold))
+                Text("shop-api · хранится у демона на этом Маке, не в .kaban/").font(.system(size: 10.5)).foregroundStyle(theme.faint)
+                ReferenceBox(title: "Имя и почта", theme: theme) {
+                    HStack { Text("Имя").frame(width:70,alignment:.leading).foregroundStyle(theme.secondary); Text("Артём Палкин") }
+                    HStack { Text("Почта").frame(width:70,alignment:.leading).foregroundStyle(theme.secondary); Text("artem@example.com").font(.system(size:11,design:.monospaced)) }
+                    HStack { ReferenceButton(title:"Изменить…",small:true,theme:theme) { demo.route="identity-settings" }; Text("→ setProjectIdentity").font(.system(size:9.5,design:.monospaced)).foregroundStyle(theme.faint); Spacer(); ReferenceChip(title:"✓ с новых коммитов",theme:theme,tone:"done") }
+                }.font(.system(size:12))
+            }.padding(.horizontal,14).frame(maxWidth:.infinity)
+        }.frame(height:198).background(theme.content,in:RoundedRectangle(cornerRadius:18)).clipShape(RoundedRectangle(cornerRadius:18)).overlay(RoundedRectangle(cornerRadius:18).stroke(theme.line,lineWidth:0.5))
     }
     private var miniWindow:some View{VStack(spacing:0){HStack{Text("● ● ●").foregroundStyle(theme.faint);Text("Kaban").font(.system(size:11.5,weight:.semibold));Spacer()}.padding(.horizontal,12).frame(height:30);HStack(alignment:.top,spacing:0){VStack(alignment:.leading,spacing:10){Text("Проекты").font(.system(size:10));Text("🐗 kaban\n🐙 mobile-app\n🦉 docs-site").font(.system(size:11)).lineSpacing(8);Spacer()}.padding(8).frame(width:118).background(theme.lane);VStack(spacing:10){ForEach(0..<2,id:\.self){_ in HStack(alignment:.top,spacing:8){ForEach([3,2,1,2],id:\.self){n in VStack(spacing:5){theme.line.frame(height:7);ForEach(0..<n,id:\.self){_ in RoundedRectangle(cornerRadius:8).fill(theme.card).frame(height:34)}}}}.padding(8).background(theme.lane,in:RoundedRectangle(cornerRadius:12))};Spacer()}.padding(12)}}.background(theme.content)}
 }

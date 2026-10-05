@@ -12,7 +12,7 @@ struct ReferenceDetails: View {
     private var stage:String {runtimeTask?.stage ?? (kind=="review" ? "Human Review" : kind=="substituted" ? "AI Review" : kind=="gate" ? "Checks" : kind=="merge" ? "Merge" : "Dev")}
     private var runLabel:String {kind=="incident" ? "попытка 2 из 3" : kind=="substituted" ? "запуск 7" : kind=="run-limit" ? "запуски 12/12" : "запуск 4"}
     private var modelLabel:String {kind=="incident" ? "gpt-5" : kind=="substituted" ? "opus-4.5  Om" : "composer-1  Cm"}
-    private var branch:String {kind=="incident" ? "kaban/17-git-shim-flags" : kind=="substituted" ? "kaban/shop-35-redis-cache" : kind=="run-limit" ? "kaban/shop-47-price-import" : kind=="gate" ? "kaban/shop-55-orders-csv" : kind=="merge" ? "kaban/shop-29-sku-index" : "kaban/shop-52-payment-gateway"}
+    private var branch:String { if let runtimeTask, kind == "generic" { return "kaban/" + runtimeTask.id.lowercased() }; return kind=="incident" ? "kaban/17-git-shim-flags" : kind=="substituted" ? "kaban/shop-35-redis-cache" : kind=="run-limit" ? "kaban/shop-47-price-import" : kind=="gate" ? "kaban/shop-55-orders-csv" : kind=="merge" ? "kaban/shop-29-sku-index" : "kaban/shop-52-payment-gateway"}
     private var pathStages:[String] {kind=="incident" ? ["Backlog","Dev","Lint","AI Review","Human Review","Merge","Done"] : kind=="gate" ? ["Backlog","Dev","Test","Checks","AI Review","Human Review","Merge","Done"] : ReferenceDemo.stages}
     private var tone: String {runtimeTask?.status ?? (kind=="incident" ? "incident" : kind=="review" ? "review" : "waiting")}
     var body: some View {
@@ -20,7 +20,7 @@ struct ReferenceDetails: View {
             header
             ScrollView {
                 VStack(alignment:.leading,spacing:10) {
-                    if runtimeTask != nil && !["suspicious","waiting","incident","review"].contains(runtimeTask!.status) {genericTaskBlock}
+                    if kind == "generic" || (runtimeTask != nil && !["suspicious","waiting","incident","review"].contains(runtimeTask!.status)) {genericTaskBlock}
                     else if isSuspicious { suspiciousBlock }
                     else if kind=="incident" { incidentBlock }
                     else if kind=="review" { reviewBlock }
@@ -37,34 +37,43 @@ struct ReferenceDetails: View {
                 VStack(spacing:0) {
                     if demo.logTab=="Лента" { feed }
                     else if demo.logTab=="Живой лог" {Text("14:52 system: stage completed\n14:52 git diff --numstat\n14:52 suspicious files found\n14:53 waiting for human").font(.system(size:11,design:.monospaced)).foregroundStyle(theme.secondary).frame(maxWidth:.infinity,alignment:.leading).padding(12)}
-                    else if demo.logTab=="Сводка" {Text("Добавлена интеграция платёжного шлюза. Гейты пройдены: npm test ✓ (318), eslint ✓. Изменения: +412 −36. Требуется решение человека.").font(.system(size:12)).frame(maxWidth:.infinity,alignment:.leading).padding(12)}
+                    else if demo.logTab=="Сводка" {Text(kind == "generic" ? "\(taskID) · \(title)\nСтадия: \(stage) · \(runtimeTask?.label ?? "В очереди")\n\(demo.taskBodies[taskID] ?? "Описание пока пустое")" : "Добавлена интеграция платёжного шлюза. Гейты пройдены: npm test ✓ (318), eslint ✓. Изменения: +412 −36. Требуется решение человека.").font(.system(size:12)).frame(maxWidth:.infinity,alignment:.leading).padding(12)}
                     else {ForEach(1...4,id:\.self){run in event("Запуск Dev · \(run)",detail:"composer-1 · \(run==4 ? "остановлен для человека" : "завершён")",time:"14:22",symbol:"play",tone:nil)}}
                 }.padding(.horizontal,16).padding(.top,4)
             }.scrollIndicators(.hidden)
+            if !["gate", "merge"].contains(kind) {
             HStack(spacing:8) {
                 Label("Замечание агенту",systemImage:"message").font(.system(size:12,weight:.semibold)).foregroundStyle(theme.text)
                 TextField(isSuspicious ? "«Попросить убрать» подставит: «Убери из ветки…»" : "Напишите замечание агенту…",text:$demo.returnNote).textFieldStyle(.plain).font(.system(size:12))
-                ReferenceButton(title:"Отправить и продолжить",primary:true,small:true,theme:theme){demo.action("Отправить замечание",taskID:taskID)}
+                ReferenceButton(title:"Отправить и продолжить",primary:true,small:true,theme:theme){demo.action("Отправить замечание",taskID:taskID)}.disabled(demo.returnNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }.padding(.horizontal,10).frame(height:38).background(theme.card,in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(theme.line,lineWidth:0.5)).padding(12)
-        }.foregroundStyle(theme.text).background(theme.dark ? Color(hex:0x24242a).opacity(0.94) : Color(hex:0xfcfcfe).opacity(0.96),in:RoundedRectangle(cornerRadius:18))
+            }
+        }.foregroundStyle(theme.text).background(theme.dark ? Color(hex:0x24242a).opacity(0.72) : Color(hex:0xfafafc).opacity(0.74),in:RoundedRectangle(cornerRadius:18))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius:18).stroke(theme.line,lineWidth:0.5)).shadow(color:.black.opacity(0.22),radius:32,y:18)
     }
     private var header: some View {
         VStack(alignment:.leading,spacing:6) {
             HStack(spacing:8) {
-                ReferenceMascot(emoji:kind=="incident" ? "🐗" : "🦊",theme:theme,state:tone,size:22)
+                ReferenceMascot(emoji:runtimeTask?.emoji ?? (kind=="incident" ? "🐗" : "🦊"),theme:theme,state:tone,size:22)
                 Text(taskID).font(.system(size:11.5,design:.monospaced)).foregroundStyle(theme.secondary)
                 Text("\(runtimeTask?.project ?? (kind=="incident" ? "kaban" : "shop-api")) · \(stage)").font(.system(size:11.5)).foregroundStyle(theme.faint)
                 Spacer();ReferenceButton(title:"Открыть в Cursor",icon:"arrow.up.right.square",theme:theme){demo.action("Открыть в Cursor")}
-                Button{demo.sheet="task-menu"}label:{Image(systemName:"ellipsis").frame(width:26,height:26).background(theme.control,in:Circle())}.buttonStyle(.plain)
-                Button{demo.selected=nil;demo.route="board"}label:{Image(systemName:"xmark").font(.system(size:11)).frame(width:26,height:26).background(theme.control,in:Circle())}.buttonStyle(.plain)
+                Menu {
+                    Button("Изменить…") { demo.selected = taskID; demo.editSelected() }
+                    Button("Перенести…") { demo.selected = taskID; demo.sheet = "move" }
+                    Button("Отменить…") { demo.selected = taskID; demo.sheet = "cancel" }
+                } label: { Image(systemName: "ellipsis").frame(width: 26, height: 26).background(theme.control, in: Circle()) }.menuStyle(.borderlessButton).fixedSize()
+                Button{demo.selected=nil;demo.inspectedFrame=nil;demo.route="board"}label:{Image(systemName:"xmark").font(.system(size:11)).frame(width:26,height:26).background(theme.control,in:Circle())}.buttonStyle(.plain)
             }
             Text(title).font(.system(size:18,weight:.bold)).tracking(-0.25)
-            HStack(spacing:6) {
-                Text("⛨ waiting_human · \(kind=="incident" ? "incident" : kind=="review" ? "review" : kind=="substituted" ? "model_substituted" : kind=="run-limit" ? "run_limit" : "suspicious_files")").font(.system(size:11,weight:.semibold)).padding(.horizontal,8).frame(height:20).foregroundStyle(.white).background(theme.status(tone).0,in:RoundedRectangle(cornerRadius:6))
-                ReferenceChip(title:"▷ \(runLabel)",theme:theme)
-                ReferenceChip(title:"⑂ \(branch)",theme:theme,mono:true)
-                ReferenceChip(title:"♧ \(modelLabel)",theme:theme)
+            ReferenceFlow(spacing: 6) {
+                Label(statusLabel, systemImage: statusSymbol).font(.system(size: 11, weight: .semibold)).padding(.horizontal, 8).frame(height: 20)
+                    .foregroundStyle(kind == "generic" ? theme.status(tone).2 : theme.dark && !["incident","review"].contains(kind) ? Color(hex:0x1c1c1f) : .white)
+                    .background(kind == "generic" ? theme.status(tone).1 : theme.status(tone).0, in: RoundedRectangle(cornerRadius: 6))
+                ReferenceChip(title: "▷ \(runLabel)", theme: theme)
+                ReferenceChip(title: "♧ \(modelLabel)", theme: theme)
+                ReferenceChip(title: "⑂ \(branch)", theme: theme, mono: true)
             }
             HStack(spacing:3) {
                 ForEach(Array(pathStages.enumerated()),id:\.offset) { index,stageName in
@@ -74,6 +83,11 @@ struct ReferenceDetails: View {
             }.padding(.top,2)
         }.padding(.init(top:14,leading:16,bottom:10,trailing:16)).overlay(alignment:.bottom){theme.line.frame(height:0.5)}
     }
+    private var statusLabel: String {
+        if kind == "generic" { return runtimeTask?.label ?? "В очереди" }
+        return "waiting_human · " + (kind == "incident" ? "incident" : kind == "review" ? "review" : kind == "substituted" ? "model_substituted" : kind == "run-limit" ? "run_limit" : "suspicious_files")
+    }
+    private var statusSymbol: String { kind == "incident" ? "light.beacon.max" : kind == "review" ? "person.crop.circle.badge.checkmark" : isSuspicious ? "exclamationmark.shield" : "hand.raised" }
     private var genericTaskBlock:some View {
         ReferenceBox(title:"Описание и критерии приёмки",theme:theme){
             Text(demo.taskBodies[taskID] ?? "Описание пока пустое").font(.system(size:12)).textSelection(.enabled)
@@ -85,18 +99,24 @@ struct ReferenceDetails: View {
     private var suspiciousBlock: some View {
         let stale = kind=="stale" || demo.staleTaskIDs.contains(taskID)
         return VStack(alignment:.leading,spacing:0) {
-            HStack(spacing:7) {Image(systemName:"exclamationmark.shield");Text(demo.acceptedTaskIDs.contains(taskID) ? "Файлы приняты" : "В ветке подозрительные файлы: 3").bold();Spacer();Text(stale ? "набор обновлён 15:03 · запуск 4" : "14:52 · после гейтов Dev · запуск 4").font(.system(size:10.5))}.font(.system(size:12.5)).padding(.horizontal,12).frame(height:32).foregroundStyle(theme.status("waiting").2).background(theme.status("waiting").1)
+            HStack(spacing:7) {Image(systemName:"exclamationmark.shield");Text(demo.acceptedTaskIDs.contains(taskID) ? "Файлы приняты" : "В ветке подозрительные файлы: \(fileCount)").bold();Spacer();Text(stale ? "набор обновлён 15:03 · запуск 4" : "14:52 · после гейтов Dev · запуск 4").font(.system(size:10.5))}.font(.system(size:12.5)).padding(.horizontal,12).frame(height:32).foregroundStyle(theme.status("waiting").2).background(theme.status("waiting").1)
             VStack(alignment:.leading,spacing:7) {
                 if stale {
                     HStack(alignment:.top,spacing:9){Image(systemName:"info.circle").foregroundStyle(theme.status("waiting").0);Text("Набор файлов изменился — ничего не принято. Пока вы смотрели, ветка изменилась (правка в клоне, другое окно или CLI), и демон ответил stale_suspicious_files. Список перечитан через getTaskDetail: убран .env.local, изменён orders-dump.sql (новый blob), новый .env.seed. Проверьте его и примите ещё раз.").font(.system(size:11)).foregroundStyle(theme.secondary)}.padding(10).background(theme.status("waiting").1.opacity(0.55),in:RoundedRectangle(cornerRadius:10))
                 } else {Label("Весь diff ветки от базы main@a41c9e2 · не инцидент, refs не откатывались · попытка не списана",systemImage:"info.circle").font(.system(size:10.5)).foregroundStyle(theme.faint).lineLimit(1)}
-                ReferenceFileTable(theme:theme,stale:stale,accepted:demo.acceptedTaskIDs.contains(taskID)) {demo.action("Открыть файл")}
+                ReferenceFileTable(theme:theme,stale:stale,accepted:demo.acceptedTaskIDs.contains(taskID),taskID:taskID,
+                    action: { path, reveal in demo.openSampleFile(path, reveal:reveal) },
+                    exceptions: { demo.openSettings("suspicious-settings",project:runtimeTask?.project ?? demo.selectedProject) })
                 HStack(alignment:.center,spacing:10) {
-                    ReferenceButton(title:demo.pending.contains("files:" + taskID) ? "Отправлено…" : "Принять файлы (3)",icon:"checkmark",primary:true,theme:theme){Task{await demo.acceptFiles(taskID:taskID)}}.disabled(demo.pending.contains("files:" + taskID) || demo.acceptedTaskIDs.contains(taskID)).frame(width:140,alignment:.leading)
-                    Text("Примет ровно эти 3 файла (acceptSuspiciousFiles). Kaban сразу перепроверит ветку и продолжит Dev → Test без нового запуска агента; попытка не списывается.").font(.system(size:10.5)).foregroundStyle(theme.secondary)
+                    ReferenceButton(title:demo.pending.contains("files:" + taskID) ? "Отправлено…" : "Принять файлы (\(fileCount))",icon:"checkmark",primary:true,theme:theme){Task{await demo.acceptFiles(taskID:taskID)}}.disabled(demo.pending.contains("files:" + taskID) || demo.acceptedTaskIDs.contains(taskID)).frame(width:154,alignment:.leading)
+                    Text("Примет ровно эти \(fileCount) файла (acceptSuspiciousFiles). Kaban сразу перепроверит ветку и продолжит \(stage) → \(stage == "Merge" ? "Done" : stage == "Checks" ? "AI Review" : "Test") без нового запуска агента; попытка не списывается.").font(.system(size:10.5)).foregroundStyle(theme.secondary)
                 }
                 HStack(alignment:.center,spacing:10) {
-                    ReferenceButton(title:"Попросить убрать",icon:"message",theme:theme){demo.returnNote="Убери из ветки: .env.local, certs/stripe-test.pem, fixtures/orders-dump.sql"}.frame(width:140,alignment:.leading)
+                    ReferenceButton(title: ["gate", "merge"].contains(kind) ? "Вернуть…" : "Попросить убрать", icon: "message", theme: theme) {
+                        demo.selected = taskID
+                        if ["gate", "merge"].contains(kind) { demo.presentReturn(merge: kind == "merge") }
+                        else { demo.returnNote = "Убери из ветки: .env.local, certs/stripe-test.pem, fixtures/orders-dump.sql" }
+                    }.frame(width:154,alignment:.leading)
                     Text("Набор не принимается. Замечание агенту (answerHuman) → новый запуск Dev; после его гейтов проверка заново. На gate/merge — «Вернуть с замечанием» (requestChanges), тоже без принятия.").font(.system(size:10.5)).foregroundStyle(theme.secondary)
                 }
                 theme.line.frame(height:0.5)
@@ -104,8 +124,8 @@ struct ReferenceDetails: View {
                 HStack(spacing:5) {
                     ReferenceButton(title:"Перезапустить",icon:"arrow.clockwise",small:true,theme:theme){demo.action("Перезапустить",taskID:taskID)}
                     ReferenceButton(title:"В Backlog",icon:"tray",small:true,theme:theme){demo.action("В Backlog",taskID:taskID)}
-                    ReferenceButton(title:"Отменить…",icon:"xmark",small:true,theme:theme){demo.sheet="cancel"}
-                    Toggle("Сохранить ветку → kaban/archive/SHOP-52",isOn:$demo.keepBranch).toggleStyle(.referenceCheckbox).font(.system(size:10.5)).lineLimit(1)
+                    ReferenceButton(title:"Отменить…",icon:"xmark",small:true,theme:theme){demo.selected = taskID; demo.sheet="cancel"}
+                    Toggle("Сохранить ветку → kaban/archive/\(taskID)",isOn:$demo.keepBranch).toggleStyle(.referenceCheckbox).font(.system(size:10.5)).lineLimit(1)
                 }
                 Text("retryStage · moveTask · cancelTask(keepBranch) · «Отклонить» — только в Human Review").font(.system(size:9.5,design:.monospaced)).foregroundStyle(theme.faint)
                 theme.line.frame(height:0.5)
@@ -132,7 +152,7 @@ struct ReferenceDetails: View {
             Text("Изменено при разрешении конфликта").font(.system(size:12,weight:.semibold))
             Text("src/cart/merge.ts                 +48 −12\nsrc/cart/guest.ts                  +21 −8\ntests/cart-merge.test.ts            +59 −20").font(.system(size:11,design:.monospaced)).foregroundStyle(theme.secondary)
             Text("Гейты зелёные · npm test ✓ · eslint ✓").font(.system(size:11)).foregroundStyle(theme.status("done").2)
-            HStack {ReferenceButton(title:"Принять",icon:"checkmark",primary:true,theme:theme){demo.action("Принять",taskID:taskID)};ReferenceButton(title:"Вернуть с замечанием",icon:"arrow.uturn.backward",theme:theme){demo.sheet="return-merge"};ReferenceButton(title:"Отклонить…",icon:"xmark",theme:theme){demo.sheet="reject"}}
+            HStack {ReferenceButton(title:"Принять",icon:"checkmark",primary:true,theme:theme){demo.action("Принять",taskID:taskID)};ReferenceButton(title:"Вернуть с замечанием",icon:"arrow.uturn.backward",theme:theme){demo.selected = taskID; demo.returnNote = ""; demo.returnTarget = "Dev"; demo.sheet = "review-return"};ReferenceButton(title:"Отклонить…",icon:"xmark",theme:theme){demo.sheet="reject"}}
             Text("Слияние выполнит демон. Просмотрите diff ветки от main.").font(.system(size:11)).foregroundStyle(theme.faint)
         }
     }
@@ -159,8 +179,12 @@ struct ReferenceDetails: View {
             Text("Любое действие сбросит 12 → 0. Ручной запуск не восстановит старый running.").font(.system(size:10.5)).foregroundStyle(theme.faint)
         }
     }
+    private var fileCount: Int { taskID == "SHOP-29" ? 1 : taskID == "SHOP-55" ? 2 : 3 }
     @ViewBuilder private var feed: some View {
-        if kind=="incident" {
+        if kind == "generic" {
+            ForEach(Array((demo.taskNotes[taskID] ?? []).enumerated()), id: \.offset) { _, note in event("Замечание человека", detail: note, time: "сейчас", symbol: "message", tone: nil) }
+            event(runtimeTask?.label ?? "В очереди", detail: "\(stage) · \(title)", time: "сейчас", symbol: "clock", tone: nil)
+        } else if kind=="incident" {
             HStack(spacing:4){Image(systemName:"nosign");Text("Отказы git за запуск: 4/5").font(.system(size:11.5,weight:.semibold));ForEach(0..<5){i in RoundedRectangle(cornerRadius:2).fill(i<4 ? theme.status("waiting").0:theme.control).frame(width:16,height:6)};Spacer();Text("На 5-м — стоп: waiting_human · git_denials").font(.system(size:10.5)).foregroundStyle(theme.faint)}.padding(8).background(theme.control,in:RoundedRectangle(cornerRadius:9))
             event("Обход обёртки: git update-ref refs/heads/main",detail:"tool_call · refs изменены; main откатан, запуск остановлен",time:"14:31",symbol:"light.beacon.max",tone:"incident")
             event("Отказ 4: rebase main",detail:"политика стадии · нужен человек",time:"14:29",symbol:"nosign",tone:"waiting")
@@ -181,7 +205,7 @@ struct ReferenceDetails: View {
             event("Состояние клона сохранено перед откатом",detail:"refs/kaban/wip/r-0412 · 7 файлов, +184 −22",time:"14:57",symbol:"clock.arrow.circlepath",tone:nil)
             event("Запуск Dev завершился с ошибкой",detail:"crash · попытка 2/3 · клон откатан к последнему checkpoint",time:"14:57",symbol:"xmark",tone:nil)
         } else {
-            event(isSuspicious ? "Найдены подозрительные файлы: 3  suspiciousFilesFound" : kind=="review" ? "Требуется Human Review · после конфликта" : kind=="substituted" ? "Подмена модели: Opus 4.5 → Sonnet 4" : "Лимит запусков на задачу, 12 из 12",detail:"после гейтов Dev, запуск 4 · переход Dev → Test остановлен · не инцидент, попытка не списана",time:"14:52",symbol:isSuspicious ? "exclamationmark.shield" : "info.circle",tone:"waiting")
+            event(isSuspicious ? "Найдены подозрительные файлы: \(fileCount)  suspiciousFilesFound" : kind=="review" ? "Требуется Human Review · после конфликта" : kind=="substituted" ? "Подмена модели: Opus 4.5 → Sonnet 4" : "Лимит запусков на задачу, 12 из 12",detail:"после гейтов Dev, запуск 4 · переход Dev → Test остановлен · не инцидент, попытка не списана",time:"14:52",symbol:isSuspicious ? "exclamationmark.shield" : "info.circle",tone:"waiting")
             event("Dev завершена · гейты зелёные",detail:"complete_stage · npm test ✓ (318) · eslint ✓ · +412 −36",time:"14:51",symbol:"checkmark",tone:nil)
             event("Запуск Dev · запуск 4",detail:"cursor-agent --model composer-1 · ↩ из Test: «нет теста на отказ 3-D Secure»",time:"14:22",symbol:"play",tone:nil)
             if kind=="substituted" {event("Модель не подтверждена",detail:"model_unconfirmed · CLI не сообщил model",time:"14:21",symbol:"info.circle",tone:nil)}
@@ -196,17 +220,21 @@ struct ReferenceFileTable: View {
     let theme: ReferenceTheme
     var stale = false
     var accepted = false
-    var action: ()->Void = {}
+    var taskID = "SHOP-52"
+    var action: (String, Bool) -> Void = { _, _ in }
+    var exceptions: () -> Void = {}
     private var rows: [(String,String,String,Bool)] {
-        stale ? [("certs/stripe-test.pem","3,2 КБ","по шаблону *.pem",false),("fixtures/orders-dump.sql  изменён","9,8 МБ","больше 5 МБ",true),("scripts/seed/.env.seed  новый","268 Б","по шаблону .env*",false)] : [(".env.local","412 Б","по шаблону .env*",false),("certs/stripe-test.pem","3,2 КБ","по шаблону *.pem",false),("fixtures/orders-dump.sql","12,4 МБ","больше 5 МБ",true)]
+        if taskID == "SHOP-29" { return [("seed-sku.sql", "6,8 МБ", "больше 5 МБ", true)] }
+        if taskID == "SHOP-55" { return [("fixtures/orders-dump.sql", "12,4 МБ", "больше 5 МБ", true), (".env.local", "412 Б", "по шаблону .env*", false)] }
+        return stale ? [("certs/stripe-test.pem","3,2 КБ","по шаблону *.pem",false),("fixtures/orders-dump.sql  изменён","9,8 МБ","больше 5 МБ",true),("scripts/seed/.env.seed  новый","268 Б","по шаблону .env*",false)] : [(".env.local","412 Б","по шаблону .env*",false),("certs/stripe-test.pem","3,2 КБ","по шаблону *.pem",false),("fixtures/orders-dump.sql","12,4 МБ","больше 5 МБ",true)]
     }
     var body: some View {
         VStack(spacing:0) {
             HStack(spacing:8){Text("Файл · весь diff ветки от базы").frame(maxWidth:.infinity,alignment:.leading);Text("Размер").frame(width:58,alignment:.trailing);Text("Правило").frame(width:128,alignment:.leading);Text("").frame(width:104)}.font(.system(size:10,weight:.semibold)).foregroundStyle(theme.faint).padding(.leading,34).padding(.trailing,10).frame(height:22)
             if !accepted {ForEach(Array(rows.enumerated()),id:\.offset){index,row in
-                HStack(spacing:8){Image(systemName:"doc").font(.system(size:11)).foregroundStyle(theme.faint).frame(width:16);Text(row.0).font(.system(size:10.5,design:.monospaced)).lineLimit(1).frame(maxWidth:.infinity,alignment:.leading);Text(row.1).font(.system(size:11,weight:row.3 ? .semibold:.regular)).frame(width:58,alignment:.trailing);ReferenceChip(title:row.2,theme:theme,tone:row.3 ? nil:"waiting").frame(width:128,alignment:.leading);Button(action:action){Label(row.3 ? "Показать в Finder":"дифф",systemImage:row.3 ? "folder":"chevron.left.forwardslash.chevron.right").font(.system(size:11)).foregroundStyle(theme.accent)}.buttonStyle(.plain).frame(width:104,alignment:.trailing)}.padding(.horizontal,10).frame(height:28).background(stale && index>0 ? theme.accent.opacity(0.07):.clear).overlay(alignment:.top){theme.line.frame(height:0.5)}
+                HStack(spacing:8){Image(systemName:"doc").font(.system(size:11)).foregroundStyle(theme.faint).frame(width:16);Text(row.0).font(.system(size:10.5,design:.monospaced)).lineLimit(1).frame(maxWidth:.infinity,alignment:.leading);Text(row.1).font(.system(size:11,weight:row.3 ? .semibold:.regular)).frame(width:58,alignment:.trailing);ReferenceChip(title:row.2,theme:theme,tone:row.3 ? nil:"waiting").frame(width:128,alignment:.leading);Button { action(row.0.components(separatedBy:"  ")[0],row.3) } label: {Label(row.3 ? "Показать в Finder":"дифф",systemImage:row.3 ? "folder":"chevron.left.forwardslash.chevron.right").font(.system(size:11)).foregroundStyle(theme.accent)}.buttonStyle(.plain).frame(width:104,alignment:.trailing)}.padding(.horizontal,10).frame(height:28).background(stale && index>0 ? theme.accent.opacity(0.07):.clear).overlay(alignment:.top){theme.line.frame(height:0.5)}
             }}
-            HStack{Text(stale ? "подсвечены новые и изменённые · прежний blob дампа c71b5e0" : "дифф — при isText и размере < max_file_mb, в Cursor из clonePath; иначе Finder").font(.system(size:10)).foregroundStyle(theme.faint).lineLimit(1);Spacer(minLength:0);Button("В исключения проекта…",action:action).buttonStyle(.plain).font(.system(size:10.5)).foregroundStyle(theme.accent)}.padding(.horizontal,10).frame(height:23).overlay(alignment:.top){theme.line.frame(height:0.5)}
+            HStack{Text(stale ? "подсвечены новые и изменённые · прежний blob дампа c71b5e0" : "дифф — при isText и размере < max_file_mb, в Cursor из clonePath; иначе Finder").font(.system(size:10)).foregroundStyle(theme.faint).lineLimit(1);Spacer(minLength:0);Button("В исключения проекта…",action:exceptions).buttonStyle(.plain).font(.system(size:10.5)).foregroundStyle(theme.accent)}.padding(.horizontal,10).frame(height:23).overlay(alignment:.top){theme.line.frame(height:0.5)}
         }.background(theme.content,in:RoundedRectangle(cornerRadius:10)).overlay(RoundedRectangle(cornerRadius:10).stroke(theme.line,lineWidth:0.5))
     }
 }
