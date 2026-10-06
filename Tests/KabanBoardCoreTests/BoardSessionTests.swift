@@ -158,6 +158,24 @@ final class BoardSessionTests: XCTestCase {
         XCTAssertNil(try TaskDraftStore(storage: storage, key: "drafts").record(for: .edit("a"))?.exactBody)
         XCTAssertEqual(try TaskDraftStore(storage: storage, key: "other-source").records, [])
     }
+    @MainActor func testBurstOfDetailUpdatesCoalescesWithoutCancellingSharedRPC() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await session.select("a")
+        client.holdDetails = true
+        try session.consume(.event(Fix.envelope(11, .taskUpdated(Fix.card("a", title: "11")))))
+        try await wait { client.details.count == 1 }
+        for seq in 12...15 { try session.consume(.event(Fix.envelope(Seq(seq), .taskUpdated(Fix.card("a", title: String(seq)))))) }
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertEqual(client.details.count, 1, "Burst updates must not create unbounded parallel reads")
+        XCTAssertEqual(client.detailCancellations, 0, "Cancelling stdio IO would stop the shared daemon child")
+        client.completeDetail(0, task: "a", seq: 11, body: "stale")
+        try await wait { client.details.count == 2 }
+        client.completeDetail(1, task: "a", seq: 15, body: "latest")
+        try await wait { session.detail?.body == "latest" }
+        XCTAssertEqual(client.detailCancellations, 0)
+    }
     @MainActor func testTitleOnlyConfirmationDoesNotDiscardAnUnsentBodyDraft() async throws {
         let session = BoardSession(client: MockKabanClient(snapshot: Fix.snapshot(tasks: [Fix.card("a")])), storage: MemoryKeyValueStore(), key: "test")
         let task = Task { await session.run() }; defer { task.cancel() }
@@ -192,6 +210,7 @@ final class BoardSessionTests: XCTestCase {
     var receipt: CommandReply?
     var mutationHandler: ((CommandEnvelope) async throws -> CommandReply)?
     var unsupported: Set<CommandName> = []
+    var detailCancellations = 0
     var holdDetails = false
     var details: [(CommandEnvelope, CheckedContinuation<CommandReply, Error>)] = []
     func getSnapshot() async throws -> Snapshot { snapshot }
@@ -209,7 +228,11 @@ final class BoardSessionTests: XCTestCase {
     func events() -> AsyncStream<EventEnvelope> { AsyncStream { $0.finish() } }
     func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
         if case .getTaskDetail(let id) = envelope.command {
-            if holdDetails { return try await withCheckedThrowingContinuation { details.append((envelope, $0)) } }
+            if holdDetails {
+                return try await withTaskCancellationHandler {
+                    try await withCheckedThrowingContinuation { details.append((envelope, $0)) }
+                } onCancel: { [weak self] in Task { @MainActor in self?.detailCancellations += 1 } }
+            }
             return .init(commandId: envelope.commandId, seq: nil, result: .taskDetail(.init(seq: snapshot.seq, task: snapshot.tasks.first { $0.id == id } ?? Fix.card(id.rawValue), feed: [], runs: [], suspiciousFiles: [], acceptedFiles: [], body: "body", wipRestoreOperations: [])))
         }
         mutations.append(envelope)

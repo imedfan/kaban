@@ -32,6 +32,7 @@ import KabanProtocol
     private var sourceConnected = false
     private var reconciliation: Task<Void, Never>?
     private var detailRefresh: Task<Void, Never>?
+    private var requestedDetailID: TaskID?
     private var reportedFailures: Set<CommandID> = []
     private var announcedCreations: Set<CommandID> = []
     private var interestedCreations: Set<CommandID> = []
@@ -98,8 +99,9 @@ import KabanProtocol
         }
     }
     private func invalidate() {
-        epoch = UUID(); reconciliation?.cancel(); reconciliation = nil
-        detailRefresh?.cancel(); detailRefresh = nil
+        // Invalidation is logical. Cancelling a private stdio RPC stops its
+        // worker/child, so routine selection/resync must not cancel shared IO.
+        epoch = UUID(); reconciliation = nil; requestedDetailID = nil
         _ = selection.begin(selectedID)
     }
     /// Synchronous reduction keeps the bounded stream draining during reads/replay.
@@ -164,7 +166,7 @@ import KabanProtocol
         projection = board; ephemeralCursor = replacement.cursor; receivedEphemeralCursor = replacement.cursor
         volatileBuffer = []; schedulerFlagsSeq = replacement.snapshot.seq
         floors = Dictionary(uniqueKeysWithValues: replacement.snapshot.tasks.map { ($0.id, replacement.snapshot.seq) })
-        _ = selection.begin(selectedID); detailRefresh?.cancel(); detail = nil
+        _ = selection.begin(selectedID); requestedDetailID = nil; detail = nil
         boardSet.bootstrap(projects: board.projectOrder); visibleIDs = boardSet.visibleProjectIds
         if selectedProjectID.map({ board.projects[$0] == nil }) ?? true { selectedProjectID = board.projectOrder.first }
         if let id = selectedID, board.tasks[id] == nil { clearSelection() }
@@ -262,10 +264,18 @@ import KabanProtocol
         selectedID = id; detail = nil; _ = selection.begin(id)
         if let id { await refreshDetail(id) }
     }
-    private func clearSelection() { selectedID = nil; detail = nil; _ = selection.begin(nil); detailRefresh?.cancel() }
+    private func clearSelection() { selectedID = nil; detail = nil; _ = selection.begin(nil); requestedDetailID = nil }
     private func scheduleDetail(_ id: TaskID) {
-        detailRefresh?.cancel()
-        detailRefresh = Task { [weak self] in await self?.refreshDetail(id) }
+        requestedDetailID = id
+        guard detailRefresh == nil else { return }
+        detailRefresh = Task { [weak self] in
+            guard let self else { return }
+            while let wanted = requestedDetailID {
+                requestedDetailID = nil
+                await refreshDetail(wanted)
+            }
+            detailRefresh = nil
+        }
     }
     private func refreshDetail(_ id: TaskID) async {
         guard selectedID == id, capabilities?.supports(.getTaskDetail) == true else { return }
