@@ -3,7 +3,7 @@ import KabanProtocol
 @testable import KabanBoardCore
 
 final class ClientCommandJournalTests: XCTestCase {
-    @MainActor func testLostReplySurvivesReopenAndUsesTheExactEnvelope() throws {
+    @MainActor func testLostReplySurvivesReopenAndUsesTheExactEnvelope() async throws {
         let storage = MemoryKeyValueStore()
         let journal = try ClientCommandJournal(storage: storage, key: "developer")
         let envelope = CommandEnvelope(command: .createTask(projectId: "shop", title: "  Заголовок  ", body: "## Body\r\n\n`exact`  "))
@@ -19,7 +19,7 @@ final class ClientCommandJournalTests: XCTestCase {
         XCTAssertThrowsError(try reopened.begin(.init(commandId: envelope.commandId, command: .pauseAll)))
         XCTAssertEqual(try ClientCommandJournal(storage: storage, key: "installed").records, [])
     }
-    @MainActor func testAcknowledgementKeepsPendingAndAnEarlierEventKeepsItsMetadata() throws {
+    @MainActor func testAcknowledgementKeepsPendingAndAnEarlierEventKeepsItsMetadata() async throws {
         let journal = try ClientCommandJournal(storage: MemoryKeyValueStore(), key: "commands")
         let envelope = CommandEnvelope(command: .pauseTask(taskId: "t-1"))
         try journal.begin(envelope)
@@ -39,7 +39,7 @@ final class ClientCommandJournalTests: XCTestCase {
         XCTAssertFalse(journal.records[1].isPending)
         XCTAssertEqual(journal.records[1].eventSeq, 9)
     }
-    @MainActor func testRejectionAndCorruptStorageDoNotSilentlyLoseTheRequest() throws {
+    @MainActor func testRejectionAndCorruptStorageDoNotSilentlyLoseTheRequest() async throws {
         let storage = MemoryKeyValueStore()
         let journal = try ClientCommandJournal(storage: storage, key: "commands")
         let envelope = CommandEnvelope(command: .cancelTask(taskId: "t-1", keepBranch: true))
