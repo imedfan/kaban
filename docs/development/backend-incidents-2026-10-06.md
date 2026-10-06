@@ -2,7 +2,7 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-13-incidents`, база — `codex/be-12-git-grants`
 (`297fb59`, [PR #85](https://github.com/imedfan/kaban/pull/85), открыт поверх `codex/be-10-mcp-isolation` и ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). Pull request открывается поверх `codex/be-12-git-grants` и этим коммитом ещё не записан.
+Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#86](https://github.com/imedfan/kaban/pull/86), открыт поверх `codex/be-12-git-grants` и ещё не принят в main.
 
 ## Реализовано
 

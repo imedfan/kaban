@@ -14,7 +14,7 @@ BE-09 выполнен в [PR #82](https://github.com/imedfan/kaban/pull/82), в
 BE-10 выполнен в [PR #83](https://github.com/imedfan/kaban/pull/83), влитом в `codex/be-09-mcp-server` и ещё не принятом в main. Auth, сборка и MCP в реальном профиле не проверены: CLI не залогинен. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
 BE-11 выполнен в [PR #84](https://github.com/imedfan/kaban/pull/84), влитом в `codex/be-10-mcp-isolation` и ещё не принятом в main. Подозрительные файлы, инциденты, `/git/check` и merge в этот инкремент не входят. Грязное дерево стадии без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
 BE-12 выполнен в [PR #85](https://github.com/imedfan/kaban/pull/85), открытом поверх `codex/be-10-mcp-isolation` и ещё не принятом в main. Автокоммит `.kaban/pipeline.yaml` не делается. Подозрительные файлы и merge в этот инкремент не входят. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
-BE-13 выполнен на ветке `codex/be-13-incidents` поверх `codex/be-12-git-grants` и ещё не принят в main. Обычное грязное дерево без read-only остаётся чистым для проверки результата. Merge остаётся BE-17. Откат git до записи инцидента не обещает exactly-once внешнего процесса. Границы — [инциденты](backend-incidents-2026-10-06.md).
+BE-13 выполнен в [PR #86](https://github.com/imedfan/kaban/pull/86), открытом поверх `codex/be-12-git-grants` и ещё не принятом в main. Обычное грязное дерево без read-only остаётся чистым для проверки результата. Merge остаётся BE-17. Откат git до записи инцидента не обещает exactly-once внешнего процесса. Границы — [инциденты](backend-incidents-2026-10-06.md).
 BE-16–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-16.
 
@@ -370,7 +370,7 @@ BE-16–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ## BE-13. Реализовать проверку результата, подозрительных файлов и инциденты
 
-**Статус:** выполнено на ветке `codex/be-13-incidents` поверх `codex/be-12-git-grants`, ещё не принят в main. `acceptSuspiciousFiles` и `listIncidents` поддержаны. `restoreWIP`, `checkEnvironment`, `getCursorEnvironment`, `configureCursor`, `listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Merge остаётся BE-17. Границы — [инциденты](backend-incidents-2026-10-06.md).
+**Статус:** выполнено; [PR #86](https://github.com/imedfan/kaban/pull/86) открыт поверх `codex/be-12-git-grants`, ещё не принят в main. `acceptSuspiciousFiles` и `listIncidents` поддержаны. `restoreWIP`, `checkEnvironment`, `getCursorEnvironment`, `configureCursor`, `listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Merge остаётся BE-17. Границы — [инциденты](backend-incidents-2026-10-06.md).
 
 **Приоритет:** P0
 
