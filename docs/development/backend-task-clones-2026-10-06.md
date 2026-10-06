@@ -2,7 +2,8 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-06-task-clones`, база — `codex/be-05-effect-execution`
 (`992a6f3`, [PR #76](https://github.com/imedfan/kaban/pull/76), ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). PR этого инкремента открыт поверх #76 и ещё не принят в main.
+Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `0ea3e4e`.
+[PR #77](https://github.com/imedfan/kaban/pull/77) открыт поверх #76 и ещё не принят в main.
 
 ## Реализовано
 

@@ -209,7 +209,7 @@ Side effect process/git пишется после commit, вне транзак�
 
 ## Backend: BE-06 клоны задач
 
-Открытый инкремент поверх #76, ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
+Открытый инкремент [PR #77](https://github.com/imedfan/kaban/pull/77) поверх #76, ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
 План пути коммитится до `git clone --local`. Повтор после обрыва использует тот же путь и не ставит второй run.
 У параллельных задач разные ветки, git dir, config и cwd; `fresh-readonly` получает отдельный клон.
 DerivedData и temp лежат внутри клона. Портовый диапазон записывается и не занимает сокет.
