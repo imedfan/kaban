@@ -41,6 +41,12 @@ symlink workspace/log и отказ неподписанному/неверно 
 `/tmp/kaban-be20-live/light.png`. Это проверка UI + настоящей БД, без paid Cursor.
 Повторное открытие с сохранённой БД прошло (task/body/journal, seq 23).
 QA использовал `-ApplePersistenceIgnoreState YES`, постоянный AppKit UI-state не менялся.
+UI smoke PR #91 выявил гонку между применением snapshot и событием `connected`:
+проверка могла вызвать create до разрешения команд и затем ждать отсутствующий event.
+QA теперь ждёт и snapshot, и connected перед первым действием; assertions команд
+сохранены. Таймауты называют конкретный этап. Unsigned rebuild и полный fixture
+UI smoke прошли локально (`/tmp/kaban-be20-ci-native-smoke.json`, шесть checks).
+
 Повторные terminal UI QA нестабильны: некоторые запуски не создавали WindowGroup
 (runtime/store=nil, windows=0). Тёмный минимальный кадр и error/empty matrix пока не подтверждены.
 

@@ -15,7 +15,7 @@ import Darwin
     }
     static func run() async {
         do {
-            try await waitUntil { store?.projection != nil && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
+            try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
             if let path = argument("--daemon-smoke") {
                 let checks = try await daemonSmoke(store)
@@ -51,7 +51,7 @@ import Darwin
         }
     }
     private static func daemonSmoke(_ store: BoardStore) async throws -> [String] {
-        try await waitUntil { store.canSend }
+        try await waitUntil("daemon connection") { store.canSend }
         guard let project = store.projection?.projectOrder.first else { throw failure("Live project missing") }
         if CommandLine.arguments.contains("--daemon-smoke-reopen") {
             guard let card = store.projection?.tasks.values.first(where: { $0.title == "Edited durable task" && $0.state == .cancelled }) else { throw failure("Durable task missing after reopening") }
@@ -61,16 +61,16 @@ import Darwin
         }
         store.prepareCreation()
         await store.create(.init(title: "Durable UI task", body: "Durable body"), in: project)
-        try await waitUntil { store.createdTaskID != nil && store.creation.commandID == nil }
+        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil }
         guard let id = store.createdTaskID else { throw failure("Correlated creation missing") }
         guard await store.send(.editTask(taskId: id, title: "Edited durable task", body: "Durable body\n"), taskID: id) else { throw failure("Live edit rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false }
+        try await waitUntil("durable task edit") { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false }
         guard await store.send(.pauseTask(taskId: id), taskID: id) else { throw failure("Live pause rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.state == .paused && store.projection?.isSent(id) == false }
+        try await waitUntil("task pause") { store.projection?.tasks[id]?.state == .paused && store.projection?.isSent(id) == false }
         guard await store.send(.resumeTask(taskId: id), taskID: id) else { throw failure("Live resume rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.state.status == .queued && store.projection?.isSent(id) == false }
+        try await waitUntil("task resume") { store.projection?.tasks[id]?.state.status == .queued && store.projection?.isSent(id) == false }
         guard await store.send(.cancelTask(taskId: id, keepBranch: false), taskID: id) else { throw failure("Live cancel rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
+        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
         await store.select(id)
         guard store.detail?.body == "Durable body\n" else { throw failure("Live body changed") }
         if let path = argument("--daemon-smoke-window") {
@@ -110,22 +110,22 @@ import Darwin
         store.prepareCreation()
         let body = "## Описание\n\nSmoke content\n\n## Критерии приёмки\n\n- Текст сохраняется."
         await store.create(.init(title: "UI smoke task", body: body), in: "shop")
-        try await waitUntil { store.createdTaskID != nil && store.creation.commandID == nil }
+        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil }
         guard let id = store.createdTaskID, store.projection?.tasks.count == before + 1 else { throw failure("Creation event missing") }
         await store.select(id)
         guard store.detail?.body == body else { throw failure("Task body was changed") }
         checks.append("create selects task after correlated event and preserves Markdown")
         guard await store.send(.editTask(taskId: id, title: "Edited smoke task", body: body + "\n"), taskID: id) else { throw failure("Edit rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.title == "Edited smoke task" && store.projection?.isSent(id) == false }
+        try await waitUntil("task edit") { store.projection?.tasks[id]?.title == "Edited smoke task" && store.projection?.isSent(id) == false }
         guard await store.send(.moveTask(taskId: id, stage: "dev"), taskID: id) else { throw failure("Move rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.stageId == "dev" && store.projection?.isSent(id) == false }
+        try await waitUntil("task move") { store.projection?.tasks[id]?.stageId == "dev" && store.projection?.isSent(id) == false }
         guard await store.send(.cancelTask(taskId: id, keepBranch: false), taskID: id) else { throw failure("Cancel rejected") }
-        try await waitUntil { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
+        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
         checks.append("edit, move and cancel resolve through typed commands and journal projection")
         guard await store.send(.pauseTask(taskId: "SHOP-42"), taskID: "SHOP-42") else { throw failure("Pause rejected") }
-        try await waitUntil { store.projection?.tasks["SHOP-42"]?.state == .paused && store.projection?.isSent("SHOP-42") == false }
+        try await waitUntil("fixture task pause") { store.projection?.tasks["SHOP-42"]?.state == .paused && store.projection?.isSent("SHOP-42") == false }
         guard await store.send(.resumeTask(taskId: "SHOP-42"), taskID: "SHOP-42") else { throw failure("Resume rejected") }
-        try await waitUntil { store.projection?.tasks["SHOP-42"]?.state == .queued(nil) && store.projection?.isSent("SHOP-42") == false }
+        try await waitUntil("fixture task resume") { store.projection?.tasks["SHOP-42"]?.state == .queued(nil) && store.projection?.isSent("SHOP-42") == false }
         checks.append("pause and resume use the client; resume returns queued")
         store.query = "платёж"
         guard store.matches("SHOP-52"), !store.matches("SHOP-58") else { throw failure("Search mismatch") }
@@ -136,17 +136,17 @@ import Darwin
         for (key, code) in [("n", UInt16(45)), ("f", UInt16(3))] {
             guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0, windowNumber: NSApp.keyWindow?.windowNumber ?? 0, context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: code), NSApp.mainMenu?.performKeyEquivalent(with: event) == true else { throw failure("Keyboard shortcut Cmd-\(key) unavailable") }
         }
-        try await waitUntil { store.sheet != nil && store.searchRequest > 0 }
+        try await waitUntil("menu shortcuts") { store.sheet != nil && store.searchRequest > 0 }
         store.sheet = nil
         checks.append("Cmd-N and Cmd-F invoke the real application menu commands")
         return checks
     }
-    private static func waitUntil(_ condition: () -> Bool) async throws {
+    private static func waitUntil(_ state: String, _ condition: () -> Bool) async throws {
         for _ in 0..<400 {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(50))
         }
-        throw failure("Timed out waiting for UI state; runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
+        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
     }
     private static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
