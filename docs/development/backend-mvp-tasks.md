@@ -9,7 +9,7 @@ BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), в
 BE-08 выполнен в [PR #78](https://github.com/imedfan/kaban/pull/78), влитом в `codex/be-06-task-clones` и ещё не принятом в main; границы — [управление процессами](backend-process-control-2026-10-06.md).
 BE-07 выполнен в [PR #79](https://github.com/imedfan/kaban/pull/79), открытом поверх #78 и ещё не принятом в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
 BE-14 выполнен в [PR #80](https://github.com/imedfan/kaban/pull/80), открытом поверх #79 и ещё не принятом в main; остановка до первого инструмента не проверена; границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
-BE-15 выполнен на ветке `codex/be-15-limit-handling` поверх #80 и ещё не принят в main; pull request ещё не открыт. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
+BE-15 выполнен в [PR #81](https://github.com/imedfan/kaban/pull/81), открытом поверх #80 и ещё не принятом в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
 BE-09–13 и BE-16–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-09.
 
@@ -411,7 +411,7 @@ BE-09–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-15. Реализовать обработку лимитов Cursor и проверочные запуски
 
-**Статус:** выполнено на ветке `codex/be-15-limit-handling` поверх #80; pull request ещё не открыт; не принят в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
+**Статус:** выполнено; [PR #81](https://github.com/imedfan/kaban/pull/81) открыт поверх #80, ещё не принят в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
 
 **Приоритет:** P1
 
