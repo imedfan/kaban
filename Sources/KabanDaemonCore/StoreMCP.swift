@@ -184,7 +184,7 @@ extension KabanStore {
         }
     }
 
-    private struct TokenRow {
+    struct TokenRow {
         var tokenHash: String
         var projectId: String
         var taskId: String
@@ -194,7 +194,7 @@ extension KabanStore {
         var completeCommandId: String?
     }
 
-    private static func tokenRow(_ hash: String, db: Database) throws -> TokenRow? {
+    static func tokenRow(_ hash: String, db: Database) throws -> TokenRow? {
         guard let row = try Row.fetchOne(db, sql: "SELECT token_hash, project_id, task_id, stage_id, run_id, revoked, complete_command_id FROM mcp_run_token WHERE token_hash = ?", arguments: [hash]) else { return nil }
         return TokenRow(tokenHash: row["token_hash"], projectId: row["project_id"], taskId: row["task_id"], stageId: row["stage_id"], runId: row["run_id"], revoked: (row["revoked"] as Int64) != 0, completeCommandId: row["complete_command_id"])
     }
@@ -234,14 +234,23 @@ extension KabanStore {
     private static func consumeNotices(taskId: TaskID, runId: String, at: Date, db: Database) throws -> [String] {
         var detail = try detail(taskId, db: db)
         var notes: [String] = []
+        var delivered: [GitGrantDelivered] = []
         for index in detail.gitGrants.indices {
             let grant = detail.gitGrants[index]
             guard grant.taskId == taskId, grant.delivery == nil, grant.revocation == nil, grant.expiry == nil, grant.consumption == nil else { continue }
-            detail.gitGrants[index].delivery = GitGrantDelivered(grantId: grant.grant.grantId, runId: RunID(rawValue: runId), via: .mcpResponse)
+            let delivery = GitGrantDelivered(grantId: grant.grant.grantId, runId: RunID(rawValue: runId), via: .mcpResponse)
+            detail.gitGrants[index].delivery = delivery
             detail.gitGrants[index].deliveredAt = at
+            delivered.append(delivery)
             notes.append("\(grant.grant.argv.joined(separator: " ")) разрешена один раз")
         }
-        if !notes.isEmpty { try saveDetail(detail, taskId: taskId, db: db) }
+        if !notes.isEmpty {
+            try saveDetail(detail, taskId: taskId, db: db)
+            let owner = try task(taskId, db: db)
+            for delivery in delivered {
+                _ = try journal(.gitGrantDelivered(delivery), task: owner, commandId: UUID(), at: at, db: db)
+            }
+        }
         return notes
     }
 

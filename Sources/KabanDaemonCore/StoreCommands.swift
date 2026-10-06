@@ -172,6 +172,12 @@ extension KabanStore {
             do { try draft.checkBinding(projectId: projectId, currentVersionHash: project.projectedPipeline.versionHash, requestedHash: hash) }
             catch let error as CommandError { throw StoreError.rejected(error) }
             throw StoreError.rejected(.init(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна требует production lifecycle проекта.", params: ["command": envelope.command.name.rawValue]))
+        case .allowGitOnce(let denialId):
+            return ok(try allowGitOnce(denialId, commandId: id, at: now(), db: db))
+        case .addDenialToPolicy(let denialId, let scope):
+            return ok(try addDenialToPolicy(denialId, scope: scope, commandId: id, at: now(), db: db))
+        case .revokeGitGrant(let grantId):
+            return ok(try revokeGitGrant(grantId, commandId: id, at: now(), db: db))
         default:
             guard let (taskId, command) = transitionCommand(envelope.command) else {
                 throw StoreError.rejected(CommandError(code: CommandError.unsupportedCommandCode, message: "Команда ещё не поддерживается этим backend.", params: ["command": envelope.command.name.rawValue]))

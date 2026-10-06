@@ -1,4 +1,5 @@
 import Foundation
+import KabanKit
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -39,7 +40,16 @@ public final class MCPBoardServer: @unchecked Sendable {
 
     func roundTrip(token: String, method: String, params: [String: Any]) throws -> (status: Int, json: [String: Any]) {
         let body = try JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": method, "params": params])
-        let request = Data("POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer \(token)\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8) + body
+        return try exchange(path: "/mcp", token: token, body: body)
+    }
+
+    func postGit(token: String, argv: [String], cwd: String) throws -> (status: Int, json: [String: Any]) {
+        let body = try JSONSerialization.data(withJSONObject: ["argv": argv, "cwd": cwd])
+        return try exchange(path: "/git/check", token: token, body: body)
+    }
+
+    private func exchange(path: String, token: String, body: Data) throws -> (status: Int, json: [String: Any]) {
+        let request = Data("POST \(path) HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer \(token)\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8) + body
         let fd = try Self.connectLoopback(port: port)
         defer { close(fd) }
         try Self.writeAll(fd, request)
@@ -83,8 +93,16 @@ public final class MCPBoardServer: @unchecked Sendable {
         }
         let body = Data(data[headerEnd.upperBound...])
         let lines = head.split(separator: "\r\n", omittingEmptySubsequences: false)
-        guard let request = lines.first, request.hasPrefix("POST /mcp ") else {
-            Self.writeHTTP(client, status: "404 Not Found", body: Self.errorBody(id: 0, message: "Только POST /mcp."))
+        guard let request = lines.first else {
+            Self.writeHTTP(client, status: "400 Bad Request", body: Self.errorBody(id: 0, message: "Плохой запрос."))
+            return
+        }
+        if request.hasPrefix("POST /git/check ") {
+            handleGit(client, token: Self.bearer(head), body: body)
+            return
+        }
+        guard request.hasPrefix("POST /mcp ") else {
+            Self.writeHTTP(client, status: "404 Not Found", body: Self.errorBody(id: 0, message: "Только POST /mcp или POST /git/check."))
             return
         }
         let token = Self.bearer(head)
@@ -131,6 +149,20 @@ public final class MCPBoardServer: @unchecked Sendable {
         } catch {
             Self.writeHTTP(client, status: "500 Internal Server Error", body: Self.errorBody(id: id, message: "Инструмент не выполнен."))
         }
+    }
+
+    private func handleGit(_ client: Int32, token: String?, body: Data) {
+        let object = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
+        let argv = (object?["argv"] as? [Any])?.compactMap { $0 as? String }
+        let cwd = object?["cwd"] as? String ?? ""
+        let reply: GitCheckReply
+        if let token, let argv, argv.count == (object?["argv"] as? [Any])?.count, !cwd.isEmpty || object?["cwd"] != nil {
+            reply = (try? store.checkGit(token: token, argv: argv, at: now())) ?? GitCheckReply(allow: false, message: GitCheck.deniedMessage, rule: "unavailable")
+        } else {
+            reply = GitCheckReply(allow: false, message: GitCheck.deniedMessage, rule: token == nil ? "unauthorized" : "invalid")
+        }
+        let payload: [String: Any] = ["allow": reply.allow, "message": reply.message, "rule": reply.rule]
+        Self.writeHTTP(client, status: "200 OK", body: (try? JSONSerialization.data(withJSONObject: payload)) ?? Data("{}".utf8))
     }
 
     private static func bearer(_ head: String) -> String? {
