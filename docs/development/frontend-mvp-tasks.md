@@ -91,8 +91,9 @@ frontend: блоки работ, зависимости, результаты и
 **Статус:** реализация завершена в [PR #92](https://github.com/imedfan/kaban/pull/92)
 (`codex/fe-01-daemon-client`); штатная
 XPC-приёмка ожидает устранения системной зависимости BE-20.
-Повторная native CI-проверка пока не принята: WindowGroup не получил keyboard
-focus; assertions сохранены, диагностика и запуск bundle обновлены в том же PR.
+Отказ keyboard focus исправлен запуском bundle через LaunchServices; на
+`b0f4387` native UI step прошёл в обоих CI run с сохранёнными assertions.
+Полный native job на момент записи ещё выполняется; Linux CI прошёл полностью.
 Проверки: [отчёт FE-01](frontend-fe-01-2026-10-06.md).
 
 **Приоритет:** P0
