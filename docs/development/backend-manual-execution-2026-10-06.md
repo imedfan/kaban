@@ -31,3 +31,5 @@ DB receipt и immutable RunSpec при override. Итоговый полный �
 явно выбранный локальный runner к обычному loop. Production Cursor launch/MCP lifetime,
 CLI auth в изолированном профиле и остановка до первого Cursor tool не доказаны этим
 инкрементом. Платный Cursor не запускался. Системная упаковка — BE-20.
+
+Final validation: `KABAN_SCENARIOS=Scenarios/M1 swift test` passed: 507 tests, zero failures (Transport 23, Protocol 64, Kit 180, DaemonCore 174, Board 66). `swift build`, daemon/CLI process smoke, context checker and `git diff --check` passed. A regression covers archival and cleanup after removing a relinked project: retained metadata and the current origin path are used. Capability tests now require supported restoreWIP while configureCursor/getCursorEnvironment remain explicitly unsupported.
