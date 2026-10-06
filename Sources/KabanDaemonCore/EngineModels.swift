@@ -61,7 +61,9 @@ public enum RealEffectOutcome: Codable, Hashable, Sendable {
     case completed(summary: String)
     case question(String)
     case gatesPassed
+    case gatesFailed(output: String)
     case clean
+    case readOnlyChanges
 }
 
 public enum EffectExecutionDiagnostic {

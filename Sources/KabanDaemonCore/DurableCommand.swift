@@ -18,6 +18,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case pause
     case resume
     case resultClean
+    case resultReadOnly
     case gatesPassed
     case daemonRestarted
     case cancel(keepBranch: Bool)
@@ -42,6 +43,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .pause: .human(.pause)
         case .resume: .human(.resume)
         case .resultClean: .resultChecked(.clean)
+        case .resultReadOnly: .resultChecked(.readOnlyChanges)
         case .gatesPassed: .gatesPassed
         case .daemonRestarted: .daemonRestarted
         case .cancel(let keep): .human(.cancel(keepBranch: keep))

@@ -309,7 +309,9 @@ extension KabanStore {
         case (.startAgentRun(let run), .question(let question)): return .requestHuman(run.runId, question: question)
         case (.startAgentRun(let run), .completed(let summary)): return .completeStage(run.runId, summary: summary)
         case (.runResultCheck, .clean): return .resultClean
+        case (.runResultCheck, .readOnlyChanges): return .resultReadOnly
         case (.runGates, .gatesPassed): return .gatesPassed
+        case (.runGates, .gatesFailed(let output)): return .gatesFailed(output: output)
         case (.killRun, .acknowledged), (.saveWipAndRollback, .acknowledged), (.commitStage, .acknowledged),
              (.scheduleRetry, .acknowledged), (.expireGitGrants, .acknowledged), (.cleanupClone, .acknowledged), (.notifyHuman, .acknowledged):
             return nil
