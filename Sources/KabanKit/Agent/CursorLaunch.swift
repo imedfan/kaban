@@ -56,7 +56,7 @@ public enum CursorLaunch {
         return sections.joined(separator: "\n\n")
     }
 
-    /// `--approve-mcps` is left for the MCP preflight. Resume without a verified id starts a new session.
+    /// `--approve-mcps` is not passed. A failed MCP preflight blocks the run instead of approving every server. Resume without a verified id starts a new session.
     public static func plan(model: String, readOnly: Bool, resumeRequested: Bool, verifiedSessionId: String?, prompt: String, environment: [String: String]) throws -> CursorLaunchPlan {
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         guard PipelineValidator.hasExplicitModel(ModelID(rawValue: trimmed)) else { throw CursorLaunchFailure.modelRequired }

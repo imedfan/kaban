@@ -108,6 +108,7 @@ private struct SchedulerContext {
     let queue: [String: Int64]
     let admissions: [String: String]
     let pendingProjects: Set<String>
+    let mcpBlocked: Set<String>
     init(_ db: Database) throws {
         projects = try KabanStore.projects(db); tasks = try KabanStore.allTasks(db)
         settings = try KabanStore.settings(db); inputs = try KabanStore.schedulerInputs(db)
@@ -118,6 +119,7 @@ private struct SchedulerContext {
         queue = Dictionary(uniqueKeysWithValues: rows.map { ($0["task_id"] as String, $0["queue_seq"] as Int64) })
         admissions = Dictionary(uniqueKeysWithValues: try Row.fetchAll(db, sql: "SELECT task_id, stage_id FROM human_admission").map { ($0["task_id"] as String, $0["stage_id"] as String) })
         pendingProjects = try Set(String.fetchAll(db, sql: "SELECT project_id FROM pipeline_operation UNION SELECT project_id FROM project_operation"))
+        mcpBlocked = try Set(String.fetchAll(db, sql: "SELECT project_id FROM mcp_preflight WHERE blocked = 1"))
     }
     func eligibility(_ task: DurableTask, at: Date) -> Eligibility {
         guard task.machine.state.status == .queued || task.machine.state.status == .retryWait,
@@ -125,6 +127,7 @@ private struct SchedulerContext {
               task.card.retryAt.map({ $0 <= at }) ?? true,
               let project = projects.first(where: { $0.summary.id == task.card.projectId }),
               project.summary.availability == .available, project.production?.unavailableReason == nil,
+              !mcpBlocked.contains(project.summary.id.rawValue),
               !pendingProjects.contains(project.summary.id.rawValue),
               project.production == nil || project.projectedPipeline.isValid,
               let stage = project.pipeline.stage(task.machine.stageId) else { return .ineligible }
