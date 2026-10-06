@@ -105,6 +105,7 @@ private struct Machine {
         case .mergeConflict(let files): mergeConflictOrRedGates(stage, prompt: .mergeConflict(files: files), phase: .rebase)
         case .mainDirty: mainDirty()
         case .mainCleaned: mainCleaned()
+        case .mainMoved: mainMoved(stage)
         case .merged: merged(stage)
         case .human(let action): human(stage, action)
         }
@@ -360,8 +361,12 @@ private struct Machine {
 
     mutating func resultChecked(_ stage: StageConfig, _ check: ResultCheck) {
         let duringRun = s.state == .running
+        let duringFastForward = s.state == .gating && s.gatingPhase == .fastForward
         if case .incident = check, duringRun {
             // Periodic ref snapshots can catch a violation while the run is still alive.
+        } else if duringFastForward {
+            // The pre-update recheck only diverts a merge that is no longer clean. A second clean does not emit another ff.
+            if case .clean = check { return ignore("already checked") }
         } else {
             guard s.state == .gating, s.gatingPhase == .resultCheck else { return ignore("no result check in progress") }
         }
@@ -425,6 +430,14 @@ private struct Machine {
         s.gatingPhase = .fastForward
         set(.gating)
         effects.append(.fastForwardMerge)
+    }
+
+    /// The recorded rebase base is gone. Go back to rebase; the fast-forward must not replace the new `main`.
+    mutating func mainMoved(_ stage: StageConfig) {
+        guard s.state == .gating, s.gatingPhase == .fastForward else { return ignore("not fast-forwarding") }
+        s.gatingPhase = .rebase
+        set(.gating)
+        effects.append(.startMerge(stageId: stage.id, gates: stage.gates))
     }
 
     mutating func merged(_ stage: StageConfig) {

@@ -294,7 +294,7 @@ extension KabanStore {
         case .runGates(let stage, _), .runResultCheck(let stage), .startMerge(let stage, _):
             return task.machine.state.status == .gating && task.machine.stageId == stage
         case .fastForwardMerge:
-            return task.machine.state.status == .gating
+            return task.machine.state.status == .gating && task.machine.gatingPhase == .fastForward
         case .killRun, .saveWipAndRollback, .commitStage, .scheduleRetry, .expireGitGrants, .cleanupClone, .notifyHuman,
              .raiseRateLimit, .raiseRunnerUnavailable, .raiseUsageExhausted, .raiseModelFlag, .requestModelProbe,
              .openIncident, .resolveIncident, .reportSuspiciousFiles, .acceptSuspiciousFiles:
@@ -314,6 +314,15 @@ extension KabanStore {
         case (.runResultCheck, .incident(let kind, let rolled)): return .resultIncident(kind, rolledBack: rolled)
         case (.runGates, .gatesPassed): return .gatesPassed
         case (.runGates, .gatesFailed(let output)): return .gatesFailed(output: output)
+        case (.startMerge, .mergeConflict(let files)): return .mergeConflict(files)
+        case (.startMerge, .gatesPassed): return .gatesPassed
+        case (.startMerge, .gatesFailed(let output)): return .gatesFailed(output: output)
+        case (.fastForwardMerge, .mainDirty): return .mainDirty
+        case (.fastForwardMerge, .mainMoved): return .mainMoved
+        case (.fastForwardMerge, .merged): return .merged
+        case (.fastForwardMerge, .suspiciousFiles(let files)): return .resultSuspicious(files)
+        case (.fastForwardMerge, .incident(let kind, let rolled)): return .resultIncident(kind, rolledBack: rolled)
+        case (.fastForwardMerge, .readOnlyChanges): return .resultReadOnly
         case (.killRun, .acknowledged), (.saveWipAndRollback, .acknowledged), (.commitStage, .acknowledged),
              (.scheduleRetry, .acknowledged), (.expireGitGrants, .acknowledged), (.cleanupClone, .acknowledged), (.notifyHuman, .acknowledged):
             return nil

@@ -15,7 +15,7 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--mcp-isolation-pass] [--stage-pass] [--log-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--mcp-isolation-pass] [--stage-pass] [--merge-pass] [--log-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
@@ -26,6 +26,7 @@ struct DaemonMain {
                 --mcp-pass: one board complete_stage for a running task through the loopback MCP server, then reprint that line.
                 --mcp-isolation-pass: restore each swapped .cursor/mcp.json and reprint that line. It does not launch Cursor.
                 --stage-pass: run pending gates, hooks, result checks, and one stage commit, then reprint those lines. It does not launch Cursor.
+                --merge-pass: rebase one approved task onto main and fast-forward that ref, then reprint those lines. It does not launch Cursor.
                 --log-pass: reprint one stored log page per run through the same reader as readLog. It does not launch Cursor.
                 --cursor-agent PATH: absolute executable checked with version, status and --list-models every 5 minutes and on recheck runner.
                 It does not start a model prompt. Without this flag the daemon does not probe Cursor.
@@ -40,8 +41,9 @@ struct DaemonMain {
             let mcpPass = positional.contains("--mcp-pass")
             let isolationPass = positional.contains("--mcp-isolation-pass")
             let stagePass = positional.contains("--stage-pass")
+            let mergePass = positional.contains("--merge-pass")
             let logPass = positional.contains("--log-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" || $0 == "--mcp-isolation-pass" || $0 == "--stage-pass" || $0 == "--log-pass" }
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" || $0 == "--mcp-isolation-pass" || $0 == "--stage-pass" || $0 == "--merge-pass" || $0 == "--log-pass" }
             var workspaces: String?
             var runner: String?
             var runnerArguments: [String] = []
@@ -96,6 +98,14 @@ struct DaemonMain {
             // Gates have to finish on the live invocation. Recovery would otherwise emit a second run.
             if stagePass {
                 let lines = try store.runStagePass(owner: "daemon", at: Date())
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            // The fast-forward has to finish on the live gating merge. Recovery would otherwise emit a second startMerge.
+            if mergePass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runMergePass(owner: "daemon", at: Date(), workspaceRoot: root)
                 for line in lines {
                     try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
                 }

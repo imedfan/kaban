@@ -103,6 +103,10 @@ extension KabanStore {
         try db.execute(sql: "INSERT INTO protection_snapshot(project_id, payload) VALUES (?, ?) ON CONFLICT(project_id) DO NOTHING", arguments: [projectId.rawValue, try encode(snapshot)])
     }
 
+    static func replaceProtectionSnapshot(_ snapshot: TaskClone.ProtectionSnapshot, projectId: ProjectID, db: Database) throws {
+        try db.execute(sql: "INSERT INTO protection_snapshot(project_id, payload) VALUES (?, ?) ON CONFLICT(project_id) DO UPDATE SET payload = excluded.payload", arguments: [projectId.rawValue, try encode(snapshot)])
+    }
+
     private static func publishIncidentCount(_ projectId: ProjectID, commandId: CommandID, at: Date, db: Database) throws {
         var record = try project(projectId, db: db)
         let count = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM incident WHERE project_id = ? AND resolved = 0", arguments: [projectId.rawValue]) ?? 0

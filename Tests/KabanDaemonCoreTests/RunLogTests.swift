@@ -12,13 +12,15 @@ final class RunLogTests: XCTestCase {
     func testOffsetsSurviveReconnectAndADeletedLogIsUnavailable() throws {
         let f = try fixture()
         let run = try prepare(f, "offsets")
-        let head = Data((eventLine("one") + "\n" + eventLine("two").prefix(8)).utf8)
+        // Split one serialization: JSON object key order can differ between calls.
+        let splitEvent = eventLine("two")
+        let head = Data((eventLine("one") + "\n" + splitEvent.prefix(8)).utf8)
         try f.store.ingestAgentOutput(runId: run, taskId: "offsets", chunk: head, complete: false, directory: f.workspace)
         let early = try f.store.readLog(runId: run, fromOffset: 0, limit: 10)
         XCTAssertEqual(early.batch.events, [.message(role: "assistant", text: "one")])
         XCTAssertEqual(early.batch.nextOffset, 1)
         XCTAssertFalse(early.isComplete)
-        let rest = Data(eventLine("two").dropFirst(8).utf8) + Data(("\n" + eventLine("three") + "\n").utf8)
+        let rest = Data(splitEvent.dropFirst(8).utf8) + Data(("\n" + eventLine("three") + "\n").utf8)
         try f.store.ingestAgentOutput(runId: run, taskId: "offsets", chunk: rest, complete: true, directory: f.workspace)
 
         let service = DaemonService(store: f.store)
