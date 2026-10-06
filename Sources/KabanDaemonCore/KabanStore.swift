@@ -42,6 +42,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("git_policy_extra_v16", migrate: Self.migrateGitPolicy)
         migrator.registerMigration("incidents_v17", migrate: Self.migrateIncidents)
         migrator.registerMigration("run_log_v18", migrate: Self.migrateRunLogs)
+        migrator.registerMigration("merge_intent_v19", migrate: Self.migrateMergeIntent)
         try migrator.migrate(database)
     }
 
@@ -177,6 +178,11 @@ public final class KabanStore: Sendable {
                 if case .scheduleRetry(let seconds, _) = effect { task.card.retryAt = at.addingTimeInterval(TimeInterval(seconds)) }
             }
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try Self.encode(task), taskId.rawValue])
+            if case .merged = command, let path = owner?.summary.path {
+                // The next result check must not treat this daemon fast-forward as a foreign ref move.
+                let snapshot = try TaskClone.captureProtection(path, identity: owner?.summary.identity)
+                try Self.replaceProtectionSnapshot(snapshot, projectId: task.card.projectId, db: db)
+            }
             for effect in result.effects {
                 if case .raiseModelFlag(let request) = effect {
                     try Self.installModelFlag(request, at: at, commandId: commandId, db: db)

@@ -66,6 +66,10 @@ public enum RealEffectOutcome: Codable, Hashable, Sendable {
     case readOnlyChanges
     case suspiciousFiles([SuspiciousFile])
     case incident(IncidentKind, rolledBack: [String])
+    case mergeConflict([String])
+    case mainDirty
+    case mainMoved
+    case merged
 }
 
 public enum EffectExecutionDiagnostic {

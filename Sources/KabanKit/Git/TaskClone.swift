@@ -106,6 +106,94 @@ public enum TaskClone {
         try text(["rev-parse", "--verify", "refs/heads/main"], in: repository, identity: identity)
     }
 
+    public static func checkedOutBranch(_ repository: String, identity: GitIdentity?) throws -> String {
+        try text(["rev-parse", "--abbrev-ref", "HEAD"], in: repository, identity: identity)
+    }
+
+    /// Worktree, index, and untracked paths. Rename records include both names.
+    public static func dirtyPaths(_ repository: String, identity: GitIdentity?) throws -> [String] {
+        let raw = try output(["status", "--porcelain", "--untracked-files=all", "-z"], in: repository, identity: identity, ok: [0], trim: false).text
+        let records = raw.split(separator: "\0", omittingEmptySubsequences: true).map(String.init)
+        var paths: [String] = []
+        var index = 0
+        while index < records.count {
+            let record = records[index]
+            guard record.count >= 4 else { index += 1; continue }
+            let status = record.prefix(2)
+            paths.append(String(record.dropFirst(3)))
+            if status.hasPrefix("R") || status.hasPrefix("C"), index + 1 < records.count {
+                index += 1
+                paths.append(records[index])
+            }
+            index += 1
+        }
+        return paths
+    }
+
+    public static func rebaseAncestor(base: String, tip: String, repository: String, identity: GitIdentity?) throws -> Bool {
+        guard !base.isEmpty, !tip.isEmpty else { return false }
+        return try output(["merge-base", "--is-ancestor", base, tip], in: repository, identity: identity, ok: [0, 1]).status == 0
+    }
+
+    public static func diffNames(from base: String, to tip: String, in repository: String, identity: GitIdentity?) throws -> [String] {
+        guard !base.isEmpty, !tip.isEmpty else { return [] }
+        return try text(["diff", "--name-only", base, tip], in: repository, identity: identity)
+            .split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    }
+
+    public struct MergeRebase: Equatable, Sendable {
+        public var base: String
+        public var tip: String
+        public var conflicts: [String]
+    }
+
+    /// Rebases the task branch onto `origin`'s `main` inside a temporary clone under `workspaceRoot`.
+    /// A conflict aborts that temporary clone. The user's checkout is not reset. A clean rebase
+    /// `reset --hard`s only the task clone so the result check sees the rebased tree.
+    public static func rebaseOntoMain(origin: String, clone: String, branch: String, workspaceRoot: String, taskId: TaskID, identity: GitIdentity?) throws -> MergeRebase {
+        let task = try component(taskId.rawValue)
+        let root = standardize(workspaceRoot)
+        let directory = root + "/merge/" + task
+        if FileManager.default.fileExists(atPath: directory) {
+            try removeAuthorized(directory, recorded: directory, workspaceRoot: root, origin: origin)
+        }
+        try FileManager.default.createDirectory(atPath: (directory as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        defer { try? removeAuthorized(directory, recorded: directory, workspaceRoot: root, origin: origin) }
+        try run(["clone", "--local", "--", origin, directory], identity: identity)
+        try run(["config", "core.hooksPath", "/dev/null"], in: directory, identity: identity)
+        try run(["config", "core.fsmonitor", "false"], in: directory, identity: identity)
+        try run(["fetch", clone, "\(branch):refs/heads/\(branch)"], in: directory, identity: identity)
+        try run(["switch", branch], in: directory, identity: identity)
+        let rebase = try output(["rebase", "refs/heads/main"], in: directory, identity: identity, ok: [0, 1])
+        if rebase.status != 0 {
+            let names = (try? output(["diff", "--name-only", "--diff-filter=U"], in: directory, identity: identity, ok: [0, 1]).text) ?? ""
+            _ = try? run(["rebase", "--abort"], in: directory, identity: identity)
+            let files = names.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+            guard !files.isEmpty else { throw Failure.gitFailed }
+            return MergeRebase(base: "", tip: "", conflicts: files)
+        }
+        let tip = try text(["rev-parse", "--verify", "HEAD"], in: directory, identity: identity)
+        let base = try text(["rev-parse", "--verify", "refs/heads/main"], in: directory, identity: identity)
+        try run(["fetch", directory, branch], in: clone, identity: identity)
+        try run(["reset", "--hard", "FETCH_HEAD"], in: clone, identity: identity)
+        return MergeRebase(base: base, tip: tip, conflicts: [])
+    }
+
+    /// Fast-forwards `refs/heads/main` to `tip`. A checkout of `main` uses `merge --ff-only`. Any other
+    /// checkout updates the ref only, leaving the worktree and index alone. The caller must already
+    /// have refused a dirty overlap and a moved base.
+    public static func fastForwardMain(origin: String, clone: String, branch: String, tip: String, taskId: TaskID, identity: GitIdentity?) throws {
+        let incoming = "refs/kaban/incoming/" + (try component(taskId.rawValue))
+        try run(["fetch", clone, "\(branch):\(incoming)"], in: origin, identity: identity)
+        let head = try checkedOutBranch(origin, identity: identity)
+        if head == "main" {
+            try run(["merge", "--ff-only", tip], in: origin, identity: identity)
+        } else {
+            try run(["update-ref", "refs/heads/main", tip], in: origin, identity: identity)
+        }
+        guard try mainCommit(origin, identity: identity) == tip else { throw Failure.gitFailed }
+    }
+
     public static func gitDirectory(_ repository: String, identity: GitIdentity?) throws -> String {
         try text(["rev-parse", "--absolute-git-dir"], in: repository, identity: identity)
     }

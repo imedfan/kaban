@@ -92,13 +92,13 @@ extension KabanStore {
         return try stageLines()
     }
 
-    private func stageLines() throws -> [String] {
+    func stageLines() throws -> [String] {
         try database.read { db in
             try String.fetchAll(db, sql: "SELECT line FROM stage_pass_line ORDER BY id")
         }
     }
 
-    private func remember(taskId: String, line: String) throws {
+    func remember(taskId: String, line: String) throws {
         let exists = try database.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM stage_pass_line WHERE task_id = ? AND line = ?", arguments: [taskId, line]) ?? 0
         }
@@ -223,7 +223,7 @@ extension KabanStore {
         return false
     }
 
-    private func runResultEffect(owner: String, at: Date) throws -> Bool {
+    func runResultEffect(owner: String, at: Date) throws -> Bool {
         for item in try pendingEffectItems() {
             guard case .runResultCheck = item.effect else { continue }
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }
@@ -232,7 +232,7 @@ extension KabanStore {
             let readOnly = stage?.isReadOnly == true
             let clone = try readyClone(item.taskId)
             let identity = try projectIdentity(task)
-            let judged = try judgeResult(task: task, clone: clone, identity: identity, readOnly: readOnly)
+            let judged = try judgeResult(task: task, clone: clone, identity: identity, readOnly: readOnly, ignoringMainMove: stage?.kind == .merge)
             _ = try commitEffectResult(effectId: lease.effectId, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: lease.effectId + "/result", phase: .finished, outcome: judged.outcome), at: at, diagnostic: "BE-13 result check compares the main repository and the task branch; an ordinary dirty tree stays clean")
             try remember(taskId: item.taskId.rawValue, line: "stage \(item.taskId.rawValue) result \(task.machine.stageId.rawValue) \(judged.label)")
             return true
@@ -241,14 +241,28 @@ extension KabanStore {
     }
 
     /// Incident beats a suspicious file, which beats a read-only dirty tree. A writable dirty tree with neither is clean.
-    private func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool) throws -> (outcome: RealEffectOutcome, label: String) {
+    /// `ignoringMainMove` leaves `refs/heads/main` alone when that is the only drift, so a merge recheck cannot roll the user's main back.
+    func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool, ignoringMainMove: Bool = false) throws -> (outcome: RealEffectOutcome, label: String) {
         guard let clone else { return (.clean, "clean") }
         let snapshot = try database.read { db in try Self.protectionSnapshot(task.card.projectId, db: db) }
         try TaskClone.restoreBoardMCP(clone: clone.clonePath, origin: clone.projectPath, identity: identity)
         let base = clone.baseCommit ?? ""
-        if let snapshot, let drift = try TaskClone.protectionDrift(clone.projectPath, snapshot: snapshot, identity: identity) {
-            let restored = try TaskClone.rollbackProtection(clone.projectPath, snapshot: snapshot, identity: identity)
-            return (.incident(drift, rolledBack: restored), "incident")
+        if let snapshot, let found = try TaskClone.protectionDrift(clone.projectPath, snapshot: snapshot, identity: identity) {
+            var drift: IncidentKind? = found
+            if ignoringMainMove, found == .refsMoved,
+               let current = try? TaskClone.captureProtection(clone.projectPath, identity: identity) {
+                var adopted = snapshot
+                if let main = current.heads["refs/heads/main"] {
+                    adopted.heads["refs/heads/main"] = main
+                } else {
+                    adopted.heads.removeValue(forKey: "refs/heads/main")
+                }
+                if adopted.heads == current.heads, adopted.tags == current.tags, adopted.config == current.config { drift = nil }
+            }
+            if let drift {
+                let restored = try TaskClone.rollbackProtection(clone.projectPath, snapshot: snapshot, identity: identity)
+                return (.incident(drift, rolledBack: restored), "incident")
+            }
         }
         if try TaskClone.kabanChanged(clone: clone.clonePath, base: base, identity: identity) {
             let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
@@ -330,22 +344,23 @@ extension KabanStore {
         return false
     }
 
-    private struct ReadyClone {
+    struct ReadyClone {
         var clonePath: String
         var workspaceRoot: String
         var projectPath: String
         var baseCommit: String?
+        var branch: String
     }
 
-    private func readyClone(_ taskId: TaskID) throws -> ReadyClone? {
+    func readyClone(_ taskId: TaskID) throws -> ReadyClone? {
         try database.read { db in
             guard let record = try Self.cloneRecord(taskId, db: db), record.phase == "ready" else { return nil }
             guard FileManager.default.fileExists(atPath: record.clonePath) else { return nil }
-            return ReadyClone(clonePath: record.clonePath, workspaceRoot: record.workspaceRoot, projectPath: record.projectPath, baseCommit: record.baseCommit)
+            return ReadyClone(clonePath: record.clonePath, workspaceRoot: record.workspaceRoot, projectPath: record.projectPath, baseCommit: record.baseCommit, branch: record.branch)
         }
     }
 
-    private func projectIdentity(_ task: DurableTask) throws -> GitIdentity? {
+    func projectIdentity(_ task: DurableTask) throws -> GitIdentity? {
         try database.read { db in try Self.project(task.card.projectId, db: db).summary.identity }
     }
 

@@ -143,6 +143,8 @@ public enum TaskEvent: Hashable, Sendable {
     case mergeConflict(files: [String])
     case mainDirty
     case mainCleaned
+    /// `main` moved between the recorded rebase base and the fast-forward. Rebase again; do not update the ref.
+    case mainMoved
     case merged
 
     case human(HumanAction)

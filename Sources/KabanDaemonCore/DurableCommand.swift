@@ -23,6 +23,11 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case resultIncident(IncidentKind, rolledBack: [String])
     case acceptSuspicious([FileBlobRef])
     case gatesPassed
+    case mergeConflict([String])
+    case mainDirty
+    case mainCleaned
+    case mainMoved
+    case merged
     case daemonRestarted
     case cancel(keepBranch: Bool)
     case runFailed(RunID, RunFailure)
@@ -52,6 +57,11 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .resultIncident(let kind, _): .resultChecked(.incident(kind))
         case .acceptSuspicious(let files): .human(.acceptSuspiciousFiles(files))
         case .gatesPassed: .gatesPassed
+        case .mergeConflict(let files): .mergeConflict(files: files)
+        case .mainDirty: .mainDirty
+        case .mainCleaned: .mainCleaned
+        case .mainMoved: .mainMoved
+        case .merged: .merged
         case .daemonRestarted: .daemonRestarted
         case .cancel(let keep): .human(.cancel(keepBranch: keep))
         case .runFailed(let id, let failure): .runEnded(runId: id, failure)
