@@ -12,7 +12,7 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 лежит поверх #79 и ещё не принят в main.
+BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07 и BE-14, которые ещё не в main. Отчёты development фиксируют проверки
@@ -64,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 выполнен поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. Следующий в очереди — BE-15. BE-09–13 и BE-16–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. Следующий в очереди — BE-15. BE-09–13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -246,7 +246,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-14 каталог моделей
 
-Инкремент ветки `codex/be-14-model-catalog` поверх #79, ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
+Открытый инкремент [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79, ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
 `auto` отвергается в YAML и в `setModelOverride`. Override хранится отдельно от версии pipeline и меняет только свою задачу и стадию.
 `--list-models` принимается только как строки `id<TAB>name`. Иной непустой текст, включая ошибку аутентификации, не заменяет сохранённые строки.
 Новая незапрещённая модель получает `needsReview`. Исчезнувший id блокирует только стадии, которые его используют.
