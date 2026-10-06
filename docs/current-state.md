@@ -221,7 +221,7 @@ WIP save/restore остаётся BE-18/19. Cursor не запускается. 
 
 ## Backend: BE-08 управление процессами
 
-Открытый инкремент поверх #77, ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
+Открытый инкремент [PR #78](https://github.com/imedfan/kaban/pull/78) поверх #77, ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
 `--process-pass` запускает переданный `--runner` через `posix_spawn` в новой process group и пишет pid, pgid и время рождения.
 Без флага и без `--runner` демон процесс не порождает и не убивает. Старт `startAgentRun` получает факт `started` и не receipt:
 receipt завершил бы стадию. Exit 0 с выводом или грязным клоном даёт `no_final_call` и оставляет ту же стадию.

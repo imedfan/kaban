@@ -2,7 +2,8 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-08-process-control`, база — `codex/be-06-task-clones`
 (`20b6da3`, [PR #77](https://github.com/imedfan/kaban/pull/77), ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). PR этого инкремента открыт поверх #77 и ещё не принят в main.
+Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `961028d`.
+[PR #78](https://github.com/imedfan/kaban/pull/78) открыт поверх #77 и ещё не принят в main.
 
 ## Реализовано
 
