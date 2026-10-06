@@ -272,8 +272,9 @@ gate/merge занимают execution WIP, human — persisted admission. Руч
 блокирует новый admission всех видов, reactive runner/model/quota ограничения
 применяются к агентам/первой модели intake. Host coalesces command/observer wakes
 и имеет секундный timer: до восьми ticks на pass, idle receipt не записывается.
-Время backoff проверяется между проходами. Process reconciliation, реальные
-runner/catalog/quota producers и процессы Cursor остаются BE-06–11.
+Время backoff проверяется между проходами. Клоны задач добавлены в BE-06.
+BE-08 запускает локальный runner в своей process group только при `--process-pass`;
+сверка timeout не ждёт. Реальные runner/catalog/quota producers и Cursor CLI остаются BE-07 и дальше.
 Claim/lease/receipt внешних effects добавлен в BE-05: finished fact и receipt
 сходятся в один переход, повторный claim без факта не обещает exactly-once процесса,
 а process/git выполняются после commit и вне транзакции SQLite.
@@ -525,7 +526,7 @@ LaunchAgent не получает PATH из shell. Путь к `cursor-agent`, P
 ## 8. Git и изоляция
 
 ### 8.1 Рабочая копия задачи
-- `git clone --local` основного репозитория в каталог workspace проекта и задачи: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`. BE-06 резервирует путь до git, повторяет тот же путь после обрыва и удаляет каталог только если он совпадает с записью задачи и лежит вне копии пользователя. Архив `refs/kaban/archive/<task>` пишется лишь при `keepBranch`. WIP save/restore остаётся BE-18/19.
+- `git clone --local` основного репозитория в каталог workspace проекта и задачи: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`. BE-06 резервирует путь до git, повторяет тот же путь после обрыва и удаляет каталог только если он совпадает с записью задачи и лежит вне копии пользователя. Архив `refs/kaban/archive/<task>` пишется лишь при `keepBranch`. BE-08 перед откатом после crash или timeout пишет `refs/kaban/wip/<run>` внутри клона и не меняет копию пользователя; восстановление человеком остаётся BE-18/19.
 - Ветка `kaban/<task>-<slug>` от актуального `main` при входе в первую agent-стадию; один клон проходит все стадии задачи. Режим `fresh-readonly` даёт стадии отдельный свежий клон ветки.
 - Прогрев: `warm_paths` из основной копии через `cp -c` до старта агента, затем `on_create`. Для Xcode — свой `-derivedDataPath` внутри клона. Выигрыш по типам кэшей замеряем в **[спайк 6]**.
 - Порты: на задачу диапазон `KABAN_PORT_BASE`.

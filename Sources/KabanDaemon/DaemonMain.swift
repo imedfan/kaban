@@ -15,12 +15,14 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--workspaces PATH]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
                 Agent, gate, and merge effects stay pending. This pass does not run Cursor or git.
                 --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
+                --process-pass: run --runner in its own process group, stop that group, and classify a technical exit.
+                It does not launch Cursor. Without --runner, pending starts stay pending. Timeout checks do not wait.
                 """)
                 return
             }
@@ -28,13 +30,27 @@ struct DaemonMain {
             let stdio = positional.contains("--stdio")
             let effectPass = positional.contains("--effect-pass")
             let clonePass = positional.contains("--clone-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" }
+            let processPass = positional.contains("--process-pass")
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" }
             var workspaces: String?
-            if let index = positional.firstIndex(of: "--workspaces") {
-                guard positional.indices.contains(index + 1), !positional[index + 1].hasPrefix("--") else { throw HostError.arguments }
-                workspaces = positional[index + 1]
-                positional.removeSubrange(index...index + 1)
+            var runner: String?
+            var runnerArguments: [String] = []
+            var cursor = 0
+            var kept: [String] = []
+            while cursor < positional.count {
+                let item = positional[cursor]
+                func take() throws -> String {
+                    guard cursor + 1 < positional.count, !positional[cursor + 1].hasPrefix("--") else { throw HostError.arguments }
+                    cursor += 1
+                    return positional[cursor]
+                }
+                if item == "--workspaces" { workspaces = try take() }
+                else if item == "--runner" { runner = try take() }
+                else if item == "--runner-arg" { runnerArguments.append(try take()) }
+                else { kept.append(item) }
+                cursor += 1
             }
+            positional = kept
             guard positional.count == 2, positional[0] == "--database", !positional[1].hasPrefix("--") else { throw HostError.arguments }
             let path = URL(fileURLWithPath: positional[1]).standardizedFileURL.path
             if !stdio {
@@ -46,13 +62,20 @@ struct DaemonMain {
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
-            // Recovery changes running/gating invocations only. Git clone and cleanup run only for --clone-pass.
+            // Recovery changes running/gating invocations only. Git clone, cleanup, and process groups run only for their passes.
             try store.recoverProjectOperations()
             try store.recoverPipelineOperations()
             try store.refreshProjectLocations()
             try store.refreshPipelines()
             _ = try store.recover(passId: UUID(), at: Date())
             _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            if processPass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runProcessPass(owner: "daemon", at: Date(), workspaceRoot: root, runner: runner, runnerArguments: runnerArguments)
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
             if effectPass {
                 let lines = try store.runEffectPass(owner: "daemon", at: Date(), sideEffectLog: path + ".side-effects")
                 for line in lines {

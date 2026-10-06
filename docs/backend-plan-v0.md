@@ -68,13 +68,19 @@ BE-06–08, gates/hooks — BE-11, merge — BE-17.
 external fact и receipt к существующим effect id. Сверка finished fact и receipt
 даёт один переход. Повторный claim без факта не обещает exactly-once процесса.
 Настоящий результат не проходит через `deliverFake`. Opt-in `--effect-pass`
-подтверждает lifecycle effects только после commit. Cursor и process group остаются следующими задачами.
+подтверждает lifecycle effects только после commit. Cursor остаётся BE-07; process group добавлен в BE-08.
 
 [BE-06](development/backend-task-clones-2026-10-06.md) создаёт `git clone --local` и ветку задачи
 после commit плана. Параллельные задачи получают разные refs, config и cwd. Частичный каталог
 занимает тот же путь и не порождает второй run. `keepBranch` пишет архивный ref, иначе его нет.
 Удаление проверяет, что путь — записанный клон внутри workspace, и не трогает копию пользователя.
-WIP save/restore остаётся BE-18/19.
+WIP save/restore человеком остаётся BE-18/19.
+
+[BE-08](development/backend-process-control-2026-10-06.md) запускает переданный `--runner` в отдельной process group
+и хранит pid, pgid и время рождения. Пауза, перенос и отмена останавливают только группу этой задачи.
+Exit 0 с выводом и без final call даёт `no_final_call` и не двигает стадию; тихий exit остаётся `.running` до классификации BE-15.
+Crash и timeout пишут WIP ref внутри клона и откатывают его. `gate_failed` и `no_final_call` клон сохраняют.
+Повторный stop не сигналит чужую группу. Cursor не запускается. Обрыв между spawn и записью строки не обещает exactly-once.
 
 ## Следующие результаты
 
@@ -83,7 +89,7 @@ WIP save/restore остаётся BE-18/19.
    Отдельно проверить подписанный Mach service в составе бандла.
 2. Оставшиеся wire-команды: model override, files/incidents,
    WIP restore, среда и интеграция settings.
-3. Процессы Cursor, git-клоны и гейты поверх claim/lease. Exactly-once внешнего
+3. Cursor CLI поверх открытых клонов и process group. Exactly-once внешнего
    процесса не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.
 5. Упаковка LaunchAgent, регистрация, подпись и нотаризация в соответствующей задаче.

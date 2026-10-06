@@ -155,7 +155,7 @@ public enum StartBlock: Hashable, Sendable {
 }
 
 /// How a run ended without a final MCP call (`run.end_reason`).
-public enum RunFailure: Hashable, Sendable {
+public enum RunFailure: Codable, Hashable, Sendable {
     case crash, stallTimeout, wallTimeout, noFinalCall
     case rateLimit, runnerAuth, silentExit
     /// Monthly quota; `nil` pool = unknown (whole Mac).

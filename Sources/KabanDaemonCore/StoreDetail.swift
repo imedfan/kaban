@@ -13,7 +13,7 @@ extension KabanStore {
         if project.production != nil {
             switch command {
             case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage: break
-            case .completeStage, .requestHuman, .gatesPassed, .resultClean, .daemonRestarted:
+            case .completeStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .daemonRestarted, .runFailed, .modelMismatch:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }
@@ -87,6 +87,12 @@ extension KabanStore {
                 d.runs[index].status = .killed; d.runs[index].endReason = .pausedByHuman; d.runs[index].countsTowardLimits = false
             case .move, .cancel, .reject:
                 d.runs[index].status = .killed; d.runs[index].endReason = .movedByHuman; d.runs[index].countsTowardLimits = false
+            case .runFailed(_, let failure):
+                d.runs[index].status = failure.charges ? .failed : .killed
+                d.runs[index].endReason = runEndReason(failure)
+                d.runs[index].countsTowardLimits = failure.charges
+            case .modelMismatch:
+                d.runs[index].status = .killed; d.runs[index].endReason = .modelSubstituted; d.runs[index].countsTowardLimits = false
             default: d.runs[index].status = .killed
             }
         }
@@ -100,5 +106,18 @@ extension KabanStore {
             try db.execute(sql: "UPDATE task_admission SET queue_seq = ? WHERE task_id = ?", arguments: [try seq(db), task.card.id.rawValue])
         }
         return first
+    }
+
+    static func runEndReason(_ failure: RunFailure) -> RunEndReason? {
+        switch failure {
+        case .crash: .crash
+        case .stallTimeout: .stallTimeout
+        case .wallTimeout: .wallTimeout
+        case .noFinalCall: .noFinalCall
+        case .rateLimit: .rateLimit
+        case .runnerAuth: .runnerAuth
+        case .silentExit: .silentExit
+        case .usageExhausted, .modelUnavailable: nil
+        }
     }
 }
