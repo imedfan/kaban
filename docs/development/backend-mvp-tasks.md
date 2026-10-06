@@ -7,12 +7,12 @@
 BE-05 выполнен и принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`); границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
 BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), влитом в `codex/be-05-effect-execution` и ещё не принятом в main; границы — [клоны задач](backend-task-clones-2026-10-06.md).
 BE-08 выполнен в [PR #78](https://github.com/imedfan/kaban/pull/78), влитом в `codex/be-06-task-clones` и ещё не принятом в main; границы — [управление процессами](backend-process-control-2026-10-06.md).
-BE-07 выполнен в [PR #79](https://github.com/imedfan/kaban/pull/79), открытом поверх #78 и ещё не принятом в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
-BE-14 выполнен в [PR #80](https://github.com/imedfan/kaban/pull/80), открытом поверх #79 и ещё не принятом в main; остановка до первого инструмента не проверена; границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
-BE-15 выполнен в [PR #81](https://github.com/imedfan/kaban/pull/81), открытом поверх #80 и ещё не принятом в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
-BE-09 выполнен в [PR #82](https://github.com/imedfan/kaban/pull/82), открытом поверх #81 и ещё не принятом в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
-BE-10 выполнен в [PR #83](https://github.com/imedfan/kaban/pull/83), открытом поверх #82 и ещё не принятом в main. Auth, сборка и MCP в реальном профиле не проверены: CLI не залогинен. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
-BE-11 выполнен на ветке `codex/be-11-stage-gates` поверх #83; pull request ещё не открыт. Подозрительные файлы, инциденты, `/git/check` и merge в этот инкремент не входят. Грязное дерево стадии без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
+BE-07 выполнен в [PR #79](https://github.com/imedfan/kaban/pull/79), влитом в `codex/be-08-process-control` и ещё не принятом в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
+BE-14 выполнен в [PR #80](https://github.com/imedfan/kaban/pull/80), влитом в `codex/be-07-cursor-driver` и ещё не принятом в main; остановка до первого инструмента не проверена; границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
+BE-15 выполнен в [PR #81](https://github.com/imedfan/kaban/pull/81), влитом в `codex/be-14-model-catalog` и ещё не принятом в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
+BE-09 выполнен в [PR #82](https://github.com/imedfan/kaban/pull/82), влитом в `codex/be-15-limit-handling` и ещё не принятом в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
+BE-10 выполнен в [PR #83](https://github.com/imedfan/kaban/pull/83), влитом в `codex/be-09-mcp-server` и ещё не принятом в main. Auth, сборка и MCP в реальном профиле не проверены: CLI не залогинен. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
+BE-11 выполнен в [PR #84](https://github.com/imedfan/kaban/pull/84), открытом поверх `codex/be-10-mcp-isolation` и ещё не принятом в main. Подозрительные файлы, инциденты, `/git/check` и merge в этот инкремент не входят. Грязное дерево стадии без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
 BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-12.
 
@@ -193,7 +193,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-07. Реализовать и проверить драйвер Cursor CLI
 
-**Статус:** выполнено; [PR #79](https://github.com/imedfan/kaban/pull/79) открыт поверх #78, ещё не принят в main. Проверки и границы — [отчёт BE-07](backend-cursor-driver-2026-10-06.md).
+**Статус:** выполнено; [PR #79](https://github.com/imedfan/kaban/pull/79) влит в `codex/be-08-process-control`, ещё не принят в main. Проверки и границы — [отчёт BE-07](backend-cursor-driver-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -251,7 +251,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-09. Реализовать MCP-сервер доски
 
-**Статус:** выполнено; [PR #82](https://github.com/imedfan/kaban/pull/82) открыт поверх #81, ещё не принят в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
+**Статус:** выполнено; [PR #82](https://github.com/imedfan/kaban/pull/82) влит в `codex/be-15-limit-handling`, ещё не принят в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -279,7 +279,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-10. Реализовать проверку MCP-конфигурации и изоляцию запуска
 
-**Статус:** выполнено; PR #83 открыт поверх #82, ещё не принят в main. Auth, сборка и MCP в реальном профиле не проверены. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
+**Статус:** выполнено; [PR #83](https://github.com/imedfan/kaban/pull/83) влит в `codex/be-09-mcp-server`, ещё не принят в main. Auth, сборка и MCP в реальном профиле не проверены. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -310,7 +310,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-11. Реализовать гейты, hooks и передачу результатов между стадиями
 
-**Статус:** выполнено; pull request ещё не открыт. Подозрительные файлы и инциденты остаются BE-13, `/git/check` — BE-12, merge — BE-17. Грязное дерево без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
+**Статус:** выполнено; [PR #84](https://github.com/imedfan/kaban/pull/84) открыт поверх `codex/be-10-mcp-isolation`, ещё не принят в main. Подозрительные файлы и инциденты остаются BE-13, `/git/check` — BE-12, merge — BE-17. Грязное дерево без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -392,7 +392,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-14. Реализовать каталог моделей и проверку подмены модели
 
-**Статус:** выполнено; [PR #80](https://github.com/imedfan/kaban/pull/80) открыт поверх #79, ещё не принят в main. Остановка до первого инструмента не проверена. Границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
+**Статус:** выполнено; [PR #80](https://github.com/imedfan/kaban/pull/80) влит в `codex/be-07-cursor-driver`, ещё не принят в main. Остановка до первого инструмента не проверена. Границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -420,7 +420,7 @@ BE-12–13 и BE-16–20 ещё не завершены. Наличие DTO/fixt
 
 ## BE-15. Реализовать обработку лимитов Cursor и проверочные запуски
 
-**Статус:** выполнено; [PR #81](https://github.com/imedfan/kaban/pull/81) открыт поверх #80, ещё не принят в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
+**Статус:** выполнено; [PR #81](https://github.com/imedfan/kaban/pull/81) влит в `codex/be-14-model-catalog`, ещё не принят в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
 
 **Приоритет:** P1
 

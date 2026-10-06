@@ -3,7 +3,7 @@
 Дата: 6 октября 2026. Ветка `codex/be-09-mcp-server`, база — `codex/be-15-limit-handling`
 (`2288ee5`, [PR #81](https://github.com/imedfan/kaban/pull/81), ещё не принят в main).
 Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `7d062b1`.
-[PR #82](https://github.com/imedfan/kaban/pull/82) открыт поверх #81 и ещё не принят в main.
+[PR #82](https://github.com/imedfan/kaban/pull/82) влит в `codex/be-15-limit-handling` и ещё не принят в main.
 
 ## Реализовано
 

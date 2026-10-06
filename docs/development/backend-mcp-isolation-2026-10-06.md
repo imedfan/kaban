@@ -2,7 +2,7 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-10-mcp-isolation`, база — `codex/be-09-mcp-server`
 (`7c9f9b7`, [PR #82](https://github.com/imedfan/kaban/pull/82), ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#83](https://github.com/imedfan/kaban/pull/83), открыт поверх #82 и ещё не принят в main.
+Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#83](https://github.com/imedfan/kaban/pull/83), влит в `codex/be-09-mcp-server` и ещё не принят в main.
 
 ## Реализовано
 

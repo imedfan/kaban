@@ -12,7 +12,7 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main. BE-15 открыт в [PR #81](https://github.com/imedfan/kaban/pull/81) поверх #80 и ещё не принят в main. BE-09 открыт в [PR #82](https://github.com/imedfan/kaban/pull/82) поверх #81 и ещё не принят в main. BE-10 открыт в [PR #83](https://github.com/imedfan/kaban/pull/83) поверх #82 и ещё не принят в main. BE-11 подготовлен на `codex/be-11-stage-gates` поверх #83; pull request ещё не открыт.
+BE-07 влит в `codex/be-08-process-control` ([PR #79](https://github.com/imedfan/kaban/pull/79)) и ещё не принят в main. BE-14 влит в `codex/be-07-cursor-driver` ([PR #80](https://github.com/imedfan/kaban/pull/80)) и ещё не принят в main. BE-15 влит в `codex/be-14-model-catalog` ([PR #81](https://github.com/imedfan/kaban/pull/81)) и ещё не принят в main. BE-09 влит в `codex/be-15-limit-handling` ([PR #82](https://github.com/imedfan/kaban/pull/82)) и ещё не принят в main. BE-10 влит в `codex/be-09-mcp-server` ([PR #83](https://github.com/imedfan/kaban/pull/83)) и ещё не принят в main. BE-11 открыт в [PR #84](https://github.com/imedfan/kaban/pull/84) поверх `codex/be-10-mcp-isolation` и ещё не принят в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15, BE-09, BE-10 и BE-11, которые ещё не в main. Отчёты development фиксируют проверки
@@ -64,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. BE-15 открыт (#81) поверх #80 и ещё не принят в main. Платный пробный `-p` не запускался. BE-09 открыт (#82) поверх #81 и ещё не принят в main. BE-10 открыт (#83) поверх #82 и ещё не принят в main. Auth в реальном профиле не проверена. BE-11 подготовлен на `codex/be-11-stage-gates` поверх #83; pull request ещё не открыт и инкремент не в main. Подозрительные файлы не проверяются. Следующий в очереди — BE-12. BE-12–13 и BE-16–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 открыт (#84) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. Подозрительные файлы не проверяются. Следующий в очереди — BE-12. BE-12–13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -237,7 +237,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-07 драйвер Cursor CLI
 
-Открытый инкремент [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78, ещё не принят в main — [драйвер Cursor CLI](development/backend-cursor-driver-2026-10-06.md).
+[PR #79](https://github.com/imedfan/kaban/pull/79) влит в `codex/be-08-process-control` и ещё не принят в main — [драйвер Cursor CLI](development/backend-cursor-driver-2026-10-06.md).
 Парсер NDJSON не обрывает run на неизвестном событии, битой или слишком длинной строке. Модель обязательна: пустое значение, `auto` и placeholder отклоняются до запуска.
 `--resume` передаётся только с уже проверенным session id и вместе с `--model`. Без него новая сессия сохраняет переданный контекст и не получает выдуманный id.
 Отсутствующий или неисполняемый файл и status «not logged in» ставят `runner_unavailable`. Повтор — через 5 минут и по `recheck(.runner)`.
@@ -246,7 +246,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-14 каталог моделей
 
-Открытый инкремент [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79, ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
+[PR #80](https://github.com/imedfan/kaban/pull/80) влит в `codex/be-07-cursor-driver` и ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
 `auto` отвергается в YAML и в `setModelOverride`. Override хранится отдельно от версии pipeline и меняет только свою задачу и стадию.
 `--list-models` принимается только как строки `id<TAB>name`. Иной непустой текст, включая ошибку аутентификации, не заменяет сохранённые строки.
 Новая незапрещённая модель получает `needsReview`. Исчезнувший id блокирует только стадии, которые его используют.
@@ -255,25 +255,25 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-15 лимиты и тихий выход
 
-Открытый инкремент [PR #81](https://github.com/imedfan/kaban/pull/81) поверх #80, ещё не принят в main — [лимиты](development/backend-limit-handling-2026-10-06.md).
+[PR #81](https://github.com/imedfan/kaban/pull/81) влит в `codex/be-14-model-catalog` и ещё не принят в main — [лимиты](development/backend-limit-handling-2026-10-06.md).
 Известный лимит освобождает только этот run и пишет флаг в той же транзакции. Соседний run доигрывает. Om usage не блокирует cm; unknown usage блокирует Мак. Попытка и `runsSinceHuman` не списываются. Cooldown 15/30/60 переживает reopen; `resumeAfterRateLimit` снимает только rate limit. `quota=nil` не считается 100% свободно.
 Тихий exit ждёт пробу: одна запись на модель, не чаще 10 минут, без `cursor-agent -p` и без обычного рестарта. Неизвестный текст остаётся одной редактированной строкой ленты. Платный `-p` не запускался.
 
 ## Backend: BE-09 MCP-сервер доски
 
-Открытый инкремент [PR #82](https://github.com/imedfan/kaban/pull/82) поверх #81, ещё не принят в main — [MCP-сервер](development/backend-mcp-server-2026-10-06.md).
+[PR #82](https://github.com/imedfan/kaban/pull/82) влит в `codex/be-15-limit-handling` и ещё не принят в main — [MCP-сервер](development/backend-mcp-server-2026-10-06.md).
 Пять инструментов слушают только `127.0.0.1`. Токен run передаётся в `KABAN_RUN_TOKEN` и в базе хранится как SHA-256. Чужой, отозванный и токен прошлого run не меняют задачу. Подмена `taskId` отклоняется. Повтор `complete_stage` не создаёт второй переход: задача входит в `gating` и получает `.runGates`, не следующую стадию и не Done. Нелегальный `return_to_stage` отклоняется. `request_human` освобождает слот. Notices уходят только адресату.
 `listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Обычный запуск демона сервер не держит. `/git/check` — следующая задача.
 
 ## Backend: BE-10 изоляция MCP
 
-Открытый инкремент [PR #83](https://github.com/imedfan/kaban/pull/83) поверх #82, ещё не принят в main — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
+[PR #83](https://github.com/imedfan/kaban/pull/83) влит в `codex/be-09-mcp-server` и ещё не принят в main — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
 Чужой или нечитаемый `mcp list` блокирует старт и не включает `--approve-mcps`. Сервер вне allowlist даёт предупреждение и не попадает в конфиг. Токен в файле только как `${env:KABAN_RUN_TOKEN}`. Подмена `.cursor/mcp.json` снимается до пустого diff.
 Профиль запрещает прямую запись и `/usr/bin/git config` в `.git` клона. Это не гарантия изоляции: CLI остаётся вне профиля, чтение широкое, токен CLI не спрятан. Установленный CLI не залогинен, поэтому auth, сборка и MCP в реальном профиле не подтверждены.
 
 ## Backend: BE-11 гейты и передача стадии
 
-Инкремент на `codex/be-11-stage-gates` поверх #83; pull request ещё не открыт и в main не принят — [гейты стадий](development/backend-stage-gates-2026-10-06.md).
+Открытый инкремент [PR #84](https://github.com/imedfan/kaban/pull/84) поверх `codex/be-10-mcp-isolation`, ещё не принят в main — [гейты стадий](development/backend-stage-gates-2026-10-06.md).
 `complete_stage` входит в `gating`. `--stage-pass` исполняет hooks, гейты, проверку результата и один commit и не запускает Cursor. Зелёный exit без final call стадию не закрывает. Красный гейт агента остаётся на том же клоне; красная gate-стадия возвращает в coding-стадию и не повторяется на месте. Возврат несёт конкретные issues, новый заход обнуляет attempts. Replay не пишет второй commit и не запускает hook снова. Пайплайн доходит до Human Review.
 Проверка результата читает только грязь read-only. Грязное дерево обычной стадии для этой проверки считается чистым. Подозрительные файлы, инциденты, `/git/check` и merge остаются следующими задачами.
 

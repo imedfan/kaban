@@ -1,8 +1,8 @@
 # BE-11: гейты, hooks и передача стадии
 
 Дата: 6 октября 2026. Ветка `codex/be-11-stage-gates`, база — `codex/be-10-mcp-isolation`
-(`a4c6bc5`, [PR #83](https://github.com/imedfan/kaban/pull/83), ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). Pull request ещё не открыт.
+(`a4c6bc5`, [PR #83](https://github.com/imedfan/kaban/pull/83), влит в `codex/be-09-mcp-server` и ещё не принят в main).
+Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#84](https://github.com/imedfan/kaban/pull/84), открыт поверх `codex/be-10-mcp-isolation` и ещё не принят в main.
 
 ## Реализовано
 
