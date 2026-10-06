@@ -15,7 +15,7 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
@@ -23,6 +23,7 @@ struct DaemonMain {
                 --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
                 --process-pass: run --runner in its own process group, stop that group, and classify a technical exit.
                 It does not launch Cursor. Without --runner, pending starts stay pending. Timeout checks do not wait.
+                --mcp-pass: one board complete_stage for a running task through the loopback MCP server, then reprint that line.
                 --cursor-agent PATH: absolute executable checked with version, status and --list-models every 5 minutes and on recheck runner.
                 It does not start a model prompt. Without this flag the daemon does not probe Cursor.
                 """)
@@ -33,7 +34,8 @@ struct DaemonMain {
             let effectPass = positional.contains("--effect-pass")
             let clonePass = positional.contains("--clone-pass")
             let processPass = positional.contains("--process-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" }
+            let mcpPass = positional.contains("--mcp-pass")
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" }
             var workspaces: String?
             var runner: String?
             var runnerArguments: [String] = []
@@ -66,6 +68,13 @@ struct DaemonMain {
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
+            // The board call has to see the live run. Recovery would otherwise end it first.
+            if mcpPass {
+                let lines = try store.runMCPPass(at: Date())
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
             // Recovery changes running/gating invocations only. Git clone, cleanup, and process groups run only for their passes.
             try store.recoverProjectOperations()
             try store.recoverPipelineOperations()

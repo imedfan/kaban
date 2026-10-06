@@ -36,6 +36,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("cursor_runner_v10", migrate: Self.migrateCursorRunner)
         migrator.registerMigration("model_catalog_v11", migrate: Self.migrateModelCatalog)
         migrator.registerMigration("model_probe_v12", migrate: Self.migrateModelProbes)
+        migrator.registerMigration("mcp_run_token_v13", migrate: Self.migrateMCPTokens)
         try migrator.migrate(database)
     }
 
@@ -152,6 +153,9 @@ public final class KabanStore: Sendable {
                 // A stage exit or interrupted invocation must never deliver its old launch/gate result.
                 try Self.supersedeEffects(taskId: taskId, db: db)
                 try db.execute(sql: "DELETE FROM pipeline_deferred WHERE task_id = ?", arguments: [taskId.rawValue])
+            }
+            if before.currentRunId != result.state.currentRunId {
+                try Self.revokeMCPTokens(runId: before.currentRunId, db: db)
             }
             task.machine = result.state
             if result.state.stageId != before.stageId { task.pipeline = reductionPipeline }

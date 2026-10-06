@@ -13,7 +13,7 @@ extension KabanStore {
         if project.production != nil {
             switch command {
             case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage: break
-            case .completeStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .daemonRestarted, .runFailed, .modelMismatch:
+            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .daemonRestarted, .runFailed, .modelMismatch:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }
@@ -82,6 +82,7 @@ extension KabanStore {
             switch command {
             case .requestHuman: d.runs[index].status = .succeeded; d.runs[index].endReason = .askedHuman
             case .completeStage: d.runs[index].status = .succeeded; d.runs[index].endReason = .completed
+            case .returnToStage: d.runs[index].status = .succeeded; d.runs[index].endReason = .returned
             case .daemonRestarted: d.runs[index].status = .killed; d.runs[index].endReason = .daemonRestart; d.runs[index].countsTowardLimits = false
             case .pause:
                 d.runs[index].status = .killed; d.runs[index].endReason = .pausedByHuman; d.runs[index].countsTowardLimits = false
@@ -100,6 +101,13 @@ extension KabanStore {
             let id = commandId.uuidString.lowercased()
             d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, runId: run, stageId: before.stageId, kind: "summary", text: summary, createdAt: at))
             d.feed.append(FeedItem(id: id, at: at, kind: "summary", text: summary, runId: run))
+        }
+        if case .returnToStage(let run, _, let issues) = command {
+            for (offset, issue) in issues.enumerated() {
+                let id = "\(commandId.uuidString.lowercased())/issue/\(offset)"
+                d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, runId: run, stageId: before.stageId, kind: "issue", text: issue, createdAt: at))
+                d.feed.append(FeedItem(id: id, at: at, kind: "issue", text: issue, runId: run))
+            }
         }
         try saveDetail(d, taskId: task.card.id, db: db)
         if task.machine.state.status == .queued && (before.state.status != .queued || before.stageId != task.machine.stageId) {
