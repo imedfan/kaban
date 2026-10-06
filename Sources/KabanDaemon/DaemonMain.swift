@@ -15,7 +15,7 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
@@ -23,6 +23,8 @@ struct DaemonMain {
                 --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
                 --process-pass: run --runner in its own process group, stop that group, and classify a technical exit.
                 It does not launch Cursor. Without --runner, pending starts stay pending. Timeout checks do not wait.
+                --cursor-agent PATH: absolute executable checked with version, status and --list-models every 5 minutes and on recheck runner.
+                It does not start a model prompt. Without this flag the daemon does not probe Cursor.
                 """)
                 return
             }
@@ -35,6 +37,7 @@ struct DaemonMain {
             var workspaces: String?
             var runner: String?
             var runnerArguments: [String] = []
+            var cursorAgent: String?
             var cursor = 0
             var kept: [String] = []
             while cursor < positional.count {
@@ -47,6 +50,7 @@ struct DaemonMain {
                 if item == "--workspaces" { workspaces = try take() }
                 else if item == "--runner" { runner = try take() }
                 else if item == "--runner-arg" { runnerArguments.append(try take()) }
+                else if item == "--cursor-agent" { cursorAgent = try take() }
                 else { kept.append(item) }
                 cursor += 1
             }
@@ -69,6 +73,7 @@ struct DaemonMain {
             try store.refreshPipelines()
             _ = try store.recover(passId: UUID(), at: Date())
             _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            if let cursorAgent { try store.setRunnerExecutable(cursorAgent) }
             if processPass {
                 let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
                 let lines = try store.runProcessPass(owner: "daemon", at: Date(), workspaceRoot: root, runner: runner, runnerArguments: runnerArguments)

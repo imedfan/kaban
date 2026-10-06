@@ -33,6 +33,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("effect_execution_v7", migrate: Self.migrateEffectExecution)
         migrator.registerMigration("task_clone_v8", migrate: Self.migrateTaskClones)
         migrator.registerMigration("agent_process_v9", migrate: Self.migrateAgentProcesses)
+        migrator.registerMigration("cursor_runner_v10", migrate: Self.migrateCursorRunner)
         try migrator.migrate(database)
     }
 

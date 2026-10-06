@@ -66,7 +66,7 @@ public struct DaemonService: Sendable {
     public static var capabilities: DaemonCapabilities {
         .init(operations: ["snapshot", "subscribe", "command", "capabilities", "synchronize", "ephemeral", "readLog"].map {
             .init(name: $0, supported: $0 != "readLog")
-        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0), scopes: $0 == .recheck ? ["project"] : nil) })
+        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0), scopes: $0 == .recheck ? ["project", "runner"] : nil) })
     }
     private static func support(_ command: CommandName) -> CommandSupport {
         switch command {

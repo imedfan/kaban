@@ -12,6 +12,7 @@ extension KabanStore {
         projectOperations.lock(); defer { projectOperations.unlock() }
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
+        if case .recheck(.runner) = envelope.command { return try recheckRunner(envelope, at: now()) }
         let request = try Self.encode(envelope)
         let validating: ProjectID?
         switch envelope.command {

@@ -12,6 +12,7 @@ extension KabanStore {
     /// Idle wakes do not create receipts. Backoff never holds a transaction/timer open.
     public func runSchedulerPass(at: Date, budget: Int = 8) throws -> [TickReceipt] {
         precondition((1...32).contains(budget))
+        try refreshRunnerIfDue(at: at)
         guard try database.read({ try Bool.fetchOne($0, sql: "SELECT EXISTS(SELECT 1 FROM global_settings)") == true }) else { return [] }
         var receipts: [TickReceipt] = []
         for _ in 0..<budget {
