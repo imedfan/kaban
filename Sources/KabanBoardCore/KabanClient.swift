@@ -1,12 +1,37 @@
 import Foundation
 import KabanProtocol
 
-/// Transport boundary shared by the fixture client and the future XPC adapter.
+/// Transport boundary shared by the fixture client and the daemon adapter.
 /// Commands return acknowledgements; only snapshots and events change the board.
 @MainActor public protocol KabanClient: AnyObject {
     func getSnapshot() async throws -> Snapshot
+    func updates() -> AsyncThrowingStream<KabanClientUpdate, Error>
     func events() -> AsyncStream<EventEnvelope>
     func send(_ command: Command, commandId: CommandID) async throws -> CommandResult
+}
+
+public enum KabanClientUpdate: Sendable {
+    case event(EventEnvelope)
+    case replacement(SnapshotReplacement)
+    case connection(DaemonConnectionState)
+    case ephemeral(EphemeralEnvelope)
+}
+extension KabanClient {
+    public func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> {
+        let stream = events()
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(DaemonWire.maxPageSize * 2)) { continuation in
+            let task = Task { @MainActor in
+                continuation.yield(.connection(.connected))
+                for await event in stream {
+                    if case .dropped = continuation.yield(.event(event)) {
+                        continuation.finish(throwing: CommandError(code: "buffer_overflow", message: "Update stream overflow")); return
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
+    }
 }
 
 @MainActor public final class MockKabanClient: KabanClient {

@@ -2,6 +2,7 @@ import Foundation
 import Dispatch
 import KabanProtocol
 import KabanDaemonCore
+import KabanTransport
 #if os(macOS)
 import Darwin
 #else
@@ -15,7 +16,7 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--mcp-isolation-pass] [--stage-pass] [--merge-pass] [--log-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
+                KabanDaemon --launch-agent | --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--mcp-isolation-pass] [--stage-pass] [--merge-pass] [--log-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
@@ -33,7 +34,20 @@ struct DaemonMain {
                 """)
                 return
             }
+            let launchAgent = arguments == ["--launch-agent"]
             var positional = arguments
+            if launchAgent {
+                let installation = DaemonInstallation()
+                _ = umask(0o077)
+                try installation.prepare()
+                let log = installation.logs.appendingPathComponent("daemon.log").path
+                let fd = open(log, O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW, 0o600)
+                guard fd >= 0 else { throw POSIXError(.EIO) }
+                _ = dup2(fd, STDERR_FILENO); close(fd)
+                positional = ["--database", installation.database.path, "--workspaces", installation.workspaces.path]
+            }
+            let initialize = launchAgent || positional.contains("--initialize")
+            if initialize { _ = umask(0o077) }
             let stdio = positional.contains("--stdio")
             let effectPass = positional.contains("--effect-pass")
             let clonePass = positional.contains("--clone-pass")
@@ -43,7 +57,7 @@ struct DaemonMain {
             let stagePass = positional.contains("--stage-pass")
             let mergePass = positional.contains("--merge-pass")
             let logPass = positional.contains("--log-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" || $0 == "--mcp-isolation-pass" || $0 == "--stage-pass" || $0 == "--merge-pass" || $0 == "--log-pass" }
+            positional.removeAll { $0 == "--stdio" || $0 == "--initialize" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" || $0 == "--mcp-isolation-pass" || $0 == "--stage-pass" || $0 == "--merge-pass" || $0 == "--log-pass" }
             var workspaces: String?
             var runner: String?
             var runnerArguments: [String] = []
@@ -76,6 +90,9 @@ struct DaemonMain {
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
+            if initialize, try store.getSnapshot().settings == nil {
+                _ = try store.setSettings(.init(maxConcurrentRuns: 4, quotaOptions: .init(enabled: false, consent: false)), commandId: UUID(), at: Date())
+            }
             if logPass {
                 let lines = try store.runLogPass()
                 for line in lines {
@@ -184,7 +201,18 @@ struct DaemonMain {
             #if os(macOS)
             if #available(macOS 26.0, *) {
                 let listener = try XPCDaemonListener(service: service)
-                withExtendedLifetime((lease, listener, observer, scheduler)) { dispatchMain() }
+                let termination = DispatchSource.makeSignalSource(signal: SIGTERM, queue: DispatchQueue(label: "app.kaban.termination"))
+                signal(SIGTERM, SIG_IGN)
+                termination.setEventHandler {
+                    listener.cancel(); observer.cancel(); scheduler.stop()
+                    if launchAgent, let runtimeRoot {
+                        do { _ = try store.recoverProduction(passId: UUID(), at: Date(), workspaceRoot: runtimeRoot) }
+                        catch { try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: shutdown recovery failed: \(error)\n".utf8)) }
+                    }
+                    exit(0)
+                }
+                termination.resume()
+                withExtendedLifetime((lease, listener, observer, scheduler, termination)) { dispatchMain() }
             } else { throw HostError.platform }
             #else
             throw HostError.platform

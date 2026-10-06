@@ -18,10 +18,10 @@ let package = Package(
     ],
     dependencies: [.package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1")],
     targets: [
-        .target(name: "KabanDaemonCore", dependencies: ["KabanKit", "KabanProtocol", .product(name: "GRDB", package: "GRDB.swift")]),
+        .target(name: "KabanDaemonCore", dependencies: ["KabanKit", "KabanProtocol", "KabanTransport", .product(name: "GRDB", package: "GRDB.swift")]),
         .testTarget(name: "KabanDaemonCoreTests", dependencies: ["KabanDaemonCore", "KabanBoardCore"]),
         .target(name: "KabanTransport", dependencies: ["KabanProtocol"]),
-        .executableTarget(name: "KabanDaemon", dependencies: ["KabanDaemonCore"]),
+        .executableTarget(name: "KabanDaemon", dependencies: ["KabanDaemonCore", "KabanTransport"]),
         .executableTarget(name: "kabanctl", dependencies: ["KabanTransport"]),
         .testTarget(name: "KabanTransportTests", dependencies: ["KabanTransport", "KabanDaemonCore", "KabanBoardCore"]),
         .target(name: "KabanProtocol"),

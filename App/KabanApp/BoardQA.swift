@@ -7,7 +7,8 @@ import Darwin
 /// Opt-in QA of the real WindowGroup. Never runs in a normal launch.
 @MainActor enum BoardQA {
     static var store: BoardStore?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil }
+    static var runtime: DaemonRuntime?
+    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -16,7 +17,11 @@ import Darwin
         do {
             try await waitUntil { store?.projection != nil && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--ui-smoke") {
+            if let path = argument("--daemon-smoke") {
+                let checks = try await daemonSmoke(store)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks, "seq": store.projection?.stateSeq ?? 0], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--ui-smoke") {
                 let checks = try await smoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
@@ -44,6 +49,38 @@ import Darwin
             FileHandle.standardError.write(Data("UI QA failed: \(error)\n".utf8))
             Darwin.exit(EXIT_FAILURE)
         }
+    }
+    private static func daemonSmoke(_ store: BoardStore) async throws -> [String] {
+        try await waitUntil { store.canSend }
+        guard let project = store.projection?.projectOrder.first else { throw failure("Live project missing") }
+        if CommandLine.arguments.contains("--daemon-smoke-reopen") {
+            guard let card = store.projection?.tasks.values.first(where: { $0.title == "Edited durable task" && $0.state == .cancelled }) else { throw failure("Durable task missing after reopening") }
+            await store.select(card.id)
+            guard store.detail?.body == "Durable body\n" else { throw failure("Durable body missing after reopening") }
+            return ["reopened embedded daemon restores task, body and journal without fixtures"]
+        }
+        store.prepareCreation()
+        await store.create(.init(title: "Durable UI task", body: "Durable body"), in: project)
+        try await waitUntil { store.createdTaskID != nil && store.creation.commandID == nil }
+        guard let id = store.createdTaskID else { throw failure("Correlated creation missing") }
+        guard await store.send(.editTask(taskId: id, title: "Edited durable task", body: "Durable body\n"), taskID: id) else { throw failure("Live edit rejected") }
+        try await waitUntil { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false }
+        guard await store.send(.pauseTask(taskId: id), taskID: id) else { throw failure("Live pause rejected") }
+        try await waitUntil { store.projection?.tasks[id]?.state == .paused && store.projection?.isSent(id) == false }
+        guard await store.send(.resumeTask(taskId: id), taskID: id) else { throw failure("Live resume rejected") }
+        try await waitUntil { store.projection?.tasks[id]?.state.status == .queued && store.projection?.isSent(id) == false }
+        guard await store.send(.cancelTask(taskId: id, keepBranch: false), taskID: id) else { throw failure("Live cancel rejected") }
+        try await waitUntil { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
+        await store.select(id)
+        guard store.detail?.body == "Durable body\n" else { throw failure("Live body changed") }
+        if let path = argument("--daemon-smoke-window") {
+            if argument("--qa-size") == "minimum" { NSApp.windows.first { $0.styleMask.contains(.titled) }?.setContentSize(.init(width: 1040, height: 640)) }
+            try await Task.sleep(for: .milliseconds(700))
+            let bitmap = try await ReferenceExport.captureLiveWindow()
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
+            try png.write(to: URL(fileURLWithPath: path))
+        }
+        return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "task body remains durable; no paid agent is launched"]
     }
     private static func prepare(_ store: BoardStore) async throws {
         switch argument("--qa-state") {
@@ -105,11 +142,11 @@ import Darwin
         return checks
     }
     private static func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<100 {
+        for _ in 0..<400 {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(50))
         }
-        throw failure("Timed out waiting for UI state")
+        throw failure("Timed out waiting for UI state; runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
     }
     private static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])

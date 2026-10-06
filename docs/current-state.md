@@ -6,19 +6,12 @@
 
 ## База этого среза
 
-Проверенная после git fetch база реализации: `origin/main` —
-`ea02f0c` (приняты #63–76, включая native UI #67, transport #70, BE-01–04 #71–74, срез статуса #75 и BE-05 #76).
-BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
-BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
-BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
-BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 влит в `codex/be-08-process-control` ([PR #79](https://github.com/imedfan/kaban/pull/79)) и ещё не принят в main. BE-14 влит в `codex/be-07-cursor-driver` ([PR #80](https://github.com/imedfan/kaban/pull/80)) и ещё не принят в main. BE-15 влит в `codex/be-14-model-catalog` ([PR #81](https://github.com/imedfan/kaban/pull/81)) и ещё не принят в main. BE-09 влит в `codex/be-15-limit-handling` ([PR #82](https://github.com/imedfan/kaban/pull/82)) и ещё не принят в main. BE-10 влит в `codex/be-09-mcp-server` ([PR #83](https://github.com/imedfan/kaban/pull/83)) и ещё не принят в main. BE-11 влит в `codex/be-10-mcp-isolation` ([PR #84](https://github.com/imedfan/kaban/pull/84)) и ещё не принят в main. BE-12 открыт в [PR #85](https://github.com/imedfan/kaban/pull/85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. BE-13 открыт в [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants` и ещё не принят в main.
-BE-16 открыт в [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents` и ещё не принят в main.
-BE-17 выполнен в [PR #88](https://github.com/imedfan/kaban/pull/88) поверх `codex/be-16-run-logs` и ещё не принят в main.
-Локальная ветка с именем main
-может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15, BE-09, BE-10, BE-11, BE-12, BE-13, BE-16 и BE-17, которые ещё не в main. Отчёты development фиксируют проверки
-своих инкрементов, а не новый прогон на текущем HEAD.
+Проверенная после git fetch база: `origin/main` — `d3ba1f7` (BE-19 #90).
+BE-01–05 приняты в #71–76; код BE-06–18 принят вместе с [PR #89](https://github.com/imedfan/kaban/pull/89).
+Исходные stacked PR #77–88 остаются историей инкрементов; их отчёты относятся к указанным там SHA.
+BE-19 принят в main через [PR #90](https://github.com/imedfan/kaban/pull/90), `d3ba1f7`. Конфликты squash-истории устранены в `140c97b` без изменения проверенного tree.
+BE-20 реализуется в `codex/be-20-launch-agent`; успешная установка ещё не подтверждена.
+Локальная main может быть старее origin/main. Проверки development-отчётов не заменяют новый прогон текущего HEAD.
 
 ## Что есть в основном коде
 
@@ -27,12 +20,12 @@ BE-17 выполнен в [PR #88](https://github.com/imedfan/kaban/pull/88) п�
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store, миграции v1–v20, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, лимитные флаги и проба модели, loopback MCP доски с хешем run-токена, гейты, hooks и один commit стадии, проверка refs/tags/config, `.kaban` и подозрительных файлов, durable incidents, `/git/check` и разовые git-разрешения, чтение логов по смещению событий, очередь одного локального merge с rebase во временном клоне и fast-forward `main`, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется в `--process-pass` либо в обычном loop с явно переданным локальным `--runner`. Проба после тихого выхода не запускает `cursor-agent -p`. MCP и `/git/check` слушают только `127.0.0.1` в `--mcp-pass` и в прямом вызове сервера. Preflight блокирует чужой или нечитаемый `mcp list` и не передаёт `--approve-mcps`. Профиль записи не изолирует токен CLI. Грязное дерево без read-only для проверки результата считается чистым. Откат git при инциденте происходит до записи в базу и не обещает exactly-once. Файл лога не откатывается вместе с SQLite. Fast-forward `main` сверяется с git и не обещает exactly-once. Повторный проход не двигает уже обновлённый ref. Shim не заменяет прямой `/usr/bin/git`. Автокоммит `.kaban/pipeline.yaml` для нового запрета не делается |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass`, `--process-pass`, `--mcp-pass`, `--mcp-isolation-pass`, `--stage-pass`, `--log-pass` и `--merge-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. `--mcp-pass` делает один `complete_stage` через loopback и не запускает Cursor. `--mcp-isolation-pass` только восстанавливает `.cursor/mcp.json`. `--stage-pass` исполняет гейты, hooks, проверку результата и один commit стадии и не запускает Cursor. `--log-pass` только перепечатывает сохранённую страницу лога. `--merge-pass` перебазирует одну одобренную задачу на `main` и fast-forward этого ref и не запускает Cursor. Штатный startup восстанавливает сохранённые gate/merge effects до scheduler. Обычный loop исполняет ручные git/process effects; постоянно работающий MCP-сервер и автоматический production Cursor launch пока не подключены. Обычный loop исполняет stop/WIP/restore/hooks/gates/merge/cleanup до нового admission; без LaunchAgent packaging и подключения App |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass`, `--process-pass`, `--mcp-pass`, `--mcp-isolation-pass`, `--stage-pass`, `--log-pass` и `--merge-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. `--mcp-pass` делает один `complete_stage` через loopback и не запускает Cursor. `--mcp-isolation-pass` только восстанавливает `.cursor/mcp.json`. `--stage-pass` исполняет гейты, hooks, проверку результата и один commit стадии и не запускает Cursor. `--log-pass` только перепечатывает сохранённую страницу лога. `--merge-pass` перебазирует одну одобренную задачу на `main` и fast-forward этого ref и не запускает Cursor. Штатный startup восстанавливает сохранённые gate/merge effects до scheduler. Обычный loop исполняет ручные git/process effects; постоянно работающий MCP-сервер и автоматический production Cursor launch пока не подключены. Обычный loop исполняет stop/WIP/restore/hooks/gates/merge/cleanup до нового admission. В BE-20 bundle/SMAppService и live App adapter реализованы; установка блокируется Sandbox, см. отчёт |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
-| Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, детали, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
-Mock-задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
+В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
 в UserDefaults. Настройки, квота и фактические агентские процессы пока не подключены к приложению.
 Полный M1/MVP не принят; ограничения fake engine описаны в
 [headless contract](development/m1-headless-contract.md).
@@ -41,7 +34,7 @@ Mock-задачи живут в памяти текущего запуска. Н
 
 PR #67 принят в main; правка `13941e9` интегрирует типизированный клиент.
 Основной WindowGroup теперь использует `BoardView` / `BoardStore` / `KabanClient`
-и Protocol fixtures из `AppFixture`, а не строковый автомат `ReferenceDemo`.
+В BE-20 default подключается к DaemonKabanClient; Protocol fixtures из `AppFixture` остаются для opt-in QA. Строковый автомат `ReferenceDemo` не используется.
 Сохранённые `Reference*` views остаются инструментом сравнения и не являются
 основным состоянием приложения.
 
@@ -66,7 +59,10 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 влит в `codex/be-10-mcp-isolation` (#84) и ещё не принят в main. BE-12 открыт (#85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. BE-13 открыт в [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants` и ещё не принят в main. BE-16 открыт в [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents` и ещё не принят в main. BE-17 выполнен в [PR #88](https://github.com/imedfan/kaban/pull/88) поверх `codex/be-16-run-logs` и ещё не принят в main. Следующий в очереди — BE-19. BE-18 реализован в этой ветке; BE-19–20 ещё не завершены.
+BE-06–18 приняты в main через #89. BE-19 — [PR #90](https://github.com/imedfan/kaban/pull/90).
+BE-20 — [отчёт bundle/lifecycle](development/backend-launch-agent-2026-10-06.md):
+реальная регистрация требует разрешения устранить расхождение App Sandbox с архитектурой §13.
+Другой Apple Team, reboot и paid Cursor не проверены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.

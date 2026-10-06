@@ -514,7 +514,7 @@ BE-18 выполнен в [PR #89](https://github.com/imedfan/kaban/pull/89), е
 
 ## BE-18. Реализовать восстановление после сбоя демона
 
-**Статус:** выполнено в [PR #89](https://github.com/imedfan/kaban/pull/89); ещё не принято в main. [Проверки и границы](backend-daemon-recovery-2026-10-06.md).
+**Статус:** принято в main через [PR #89](https://github.com/imedfan/kaban/pull/89), `72fa0eb`. [Проверки и границы](backend-daemon-recovery-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -540,7 +540,7 @@ BE-18 выполнен в [PR #89](https://github.com/imedfan/kaban/pull/89), е
 
 ## BE-19. Подключить ручные команды к реальному исполнению
 
-**Статус:** реализовано в `codex/be-19-manual-execution`; ещё не принято в main. [Проверки и границы](backend-manual-execution-2026-10-06.md).
+**Статус:** принято в main через [PR #90](https://github.com/imedfan/kaban/pull/90), `d3ba1f7`. [Проверки и границы](backend-manual-execution-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -568,6 +568,8 @@ BE-18 выполнен в [PR #89](https://github.com/imedfan/kaban/pull/89), е
 - [x] Repeated commandId не повторяет external action.
 
 ## BE-20. Упаковать демон и реализовать lifecycle LaunchAgent
+
+**Статус:** реализация в `codex/be-20-launch-agent`; приёмка установки блокируется App Sandbox. [Проверки и границы](backend-launch-agent-2026-10-06.md).
 
 **Приоритет:** P1
 

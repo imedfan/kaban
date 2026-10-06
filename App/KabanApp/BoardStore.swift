@@ -10,6 +10,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
 
 @MainActor @Observable final class BoardStore {
     private let client: any KabanClient
+    let usesFixture: Bool
     private let boardSet: BoardSetStore
     var screen: BoardScreen = .board
     var filter: BoardFilter = .all
@@ -28,16 +29,19 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private(set) var createdTaskID: TaskID?
     private var selection = TaskDetailSelection()
     private var taskReadFloors: [TaskID: Seq] = [:]
+    var connectionState: DaemonConnectionState = .connecting
+    var canSend: Bool { connectionState == .connected }
     private var didConnect = false
 
     init(client: any KabanClient, storage: any KeyValueStoring = DefaultsStorage()) {
         self.client = client
+        self.usesFixture = client is MockKabanClient
         self.boardSet = BoardSetStore(storage: storage)
     }
     func connect() async {
         guard !didConnect else { return }
         didConnect = true
-        let stream = client.events()
+        let stream = client.updates()
         do {
             let snapshot = try await client.getSnapshot()
             projection = BoardProjection(snapshot: snapshot)
@@ -45,7 +49,23 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
             boardSet.bootstrap(projects: snapshot.projects.map(\.id))
             visibleIDs = boardSet.visibleProjectIds
             selectedProjectID = snapshot.projects.first?.id
-            for await event in stream {
+            for try await update in stream {
+                switch update {
+                case .connection(let value): connectionState = value; continue
+                case .replacement(let value):
+                    if var board = projection { board.replace(with: value.snapshot); projection = board }
+                    else { projection = BoardProjection(snapshot: value.snapshot) }
+                    for current in value.current { _ = projection?.apply(current.event) }
+                    taskReadFloors = Dictionary(uniqueKeysWithValues: value.snapshot.tasks.map { ($0.id, value.snapshot.seq) })
+                    boardSet.bootstrap(projects: value.snapshot.projects.map(\.id)); visibleIDs = boardSet.visibleProjectIds
+                    if selectedProjectID.map({ projection?.projects[$0] == nil }) ?? true { selectedProjectID = value.snapshot.projects.first?.id }
+                    if let id = creation.commandID { creation.fail(id); editorError = "Refresh completed. Check whether the task was created." }
+                    if let id = selectedID { await select(projection?.tasks[id] == nil ? nil : id) }
+                    continue
+                case .ephemeral(let value): _ = projection?.apply(value.event); continue
+                case .event: break
+                }
+                guard case .event(let event) = update else { continue }
                 guard !Task.isCancelled else { break }
                 guard var board = projection else { continue }
                 let result = board.apply(event)
@@ -86,7 +106,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
                     }
                 }
             }
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = error.localizedDescription; connectionState = .disconnected(.init(code: "transport_failure", message: error.localizedDescription)) }
         didConnect = false
     }
     func select(_ id: TaskID?) async {
@@ -115,7 +135,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     }
     func prepareCreation() { editorError = nil; createdTaskID = nil }
     func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
-        guard draft.canSubmit, projection?.projects[projectID] != nil else { return }
+        guard canSend, draft.canSubmit, projection?.projects[projectID] != nil else { return }
         let commandID = UUID()
         guard creation.begin(commandID: commandID, projectID: projectID) else { return }
         editorError = nil
@@ -132,7 +152,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         }
     }
     @discardableResult func send(_ command: Command, taskID: TaskID, editor: Bool = false) async -> Bool {
-        guard let board = projection, board.tasks[taskID] != nil, !board.isSent(taskID) else { return false }
+        guard canSend, let board = projection, board.tasks[taskID] != nil, !board.isSent(taskID) else { return false }
         let commandID = UUID()
         projection?.markSent(commandId: commandID, taskId: taskID, at: Date())
         do {
