@@ -35,6 +35,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("agent_process_v9", migrate: Self.migrateAgentProcesses)
         migrator.registerMigration("cursor_runner_v10", migrate: Self.migrateCursorRunner)
         migrator.registerMigration("model_catalog_v11", migrate: Self.migrateModelCatalog)
+        migrator.registerMigration("model_probe_v12", migrate: Self.migrateModelProbes)
         try migrator.migrate(database)
     }
 
@@ -171,6 +172,7 @@ public final class KabanStore: Sendable {
                 if case .raiseModelFlag(let request) = effect {
                     try Self.installModelFlag(request, at: at, commandId: commandId, db: db)
                 }
+                try Self.installLimitEffect(effect, at: at, db: db)
             }
             for effect in result.effects {
                 if case .recordTransition(let transition) = effect {
@@ -189,7 +191,8 @@ public final class KabanStore: Sendable {
         try Self.saveReceipt(receipt, request: request, db: db)
         let pending = result.effects.filter { effect in
             switch effect {
-            case .recordTransition, .recordHumanRequest, .recordHumanAnswer, .raiseModelFlag: false
+            case .recordTransition, .recordHumanRequest, .recordHumanAnswer, .raiseModelFlag,
+                 .raiseRateLimit, .raiseUsageExhausted, .raiseRunnerUnavailable, .requestModelProbe: false
             default: true
             }
         }

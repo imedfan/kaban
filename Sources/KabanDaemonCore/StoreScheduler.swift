@@ -121,6 +121,7 @@ private struct SchedulerContext {
     }
     func eligibility(_ task: DurableTask, at: Date) -> Eligibility {
         guard task.machine.state.status == .queued || task.machine.state.status == .retryWait,
+              task.machine.state != .retryWait(.silentExit),
               task.card.retryAt.map({ $0 <= at }) ?? true,
               let project = projects.first(where: { $0.summary.id == task.card.projectId }),
               project.summary.availability == .available, project.production?.unavailableReason == nil,
@@ -152,14 +153,14 @@ private struct SchedulerContext {
             }
             if inputs.modelFlags.contains(where: { $0.modelId == model }) { return .blocked(.modelFlag) }
             if settings.quotaOptions.enabled && settings.quotaOptions.consent,
-               let quota = inputs.quota, !quota.isStale(now: at, staleAfter: 60), let used = quota.percentUsed(pool) {
+               let quota = inputs.quota, !quota.isStale(now: at, staleAfter: 60), let free = quota.freePercent(pool) {
                 let live = tasks.filter { task in
                     task.machine.state == .running && task.pipeline.stage(task.machine.stageId)?.agent?.model.map {
                         ModelPoolResolver.pool(for: $0, rules: inputs.modelPoolRules) == pool
                     } == true
                 }.count
                 let threshold = pool == .cm ? settings.quotaOptions.thresholdCm : settings.quotaOptions.thresholdOm
-                if 100 - used - Double(live) * (inputs.usagePerRun[pool] ?? 2) <= threshold {
+                if free - Double(live) * (inputs.usagePerRun[pool] ?? 2) <= threshold {
                     return .blocked(pool == .cm ? .quotaCm : .quotaOm)
                 }
             }

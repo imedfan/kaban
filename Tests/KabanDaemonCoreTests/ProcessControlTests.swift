@@ -129,14 +129,14 @@ final class ProcessControlTests: XCTestCase {
         XCTAssertGreaterThan(fileSize(recorded.stdoutPath), 0)
 
         let silentRun = try launch(f, "silent")
-        let silentLines = try until(f, contains: "silent-deferred", runner: "/bin/sh", arguments: [quiet])
-        XCTAssertTrue(silentLines.contains("process exit \(silentRun.rawValue) silent-deferred"))
+        let silentLines = try until(f, contains: "silent-exit", runner: "/bin/sh", arguments: [quiet])
+        XCTAssertTrue(silentLines.contains("process exit \(silentRun.rawValue) silent-exit"))
         XCTAssertFalse(silentLines.contains("process exit \(silentRun.rawValue) no_final_call"))
         let silentTask = try task(f, "silent")
-        XCTAssertEqual(silentTask.machine.state, .running)
+        XCTAssertEqual(silentTask.machine.state, .retryWait(.silentExit))
         XCTAssertEqual(silentTask.machine.attemptsUsed, 0)
-        XCTAssertEqual(silentTask.machine.runsSinceHuman, 1)
-        XCTAssertEqual(try f.store.agentProcesses().first { $0.runId == silentRun }?.exitClass, "silent_deferred")
+        XCTAssertEqual(silentTask.machine.runsSinceHuman, 0)
+        XCTAssertEqual(try f.store.agentProcesses().first { $0.runId == silentRun }?.exitClass, "silent_exit")
 
         let flag = f.root.appendingPathComponent("release").path
         let gated = try launch(f, "gated")
@@ -397,10 +397,57 @@ final class ProcessControlTests: XCTestCase {
         }
     }
 
+    func testRateLimitTextReleasesTheRunAndReopensIdentically() throws {
+        let binary = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/KabanDaemon")
+        let executable = ProcessInfo.processInfo.environment["KABAN_DAEMON"].map { URL(fileURLWithPath: $0) } ?? binary
+        guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw XCTSkip("Build KabanDaemon before the process launch") }
+        let f = try fixture()
+        let script = try script(f, "limit.sh", "echo 'Too many requests'\nexit 0\n")
+        let run = try launch(f, "limited")
+        let lines = try until(f, contains: "rate_limit", runner: "/bin/sh", arguments: [script])
+        XCTAssertEqual(lines, ["process group \(run.rawValue) started", "process exit \(run.rawValue) rate_limit"])
+        let failed = try task(f, "limited")
+        XCTAssertEqual(failed.machine.state, .retryWait(.rateLimit))
+        XCTAssertEqual(failed.machine.attemptsUsed, 0)
+        XCTAssertEqual(failed.machine.runsSinceHuman, 0)
+        let reopened = try KabanStore(path: f.path)
+        guard case .rateLimited(let until, let step) = try reopened.getSnapshot().schedulerFlags.first else {
+            return XCTFail("Missing cooldown after reopen")
+        }
+        XCTAssertEqual(step, 1)
+        XCTAssertEqual(until, at.addingTimeInterval(15 * 60))
+        _ = try f.store.execute(.init(command: .pauseAll), now: { at })
+        let first = try runDaemon(executable, database: f.path, workspaces: f.workspace, runner: "/bin/sh", arguments: [script])
+        let second = try runDaemon(executable, database: f.path, workspaces: f.workspace, runner: "/bin/sh", arguments: [script])
+        XCTAssertEqual(first.exit, 0, first.stderr)
+        XCTAssertEqual(second.exit, 0, second.stderr)
+        XCTAssertEqual(first.stderr, second.stderr)
+        XCTAssertEqual(first.stderr, "process group \(run.rawValue) started\nprocess exit \(run.rawValue) rate_limit\n")
+        XCTAssertEqual(try KabanStore(path: f.path).getSnapshot().schedulerFlags, try reopened.getSnapshot().schedulerFlags)
+        if let dir = ProcessInfo.processInfo.environment["KABAN_PROCESS_EVIDENCE"] {
+            let root = URL(fileURLWithPath: dir, isDirectory: true)
+            try first.stderr.write(to: root.appendingPathComponent("be-15-launch-1.log"), atomically: true, encoding: .utf8)
+            try second.stderr.write(to: root.appendingPathComponent("be-15-launch-2.log"), atomically: true, encoding: .utf8)
+        }
+    }
+
     /// A queued or retry-wait task is still eligible, so the next launch's tick would select it.
+    /// Limit flags are durable now and would block that launch; this scenario is about charges, so drop them after the assertion.
     func release(_ f: Fixture, _ id: TaskID) throws {
-        guard try task(f, id).machine.state.status != .cancelled else { return }
-        _ = try apply(f, id, .cancel(keepBranch: false), at: at)
+        if try task(f, id).machine.state.status != .cancelled {
+            _ = try apply(f, id, .cancel(keepBranch: false), at: at)
+        }
+        _ = try f.store.execute(.init(command: .resumeAfterRateLimit), now: { at })
+        try f.store.database.write { db in
+            var inputs = try KabanStore.schedulerInputs(db)
+            inputs.flags.removeAll { flag in
+                switch flag {
+                case .rateLimited, .usageExhaustedUnknown, .poolUsageExhausted, .runnerUnavailable: true
+                default: false
+                }
+            }
+            try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try KabanStore.encode(inputs)])
+        }
     }
 
     func effects(_ f: Fixture) throws -> [PendingEffect] {

@@ -109,6 +109,22 @@ extension KabanStore {
         }
     }
 
+    private static func outputExcerpt(_ path: String) -> String {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return "" }
+        defer { try? handle.close() }
+        return String(decoding: handle.readData(ofLength: 4_000), as: UTF8.self)
+    }
+
+    private static func limitExitClass(_ kind: CursorLimitClass) -> String {
+        switch kind {
+        case .rateLimit: "rate_limit"
+        case .usageExhausted: "usage_exhausted"
+        case .modelUnavailable: "model_unavailable"
+        case .runnerAuth: "runner_auth"
+        case .unknown: "unclassified"
+        }
+    }
+
     private func classify(_ record: inout AgentProcessRecord, code: Int32, at: Date) throws {
         guard record.exitClass == nil else { return }
         let taskId = TaskID(rawValue: record.taskId)
@@ -116,6 +132,19 @@ extension KabanStore {
         let active = task.machine.state == .running && task.machine.currentRunId?.rawValue == record.runId
         let activity = fileSize(record.stdoutPath) + fileSize(record.stderrPath) > 0
         let changed = try filesChanged(taskId)
+        if active {
+            let excerpt = Self.outputExcerpt(record.stdoutPath) + "\n" + Self.outputExcerpt(record.stderrPath)
+            if let preview = CursorLimitClassifier.classify(excerpt, pool: nil), preview != .unknown,
+               let kind = try observeAgentFailure(taskId: taskId, runId: RunID(rawValue: record.runId), text: excerpt, commandId: UUID(), at: at),
+               kind != .unknown {
+                record.state = "exited"
+                record.exitCode = code
+                record.exitClass = Self.limitExitClass(kind)
+                record.passLines.append("process exit \(record.runId) \(record.exitClass ?? "limit")")
+                try saveProcess(record)
+                return
+            }
+        }
         switch ProcessExitClassifier.classify(exitCode: code, runStillActive: active, producedActivity: activity, changedFiles: changed) {
         case .noFinalCall:
             record.state = "exited"
@@ -125,11 +154,12 @@ extension KabanStore {
             try saveProcess(record)
             _ = try apply(.runFailed(RunID(rawValue: record.runId), .noFinalCall), taskId: taskId, commandId: UUID(), at: at)
         case .silentDeferred:
-            record.state = "unclassified"
+            record.state = "exited"
             record.exitCode = code
-            record.exitClass = "silent_deferred"
-            record.passLines.append("process exit \(record.runId) silent-deferred")
+            record.exitClass = "silent_exit"
+            record.passLines.append("process exit \(record.runId) silent-exit")
             try saveProcess(record)
+            _ = try apply(.runFailed(RunID(rawValue: record.runId), .silentExit), taskId: taskId, commandId: UUID(), at: at)
         case .inactive:
             record.state = "exited"
             record.exitCode = code

@@ -14,6 +14,12 @@ public struct QuotaState: Codable, Hashable, Sendable {
 
     public func percentUsed(_ pool: ModelPool) -> Double? { pool == .cm ? cm : om }
 
+    /// Remaining percent. A missing reading stays `nil`; it is not 100% free and not 0% used.
+    public func freePercent(_ pool: ModelPool) -> Double? {
+        guard let used = percentUsed(pool) else { return nil }
+        return 100 - used
+    }
+
     /// Начало цикла: из ответа, иначе календарно тот же день месяцем раньше (не «минус 30 дней»).
     public func effectiveCycleStart(calendar: Calendar = .utc) -> Date? {
         if let billingCycleStart { return billingCycleStart }

@@ -12,10 +12,10 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main.
+BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main. BE-15 собран на ветке `codex/be-15-limit-handling` поверх #80; pull request ещё не открыт и в main не принят.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07 и BE-14, которые ещё не в main. Отчёты development фиксируют проверки
+Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14 и BE-15, которые ещё не в main. Отчёты development фиксируют проверки
 своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
@@ -24,7 +24,7 @@ BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) пов�
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store, миграции v1–v11, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется только с `--process-pass` |
+| DaemonCore | GRDB store, миграции v1–v12, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, лимитные флаги и проба модели, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется только с `--process-pass`. Проба после тихого выхода не запускает `cursor-agent -p` |
 | Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass` и `--process-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
@@ -64,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. Следующий в очереди — BE-15. BE-09–13 и BE-16–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. BE-15 собран поверх #80; pull request ещё не открыт и в main не принят. Платный пробный `-p` не запускался. Следующий в очереди — BE-09. BE-09–13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -227,7 +227,7 @@ WIP save/restore остаётся BE-18/19. Cursor не запускается. 
 `--process-pass` запускает переданный `--runner` через `posix_spawn` в новой process group и пишет pid, pgid и время рождения.
 Без флага и без `--runner` демон процесс не порождает и не убивает. Старт `startAgentRun` получает факт `started` и не receipt:
 receipt завершил бы стадию. Exit 0 с выводом или грязным клоном даёт `no_final_call` и оставляет ту же стадию.
-Тихий exit 0 остаётся `.running` с меткой `silent_deferred`; классификация BE-15 не выполняется и попытка не списывается.
+Тихий exit 0 на этом срезе классифицируется BE-15 как `silent_exit` и `retry_wait` без списания попытки. В самом PR #78 это ещё была метка `silent_deferred` без перехода.
 Поздний exit после паузы или `completeStage` не меняет задачу. Crash, stall и wall списывают попытку; паузы — 30 с и 2 мин, третья попытка ждёт человека.
 Пауза, перенос и отмена шлют SIGKILL только записанной группе, включая потомков, и не принимают поздний результат.
 Повторный stop с чужим pgid не сигналит. Timeout сравнивает часы вызывающего и не блокирует проход.
@@ -252,6 +252,12 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 Новая незапрещённая модель получает `needsReview`. Исчезнувший id блокирует только стадии, которые его используют.
 Неизвестное или неоднозначное фактическое имя даёт `model_unconfirmed` и не выдумывает совпадение. Известное другое имя останавливает run как `model_substituted`, не списывает попытку и не считается успехом. Флаги переживают reopen.
 Остановка процесса до первого инструмента на этой машине не наблюдалась: CLI не залогинен, платный `-p` не запускался. Process-pass по-прежнему не запускает Cursor.
+
+## Backend: BE-15 лимиты и тихий выход
+
+Инкремент на ветке `codex/be-15-limit-handling` поверх #80, pull request ещё не открыт и в main не принят — [лимиты](development/backend-limit-handling-2026-10-06.md).
+Известный лимит освобождает только этот run и пишет флаг в той же транзакции. Соседний run доигрывает. Om usage не блокирует cm; unknown usage блокирует Мак. Попытка и `runsSinceHuman` не списываются. Cooldown 15/30/60 переживает reopen; `resumeAfterRateLimit` снимает только rate limit. `quota=nil` не считается 100% свободно.
+Тихий exit ждёт пробу: одна запись на модель, не чаще 10 минут, без `cursor-agent -p` и без обычного рестарта. Неизвестный текст остаётся одной редактированной строкой ленты. Платный `-p` не запускался.
 
 ## Какие источники читать
 
