@@ -13,7 +13,7 @@ extension KabanStore {
         if project.production != nil {
             switch command {
             case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage: break
-            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .daemonRestarted, .runFailed, .modelMismatch:
+            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .resultReadOnly, .daemonRestarted, .runFailed, .modelMismatch:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }

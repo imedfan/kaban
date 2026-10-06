@@ -3,7 +3,7 @@
 Дата: 6 октября 2026. Ветка `codex/be-15-limit-handling`, база — `codex/be-14-model-catalog`
 (`fa275e6`, [PR #80](https://github.com/imedfan/kaban/pull/80), ещё не принят в main).
 Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `4de3cea`.
-[PR #81](https://github.com/imedfan/kaban/pull/81) открыт поверх #80 и ещё не принят в main.
+[PR #81](https://github.com/imedfan/kaban/pull/81) влит в `codex/be-14-model-catalog` и ещё не принят в main.
 
 ## Реализовано
 

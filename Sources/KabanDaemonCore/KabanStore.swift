@@ -38,6 +38,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("model_probe_v12", migrate: Self.migrateModelProbes)
         migrator.registerMigration("mcp_run_token_v13", migrate: Self.migrateMCPTokens)
         migrator.registerMigration("mcp_isolation_v14", migrate: Self.migrateMCPIsolation)
+        migrator.registerMigration("stage_execution_v15", migrate: Self.migrateStageExecution)
         try migrator.migrate(database)
     }
 
@@ -189,18 +190,13 @@ public final class KabanStore: Sendable {
             if first == nil { first = detailSeq }
             let seq = try Self.journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = seq }
+            try Self.recordStageBoundary(before: before, after: task, pipeline: reductionPipeline, effects: result.effects, commandId: commandId, db: db)
         }
         try Self.recordChangedLoads(from: previousLoad, commandId: commandId, at: at, db: db)
         try Self.recordChangedSchedulerFlags(from: previousFlags, commandId: commandId, at: at, db: db)
         let receipt = DurableReceipt(commandId: commandId, firstSeq: first, lastSeq: try Self.seq(db), task: task)
         try Self.saveReceipt(receipt, request: request, db: db)
-        let pending = result.effects.filter { effect in
-            switch effect {
-            case .recordTransition, .recordHumanRequest, .recordHumanAnswer, .raiseModelFlag,
-                 .raiseRateLimit, .raiseUsageExhausted, .raiseRunnerUnavailable, .requestModelProbe: false
-            default: true
-            }
-        }
+        let pending = result.effects.filter(Self.isDurableEffect)
         if !pending.isEmpty {
             let batch = PendingEffectBatch(version: 1, commandId: commandId, taskId: taskId, effects: pending, runSpecId: task.runSpecId ?? previousRunSpecId)
             try Self.enqueue(batch, db: db)

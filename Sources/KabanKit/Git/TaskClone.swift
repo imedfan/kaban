@@ -165,6 +165,47 @@ public enum TaskClone {
         try text(["status", "--porcelain"], in: path, identity: identity).isEmpty == false
     }
 
+    public static let effectMarkerPrefix = "Kaban-Effect: "
+
+    /// The commit that already carries `marker`, if this clone has it. A second caller must not create another.
+    public static func findMarkedCommit(clone: String, marker: String, identity: GitIdentity?) throws -> String? {
+        let raw = try text(["log", "-n", "40", "--format=%H%x1f%B%x1e"], in: clone, identity: identity)
+        for record in raw.split(separator: "\u{1e}", omittingEmptySubsequences: true) {
+            guard let split = record.firstIndex(of: "\u{1f}") else { continue }
+            let sha = record[..<split]
+            let body = record[record.index(after: split)...]
+            if body.contains(marker) { return String(sha) }
+        }
+        return nil
+    }
+
+    /// Creates one commit for `marker` when the worktree is dirty. A replay that finds the marker returns that sha.
+    /// Returns nil when there is nothing to commit. Uses `commit-tree`, so a hook planted in the clone does not run.
+    public static func commitMarked(clone: String, message: String, marker: String, identity: GitIdentity?) throws -> String? {
+        if let existing = try findMarkedCommit(clone: clone, marker: marker, identity: identity) { return existing }
+        guard try worktreeDirty(clone, identity: identity) else { return nil }
+        guard identity != nil else { throw Failure.gitFailed }
+        try run(["add", "-A"], in: clone, identity: identity)
+        let tree = try text(["write-tree"], in: clone, identity: identity)
+        let head = try text(["rev-parse", "HEAD"], in: clone, identity: identity)
+        let headTree = try text(["rev-parse", "HEAD^{tree}"], in: clone, identity: identity)
+        guard tree != headTree else { return nil }
+        let commit = try text(["commit-tree", tree, "-p", head, "-m", message + "\n\n" + marker], in: clone, identity: identity)
+        try run(["update-ref", "HEAD", commit], in: clone, identity: identity)
+        try run(["reset", "--hard", "HEAD"], in: clone, identity: identity)
+        return commit
+    }
+
+    public static func diffstat(clone: String, from base: String, identity: GitIdentity?) throws -> String {
+        guard !base.isEmpty else { return "" }
+        return try text(["diff", "--stat", "\(base)..HEAD"], in: clone, identity: identity)
+    }
+
+    public static func commitSubjects(clone: String, from base: String, identity: GitIdentity?) throws -> String {
+        guard !base.isEmpty else { return "" }
+        return try text(["log", "--format=%H %s", "\(base)..HEAD"], in: clone, identity: identity)
+    }
+
     public static func wipRef(_ runId: RunID) throws -> String {
         let raw = runId.rawValue
         let allowed = raw.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }

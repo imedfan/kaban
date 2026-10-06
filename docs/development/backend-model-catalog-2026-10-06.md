@@ -3,7 +3,7 @@
 Дата: 6 октября 2026. Ветка `codex/be-14-model-catalog`, база — `codex/be-07-cursor-driver`
 (`c49de37`, [PR #79](https://github.com/imedfan/kaban/pull/79), ещё не принят в main).
 Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `9feea3c`.
-[PR #80](https://github.com/imedfan/kaban/pull/80) открыт поверх #79 и ещё не принят в main.
+[PR #80](https://github.com/imedfan/kaban/pull/80) влит в `codex/be-07-cursor-driver` и ещё не принят в main.
 
 ## Реализовано
 
