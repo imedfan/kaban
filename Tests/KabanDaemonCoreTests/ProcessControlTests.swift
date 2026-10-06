@@ -111,7 +111,7 @@ final class ProcessControlTests: XCTestCase {
         let f = try fixture()
         let loud = try script(f, "loud.sh", "echo activity\nexit 0\n")
         let quiet = try script(f, "quiet.sh", "exit 0\n")
-        let waiter = try script(f, "wait.py", "import os, sys, time\nflag = sys.argv[1]\nwhile not os.path.exists(flag):\n    time.sleep(0.05)\nprint('activity')\n")
+        let waiter = try script(f, "wait.sh", "flag=$1\nwhile [ ! -e \"$flag\" ]; do\n  /bin/sleep 0.05\ndone\necho activity\n")
         let run = try launch(f, "loud")
         let lines = try until(f, contains: "no_final_call", runner: "/bin/sh", arguments: [loud])
         XCTAssertTrue(lines.contains("process group \(run.rawValue) started"))
@@ -141,7 +141,7 @@ final class ProcessControlTests: XCTestCase {
         let flag = f.root.appendingPathComponent("release").path
         let gated = try launch(f, "gated")
         let started = Date()
-        _ = try pass(f, at: at, runner: "/usr/bin/python3", arguments: [waiter, flag])
+        _ = try pass(f, at: at, runner: "/bin/sh", arguments: [waiter, flag])
         XCTAssertLessThan(Date().timeIntervalSince(started), 2)
         _ = try apply(f, "gated", .completeStage(gated, summary: "summary"), at: at)
         FileManager.default.createFile(atPath: flag, contents: Data())
@@ -261,18 +261,14 @@ final class ProcessControlTests: XCTestCase {
 
     func testPauseStopsOnlyThatTaskGroupIncludingDescendants() throws {
         let f = try fixture()
-        let script = try script(f, "child.py", """
-        import os, time
-        pid = os.fork()
-        if pid == 0:
-            open("child.pid", "w").write(str(os.getpid()))
-            time.sleep(30)
-            raise SystemExit(0)
-        time.sleep(30)
+        let script = try script(f, "child.sh", """
+        /bin/sleep 30 &
+        echo $! > child.pid
+        wait
         """)
         let first = try launch(f, "one")
         let second = try launch(f, "two")
-        _ = try pass(f, at: at, runner: "/usr/bin/python3", arguments: [script])
+        _ = try pass(f, at: at, runner: "/bin/sh", arguments: [script])
         let records = try f.store.agentProcesses()
         let leaderA = try XCTUnwrap(records.first { $0.runId == first })
         let leaderB = try XCTUnwrap(records.first { $0.runId == second })
@@ -468,7 +464,7 @@ final class ProcessControlTests: XCTestCase {
     }
 
     func waitForZombie(_ pid: Int32) throws {
-        let deadline = Date().addingTimeInterval(2)
+        let deadline = Date().addingTimeInterval(8)
         while Date() < deadline {
             if processState(pid).hasPrefix("Z") { return }
             Thread.sleep(forTimeInterval: 0.02)

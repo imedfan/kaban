@@ -13,6 +13,19 @@ extension KabanStore {
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
         if case .recheck(.runner) = envelope.command { return try recheckRunner(envelope, at: now()) }
+        if case .refreshModelCatalog = envelope.command { return try refreshModelCatalog(envelope, at: now()) }
+        if case .setModelOverride(let taskId, let stageId, let model) = envelope.command {
+            return try setModelOverride(envelope, taskId: taskId, stageId: stageId, model: model, at: now())
+        }
+        if case .setModelPoolRule(let pattern, let pool) = envelope.command {
+            return try setModelPoolRule(envelope, pattern: pattern, pool: pool, at: now())
+        }
+        if case .removeModelPoolRule(let pattern) = envelope.command {
+            return try removeModelPoolRule(envelope, pattern: pattern, at: now())
+        }
+        if case .clearModelFlag(let modelId) = envelope.command {
+            return try clearModelFlag(envelope, modelId: modelId, at: now())
+        }
         let request = try Self.encode(envelope)
         let validating: ProjectID?
         switch envelope.command {
@@ -43,6 +56,11 @@ extension KabanStore {
             case .getRunHistory(let id):
                 do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(try Self.taskDetail(id, db: db).runs)) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            case .listModels:
+                do {
+                    let rows = try Self.catalogRecord(db).rows.filter { !$0.forbidden }.sorted { $0.id.rawValue < $1.id.rawValue }
+                    return CommandReply(commandId: envelope.commandId, seq: nil, result: .models(rows))
+                } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .validatePipeline(let projectId, let content):
                 do {
                     let validation = try Self.validateDraftContent(projectId: projectId, content: content, db: db)

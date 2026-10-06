@@ -55,17 +55,13 @@ final class ProcessGroupTests: XCTestCase {
     }
 
     func testDescendantsDieWithTheGroup() throws {
-        let script = root.appendingPathComponent("child.py")
+        let script = root.appendingPathComponent("child.sh")
         try """
-        import os, time
-        pid = os.fork()
-        if pid == 0:
-            open("child.pid", "w").write(str(os.getpid()))
-            time.sleep(30)
-            raise SystemExit(0)
-        time.sleep(30)
+        /bin/sleep 30 &
+        echo $! > child.pid
+        wait
         """.write(to: script, atomically: true, encoding: .utf8)
-        let leader = try ProcessGroup.spawn(executable: "/usr/bin/python3", arguments: [script.path], workingDirectory: root.path, environment: ProcessInfo.processInfo.environment, standardOutput: root.appendingPathComponent("out").path, standardError: root.appendingPathComponent("err").path)
+        let leader = try ProcessGroup.spawn(executable: "/bin/sh", arguments: [script.path], workingDirectory: root.path, environment: ProcessInfo.processInfo.environment, standardOutput: root.appendingPathComponent("out").path, standardError: root.appendingPathComponent("err").path)
         defer { stop(leader) }
         let child = try waitForChild()
         XCTAssertEqual(ProcessGroup.processGroup(of: child), leader.processGroup)

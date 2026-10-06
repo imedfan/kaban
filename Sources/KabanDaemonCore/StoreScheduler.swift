@@ -13,6 +13,7 @@ extension KabanStore {
     public func runSchedulerPass(at: Date, budget: Int = 8) throws -> [TickReceipt] {
         precondition((1...32).contains(budget))
         try refreshRunnerIfDue(at: at)
+        try refreshCatalogIfDue(at: at)
         guard try database.read({ try Bool.fetchOne($0, sql: "SELECT EXISTS(SELECT 1 FROM global_settings)") == true }) else { return [] }
         var receipts: [TickReceipt] = []
         for _ in 0..<budget {
@@ -102,6 +103,7 @@ private struct SchedulerContext {
     let settings: GlobalSettings
     let inputs: SchedulerInputs
     let flags: [SchedulerFlag]
+    let overrides: [String: ModelID]
     let managed: Set<String>
     let queue: [String: Int64]
     let admissions: [String: String]
@@ -110,6 +112,7 @@ private struct SchedulerContext {
         projects = try KabanStore.projects(db); tasks = try KabanStore.allTasks(db)
         settings = try KabanStore.settings(db); inputs = try KabanStore.schedulerInputs(db)
         flags = try KabanStore.schedulerFlags(db)
+        overrides = try KabanStore.modelOverrides(db)
         let rows = try Row.fetchAll(db, sql: "SELECT task_id, queue_seq FROM task_admission")
         managed = Set(rows.map { $0["task_id"] as String })
         queue = Dictionary(uniqueKeysWithValues: rows.map { ($0["task_id"] as String, $0["queue_seq"] as Int64) })
@@ -135,7 +138,7 @@ private struct SchedulerContext {
             }
         }
         let modelStage = stage.kind == .queue ? project.pipeline.firstAgentStage : stage
-        if modelStage?.kind == .agent, let model = modelStage?.agent?.model {
+        if modelStage?.kind == .agent, let model = modelStage.flatMap({ overrides["\(task.card.id.rawValue)\n\($0.id.rawValue)"] }) ?? modelStage?.agent?.model {
             let pool = ModelPoolResolver.pool(for: model, rules: inputs.modelPoolRules)
             for flag in flags {
                 switch flag {
