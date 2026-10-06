@@ -1,17 +1,18 @@
 # Kaban: текущее состояние
 
-Срез 5 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 6 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`bc9abc9` (приняты #63–73, включая native UI #67, transport #70 и BE-01–03 #71–73).
-BE-04 ниже подготовлен в `codex/backend-full-scheduler` от этой базы ([PR #74](https://github.com/imedfan/kaban/pull/74), открыт).
+`4e25ca3` (приняты #63–74, включая native UI #67, transport #70 и BE-01–04 #71–74).
+BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74); следующий backend-инкремент — BE-05.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код базы и явно отмеченный рабочий backend-инкремент.
+Этот документ описывает код принятой базы. Отчёты development фиксируют проверки
+своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
 
@@ -20,7 +21,7 @@ BE-04 ниже подготовлен в `codex/backend-full-scheduler` от э�
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
 | DaemonCore | GRDB store, миграции v1–v6, durable state/journal/effects, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production admission/start создаёт RunSpec/outbox; внешнее исполнение task effects ещё не подключено |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–03 приняты #70–73; BE-04 рабочий инкремент. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -58,7 +59,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 ## Ближайшие результаты
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
-BE-01–03 приняты в #71–73; BE-04 реализован в текущем инкременте.
+BE-01–04 приняты в #71–74.
 Следующий — BE-05 (executor с claim/lease/receipt). BE-05–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
@@ -165,12 +166,13 @@ Startup, recheck и двухсекундный observer публикуют commi
 stage exit откладывается до валидного reload. RunSpec фиксирует pipeline, assets,
 identity и git policy; следующий запуск привязывается к новой версии. Удаление
 занятой стадии/смена её kind запрещены, WIP shrink не вытесняет задачи.
-Production scheduling добавлен в BE-04 ниже; процессы, gates и merge executor следуют в BE-05–08;
+Production scheduling добавлен в BE-04 ниже; executor, клоны и процессы следуют
+в BE-05–08, gates/hooks — BE-11, merge — BE-17;
 проверка завершения использует сохранённые invocation fixtures. App не подключён.
 
 ## Backend: BE-04 полный планировщик
 
-Рабочий инкремент — [планировщик и проверки](development/backend-full-scheduler-2026-10-05.md).
+Принято в main в [PR #74](https://github.com/imedfan/kaban/pull/74) — [планировщик и проверки](development/backend-full-scheduler-2026-10-05.md).
 Все допустимые production stage kinds участвуют в выборе: downstream по графу
 `on_success`, затем returned/answered, priority и durable FIFO. Weighted cursor
 переживает reopen; неподходящий кандидат не удерживает очередь. Один tick допускает

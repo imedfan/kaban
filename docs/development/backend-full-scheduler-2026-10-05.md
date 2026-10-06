@@ -2,7 +2,8 @@
 
 Дата: 5 октября 2026. Ветка `codex/backend-full-scheduler`, база после fetch —
 `origin/main` `bc9abc9` (BE-03, PR #73 принят). Реализация —
-[PR #74](https://github.com/imedfan/kaban/pull/74), открыт в main.
+[PR #74](https://github.com/imedfan/kaban/pull/74), принят в main (`4e25ca3`).
+Статус принятия актуализирован 6 октября; проверки ниже относятся к исходному инкременту.
 Очередь — [backend MVP](backend-mvp-tasks.md).
 
 ## Реализовано
@@ -59,7 +60,7 @@ Runner/rate/usage flags ограничивают agent launches и intake по �
 Reserve без истории — заданные требованиями 2% на run, при наличии используется
 переданный estimate. Nil/stale percentage не превращается в ноль; работают
 reactive flags. Реального запроса свежей квоты этот инкремент не делает — producer
-и refresh-before-start принадлежат BE-11.
+и refresh-before-start остаются отдельной работой по квоте (архитектура §7).
 
 ## Проверки
 
@@ -85,7 +86,9 @@ reactive flags. Реального запроса свежей квоты это
 Pending effects ещё не исполняются внешним executor. `.running` доказывает durable
 reservation и создание эффекта, не живой процесс Cursor. Gate/merge flow проверен
 invocation fixtures; subprocess smoke не запускает платные CLI или shell gates.
-Claim/lease/fencing, реальные clones/processes/gates/merge и environment/catalog/
-quota producers следуют в BE-05–11. Process reconciliation до kill/pgid ещё не
+Claim/lease/fencing — BE-05, clones/processes — BE-06–08, MCP/isolation — BE-09–10,
+gates/hooks — BE-11, models — BE-14, реактивные лимиты — BE-15, merge — BE-17.
+Environment и opt-in quota poller остаются работой по архитектуре §7 и онбордингу;
+наличие SchedulerInputs не подтверждает эти producers. Process reconciliation до kill/pgid ещё не
 реализован. App остаётся на MockKabanClient; SwiftUI и визуальная приёмка здесь не
 менялись. LaunchAgent registration/подпись и полный M1/MVP не заявляются готовыми.

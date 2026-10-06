@@ -6,6 +6,9 @@
 
 ## Текущая база
 
+Срез 6 октября 2026: BE-01–04 приняты в main (#71–74), проверенная база —
+`4e25ca3`. Следующий backend-инкремент — BE-05; App пока использует mock.
+
 KabanKit содержит pipeline/YAML validation, git-policy и чистый TaskMachine.
 KabanDaemonCore использует GRDB и содержит durable projects/tasks/settings/details,
 миграции, journal/outbox, fake driver, scheduler и recovery. Store использует
@@ -58,7 +61,8 @@ Agent slots отделены от gate/merge WIP и human admission. Host буд
 observer и секундному timer; pass/tick ограничены, idle receipts не накапливаются.
 Durable scheduler inputs предоставляют границу будущим model/quota/environment
 producers; реальные CLI/пул/остаток не симулируются. Task-control/Human Review wire
-команды доступны production-задачам, физические эффекты ждут BE-05–08.
+команды доступны production-задачам. Исполнение effects — BE-05, клоны/процессы —
+BE-06–08, gates/hooks — BE-11, merge — BE-17.
 
 ## Следующие результаты
 
