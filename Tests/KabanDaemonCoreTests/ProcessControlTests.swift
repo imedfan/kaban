@@ -261,18 +261,14 @@ final class ProcessControlTests: XCTestCase {
 
     func testPauseStopsOnlyThatTaskGroupIncludingDescendants() throws {
         let f = try fixture()
-        let script = try script(f, "child.py", """
-        import os, time
-        pid = os.fork()
-        if pid == 0:
-            open("child.pid", "w").write(str(os.getpid()))
-            time.sleep(30)
-            raise SystemExit(0)
-        time.sleep(30)
+        let script = try script(f, "child.sh", """
+        /bin/sleep 30 &
+        echo $! > child.pid
+        wait
         """)
         let first = try launch(f, "one")
         let second = try launch(f, "two")
-        _ = try pass(f, at: at, runner: "/usr/bin/python3", arguments: [script])
+        _ = try pass(f, at: at, runner: "/bin/sh", arguments: [script])
         let records = try f.store.agentProcesses()
         let leaderA = try XCTUnwrap(records.first { $0.runId == first })
         let leaderB = try XCTUnwrap(records.first { $0.runId == second })
