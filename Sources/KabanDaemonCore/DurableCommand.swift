@@ -25,6 +25,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case runFailed(RunID, RunFailure)
     case modelMismatch(runId: RunID, requested: String, actual: String, fallback: String?)
     case gatesFailed(output: String)
+    case gitDenialLimit(RunID)
 
     var event: TaskEvent {
         switch self {
@@ -51,6 +52,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .modelMismatch(let id, let requested, let actual, let fallback):
             .modelMismatch(runId: id, requested: requested, actual: actual, fallback: fallback)
         case .gatesFailed(let output): .gatesFailed(output: output)
+        case .gitDenialLimit(let id): .gitDenialLimit(runId: id)
         }
     }
 }
