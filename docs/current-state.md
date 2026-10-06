@@ -12,7 +12,7 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 влит в `codex/be-08-process-control` ([PR #79](https://github.com/imedfan/kaban/pull/79)) и ещё не принят в main. BE-14 влит в `codex/be-07-cursor-driver` ([PR #80](https://github.com/imedfan/kaban/pull/80)) и ещё не принят в main. BE-15 влит в `codex/be-14-model-catalog` ([PR #81](https://github.com/imedfan/kaban/pull/81)) и ещё не принят в main. BE-09 влит в `codex/be-15-limit-handling` ([PR #82](https://github.com/imedfan/kaban/pull/82)) и ещё не принят в main. BE-10 влит в `codex/be-09-mcp-server` ([PR #83](https://github.com/imedfan/kaban/pull/83)) и ещё не принят в main. BE-11 влит в `codex/be-10-mcp-isolation` ([PR #84](https://github.com/imedfan/kaban/pull/84)) и ещё не принят в main. BE-12 подготовлен на `codex/be-12-git-grants` поверх `codex/be-10-mcp-isolation`; pull request ещё не открыт.
+BE-07 влит в `codex/be-08-process-control` ([PR #79](https://github.com/imedfan/kaban/pull/79)) и ещё не принят в main. BE-14 влит в `codex/be-07-cursor-driver` ([PR #80](https://github.com/imedfan/kaban/pull/80)) и ещё не принят в main. BE-15 влит в `codex/be-14-model-catalog` ([PR #81](https://github.com/imedfan/kaban/pull/81)) и ещё не принят в main. BE-09 влит в `codex/be-15-limit-handling` ([PR #82](https://github.com/imedfan/kaban/pull/82)) и ещё не принят в main. BE-10 влит в `codex/be-09-mcp-server` ([PR #83](https://github.com/imedfan/kaban/pull/83)) и ещё не принят в main. BE-11 влит в `codex/be-10-mcp-isolation` ([PR #84](https://github.com/imedfan/kaban/pull/84)) и ещё не принят в main. BE-12 открыт в [PR #85](https://github.com/imedfan/kaban/pull/85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15, BE-09, BE-10, BE-11 и BE-12, которые ещё не в main. Отчёты development фиксируют проверки
@@ -64,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 влит в `codex/be-10-mcp-isolation` (#84) и ещё не принят в main. BE-12 подготовлен на `codex/be-12-git-grants` поверх этой ветки; pull request ещё не открыт. Подозрительные файлы не проверяются. Следующий в очереди — BE-13. BE-13 и BE-16–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 влит в `codex/be-10-mcp-isolation` (#84) и ещё не принят в main. BE-12 открыт (#85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. Подозрительные файлы не проверяются. Следующий в очереди — BE-13. BE-13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -279,7 +279,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-12 git-разрешения
 
-Инкремент на `codex/be-12-git-grants` поверх `codex/be-10-mcp-isolation`, pull request ещё не открыт — [git-разрешения](development/backend-git-grants-2026-10-06.md).
+Открытый инкремент [PR #85](https://github.com/imedfan/kaban/pull/85) поверх `codex/be-10-mcp-isolation`, ещё не принят в main — [git-разрешения](development/backend-git-grants-2026-10-06.md).
 `/git/check` и shim разрешают git только после ответа демона. Разрешение одноразовое и совпадает с argv целиком. Условный override проверяет сервер. Доставка notice grant не тратит. Пятый отказ run останавливает задачу без списания попытки. `done` и `cancel` истекают grant и оставляют argv. Cursor rules содержат только жёсткие команды.
 Дополнительный запрет виден следующим run. Автокоммит YAML не делается, production `updatePipeline` не поддержан. Прямой `/usr/bin/git` shim обходит. Подозрительные файлы остаются BE-13, merge — BE-17.
 

@@ -13,7 +13,7 @@ BE-15 выполнен в [PR #81](https://github.com/imedfan/kaban/pull/81), в
 BE-09 выполнен в [PR #82](https://github.com/imedfan/kaban/pull/82), влитом в `codex/be-15-limit-handling` и ещё не принятом в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
 BE-10 выполнен в [PR #83](https://github.com/imedfan/kaban/pull/83), влитом в `codex/be-09-mcp-server` и ещё не принятом в main. Auth, сборка и MCP в реальном профиле не проверены: CLI не залогинен. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
 BE-11 выполнен в [PR #84](https://github.com/imedfan/kaban/pull/84), влитом в `codex/be-10-mcp-isolation` и ещё не принятом в main. Подозрительные файлы, инциденты, `/git/check` и merge в этот инкремент не входят. Грязное дерево стадии без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
-BE-12 выполнен на ветке `codex/be-12-git-grants` поверх `codex/be-10-mcp-isolation`; pull request ещё не открыт. Автокоммит `.kaban/pipeline.yaml` не делается. Подозрительные файлы и merge в этот инкремент не входят. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
+BE-12 выполнен в [PR #85](https://github.com/imedfan/kaban/pull/85), открытом поверх `codex/be-10-mcp-isolation` и ещё не принятом в main. Автокоммит `.kaban/pipeline.yaml` не делается. Подозрительные файлы и merge в этот инкремент не входят. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
 BE-13 и BE-16–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-13.
 
@@ -341,7 +341,7 @@ BE-13 и BE-16–20 ещё не завершены. Наличие DTO/fixtures 
 
 ## BE-12. Реализовать git-обёртку и разовые разрешения
 
-**Статус:** выполнено на ветке `codex/be-12-git-grants`; pull request ещё не открыт. Дополнительный запрет пишется в `git_policy_extra` и виден run, стартовавшим после записи. Автокоммит YAML не делается, production `updatePipeline` не поддержан. Подозрительные файлы остаются BE-13, merge — BE-17. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
+**Статус:** выполнено; [PR #85](https://github.com/imedfan/kaban/pull/85) открыт поверх `codex/be-10-mcp-isolation`, ещё не принят в main. Дополнительный запрет пишется в `git_policy_extra` и виден run, стартовавшим после записи. Автокоммит YAML не делается, production `updatePipeline` не поддержан. Подозрительные файлы остаются BE-13, merge — BE-17. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
 
 **Приоритет:** P1
 

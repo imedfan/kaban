@@ -2,7 +2,7 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-12-git-grants`, база — `codex/be-10-mcp-isolation`
 (`c882bec`, [PR #84](https://github.com/imedfan/kaban/pull/84), влит в эту ветку и ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). Pull request ещё не открыт.
+Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#85](https://github.com/imedfan/kaban/pull/85), открыт поверх `codex/be-10-mcp-isolation` и ещё не принят в main.
 
 ## Реализовано
 
