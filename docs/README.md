@@ -17,6 +17,7 @@ Git — основное место ведения документации. А�
 | [Frontend plan](frontend-plan-v0.md) | Короткий маршрут к runtime и отдельным экранам |
 | [Backend plan](backend-plan-v0.md) | Production lifecycle/scheduler, границы fake и следующий путь исполнения |
 | [Backend MVP BE-01–20](development/backend-mvp-tasks.md) | Порученная очередь реализации, зависимости и критерии каждой задачи |
+| [Frontend MVP FE-01–22](development/frontend-mvp-tasks.md) | Полная очередь для завершённого BE-01–20: шесть блоков, результаты, контракты и приёмка UC-01–25 |
 | [Дизайн](design/README.md) / [визуальные исходники](../design/README.md) | Полные документы дизайнера, версии, токены, оригинальные PNG |
 | [Приёмка MVP](acceptance-criteria-v0.md) / [UI-приёмка](frontend/acceptance.md) | Критерии готовности пользовательского результата |
 

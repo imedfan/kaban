@@ -7,7 +7,9 @@
 
 - `App/KabanApp/KabanApp.swift` создаёт DaemonRuntime: SMAppService + DaemonKabanClient по XPC; `--developer` использует встроенный helper по private stdio. AppFixture включается только в явном UI QA.
 - `App/KabanApp/BoardStore.swift` связывает views с клиентом, проекцией и выбором задачи.
-- `Sources/KabanBoardCore/KabanClient.swift` содержит типизированный клиентский интерфейс и mock.
+- `Sources/KabanBoardCore/KabanClient.swift` содержит типизированные envelope/reply,
+  capabilities, log API, updates и mock. `ClientCommandJournal` сохраняет точную
+  отправку и metadata ответа для последующего reconciliation.
 - `BoardProjection`, `PendingCommands`, `BoardSetStore`, `DropRules` находятся в BoardCore.
 - Protocol DTO и команды находятся в `Sources/KabanProtocol/`.
 
@@ -18,10 +20,15 @@ Kit/GRDB. DaemonKabanClient реализует существующую клие
 
 ## Команды и authoritative events
 
-View вызывает метод store; store отправляет Command с commandId через KabanClient.
+View вызывает метод store; store сохраняет точный CommandEnvelope до отправки
+через KabanClient. CommandReply сохраняет commandId/seq/result. Capabilities
+проверяются при handshake и новом connected, включая перезапуск сервера.
 Ответ `.ok` не переводит карточку. Pending command снимается correlated событием
 или отказом. Для создания учитывай событие до ответа; повтор commandId не создаёт
-дубликат. Ошибка сохраняет пользовательский ввод.
+дубликат. Ошибка сохраняет пользовательский ввод. Потеря ответа отмечает неопределённую
+доставку; исходный envelope не заменяется новым commandId. FE-02 завершает replay
+после reopen/retention. Correlated journal подтверждает изменение состояния,
+но не завершение внешнего effect (например restoreWIP).
 
 Snapshot и подписка должны согласовываться по seq. Duplicate/old события
 отбрасываются, gap требует resync. Новый snapshot сверяет видимые проекты и
@@ -43,7 +50,7 @@ waiting_human: review. Клиент применяет результат дем
 DropRules помогает интерфейсу, а окончательное разрешение даёт клиент/демон.
 Pipeline validation и вычисление итоговой git-политики выполняются за клиентской границей.
 
-## Требования к следующему транспортному adapter
+## Требования к сессии и последующим экранам
 
 Durable wire-инкремент backend добавляет `SettingsChange.schedulerFlags`:
 полный набор флагов в correlated journal event. Nil/отсутствие оставляет текущее

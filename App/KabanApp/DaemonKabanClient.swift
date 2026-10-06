@@ -7,8 +7,13 @@ import KabanTransport
     let daemon: DaemonClient
     init(transport: any DaemonTransport) { daemon = DaemonClient(transport: transport) }
     func getSnapshot() async throws -> Snapshot { try await daemon.getSnapshot() }
-    func send(_ command: Command, commandId: CommandID) async throws -> CommandResult {
-        try await daemon.send(.init(commandId: commandId, command: command)).result
+    func send(_ envelope: CommandEnvelope) async throws -> CommandReply { try await daemon.send(envelope) }
+    func capabilities() async throws -> DaemonCapabilities { try await daemon.capabilities() }
+    func readLog(runId: RunID, fromOffset: Int64, limit: Int) async throws -> LogPage {
+        try await daemon.readLog(runId: runId, fromOffset: fromOffset, limit: limit)
+    }
+    func tailLog(runId: RunID, fromOffset: Int64) -> AsyncThrowingStream<LogBatch, Error> {
+        daemon.tailLog(runId: runId, fromOffset: fromOffset)
     }
     func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> {
         let stream = daemon.sessionUpdates()
@@ -21,7 +26,13 @@ import KabanTransport
                         case .event(let event): update = .event(event)
                         case .replacement(let replacement): update = .replacement(replacement)
                         case .snapshot: throw DaemonTransportError.invalidReply
-                        case .connection(let state): update = .connection(state)
+                        case .connection(let state):
+                            if state == .connected {
+                                let capabilities = try await daemon.capabilities()
+                                try capabilities.requireSession()
+                                if case .dropped = continuation.yield(.capabilities(capabilities)) { throw DaemonTransportError.bufferOverflow }
+                            }
+                            update = .connection(state)
                         case .ephemeral(let event): update = .ephemeral(event)
                         }
                         if case .dropped = continuation.yield(update) { throw DaemonTransportError.bufferOverflow }

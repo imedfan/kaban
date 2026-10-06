@@ -38,7 +38,9 @@ struct BoardView: View {
         .foregroundStyle(theme.text)
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0) }
-        .onChange(of: store.createdTaskID) { _, id in if id != nil { store.sheet = nil } }
+        .onChange(of: store.createdTaskID) { _, id in
+            if id != nil, id == store.createdTaskID, case .create = store.sheet { store.sheet = nil }
+        }
         .onChange(of: store.projection == nil) { _, loading in
             if !loading {
                 collapsed = Set(lanes.filter { $0.columns.allSatisfy { $0.taskIds.isEmpty } }.map(\.project.id))
@@ -119,6 +121,7 @@ struct BoardView: View {
         }.buttonStyle(.plain)
             .contextMenu {
                 Button("Новая задача") { store.beginCreation(id) }
+                    .disabled(!store.can(.createTask)).help(store.unavailableReason(.createTask))
                 Button("Настройки проекта") { store.screen = .project(id) }
                 Divider()
                 if store.visibleIDs.contains(id) { Button("Скрыть с доски") { store.hide(id) } }
@@ -155,7 +158,8 @@ struct BoardView: View {
                 if width >= 900 { Label("\(store.runningCount)", systemImage: "cpu").font(.system(size: 11)).foregroundStyle(theme.secondary).help("Активные задачи") }
                 Button { store.beginCreation() } label: { Label("Задача", systemImage: "plus") }
                     .buttonStyle(KabanButtonStyle(primary: true))
-                    .disabled(store.selectedProjectID == nil || store.creation.commandID != nil)
+                    .disabled(!store.can(.createTask) || store.selectedProjectID == nil || store.creation.commandID != nil)
+                    .help(store.can(.createTask) ? "Новая задача · ⌘N" : store.unavailableReason(.createTask))
             } else {
                 Button("К доске") { store.screen = .board }.buttonStyle(KabanButtonStyle())
             }
@@ -208,7 +212,8 @@ struct BoardView: View {
                 Spacer()
                 if lane.project.openIncidentCount > 0 { Label("\(lane.project.openIncidentCount) инцидент", systemImage: "light.beacon.max").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.status("incident").2) }
                 Button { store.beginCreation(lane.project.id) } label: { Image(systemName: "plus") }
-                    .buttonStyle(.plain).help("Новая задача в \(lane.project.name)").frame(width: 24, height: 28)
+                    .disabled(!store.can(.createTask))
+                    .buttonStyle(.plain).help(store.can(.createTask) ? "Новая задача в \(lane.project.name)" : store.unavailableReason(.createTask)).frame(width: 24, height: 28)
                 Button { store.selectedProjectID = lane.project.id; store.screen = .project(lane.project.id) } label: { Image(systemName: "slider.horizontal.3") }
                     .buttonStyle(.plain).help("Настройки проекта").frame(width: 24, height: 28)
                 Button { store.hide(lane.project.id) } label: { Image(systemName: "xmark") }
@@ -275,10 +280,18 @@ struct BoardView: View {
         }.buttonStyle(.plain)
             .contextMenu {
                 Button("Открыть детали") { Task { await store.select(card.id) } }
-                if TaskActions.canEdit(card) { Button("Изменить…") { store.editorError = nil; Task { await store.select(card.id); if let detail = store.detail, detail.task.id == card.id, TaskActions.canEdit(detail.task) { store.sheet = .edit(detail.task, detail.body) } } } }
+                if TaskActions.canEdit(card) {
+                    Button("Изменить…") {
+                        store.editorError = nil
+                        Task {
+                            await store.select(card.id)
+                            if let detail = store.detail, detail.task.id == card.id, TaskActions.canEdit(detail.task) { store.sheet = .edit(detail.task, detail.body) }
+                        }
+                    }.disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
+                }
                 if TaskActions.canCancel(card) {
-                    Button("Перенести…") { store.sheet = .move(card) }
-                    Button("Отменить…", role: .destructive) { store.sheet = .cancel(card) }
+                    Button("Перенести…") { store.sheet = .move(card) }.disabled(!store.can(.moveTask)).help(store.unavailableReason(.moveTask))
+                    Button("Отменить…", role: .destructive) { store.sheet = .cancel(card) }.disabled(!store.can(.cancelTask)).help(store.unavailableReason(.cancelTask))
                 }
             }
     }
@@ -305,7 +318,8 @@ struct BoardView: View {
             HStack { Text("Активные задачи"); Spacer(); Text("\(store.runningCount)").fontWeight(.semibold).monospacedDigit() }.font(.system(size: 11))
             theme.line.frame(height: 0.5)
             quotaRows
-            Text(store.usesFixture ? "Локальные демоданные" : (store.canSend ? "Служба Kaban подключена" : "Подключение к Kaban")).font(.system(size: 10)).foregroundStyle(theme.faint)
+            Text(store.dataSource).font(.system(size: 10)).foregroundStyle(theme.faint)
+                .fixedSize(horizontal: false, vertical: true).help(store.dataSourceDetail)
         }.padding(12).background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.line, lineWidth: 0.5))
     }
@@ -497,18 +511,18 @@ struct TaskDetailView: View {
     private func detailActions(_ detail: TaskDetail) -> some View {
         HStack(spacing: 8) {
             if detail.task.state == .running {
-                Button { Task { await store.send(.pauseTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle())
+                Button { Task { await store.send(.pauseTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.pauseTask)).help(store.unavailableReason(.pauseTask))
             } else if detail.task.state == .paused {
-                Button { Task { await store.send(.resumeTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true))
+                Button { Task { await store.send(.resumeTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
             }
             if TaskActions.canEdit(detail.task) {
-                Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle())
+                Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
             }
             Spacer(minLength: 0)
             if TaskActions.canCancel(detail.task) {
                 Menu {
-                    Button("Перенести…") { openSheet(.move(detail.task)) }
-                    Button("Отменить задачу…", role: .destructive) { openSheet(.cancel(detail.task)) }
+                    Button("Перенести…") { openSheet(.move(detail.task)) }.disabled(!store.can(.moveTask))
+                    Button("Отменить задачу…", role: .destructive) { openSheet(.cancel(detail.task)) }.disabled(!store.can(.cancelTask))
                 } label: { Label("Действия", systemImage: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
             }
             if store.projection?.isSent(detail.task.id) == true { ProgressView().controlSize(.small) }
@@ -685,10 +699,13 @@ struct TaskActionSheet: View {
                 Spacer()
                 Button("Закрыть") { dismiss() }.buttonStyle(KabanButtonStyle()).keyboardShortcut(.cancelAction).disabled(pending)
                 Button(pending ? "Отправлено…" : actionLabel) { Task { await submit() } }
-                    .buttonStyle(KabanButtonStyle(primary: true)).keyboardShortcut(.defaultAction).disabled(pending || stale || !canSubmit)
+                    .buttonStyle(KabanButtonStyle(primary: true)).keyboardShortcut(.defaultAction).disabled(pending || stale || !canSubmit || !store.can(actionCommand))
             }
         }.padding(24).frame(width: 560).background(theme.window).interactiveDismissDisabled(pending)
             .onAppear { titleFocused = true }
+    }
+    private var actionCommand: CommandName {
+        switch route { case .create: .createTask; case .edit: .editTask; case .move: .moveTask; case .cancel: .cancelTask }
     }
     private var editor: some View {
         VStack(alignment: .leading, spacing: 12) {

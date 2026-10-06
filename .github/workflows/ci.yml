@@ -58,8 +58,20 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath "$derived_data" \
             ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
-          "$derived_data/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban" \
-            --ui-smoke "$RUNNER_TEMP/kaban-native-smoke.json"
+          smoke_result="$RUNNER_TEMP/kaban-native-smoke.json"
+          smoke_log="$RUNNER_TEMP/kaban-native-smoke.log"
+          rm -f "$smoke_result"
+          open -n -W --stdout "$smoke_log" --stderr "$smoke_log" \
+            "$derived_data/Build/Products/Debug/Kaban.app" --args \
+            -ApplePersistenceIgnoreState YES --ui-smoke "$smoke_result"
+          cat "$smoke_log"
+          python3 - "$smoke_result" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as report:
+              result = json.load(report)
+          assert result["result"] == "passed", result
+          print(json.dumps(result, ensure_ascii=False))
+          PY
 
       - name: Test
         run: swift test
