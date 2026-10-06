@@ -163,8 +163,17 @@ public final class MCPBoardServer: @unchecked Sendable {
         try? writeAll(fd, head + body)
     }
 
+    /// Glibc imports `SOCK_STREAM` as `__socket_type`. Darwin imports it as `Int32`.
+    private static var inetStream: Int32 {
+        #if os(Linux)
+        Int32(SOCK_STREAM.rawValue)
+        #else
+        SOCK_STREAM
+        #endif
+    }
+
     private static func bindLoopback() throws -> (fd: Int32, host: String, port: UInt16) {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        let fd = socket(AF_INET, inetStream, 0)
         guard fd >= 0 else { throw BoardFailure.invalid("Сокет MCP не открылся.") }
         var address = sockaddr_in()
         #if os(macOS)
@@ -193,7 +202,7 @@ public final class MCPBoardServer: @unchecked Sendable {
     }
 
     private static func connectLoopback(port: UInt16) throws -> Int32 {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        let fd = socket(AF_INET, inetStream, 0)
         guard fd >= 0 else { throw BoardFailure.invalid("Клиент MCP не открылся.") }
         var address = sockaddr_in()
         #if os(macOS)
