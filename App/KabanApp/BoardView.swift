@@ -305,7 +305,7 @@ struct BoardView: View {
             HStack { Text("Активные задачи"); Spacer(); Text("\(store.runningCount)").fontWeight(.semibold).monospacedDigit() }.font(.system(size: 11))
             theme.line.frame(height: 0.5)
             quotaRows
-            Text("Локальные демоданные").font(.system(size: 10)).foregroundStyle(theme.faint)
+            Text(store.usesFixture ? "Локальные демоданные" : (store.canSend ? "Служба Kaban подключена" : "Подключение к Kaban")).font(.system(size: 10)).foregroundStyle(theme.faint)
         }.padding(12).background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.line, lineWidth: 0.5))
     }

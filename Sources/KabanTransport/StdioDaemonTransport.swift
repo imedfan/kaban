@@ -12,8 +12,8 @@ public final class StdioDaemonTransport: DaemonTransport, Sendable {
     private let worker: StdioWorker
     private let timeout: TimeInterval
 
-    public init(executable: URL, database: String, timeout: TimeInterval = 10) {
-        worker = StdioWorker(executable: executable, database: database)
+    public init(executable: URL, database: String, additionalArguments: [String] = [], timeout: TimeInterval = 10) {
+        worker = StdioWorker(executable: executable, database: database, additionalArguments: additionalArguments)
         self.timeout = timeout.isFinite && timeout > 0 ? min(timeout, 60) : 10
     }
     public func exchange(_ request: DaemonRequest) async throws -> DaemonResponse {
@@ -47,13 +47,14 @@ private final class StdioWorker: @unchecked Sendable {
     let queue = DispatchQueue(label: "app.kaban.stdio")
     private let executable: URL
     private let database: String
+    private let additionalArguments: [String]
     private let lock = NSLock()
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?
     private var buffer = Data()
 
-    init(executable: URL, database: String) { self.executable = executable; self.database = database }
+    init(executable: URL, database: String, additionalArguments: [String]) { self.executable = executable; self.database = database; self.additionalArguments = additionalArguments }
     func exchange(_ data: Data, completion: RPCCompletion) {
         guard !completion.isFinished else { return }
         do {
@@ -78,7 +79,8 @@ private final class StdioWorker: @unchecked Sendable {
         close()
         let child = Process(), requests = Pipe(), replies = Pipe()
         child.executableURL = executable
-        child.arguments = ["--stdio", "--database", database]
+        child.arguments = ["--stdio", "--database", database] + additionalArguments
+        child.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": FileManager.default.homeDirectoryForCurrentUser.path, "TMPDIR": FileManager.default.temporaryDirectory.path]
         child.standardInput = requests; child.standardOutput = replies
         child.standardError = FileHandle.standardError
         try child.run()

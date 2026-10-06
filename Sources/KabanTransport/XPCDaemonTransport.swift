@@ -9,8 +9,14 @@ public actor XPCDaemonTransport: DaemonTransport {
     private let timeout: TimeInterval
     private var session: XPCSession?
 
-    public init(machService: String = DaemonWire.machService, timeout: TimeInterval = 10) {
-        makeSession = { try XPCSession(machService: machService, requirement: .isFromSameTeam()) }
+    public init(machService: String = DaemonWire.machService, appBundle: URL? = nil, timeout: TimeInterval = 10) {
+        makeSession = {
+            let requirement: XPCPeerRequirement
+            if let appBundle {
+                requirement = try BundledDaemonIdentity.requirement(appBundle: appBundle, forHelper: true)
+            } else { requirement = .isFromSameTeam(andMatchesSigningIdentifier: DaemonInstallation.helperIdentifier) }
+            return try XPCSession(machService: machService, requirement: requirement)
+        }
         self.timeout = timeout.isFinite && timeout > 0 ? min(timeout, 60) : 10
     }
     // A private, unregistered endpoint is used by integration tests only.

@@ -5,14 +5,14 @@
 
 ## Реальные точки входа
 
-- `App/KabanApp/KabanApp.swift` создаёт BoardStore с типизированным MockKabanClient из AppFixture.
+- `App/KabanApp/KabanApp.swift` создаёт DaemonRuntime: SMAppService + DaemonKabanClient по XPC; `--developer` использует встроенный helper по private stdio. AppFixture включается только в явном UI QA.
 - `App/KabanApp/BoardStore.swift` связывает views с клиентом, проекцией и выбором задачи.
 - `Sources/KabanBoardCore/KabanClient.swift` содержит типизированный клиентский интерфейс и mock.
 - `BoardProjection`, `PendingCommands`, `BoardSetStore`, `DropRules` находятся в BoardCore.
 - Protocol DTO и команды находятся в `Sources/KabanProtocol/`.
 
 BoardCore зависит только от Protocol, без SwiftUI/AppKit. Приложение не импортирует
-Kit/GRDB. Будущий XPCKabanClient реализует существующую клиентскую границу.
+Kit/GRDB. DaemonKabanClient реализует существующую клиентскую границу и передаёт connection/replacement/journal/ephemeral из sessionUpdates. Установка SMAppService пока блокируется Sandbox; [проверки BE-20](../development/backend-launch-agent-2026-10-06.md).
 Отдельные KabanUI/KabanAppTests/KabanUITests из старого плана — предложения;
 в текущем проекте таких targets нет. Не создавай их только ради совпадения с планом.
 
@@ -48,7 +48,7 @@ Pipeline validation и вычисление итоговой git-политик�
 Durable wire-инкремент backend добавляет `SettingsChange.schedulerFlags`:
 полный набор флагов в correlated journal event. Nil/отсутствие оставляет текущее
 значение, `[]` снимает флаги. BoardProjection уже принимает это поле и typed
-`settings` из snapshot/settingsChanged. Будущий adapter должен сохранять порядок
+`settings` из snapshot/settingsChanged. Adapter сохраняет порядок
 journal и live ephemeral updates; `.ok` не является применением паузы/настроек.
 
 Подписка охватывает все проекты (`projectIds=nil`), а набор дорожек хранится

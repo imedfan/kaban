@@ -101,3 +101,15 @@ KABAN_SCENARIOS=Scenarios/M1 swift test --scratch-path "$kaban_check_dir/build" 
 [Frontend](../spikes/frontend/README.md) и [backend](../spikes/backend/README.md)
 живут вне корневого пакета и имеют собственные prerequisites. Реальные CLI-спайки
 расходуют квоту и могут регистрировать агента; они не являются обычной проверкой документов.
+
+## Личная сборка App и BE-20
+
+`tools/package-local-app.sh` собирает ad-hoc Release bundle в `/tmp/kaban-local-app`
+без вымышленного Team ID. Копируйте готовый bundle в постоянное место перед установкой.
+Normal App использует SMAppService; текущая приёмка установки блокируется Sandbox,
+см. [отчёт BE-20](development/backend-launch-agent-2026-10-06.md).
+
+Developer mode: запустить готовый App с `--developer`. Встроенный daemon использует
+private stdio и отдельные Development data; системная служба не устанавливается.
+CLI остаётся доступен через `--stdio-daemon ... --database ...` для диагностики.
+Не открывайте одну и ту же БД двумя daemon: writer lease отклонит второй процесс.

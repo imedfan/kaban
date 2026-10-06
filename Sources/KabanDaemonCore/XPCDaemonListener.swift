@@ -2,14 +2,18 @@
 import Foundation
 import XPC
 import KabanProtocol
+import KabanTransport
 
 @available(macOS 26.0, *)
 public final class XPCDaemonListener {
     private let listener: XPCListener
 
-    /// There is no unsigned Mach-service mode. Development uses a private stdio channel.
+    /// Bundled Apple signatures use same-team + ID. Personal builds pin the peer hash.
     public init(service: DaemonService, name: String = DaemonWire.machService) throws {
-        listener = try XPCListener(service: name, requirement: .isFromSameTeam()) { request in
+        let executable = URL(fileURLWithPath: CommandLine.arguments[0])
+        let bundle = try BundledDaemonIdentity.appBundle(containing: executable)
+        let requirement = try BundledDaemonIdentity.requirement(appBundle: bundle, forHelper: false)
+        listener = try XPCListener(service: name, requirement: requirement) { request in
             request.accept { (data: Data) in service.handle(data: data) }
         }
     }
