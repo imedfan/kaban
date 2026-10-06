@@ -569,7 +569,7 @@ BE-18 выполнен в [PR #89](https://github.com/imedfan/kaban/pull/89), е
 
 ## BE-20. Упаковать демон и реализовать lifecycle LaunchAgent
 
-**Статус:** реализация в `codex/be-20-launch-agent`; приёмка установки блокируется App Sandbox. [Проверки и границы](backend-launch-agent-2026-10-06.md).
+**Статус:** [draft PR #91](https://github.com/imedfan/kaban/pull/91); приёмка установки блокируется App Sandbox. [Проверки и границы](backend-launch-agent-2026-10-06.md).
 
 **Приоритет:** P1
 
