@@ -13,13 +13,21 @@ import KabanTransport
     var busy = false
     private var closeTransport: (() async -> Void)?
     private var started = false
+    private var connectingInstalled = false
     private let service = SMAppService.agent(plistName: DaemonInstallation.plistName)
     var developer: Bool { CommandLine.arguments.contains("--developer") || BoardQA.argument("--daemon-smoke") != nil }
-    var fixture: Bool { BoardQA.isActive && BoardQA.argument("--daemon-smoke") == nil && !developer }
-    init() { if fixture { store = BoardStore(client: AppFixture.client(), storage: MemoryKeyValueStore()) } }
+    var fixture: Bool { BoardQA.isActive && BoardQA.argument("--qa-runtime-state") == nil && BoardQA.argument("--daemon-smoke") == nil && !developer }
+    init() {
+        if fixture { store = BoardStore(client: AppFixture.client(), storage: MemoryKeyValueStore()) }
+        if let state = BoardQA.argument("--qa-runtime-state"), !CommandLine.arguments.contains("--qa-incompatible-daemon") {
+            status = state == "protocol-error" ? "Служба Kaban требует обновления" : "Не удалось подключиться к службе Kaban"
+            failure = state == "protocol-error" ? "Несовместимая версия протокола. Обновите службу Kaban и проверьте подключение снова." : "macOS не смогла включить локальную службу. Откройте «Объекты входа и расширения», проверьте разрешение для Kaban и повторите подключение. Сохранённые задачи останутся в локальной базе."
+        }
+    }
     func start() async {
         guard !started else { return }; started = true
         BoardQA.runtime = self
+        if BoardQA.argument("--qa-runtime-state") != nil, !CommandLine.arguments.contains("--qa-incompatible-daemon") { return }
         if fixture { return }
         if let report = BoardQA.argument("--service-smoke") { await serviceSmoke(report); return }
         if developer { await connectDeveloper(); return }
@@ -58,7 +66,7 @@ import KabanTransport
         Darwin.exit(values["result"] as? String == "observed" ? EXIT_SUCCESS : EXIT_FAILURE)
     }
     func refresh() async {
-        guard started, !fixture, !developer, !busy else { return }
+        guard started, !fixture, !developer, !busy, BoardQA.argument("--qa-runtime-state") == nil else { return }
         observeStatus()
         if service.status == .enabled, store == nil { await connectInstalled() }
     }
@@ -116,15 +124,28 @@ import KabanTransport
     }
     func openSettings() { SMAppService.openSystemSettingsLoginItems() }
     private func connectInstalled() async {
-        guard store == nil else { return }
+        guard store == nil, !connectingInstalled else { return }
+        connectingInstalled = true; defer { connectingInstalled = false }
         let connection = XPCDaemonTransport(appBundle: Bundle.main.bundleURL); closeTransport = { await connection.close() }
         do {
             let client = DaemonKabanClient(transport: connection)
+            try await client.capabilities().requireSession()
             _ = try await client.getSnapshot()
-            store = BoardStore(client: client); failure = nil
-        } catch { await connection.close(); closeTransport = nil; failure = error.localizedDescription }
+            store = BoardStore(client: client, dataSourceDetail: DaemonInstallation().database.path); failure = nil
+        } catch {
+            await connection.close(); closeTransport = nil
+            failure = (error as? CommandError)?.message ?? error.localizedDescription
+            if let error = error as? CommandError,
+               [CommandError.protocolMismatchCode, CommandError.unsupportedOperationCode].contains(error.code) {
+                status = "Служба Kaban требует обновления"
+            }
+        }
     }
     private func connectDeveloper() async {
+        guard !busy else { return }; busy = true; defer { busy = false }
+        store = nil
+        await closeTransport?(); closeTransport = nil
+        failure = nil
         do {
             let installation = DaemonInstallation(developer: true)
             let path = BoardQA.argument("--developer-database") ?? installation.database.path
@@ -132,20 +153,36 @@ import KabanTransport
             else { try FileManager.default.createDirectory(at: URL(fileURLWithPath: path).deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
             let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/KabanDaemon")
             let connection = StdioDaemonTransport(executable: helper, database: path, additionalArguments: ["--initialize"]); closeTransport = { await connection.close() }
-            let client = DaemonKabanClient(transport: connection); _ = try await client.getSnapshot()
+            let transport: any DaemonTransport
+            if CommandLine.arguments.contains("--qa-lose-create-reply") { transport = QAReplyLossTransport(base: connection) }
+            else if CommandLine.arguments.contains("--qa-incompatible-daemon") { transport = QAIncompatibleTransport(base: connection) }
+            else { transport = connection }
+            let client = DaemonKabanClient(transport: transport); _ = try await client.getSnapshot()
+            try await client.capabilities().requireSession()
             if let project = BoardQA.argument("--daemon-smoke-project") {
                 let result = try await client.send(.addProject(path: project, createTemplate: true), commandId: UUID())
                 if case .error(let error) = result { throw error }
                 _ = try await client.send(.pauseAll, commandId: UUID())
             }
-            store = BoardStore(client: client, storage: BoardQA.isActive ? MemoryKeyValueStore() : DefaultsStorage())
+            store = BoardStore(client: client, storage: BoardQA.isActive ? MemoryKeyValueStore() : DefaultsStorage(),
+                               dataSource: "Режим разработки · отдельная БД", dataSourceDetail: path,
+                               commandStorageKey: "client.commands.developer.\(URL(fileURLWithPath: path).standardizedFileURL.path)")
             status = "Developer mode · private stdio"
-        } catch { failure = error.localizedDescription; status = "Не удалось запустить встроенную службу" }
+        } catch {
+            await closeTransport?(); closeTransport = nil
+            failure = (error as? CommandError)?.message ?? error.localizedDescription
+            if let error = error as? CommandError,
+               [CommandError.protocolMismatchCode, CommandError.unsupportedOperationCode].contains(error.code) {
+                status = "Служба Kaban требует обновления"
+            } else { status = "Не удалось подключиться к службе Kaban" }
+        }
     }
 }
 struct DaemonRuntimeView: View {
     @Bindable var runtime: DaemonRuntime
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var scheme
+    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     var body: some View {
         Group {
             if let store = runtime.store {
@@ -157,15 +194,41 @@ struct DaemonRuntimeView: View {
                     BoardView(store: store).onAppear { BoardQA.store = store }
                 }
             } else {
-                VStack(spacing: 18) {
-                    Text("Служба Kaban").font(.title2)
-                    Text(runtime.status).multilineTextAlignment(.center)
-                    if let failure = runtime.failure { Text(failure).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
-                    HStack {
-                        Button("Открыть объекты входа") { runtime.openSettings() }
-                        Button("Проверить снова") { Task { await runtime.retry() } }.disabled(runtime.busy)
-                    }
-                }.padding(36).frame(maxWidth: 620).frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        ReferenceWordmark().fill(theme.text).frame(width: 110, height: 30)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Label("Подключение к Kaban", systemImage: "externaldrive.badge.wifi")
+                                .font(.system(size: 22, weight: .semibold))
+                            Text("Задачи и настройки хранятся в локальной службе. Подключите её, чтобы открыть доску.")
+                                .font(.system(size: 13)).foregroundStyle(theme.secondary).lineSpacing(4)
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top, spacing: 10) {
+                                if runtime.busy { ProgressView().controlSize(.small) }
+                                else { Image(systemName: runtime.failure == nil ? "info.circle" : "exclamationmark.triangle").foregroundStyle(theme.status("waiting").2) }
+                                Text(runtime.status).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
+                            }
+                            if let failure = runtime.failure {
+                                Text(failure).font(.system(size: 12)).foregroundStyle(theme.secondary)
+                                    .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                            }
+                        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(theme.control, in: RoundedRectangle(cornerRadius: 10))
+                        HStack(spacing: 10) {
+                            if !runtime.developer {
+                                Button("Объекты входа…") { runtime.openSettings() }.buttonStyle(KabanButtonStyle())
+                            }
+                            Button("Проверить снова") { Task { await runtime.retry() } }
+                                .buttonStyle(KabanButtonStyle(primary: true)).disabled(runtime.busy).keyboardShortcut(.defaultAction)
+                        }
+                        Text(runtime.developer ? "Режим разработки · отдельная БД" : "Локальная служба · на этом Маке")
+                            .font(.system(size: 11)).foregroundStyle(theme.faint)
+                    }.padding(32).frame(maxWidth: 560, alignment: .leading)
+                        .background(theme.card, in: RoundedRectangle(cornerRadius: DesignSystem.panelRadius))
+                        .overlay(RoundedRectangle(cornerRadius: DesignSystem.panelRadius).stroke(theme.line, lineWidth: 0.5))
+                        .padding(.horizontal, 32).padding(.vertical, 64).frame(maxWidth: .infinity)
+                }.background(ReferenceBackdrop(theme: theme)).foregroundStyle(theme.text)
             }
         }
         .task { await runtime.start() }

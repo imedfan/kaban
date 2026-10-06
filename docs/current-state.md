@@ -6,12 +6,24 @@
 
 ## База этого среза
 
-Проверенная после git fetch база: `origin/main` — `d3ba1f7` (BE-19 #90).
-BE-01–05 приняты в #71–76; код BE-06–18 принят вместе с [PR #89](https://github.com/imedfan/kaban/pull/89).
-Исходные stacked PR #77–88 остаются историей инкрементов; их отчёты относятся к указанным там SHA.
-BE-19 принят в main через [PR #90](https://github.com/imedfan/kaban/pull/90), `d3ba1f7`. Конфликты squash-истории устранены в `140c97b` без изменения проверенного tree.
-BE-20 — [draft PR #91](https://github.com/imedfan/kaban/pull/91); успешная установка ещё не подтверждена.
-Локальная main может быть старее origin/main. Проверки development-отчётов не заменяют новый прогон текущего HEAD.
+Проверенная после `git fetch origin` база реализации: `origin/main` —
+`5b4fdc5` (BE-20, PR #91).
+Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
+принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
+принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
+
+BE-20 принят в main через [PR #91](https://github.com/imedfan/kaban/pull/91).
+Packaging/live adapter присутствуют в checkout; незавершённая системная
+приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
+Наличие кода BE-01–20 не закрывает все критерии backend MVP.
+
+Основной каталог обновлён до этой базы; рабочая ветка анализа —
+`codex/fe-01-daemon-client`. Имя ветки или соседний worktree не доказывает
+наличие реализации в checkout: перед следующей задачей снова проверь refs и diff.
+В FE-01 выполнены новые сборка, 516 Swift tests и UI QA настоящего WindowGroup;
+точные границы и снимки — [отчёт FE-01](development/frontend-fe-01-2026-10-06.md).
+Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
+инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
 ## Что есть в основном коде
 
@@ -19,8 +31,8 @@ BE-20 — [draft PR #91](https://github.com/imedfan/kaban/pull/91); успешн
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store, миграции v1–v20, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, лимитные флаги и проба модели, loopback MCP доски с хешем run-токена, гейты, hooks и один commit стадии, проверка refs/tags/config, `.kaban` и подозрительных файлов, durable incidents, `/git/check` и разовые git-разрешения, чтение логов по смещению событий, очередь одного локального merge с rebase во временном клоне и fast-forward `main`, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется в `--process-pass` либо в обычном loop с явно переданным локальным `--runner`. Проба после тихого выхода не запускает `cursor-agent -p`. MCP и `/git/check` слушают только `127.0.0.1` в `--mcp-pass` и в прямом вызове сервера. Preflight блокирует чужой или нечитаемый `mcp list` и не передаёт `--approve-mcps`. Профиль записи не изолирует токен CLI. Грязное дерево без read-only для проверки результата считается чистым. Откат git при инциденте происходит до записи в базу и не обещает exactly-once. Файл лога не откатывается вместе с SQLite. Fast-forward `main` сверяется с git и не обещает exactly-once. Повторный проход не двигает уже обновлённый ref. Shim не заменяет прямой `/usr/bin/git`. Автокоммит `.kaban/pipeline.yaml` для нового запрета не делается |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass`, `--process-pass`, `--mcp-pass`, `--mcp-isolation-pass`, `--stage-pass`, `--log-pass` и `--merge-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. `--mcp-pass` делает один `complete_stage` через loopback и не запускает Cursor. `--mcp-isolation-pass` только восстанавливает `.cursor/mcp.json`. `--stage-pass` исполняет гейты, hooks, проверку результата и один commit стадии и не запускает Cursor. `--log-pass` только перепечатывает сохранённую страницу лога. `--merge-pass` перебазирует одну одобренную задачу на `main` и fast-forward этого ref и не запускает Cursor. Штатный startup восстанавливает сохранённые gate/merge effects до scheduler. Обычный loop исполняет ручные git/process effects; постоянно работающий MCP-сервер и автоматический production Cursor launch пока не подключены. Обычный loop исполняет stop/WIP/restore/hooks/gates/merge/cleanup до нового admission. В BE-20 bundle/SMAppService и live App adapter реализованы; установка блокируется Sandbox, см. отчёт |
+| DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
+| Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, детали, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -33,7 +45,7 @@ BE-20 — [draft PR #91](https://github.com/imedfan/kaban/pull/91); успешн
 ## UI, принятый в PR #67
 
 PR #67 принят в main; правка `13941e9` интегрирует типизированный клиент.
-Основной WindowGroup теперь использует `BoardView` / `BoardStore` / `KabanClient`
+Основной WindowGroup использует `BoardView` / `BoardStore` / `KabanClient`.
 В BE-20 default подключается к DaemonKabanClient; Protocol fixtures из `AppFixture` остаются для opt-in QA. Строковый автомат `ReferenceDemo` не используется.
 Сохранённые `Reference*` views остаются инструментом сравнения и не являются
 основным состоянием приложения.
@@ -58,23 +70,90 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 ## Ближайшие результаты
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
-BE-01–04 приняты в #71–74.
-BE-06–18 приняты в main через #89. BE-19 — [PR #90](https://github.com/imedfan/kaban/pull/90).
-BE-20 — [отчёт bundle/lifecycle](development/backend-launch-agent-2026-10-06.md):
-реальная регистрация требует разрешения устранить расхождение App Sandbox с архитектурой §13.
-Другой Apple Team, reboot и paid Cursor не проверены.
+Код BE-01–20 принят; системная приёмка BE-20 остаётся незавершённой.
+Полная frontend-очередь — [FE-01–22](development/frontend-mvp-tasks.md): шесть
+блоков, контракты, результаты и приёмка UC-01–25. По поручению Артёма она рассчитана
+на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
+требования до перечисленных ниже текущих пробелов.
 
-1. Ручная проверка принятого UI и завершение оставшихся экранов
-   настроек/Human Review по закреплённым макетам.
-2. Подключение frontend к durable командной границе через готовый транспорт:
-   replacement snapshots, pending commands при reconnect и состояние соединения.
-3. Реальные Cursor/git/MCP/gates, целевые isolation-спайки и квота.
-4. Полная сценарная, визуальная и доступностная приёмка; упаковка/подпись.
+1. Довести клиентскую интеграцию BE-20: capabilities/log API, reconciliation
+   pending commands, детали и recovery сессии; затем live-проекты и доску.
+2. Подключить configuration, материалы запуска, review/merge и все способы
+   разрешить ожидание по полному frontend-списку.
+3. Завершить production Cursor/MCP, недостающие wire/producers и штатную
+   регистрацию helper; затем подтвердить сквозной сценарий настоящего приложения.
 
-Это порядок ориентации, а не запрет выполнять другую явно порученную задачу.
-Каждый инкремент должен давать проверяемый пользовательский результат.
+## Backend: проверенные границы для frontend
 
-## Backend: durable wire-команды
+Источник поддержки команд — `Sources/KabanDaemonCore/DaemonService.swift` и
+реализация соответствующего store. DTO/успешная golden fixture не означают
+доступную операцию. В `d3ba1f7`:
+
+- Lifecycle проектов, pipeline validate/apply, task control/Human Review,
+  details/runs, logs, model catalog/override, grants/incidents/files, настройки
+  лимита/квоты и паузы объявлены supported. Для logs есть readLog и клиентский tailLog.
+- `checkEnvironment`, `getCursorEnvironment`, `configureCursor`,
+  `listProjectMcpServers`, `setProjectMcpAllowlist` остаются unsupported.
+  Runner path сейчас задаётся аргументом `--cursor-agent`, не формой App.
+- Обычный loop исполняет ручные process/git effects, gates/hooks/merge/cleanup;
+  без явно заданного `--runner` agent start остаётся pending. Production Cursor
+  prompt, живой stream/model init и постоянный MCP lifetime к этому loop не подключены.
+  `.running` и RunSummary.startedAt сами по себе не доказывают запуск Cursor.
+- Числовой quota producer отсутствует; SchedulerInputs хранит факты internal
+  producer. Поддержка setQuotaOptions не означает работающий опрос.
+  Каталог проверен на тестовой табличной форме; реальный авторизованный CLI,
+  изолированный профиль и остановка до первого tool не подтверждены отчётами.
+- `addDenialToPolicy` пишет `git_policy_extra` и событие со старой версией;
+  новая `.kaban/`-версия и YAML autocommit, требуемые UC-17/19, не реализованы этим
+  действием. Frontend не должен показывать такой event как сохранённый YAML.
+- `overlapsWith` есть в DTO, но producer пересечений UC-08 в DaemonCore не найден.
+  Summary/diffstat/commits/gate outputs передаются текстовыми TaskArtifact;
+  структурированный diffstat и цена не должны выдумываться UI.
+- Для полного списка model pool rules и точного YAML source нет отдельного
+  wire-чтения; editor использует разрешённый файловый доступ и точный draft.
+  Эти read-поверхности и права App/helper нужно согласовать при интеграции.
+- Main daemon на чистой БД не инициализирует GlobalSettings: snapshot.settings
+  может быть nil, изменение ceiling требует сохранённых settings. В принятом #91 добавлена
+  инициализация для `--launch-agent`/`--initialize`. Обычный запуск без этих
+  аргументов по-прежнему допускает nil settings.
+
+Это конкретные расхождения реализации и полного MVP, а не новые требования.
+
+## BE-20 / FE-01: клиентская интеграция
+
+В принятом [#91](https://github.com/imedfan/kaban/pull/91) уже есть embedded helper/plist,
+SMAppService lifecycle, DaemonKabanClient/DaemonRuntime, session updates в BoardStore,
+блокировка команд до connected, отдельная developer stdio БД и проверка подписанных
+peer identities. В отчёте PR — 511 Swift tests, build/packaging и настоящее WindowGroup
+с create/edit/pause/resume/cancel и durable reopening. Это проверки его head,
+а не новый прогон на текущей ветке.
+
+Системная регистрация helper не прошла: по отчёту PR, sandboxed App пытается
+установить unsandboxed helper (`Operation not permitted`, статус notFound).
+Register/XPC/restart/unregister/reboot и полный dark/minimum/error UI matrix не приняты.
+Настройку безопасности нельзя считать исправленной наличием Mach lookup entitlement.
+
+FE-01 доводит границу KabanClient: точные CommandEnvelope/CommandReply,
+capabilities при handshake и reconnect, readLog/tailLog через одну сессию.
+ClientCommandJournal сохраняет отправки, receipts и correlated seq в локальном
+хранилище клиента, раздельно для installed/developer/fixture источников.
+Ответ `.ok` не меняет проекцию. Неопределённая доставка и replacement не снимают
+pending создания как доказанный отказ. Mock возвращает те же receipts и честно
+отказывает в логах; отсутствие capability блокирует соответствующее действие.
+
+Developer retry сначала закрывает прежний транспорт; обычный запуск не переходит
+на fixtures. Источник данных показан в сайдбаре. Панель службы/ошибки использует
+общие токены; пробелы исходников — [список дизайнеру](development/frontend-design-gaps.md).
+FE-02 остаётся отдельной задачей: полный replay/reconciliation сохранённых
+отправок после reopen, retention и замены snapshot, восстановление draft и деталей.
+
+## Исторические итоги backend-инкрементов
+
+Далее сохранены границы на момент каждого инкремента. Фразы «следует в BE-N»,
+diagnostic pass и результаты tests относятся к его отчёту. Код BE-06–19 уже в main;
+актуальный обычный loop и остающиеся пробелы описаны выше.
+
+### Backend: durable wire-команды
 
 Принято в main в PR #69 — [контракт и проверки](development/backend-wire-commands-2026-10-05.md).
 `KabanStore.execute` принимает существующий `CommandEnvelope` и возвращает
@@ -96,7 +175,7 @@ admission/execution; результаты текущих runs продолжаю
 MCP, quota poller и системная регистрация ещё не реализованы. Это командная граница для
 следующего транспортного инкремента, не готовность всего M1/MVP.
 
-## Backend: daemon transport и kabanctl
+### Backend: daemon transport и kabanctl
 
 Принято в main в PR #70 — [контракт и проверки](development/backend-daemon-transport-2026-10-05.md).
 `KabanDaemon` открывает выбранную SQLite под эксклюзивной process lease,
@@ -120,7 +199,7 @@ fake driver или внешние effects: транспортный инкрем
 команд. Production lifecycle проектов добавлен в BE-02 ниже; исполнитель, App integration и системная
 регистрация следуют отдельно. Наличие бинарника не означает готовность M1/MVP.
 
-## Backend: BE-01 wire-контракты
+### Backend: BE-01 wire-контракты
 
 Принято в main в PR #71 — [матрица и проверки](development/backend-wire-contracts-2026-10-05.md).
 `synchronize` согласует snapshot.seq с независимым cursor эфирного канала;
@@ -135,7 +214,7 @@ PipelineDraft переносит точный YAML, project/base version и SHA-
 Эфирный publisher не выдумывает данные отсутствующего Cursor/model/quota producer.
 App всё ещё использует mock; новые UI-сценарии и визуальная приёмка не заявляются.
 
-## Backend: BE-02 локальные проекты
+### Backend: BE-02 локальные проекты
 
 Принято в main в PR #72 — [lifecycle и проверки](development/backend-project-lifecycle-2026-10-05.md).
 Add/remove/relink, local branches, gate suggestions и recheck(project) работают через
@@ -151,7 +230,7 @@ archive/cleanup effects ждут executor BE-05/06. На базе #72 production
 были заблокированы; BE-04 ниже добавляет admission/start, fake driver не исполняет production effects.
 Pipeline apply/reload добавлен в BE-03 ниже. App остаётся на MockKabanClient.
 
-## Backend: BE-03 версии пайплайна
+### Backend: BE-03 версии пайплайна
 
 Принято в main в [PR #73](https://github.com/imedfan/kaban/pull/73) — [хранилище и проверки](development/backend-pipeline-storage-2026-10-05.md).
 Демон читает immutable blobs из локального `main:.kaban/`, сохраняет полные валидные
@@ -172,7 +251,7 @@ Production scheduling добавлен в BE-04 ниже; claim/lease/receipt �
 Клоны и процессы следуют в BE-06–08, gates/hooks — BE-11, merge — BE-17;
 проверка завершения использует сохранённые invocation fixtures. App не подключён.
 
-## Backend: BE-04 полный планировщик
+### Backend: BE-04 полный планировщик
 
 Принято в main в [PR #74](https://github.com/imedfan/kaban/pull/74) — [планировщик и проверки](development/backend-full-scheduler-2026-10-05.md).
 Все допустимые production stage kinds участвуют в выборе: downstream по графу
@@ -196,7 +275,7 @@ Snapshot/live delivery используют сохранённые значен�
 Claim/lease описан в BE-05 ниже. `.running` в инкременте BE-04 — durable reservation
 с pending effect, а не доказательство живого Cursor. App остаётся на MockKabanClient.
 
-## Backend: BE-05 исполнение эффектов
+### Backend: BE-05 исполнение эффектов
 
 Принят в main [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`) — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
 Additive v7 добавляет fencing, lease, external fact и diagnostic, не переписывая payload.
@@ -208,9 +287,9 @@ Side effect process/git пишется после commit, вне транзак�
 Старт демона забирает незавершённые leases прежнего процесса. `--effect-pass` по желанию подтверждает
 только lifecycle effects и не является поведением по умолчанию. Cursor и process group не исполняются.
 
-## Backend: BE-06 клоны задач
+### Backend: BE-06 клоны задач
 
-[PR #77](https://github.com/imedfan/kaban/pull/77) влит в `codex/be-05-effect-execution` и ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
+[PR #77](https://github.com/imedfan/kaban/pull/77) принят в составе main через PR #89 — [клоны задач](development/backend-task-clones-2026-10-06.md).
 План пути коммитится до `git clone --local`. Повтор после обрыва использует тот же путь и не ставит второй run.
 У параллельных задач разные ветки, git dir, config и cwd; `fresh-readonly` получает отдельный клон.
 DerivedData и temp лежат внутри клона. Портовый диапазон записывается и не занимает сокет.
@@ -219,9 +298,9 @@ DerivedData и temp лежат внутри клона. Портовый диа�
 Чужой путь и копия пользователя не удаляются. HEAD, `main` и status пользователя не меняются.
 WIP save/restore остаётся BE-18/19. Cursor не запускается. Следующий инкремент очереди — BE-07.
 
-## Backend: BE-08 управление процессами
+### Backend: BE-08 управление процессами
 
-[PR #78](https://github.com/imedfan/kaban/pull/78) влит в `codex/be-06-task-clones` и ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
+[PR #78](https://github.com/imedfan/kaban/pull/78) принят в составе main через PR #89 — [управление процессами](development/backend-process-control-2026-10-06.md).
 `--process-pass` запускает переданный `--runner` через `posix_spawn` в новой process group и пишет pid, pgid и время рождения.
 Без флага и без `--runner` демон процесс не порождает и не убивает. Старт `startAgentRun` получает факт `started` и не receipt:
 receipt завершил бы стадию. Exit 0 с выводом или грязным клоном даёт `no_final_call` и оставляет ту же стадию.
@@ -233,73 +312,93 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 Копия пользователя не меняется. Восстановление WIP человеком остаётся BE-18/19. Cursor не запускается.
 Обрыв между spawn и записью строки может стартовать процесс дважды; exactly-once внешнего процесса нет.
 
-## Backend: BE-07 драйвер Cursor CLI
+### Backend: BE-07 драйвер Cursor CLI
 
-[PR #79](https://github.com/imedfan/kaban/pull/79) влит в `codex/be-08-process-control` и ещё не принят в main — [драйвер Cursor CLI](development/backend-cursor-driver-2026-10-06.md).
+[PR #79](https://github.com/imedfan/kaban/pull/79) принят в составе main через PR #89 — [драйвер Cursor CLI](development/backend-cursor-driver-2026-10-06.md).
 Парсер NDJSON не обрывает run на неизвестном событии, битой или слишком длинной строке. Модель обязательна: пустое значение, `auto` и placeholder отклоняются до запуска.
 `--resume` передаётся только с уже проверенным session id и вместе с `--model`. Без него новая сессия сохраняет переданный контекст и не получает выдуманный id.
 Отсутствующий или неисполняемый файл и status «not logged in» ставят `runner_unavailable`. Повтор — через 5 минут и по `recheck(.runner)`.
 Без `--cursor-agent` демон Cursor не вызывает. `--approve-mcps` не включён. Платный `-p`, каталог при отсутствии логина, launchd login и MCP preflight не выполнены.
 Установленный CLI `2026.09.23-86fc751`: `--list-models` требует аутентификацию, `status` сообщает `Not logged in`.
 
-## Backend: BE-14 каталог моделей
+### Backend: BE-14 каталог моделей
 
-[PR #80](https://github.com/imedfan/kaban/pull/80) влит в `codex/be-07-cursor-driver` и ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
+[PR #80](https://github.com/imedfan/kaban/pull/80) принят в составе main через PR #89 — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
 `auto` отвергается в YAML и в `setModelOverride`. Override хранится отдельно от версии pipeline и меняет только свою задачу и стадию.
 `--list-models` принимается только как строки `id<TAB>name`. Иной непустой текст, включая ошибку аутентификации, не заменяет сохранённые строки.
 Новая незапрещённая модель получает `needsReview`. Исчезнувший id блокирует только стадии, которые его используют.
 Неизвестное или неоднозначное фактическое имя даёт `model_unconfirmed` и не выдумывает совпадение. Известное другое имя останавливает run как `model_substituted`, не списывает попытку и не считается успехом. Флаги переживают reopen.
 Остановка процесса до первого инструмента на этой машине не наблюдалась: CLI не залогинен, платный `-p` не запускался. Process-pass по-прежнему не запускает Cursor.
 
-## Backend: BE-15 лимиты и тихий выход
+### Backend: BE-15 лимиты и тихий выход
 
-[PR #81](https://github.com/imedfan/kaban/pull/81) влит в `codex/be-14-model-catalog` и ещё не принят в main — [лимиты](development/backend-limit-handling-2026-10-06.md).
+[PR #81](https://github.com/imedfan/kaban/pull/81) принят в составе main через PR #89 — [лимиты](development/backend-limit-handling-2026-10-06.md).
 Известный лимит освобождает только этот run и пишет флаг в той же транзакции. Соседний run доигрывает. Om usage не блокирует cm; unknown usage блокирует Мак. Попытка и `runsSinceHuman` не списываются. Cooldown 15/30/60 переживает reopen; `resumeAfterRateLimit` снимает только rate limit. `quota=nil` не считается 100% свободно.
 Тихий exit ждёт пробу: одна запись на модель, не чаще 10 минут, без `cursor-agent -p` и без обычного рестарта. Неизвестный текст остаётся одной редактированной строкой ленты. Платный `-p` не запускался.
 
-## Backend: BE-09 MCP-сервер доски
+### Backend: BE-09 MCP-сервер доски
 
-[PR #82](https://github.com/imedfan/kaban/pull/82) влит в `codex/be-15-limit-handling` и ещё не принят в main — [MCP-сервер](development/backend-mcp-server-2026-10-06.md).
+[PR #82](https://github.com/imedfan/kaban/pull/82) принят в составе main через PR #89 — [MCP-сервер](development/backend-mcp-server-2026-10-06.md).
 Пять инструментов слушают только `127.0.0.1`. Токен run передаётся в `KABAN_RUN_TOKEN` и в базе хранится как SHA-256. Чужой, отозванный и токен прошлого run не меняют задачу. Подмена `taskId` отклоняется. Повтор `complete_stage` не создаёт второй переход: задача входит в `gating` и получает `.runGates`, не следующую стадию и не Done. Нелегальный `return_to_stage` отклоняется. `request_human` освобождает слот. Notices уходят только адресату.
 `listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Обычный запуск демона сервер не держит. `/git/check` добавлен в BE-12 на том же loopback-сервере.
 
-## Backend: BE-10 изоляция MCP
+### Backend: BE-10 изоляция MCP
 
-[PR #83](https://github.com/imedfan/kaban/pull/83) влит в `codex/be-09-mcp-server` и ещё не принят в main — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
+[PR #83](https://github.com/imedfan/kaban/pull/83) принят в составе main через PR #89 — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
 Чужой или нечитаемый `mcp list` блокирует старт и не включает `--approve-mcps`. Сервер вне allowlist даёт предупреждение и не попадает в конфиг. Токен в файле только как `${env:KABAN_RUN_TOKEN}`. Подмена `.cursor/mcp.json` снимается до пустого diff.
 Профиль запрещает прямую запись и `/usr/bin/git config` в `.git` клона. Это не гарантия изоляции: CLI остаётся вне профиля, чтение широкое, токен CLI не спрятан. Установленный CLI не залогинен, поэтому auth, сборка и MCP в реальном профиле не подтверждены.
 
-## Backend: BE-11 гейты и передача стадии
+### Backend: BE-11 гейты и передача стадии
 
-[PR #84](https://github.com/imedfan/kaban/pull/84) влит в `codex/be-10-mcp-isolation` и ещё не принят в main — [гейты стадий](development/backend-stage-gates-2026-10-06.md).
+[PR #84](https://github.com/imedfan/kaban/pull/84) принят в составе main через PR #89 — [гейты стадий](development/backend-stage-gates-2026-10-06.md).
 `complete_stage` входит в `gating`. `--stage-pass` исполняет hooks, гейты, проверку результата и один commit и не запускает Cursor. Зелёный exit без final call стадию не закрывает. Красный гейт агента остаётся на том же клоне; красная gate-стадия возвращает в coding-стадию и не повторяется на месте. Возврат несёт конкретные issues, новый заход обнуляет attempts. Replay не пишет второй commit и не запускает hook снова. Пайплайн доходит до Human Review.
 Проверка результата в этом инкременте читает только грязь read-only. Грязное дерево обычной стадии для этой проверки считается чистым. Подозрительные файлы и инциденты — BE-13. Merge остаётся BE-17. `/git/check` — BE-12.
 
-## Backend: BE-12 git-разрешения
+### Backend: BE-12 git-разрешения
 
-Открытый инкремент [PR #85](https://github.com/imedfan/kaban/pull/85) поверх `codex/be-10-mcp-isolation`, ещё не принят в main — [git-разрешения](development/backend-git-grants-2026-10-06.md).
+Инкремент [PR #85](https://github.com/imedfan/kaban/pull/85) принят в составе main через PR #89 — [git-разрешения](development/backend-git-grants-2026-10-06.md).
 `/git/check` и shim разрешают git только после ответа демона. Разрешение одноразовое и совпадает с argv целиком. Условный override проверяет сервер. Доставка notice grant не тратит. Пятый отказ run останавливает задачу без списания попытки. `done` и `cancel` истекают grant и оставляют argv. Cursor rules содержат только жёсткие команды.
 Дополнительный запрет виден следующим run. Автокоммит YAML не делается, production `updatePipeline` не поддержан. Прямой `/usr/bin/git` shim обходит. Подозрительные файлы — BE-13, merge — BE-17.
 
-## Backend: BE-13 подозрительные файлы и инциденты
+### Backend: BE-13 подозрительные файлы и инциденты
 
-Открытый инкремент [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants`, ещё не принят в main — [инциденты](development/backend-incidents-2026-10-06.md).
+Инкремент [PR #86](https://github.com/imedfan/kaban/pull/86) принят в составе main через PR #89 — [инциденты](development/backend-incidents-2026-10-06.md).
 После run демон сравнивает refs, tags и `config` основного репозитория со снимком prepare, затем `.kaban/` и предка task branch. Нарушение откатывает git, открывает durable incident и ставит `waiting_human: incident`. Попытка не списывается, следующий tick run не начинает. `incidentOpened`/`incidentResolved` и `projectUpdated` несут один `commandId`. Снимок суммирует `ProjectSummary.openIncidentCount`. Клиент не увеличивает счётчик по предметным событиям. `projectRemoved` пересчитывает сумму.
 Подозрительные файлы ищутся после зелёных гейтов. Стандарт смотрит зафиксированный diff, strict — ещё и незакоммиченное. `.cursor/mcp.json` возвращается к `main` и в набор не входит. `answerHuman` и `requestChanges` набор не принимают. `retryStage`, `moveTask`, `cancelTask` и `reject` в стадию принимают его по UC-25. Чужой набор даёт `stale_suspicious_files`. Новый blob того же пути срабатывает снова. Принятие текущего набора продолжает отложенный переход без нового run.
 Обычная грязь без read-only остаётся чистой. Откат git выполняется до записи инцидента: сбой записи не обещает exactly-once внешнего git. Merge и production `updatePipeline` не входят в инкремент.
 
-## Backend: BE-16 логи запусков
+### Backend: BE-16 логи запусков
 
-Открытый инкремент [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents`, ещё не принят в main — [логи запусков](development/backend-run-logs-2026-10-06.md).
+Инкремент [PR #87](https://github.com/imedfan/kaban/pull/87) принят в составе main через PR #89 — [логи запусков](development/backend-run-logs-2026-10-06.md).
 `readLog` отдаёт нормализованные события по смещению. Повтор смещения не дублирует и не пропускает строки. Нет файла или строки — `log_unavailable`, не пустая успешная страница. Префикс старше 1024 событий не перенумеровывается: чтение до него — `log_offset_expired`. `--log-pass` печатает ту же страницу и не запускает Cursor.
 Секреты и `KABAN_RUN_TOKEN` вырезаются до записи лога, артефакта, вопроса, ответа и резюме. Снимок и detail больше 8 МиБ возвращают `snapshot_too_large` и `detail_too_large`; сохранённый текст не укорачивается. `getRunHistory` остаётся отдельным ответом. Медленное чтение лог не удаляет, и планировщик продолжает следующий tick.
 Файл `Logs/<run-id>.jsonl` не откатывается вместе с SQLite. Пропавший файл — `log_unavailable`, даже если строки остались. Это не exactly-once файла. Очередь локального слияния — BE-17.
 
-## Backend: BE-17 очередь локального слияния
+### Backend: BE-17 очередь локального слияния
 
-Ветка `codex/be-17-local-merge` поверх `codex/be-16-run-logs`, ещё не принята в main — [очередь слияния](development/backend-merge-queue-2026-10-06.md). Pull request ещё не открыт.
+[PR #88](https://github.com/imedfan/kaban/pull/88) принят в составе main через PR #89 — [очередь слияния](development/backend-merge-queue-2026-10-06.md).
 Один merge на проект, в порядке одобрения. `--merge-pass` забирает ветку task clone, перебазирует её на свежий `main` во временном клоне, повторяет гейты и fast-forward'ит ref только когда `main` совпал с tip. Cursor этот проход не запускает. Обычный запуск демона `main` не двигает.
 Dirty checkout с пересечением путей даёт `blocked: main_dirty` и `merge_blocked` без смены байтов, index и worktree. Сдвиг `main` между rebase и update возвращает фазу в rebase и не затирает чужой commit. Crash после fast-forward и до receipt сверяется с git и не делает второй `update-ref`. Это не exactly-once внешнего git. Конфликт возвращает в coding-стадию и снова требует Human Review; сверх лимита задача ждёт `conflict_limit`. Отмена queued merge не пишет её файл в `main`.
+
+### Backend: BE-18 recovery
+
+Штатный host восстанавливает физические процессы/gates, MCP, WIP и git effects
+до запуска scheduler. PID reuse не сигналится; restart не списывает попытку.
+[Контракт и проверки](development/backend-daemon-recovery-2026-10-06.md).
+BE-18 принят в main через PR #89; runtime ручных действий добавлен BE-19, упаковка — draft BE-20.
+
+### BE-19: ручные действия и WIP
+
+BE-18 — [PR #89](https://github.com/imedfan/kaban/pull/89). BE-19 принят в main
+в [PR #90](https://github.com/imedfan/kaban/pull/90), `d3ba1f7`. [Отчёт](development/backend-manual-execution-2026-10-06.md).
+Штатный loop исполняет stop/WIP/restore/hooks/gates/merge/cleanup, сериализуя их
+с wire-командами. Паузы Мака/проекта сохраняют текущий процесс; pauseTask завершает
+принадлежащую группу до cleanup. Override модели сбрасывает human counter и действует
+на следующий run, не изменяя frozen RunSpec текущего. Restore принимает только ref
+из истории этой задачи, фиксирует SHA, блокирует admission и подтверждает результат
+correlated journal event после git/receipt. HEAD/main и исходный run summary сохраняются.
+Автоматический production Cursor launch и постоянно работающий MCP-сервер остаются
+границами предыдущих инкрементов; локальный runner не подтверждает Cursor auth/isolation.
 
 ## Какие источники читать
 
@@ -316,23 +415,3 @@ Dirty checkout с пересечением путей даёт `blocked: main_di
 
 Команды сборки и ограничения среды — [getting started](getting-started.md).
 Обновляй этот срез при изменении основного entry point, реализованных функций или границ интеграции.
-
-## Backend: BE-18 recovery
-
-Штатный host восстанавливает физические процессы/gates, MCP, WIP и git effects
-до запуска scheduler. PID reuse не сигналится; restart не списывает попытку.
-[Контракт и проверки](development/backend-daemon-recovery-2026-10-06.md).
-BE-18 пока в ветке, не в main; runtime ручных действий и упаковка следуют отдельно.
-
-## BE-19: ручные действия и WIP
-
-BE-18 — [PR #89](https://github.com/imedfan/kaban/pull/89). BE-19 реализован в этой ветке
-поверх BE-18; ещё не принят в main. [Отчёт](development/backend-manual-execution-2026-10-06.md).
-Штатный loop исполняет stop/WIP/restore/hooks/gates/merge/cleanup, сериализуя их
-с wire-командами. Паузы Мака/проекта сохраняют текущий процесс; pauseTask завершает
-принадлежащую группу до cleanup. Override модели сбрасывает human counter и действует
-на следующий run, не изменяя frozen RunSpec текущего. Restore принимает только ref
-из истории этой задачи, фиксирует SHA, блокирует admission и подтверждает результат
-correlated journal event после git/receipt. HEAD/main и исходный run summary сохраняются.
-Автоматический production Cursor launch и постоянно работающий MCP-сервер остаются
-границами предыдущих инкрементов; локальный runner не подтверждает Cursor auth/isolation.

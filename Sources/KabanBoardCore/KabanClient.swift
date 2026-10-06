@@ -7,16 +7,29 @@ import KabanProtocol
     func getSnapshot() async throws -> Snapshot
     func updates() -> AsyncThrowingStream<KabanClientUpdate, Error>
     func events() -> AsyncStream<EventEnvelope>
-    func send(_ command: Command, commandId: CommandID) async throws -> CommandResult
+    func send(_ envelope: CommandEnvelope) async throws -> CommandReply
+    func capabilities() async throws -> DaemonCapabilities
+    func readLog(runId: RunID, fromOffset: Int64, limit: Int) async throws -> LogPage
+    func tailLog(runId: RunID, fromOffset: Int64) -> AsyncThrowingStream<LogBatch, Error>
 }
 
 public enum KabanClientUpdate: Sendable {
+    case capabilities(DaemonCapabilities)
     case event(EventEnvelope)
     case replacement(SnapshotReplacement)
     case connection(DaemonConnectionState)
     case ephemeral(EphemeralEnvelope)
 }
 extension KabanClient {
+    public func send(_ command: Command, commandId: CommandID) async throws -> CommandResult {
+        try await send(.init(commandId: commandId, command: command)).result
+    }
+    public func readLog(runId: RunID, fromOffset: Int64, limit: Int = DaemonWire.maxPageSize) async throws -> LogPage {
+        throw CommandError(code: CommandError.unsupportedOperationCode, message: "Источник данных не поддерживает чтение логов.")
+    }
+    public func tailLog(runId: RunID, fromOffset: Int64) -> AsyncThrowingStream<LogBatch, Error> {
+        AsyncThrowingStream { $0.finish(throwing: CommandError(code: CommandError.unsupportedOperationCode, message: "Источник данных не поддерживает чтение логов.")) }
+    }
     public func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> {
         let stream = events()
         return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(DaemonWire.maxPageSize * 2)) { continuation in
@@ -39,7 +52,7 @@ extension KabanClient {
     private var continuations: [UUID: AsyncStream<EventEnvelope>.Continuation] = [:]
     private var journal: [EventEnvelope] = []
     private var bodies: [TaskID: String] = [:]
-    private var receipts: [CommandID: (Command, CommandResult)] = [:]
+    private var receipts: [CommandID: (CommandEnvelope, CommandReply)] = [:]
     private var notes: [TaskID: [FeedItem]] = [:]
 
 
@@ -54,14 +67,24 @@ extension KabanClient {
             }
         }
     }
-    public func send(_ command: Command, commandId: CommandID) async throws -> CommandResult {
+    public func capabilities() async throws -> DaemonCapabilities {
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask]
+        return .init(operations: ["snapshot", "command", "subscribe"].map { .init(name: $0, supported: true) },
+                     commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
+    }
+    public func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
+        let commandId = envelope.commandId
+        guard envelope.protocolVersion == KabanCoding.protocolVersion else {
+            return .init(commandId: commandId, seq: nil, result: .error(.init(code: CommandError.protocolMismatchCode, message: "Несовместимая версия протокола.")))
+        }
         if let receipt = receipts[commandId] {
-            guard receipt.0 == command else { return .error(CommandError(code: "command_id_conflict", message: "Этот идентификатор уже использован для другого действия.")) }
+            guard receipt.0 == envelope else { return .init(commandId: commandId, seq: nil, result: .error(CommandError(code: "command_id_conflict", message: "Этот идентификатор уже использован для другого действия."))) }
             return receipt.1
         }
-        let result = execute(command, commandId: commandId)
-        receipts[commandId] = (command, result)
-        return result
+        let result = execute(envelope.command, commandId: commandId)
+        let reply = CommandReply(commandId: commandId, seq: journal.last(where: { $0.commandId == commandId })?.seq, result: result)
+        receipts[commandId] = (envelope, reply)
+        return reply
     }
     private func execute(_ command: Command, commandId: CommandID) -> CommandResult {
         switch command {

@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import KabanProtocol
 import KabanBoardCore
+import KabanTransport
 import Darwin
 
 /// Opt-in QA of the real WindowGroup. Never runs in a normal launch.
@@ -15,6 +16,15 @@ import Darwin
     }
     static func run() async {
         do {
+            if argument("--qa-runtime-state") != nil {
+                try await waitUntil("runtime WindowGroup") { NSApp.windows.contains { $0.styleMask.contains(.titled) } }
+                if CommandLine.arguments.contains("--qa-incompatible-daemon") {
+                    try await waitUntil("protocol rejection") { runtime?.busy == false && runtime?.failure != nil && runtime?.store == nil }
+                }
+                try await captureWindow()
+                if argument("--qa-window-id") != nil { return }
+                Darwin.exit(EXIT_SUCCESS)
+            }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
             if let path = argument("--daemon-smoke") {
@@ -27,28 +37,30 @@ import Darwin
                 try data.write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--export-live-window") ?? argument("--qa-window-id") {
                 try await prepare(store)
-                guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No main window") }
-                if argument("--qa-state") == "minimum" || argument("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
-                else { window.setContentSize(.init(width: 1440, height: 900)) }
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate()
-                // Layout after state, size, colour scheme and presentation changes have settled.
-                try await Task.sleep(for: .milliseconds(700))
-                if argument("--qa-window-id") != nil {
-                    try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path))
-                    return
-                }
-                let bitmap = try await ReferenceExport.captureLiveWindow()
-                guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
-                let url = URL(fileURLWithPath: path)
-                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try png.write(to: url)
+                _ = path
+                try await captureWindow()
+                if argument("--qa-window-id") != nil { return }
             }
             Darwin.exit(EXIT_SUCCESS)
         } catch {
             FileHandle.standardError.write(Data("UI QA failed: \(error)\n".utf8))
             Darwin.exit(EXIT_FAILURE)
         }
+    }
+    private static func captureWindow() async throws {
+        guard let path = argument("--export-live-window") ?? argument("--qa-window-id"),
+              let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No main window or output path") }
+        window.setContentSize(argument("--qa-size") == "minimum" || argument("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        window.makeKeyAndOrderFront(nil); NSApp.activate()
+        try await Task.sleep(for: .milliseconds(700))
+        if argument("--qa-window-id") != nil {
+            try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
+        }
+        let bitmap = try await ReferenceExport.captureLiveWindow()
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
+        let url = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try png.write(to: url)
     }
     private static func daemonSmoke(_ store: BoardStore) async throws -> [String] {
         try await waitUntil("daemon connection") { store.canSend }
@@ -60,9 +72,21 @@ import Darwin
             return ["reopened embedded daemon restores task, body and journal without fixtures"]
         }
         store.prepareCreation()
+        let before = store.projection?.tasks.count ?? 0
         await store.create(.init(title: "Durable UI task", body: "Durable body"), in: project)
         try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil }
         guard let id = store.createdTaskID else { throw failure("Correlated creation missing") }
+        guard store.projection?.tasks.count == before + 1,
+              let record = store.commandJournal?.records.first(where: { if case .createTask = $0.envelope.command { return true }; return false }),
+              record.reply?.commandId == record.envelope.commandId, record.reply?.seq != nil,
+              record.eventSeq != nil else { throw failure("Command metadata or exactly one creation missing") }
+        guard store.capabilities?.supportsOperation("readLog") == true else { throw failure("Log capability missing") }
+        do { _ = try await store.readLog(runId: "missing-qa-run", fromOffset: 0); throw failure("Missing log became empty success") }
+        catch let error as CommandError { guard error.code != CommandError.unsupportedOperationCode else { throw failure("Log API was not forwarded") } }
+        do {
+            for try await _ in store.tailLog(runId: "missing-qa-run", fromOffset: 0) { throw failure("Missing tail became log records") }
+            throw failure("Missing tail became empty success")
+        } catch let error as CommandError { guard error.code != CommandError.unsupportedOperationCode else { throw failure("Tail API was not forwarded") } }
         guard await store.send(.editTask(taskId: id, title: "Edited durable task", body: "Durable body\n"), taskID: id) else { throw failure("Live edit rejected") }
         try await waitUntil("durable task edit") { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false }
         guard await store.send(.pauseTask(taskId: id), taskID: id) else { throw failure("Live pause rejected") }
@@ -80,7 +104,7 @@ import Darwin
             guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
             try png.write(to: URL(fileURLWithPath: path))
         }
-        return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "task body remains durable; no paid agent is launched"]
+        return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
     private static func prepare(_ store: BoardStore) async throws {
         switch argument("--qa-state") {
@@ -96,6 +120,7 @@ import Darwin
         case "no-results": store.query = "нет такой задачи"
         case "hidden": store.visibleIDs = []
         case "error": store.error = "Не удалось связаться с источником состояния. Попробуйте ещё раз."
+        case "reconnecting": store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq)
         default: break
         }
         // Remount the same WindowGroup subtree so view caching includes unchanged controls.
@@ -133,6 +158,20 @@ import Darwin
         guard store.matches("SHOP-31"), !store.matches("SHOP-58") else { throw failure("Waiting filter mismatch") }
         store.filter = .all
         checks.append("search and attention filters read the same projection")
+        guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Keyboard window missing") }
+        window.makeKeyAndOrderFront(nil); NSApp.activate()
+        try await waitUntil("keyboard window focus") { window.isKeyWindow }
+        func creationMenuEnabled(_ menu: NSMenu?) -> Bool {
+            menu?.update()
+            return (menu?.items ?? []).contains { item in
+                (item.title == "Новая задача" && item.keyEquivalent == "n" && item.isEnabled) || creationMenuEnabled(item.submenu)
+            }
+        }
+        try await waitUntil("New task menu availability") { creationMenuEnabled(NSApp.mainMenu) }
+        store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq)
+        try await waitUntil("New task menu disabled while reconnecting") { !creationMenuEnabled(NSApp.mainMenu) }
+        store.connectionState = .connected
+        try await waitUntil("New task menu reenabled after connection") { creationMenuEnabled(NSApp.mainMenu) }
         for (key, code) in [("n", UInt16(45)), ("f", UInt16(3))] {
             guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0, windowNumber: NSApp.keyWindow?.windowNumber ?? 0, context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: code), NSApp.mainMenu?.performKeyEquivalent(with: event) == true else { throw failure("Keyboard shortcut Cmd-\(key) unavailable") }
         }
@@ -146,9 +185,33 @@ import Darwin
             if condition() { return }
             try await Task.sleep(for: .milliseconds(50))
         }
-        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
+        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
     }
     private static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+}
+
+/// Opt-in fault injection after a real daemon commit, before the adapter sees its reply.
+actor QAReplyLossTransport: DaemonTransport {
+    let base: any DaemonTransport
+    private var dropped = false
+    init(base: any DaemonTransport) { self.base = base }
+    func exchange(_ request: DaemonRequest) async throws -> DaemonResponse {
+        let response = try await base.exchange(request)
+        if case .command(let envelope) = request.operation, case .createTask = envelope.command, !dropped {
+            dropped = true; throw DaemonTransportError.connectionLost
+        }
+        return response
+    }
+}
+
+/// Exercises the actual runtime's protocol rejection against an isolated helper.
+struct QAIncompatibleTransport: DaemonTransport {
+    let base: any DaemonTransport
+    func exchange(_ request: DaemonRequest) async throws -> DaemonResponse {
+        var response = try await base.exchange(request)
+        if case .capabilities = request.operation { response.protocolVersion += 1 }
+        return response
     }
 }
