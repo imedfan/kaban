@@ -27,6 +27,9 @@ extension KabanStore {
                       current.request.runId == task.machine.lastRunId else { throw StoreError.questionInvalid }
             }
         case .start(let runId):
+            if let detail = try Self.mcpBlockDetail(task.card.projectId, db: db) {
+                throw StoreError.rejected(CommandError(code: "mcp_unexpected", message: detail))
+            }
             guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM run_spec WHERE run_id = ?)", arguments: [runId.rawValue]) != true else { throw StoreError.commandIdConflict }
             if task.pipeline.stage(task.machine.stageId)?.kind == .agent {
                 let details = try Data.fetchAll(db, sql: "SELECT payload FROM task_detail").map { try decode(StoredDetail.self, $0) }

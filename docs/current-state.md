@@ -12,10 +12,10 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
-BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main. BE-15 открыт в [PR #81](https://github.com/imedfan/kaban/pull/81) поверх #80 и ещё не принят в main. BE-09 открыт в [PR #82](https://github.com/imedfan/kaban/pull/82) поверх #81 и ещё не принят в main.
+BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 открыт в [PR #80](https://github.com/imedfan/kaban/pull/80) поверх #79 и ещё не принят в main. BE-15 открыт в [PR #81](https://github.com/imedfan/kaban/pull/81) поверх #80 и ещё не принят в main. BE-09 открыт в [PR #82](https://github.com/imedfan/kaban/pull/82) поверх #81 и ещё не принят в main. BE-10 собран на ветке `codex/be-10-mcp-isolation` поверх #82; pull request ещё не открыт и в main не принят.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15 и BE-09, которые ещё не в main. Отчёты development фиксируют проверки
+Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10, которые ещё не в main. Отчёты development фиксируют проверки
 своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
@@ -24,8 +24,8 @@ BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) пов�
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store, миграции v1–v13, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, лимитные флаги и проба модели, loopback MCP доски с хешем run-токена, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется только с `--process-pass`. Проба после тихого выхода не запускает `cursor-agent -p`. MCP слушает только `127.0.0.1` в `--mcp-pass` и в прямом вызове сервера. Белый список MCP и `/git/check` не включены |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass`, `--process-pass` и `--mcp-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. `--mcp-pass` делает один `complete_stage` через loopback и не запускает Cursor. Обычный запуск демона не держит MCP-сервер. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| DaemonCore | GRDB store, миграции v1–v14, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, лимитные флаги и проба модели, loopback MCP доски с хешем run-токена, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется только с `--process-pass`. Проба после тихого выхода не запускает `cursor-agent -p`. MCP слушает только `127.0.0.1` в `--mcp-pass` и в прямом вызове сервера. Preflight блокирует чужой или нечитаемый `mcp list` и не передаёт `--approve-mcps`. Профиль записи не изолирует токен CLI. `/git/check` не включён |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass`, `--process-pass`, `--mcp-pass` и `--mcp-isolation-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. `--mcp-pass` делает один `complete_stage` через loopback и не запускает Cursor. `--mcp-isolation-pass` только восстанавливает `.cursor/mcp.json`. Обычный запуск демона не держит MCP-сервер. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -64,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. BE-15 открыт (#81) поверх #80 и ещё не принят в main. Платный пробный `-p` не запускался. BE-09 открыт (#82) поверх #81 и ещё не принят в main. Следующий в очереди — BE-10. BE-10–13 и BE-16–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 открыт (#80) поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. BE-15 открыт (#81) поверх #80 и ещё не принят в main. Платный пробный `-p` не запускался. BE-09 открыт (#82) поверх #81 и ещё не принят в main. BE-10 собран поверх #82; pull request ещё не открыт и в main не принят. Auth в реальном профиле не проверена. Следующий в очереди — BE-11. BE-11–13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -263,7 +263,13 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 Открытый инкремент [PR #82](https://github.com/imedfan/kaban/pull/82) поверх #81, ещё не принят в main — [MCP-сервер](development/backend-mcp-server-2026-10-06.md).
 Пять инструментов слушают только `127.0.0.1`. Токен run передаётся в `KABAN_RUN_TOKEN` и в базе хранится как SHA-256. Чужой, отозванный и токен прошлого run не меняют задачу. Подмена `taskId` отклоняется. Повтор `complete_stage` не создаёт второй переход: задача входит в `gating` и получает `.runGates`, не следующую стадию и не Done. Нелегальный `return_to_stage` отклоняется. `request_human` освобождает слот. Notices уходят только адресату.
-`listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Обычный запуск демона сервер не держит. `/git/check` и белый список — следующие задачи.
+`listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Обычный запуск демона сервер не держит. `/git/check` — следующая задача.
+
+## Backend: BE-10 изоляция MCP
+
+Инкремент на ветке `codex/be-10-mcp-isolation` поверх #82, pull request ещё не открыт и в main не принят — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
+Чужой или нечитаемый `mcp list` блокирует старт и не включает `--approve-mcps`. Сервер вне allowlist даёт предупреждение и не попадает в конфиг. Токен в файле только как `${env:KABAN_RUN_TOKEN}`. Подмена `.cursor/mcp.json` снимается до пустого diff.
+Профиль запрещает прямую запись и `/usr/bin/git config` в `.git` клона. Это не гарантия изоляции: CLI остаётся вне профиля, чтение широкое, токен CLI не спрятан. Установленный CLI не залогинен, поэтому auth, сборка и MCP в реальном профиле не подтверждены.
 
 ## Какие источники читать
 

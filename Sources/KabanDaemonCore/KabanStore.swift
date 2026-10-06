@@ -37,6 +37,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("model_catalog_v11", migrate: Self.migrateModelCatalog)
         migrator.registerMigration("model_probe_v12", migrate: Self.migrateModelProbes)
         migrator.registerMigration("mcp_run_token_v13", migrate: Self.migrateMCPTokens)
+        migrator.registerMigration("mcp_isolation_v14", migrate: Self.migrateMCPIsolation)
         try migrator.migrate(database)
     }
 
@@ -211,6 +212,7 @@ public final class KabanStore: Sendable {
     /// Recovery pass and all its transitions commit atomically, including pass replay receipts.
     public func recover(passId: UUID, at: Date) throws -> [DurableReceipt] {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        _ = try restoreInstalledMCPConfigs()
         return try database.write { db in
             if let data = try Data.fetchOne(db, sql: "SELECT payload FROM recovery WHERE id = ?", arguments: [passId.uuidString]) {
                 return try Self.decode([DurableReceipt].self, data)
