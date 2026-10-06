@@ -68,7 +68,7 @@ BE-06–08, gates/hooks — BE-11, merge — BE-17.
 external fact и receipt к существующим effect id. Сверка finished fact и receipt
 даёт один переход. Повторный claim без факта не обещает exactly-once процесса.
 Настоящий результат не проходит через `deliverFake`. Opt-in `--effect-pass`
-подтверждает lifecycle effects только после commit. Cursor остаётся BE-07; process group добавлен в BE-08.
+подтверждает lifecycle effects только после commit. Process group добавлен в BE-08. Драйвер Cursor — BE-07 ниже.
 
 [BE-06](development/backend-task-clones-2026-10-06.md) создаёт `git clone --local` и ветку задачи
 после commit плана. Параллельные задачи получают разные refs, config и cwd. Частичный каталог
@@ -81,6 +81,10 @@ WIP save/restore человеком остаётся BE-18/19.
 Exit 0 с выводом и без final call даёт `no_final_call` и не двигает стадию; тихий exit остаётся `.running` до классификации BE-15.
 Crash и timeout пишут WIP ref внутри клона и откатывают его. `gate_failed` и `no_final_call` клон сохраняют.
 Повторный stop не сигналит чужую группу. Cursor не запускается. Обрыв между spawn и записью строки не обещает exactly-once.
+
+[BE-07](development/backend-cursor-driver-2026-10-06.md) разбирает stream-json, требует явную модель и не подставляет session id.
+`recheck(runner)` и пятиминутный срок ставят `runner_unavailable`, если файл не найден или status сообщает logout.
+`--cursor-agent` только записывает путь; без него демон Cursor не вызывает. Платный запуск и каталог без логина не входят в этот инкремент.
 
 ## Следующие результаты
 

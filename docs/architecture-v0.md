@@ -274,7 +274,7 @@ gate/merge занимают execution WIP, human — persisted admission. Руч
 и имеет секундный timer: до восьми ticks на pass, idle receipt не записывается.
 Время backoff проверяется между проходами. Клоны задач добавлены в BE-06.
 BE-08 запускает локальный runner в своей process group только при `--process-pass`;
-сверка timeout не ждёт. Реальные runner/catalog/quota producers и Cursor CLI остаются BE-07 и дальше.
+сверка timeout не ждёт. BE-07 разбирает stream, требует явную модель и проверяет runner; сравнение с каталогом, квота и модельный запуск остаются дальше.
 Claim/lease/receipt внешних effects добавлен в BE-05: finished fact и receipt
 сходятся в один переход, повторный claim без факта не обещает exactly-once процесса,
 а process/git выполняются после commit и вне транзакции SQLite.
@@ -399,7 +399,7 @@ signature; private stdio является явным development transport. По
   executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
   argv и произвольный env не передаются. Query reply — cursorEnvironment,
   применённая настройка подтверждается journal cursorEnvironmentChanged.
-  Реальная настройка/check/login — BE-07/20, сейчас unsupported_command.
+  Проверка runner — BE-07. Настройка пути через `configureCursor`, discovery и login под launchd остаются BE-20 и сейчас unsupported_command.
 - `restoreWIP(taskId, runId, wipRef)` адресует сохранённый run/ref задачи, без пути
   или разрешения на произвольный git ref. Сервер обязан проверить ownership,
   актуальное состояние и WIP metadata; событие wipRestored несёт тот же набор
@@ -466,7 +466,8 @@ commandId. Подробные границы — [wire contract](development/bac
 **Команды.**
 - Проекты: `addProject(path, createTemplate, identity?)` (без автора — `identity_required`, §8.2), `setProjectIdentity(projectId, identity)`, `removeProject`, `relinkProject(id, path)`, `listBranches(projectId)`, `detectGates(projectId)` (предложить гейты по файлам сборки), `setMascot`, `setProjectWeight(weight, maxRuns?)`.
   BE-02 реализует локальный lifecycle: [транзакционные границы и removal/history](development/backend-project-lifecycle-2026-10-05.md).
-  Capability может содержать optional `scopes`; для `recheck` сейчас поддержан только `project`.
+  Capability может содержать optional `scopes`; для `recheck` поддержаны `project` и `runner`.
+  `recheck(runner)` проверяет заданный абсолютный путь и ставит `runner_unavailable`; `configureCursor` остаётся unsupported.
   Шаблон требует checkout main и отсутствия конфликтующих `.kaban/` файлов; другие ветки не переключаются.
 
 - Пайплайн и политика: `updatePipeline(projectId, contentHash) -> PipelineVersion | [ValidationIssue]`, `validatePipeline(projectId, content)` (без записи, для живой проверки в настройках).
