@@ -78,7 +78,7 @@ WIP save/restore человеком остаётся BE-18/19.
 
 [BE-08](development/backend-process-control-2026-10-06.md) запускает переданный `--runner` в отдельной process group
 и хранит pid, pgid и время рождения. Пауза, перенос и отмена останавливают только группу этой задачи.
-Exit 0 с выводом и без final call даёт `no_final_call` и не двигает стадию; тихий exit остаётся `.running` до классификации BE-15.
+Exit 0 с выводом и без final call даёт `no_final_call` и не двигает стадию. Тихий exit на этом срезе — BE-15: `retry_wait(.silentExit)` без списания и без нового обычного старта.
 Crash и timeout пишут WIP ref внутри клона и откатывают его. `gate_failed` и `no_final_call` клон сохраняют.
 Повторный stop не сигналит чужую группу. Cursor не запускается. Обрыв между spawn и записью строки не обещает exactly-once.
 
@@ -88,13 +88,15 @@ Crash и timeout пишут WIP ref внутри клона и откатыва�
 
 [BE-14](development/backend-model-catalog-2026-10-06.md) принимает каталог только из строк `id<TAB>name`, отвергает `auto` и сверяет display name с каталогом. Неизвестный текст не затирает строки. Остановка до первого инструмента на этой машине не наблюдалась.
 
+[BE-15](development/backend-limit-handling-2026-10-06.md) классифицирует лимитный текст, пишет cooldown и usage-флаг в транзакции `apply` и не списывает попытку. Om не блокирует cm. Unknown usage блокирует Мак. `quota=nil` не означает свободный остаток. Проба после тихого выхода — одна строка на модель не чаще 10 минут и не запускает `-p`.
+
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement
    snapshot, pending commands/retry при reconnect и видимые состояния соединения.
    Отдельно проверить подписанный Mach service в составе бандла.
 2. Оставшиеся wire-команды: files/incidents, WIP restore, среда и интеграция settings.
-   Model override и каталог — BE-14.
+   Каталог — BE-14, лимиты — BE-15; оба инкремента ещё не в main.
 3. Cursor CLI поверх открытых клонов и process group. Exactly-once внешнего
    процесса не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.

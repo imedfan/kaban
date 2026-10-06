@@ -26,6 +26,7 @@ extension KabanStore {
         if case .clearModelFlag(let modelId) = envelope.command {
             return try clearModelFlag(envelope, modelId: modelId, at: now())
         }
+        if case .resumeAfterRateLimit = envelope.command { return try resumeAfterRateLimit(envelope, at: now()) }
         let request = try Self.encode(envelope)
         let validating: ProjectID?
         switch envelope.command {
