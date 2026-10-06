@@ -112,7 +112,7 @@ struct EventGenerator {
             default: return .resultChecked(.clean)
             }
         case 17: return .mergeConflict(files: ["f"])
-        case 18: return rng.pick([.mainDirty, .mainCleaned])
+        case 18: return rng.pick([.mainDirty, .mainCleaned, .mainMoved])
         default: return .merged
         }
     }

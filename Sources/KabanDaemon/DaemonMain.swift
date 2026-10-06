@@ -15,18 +15,56 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--process-pass] [--mcp-pass] [--mcp-isolation-pass] [--stage-pass] [--merge-pass] [--log-pass] [--workspaces PATH] [--runner PATH] [--runner-arg ARG] [--cursor-agent PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
                 Agent, gate, and merge effects stay pending. This pass does not run Cursor or git.
+                --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
+                --process-pass: run --runner in its own process group, stop that group, and classify a technical exit.
+                It does not launch Cursor. Without --runner, pending starts stay pending. Timeout checks do not wait.
+                --mcp-pass: one board complete_stage for a running task through the loopback MCP server, then reprint that line.
+                --mcp-isolation-pass: restore each swapped .cursor/mcp.json and reprint that line. It does not launch Cursor.
+                --stage-pass: run pending gates, hooks, result checks, and one stage commit, then reprint those lines. It does not launch Cursor.
+                --merge-pass: rebase one approved task onto main and fast-forward that ref, then reprint those lines. It does not launch Cursor.
+                --log-pass: reprint one stored log page per run through the same reader as readLog. It does not launch Cursor.
+                --cursor-agent PATH: absolute executable checked with version, status and --list-models every 5 minutes and on recheck runner.
+                It does not start a model prompt. Without this flag the daemon does not probe Cursor.
                 """)
                 return
             }
             var positional = arguments
             let stdio = positional.contains("--stdio")
             let effectPass = positional.contains("--effect-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" }
+            let clonePass = positional.contains("--clone-pass")
+            let processPass = positional.contains("--process-pass")
+            let mcpPass = positional.contains("--mcp-pass")
+            let isolationPass = positional.contains("--mcp-isolation-pass")
+            let stagePass = positional.contains("--stage-pass")
+            let mergePass = positional.contains("--merge-pass")
+            let logPass = positional.contains("--log-pass")
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" || $0 == "--process-pass" || $0 == "--mcp-pass" || $0 == "--mcp-isolation-pass" || $0 == "--stage-pass" || $0 == "--merge-pass" || $0 == "--log-pass" }
+            var workspaces: String?
+            var runner: String?
+            var runnerArguments: [String] = []
+            var cursorAgent: String?
+            var cursor = 0
+            var kept: [String] = []
+            while cursor < positional.count {
+                let item = positional[cursor]
+                func take() throws -> String {
+                    guard cursor + 1 < positional.count, !positional[cursor + 1].hasPrefix("--") else { throw HostError.arguments }
+                    cursor += 1
+                    return positional[cursor]
+                }
+                if item == "--workspaces" { workspaces = try take() }
+                else if item == "--runner" { runner = try take() }
+                else if item == "--runner-arg" { runnerArguments.append(try take()) }
+                else if item == "--cursor-agent" { cursorAgent = try take() }
+                else { kept.append(item) }
+                cursor += 1
+            }
+            positional = kept
             guard positional.count == 2, positional[0] == "--database", !positional[1].hasPrefix("--") else { throw HostError.arguments }
             let path = URL(fileURLWithPath: positional[1]).standardizedFileURL.path
             if !stdio {
@@ -38,15 +76,70 @@ struct DaemonMain {
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
-            // Recovery changes running/gating invocations only. No external processes are spawned.
+            if logPass {
+                let lines = try store.runLogPass()
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            // The board call has to see the live run. Recovery would otherwise end it first.
+            if mcpPass {
+                let lines = try store.runMCPPass(at: Date())
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            if isolationPass {
+                let lines = try store.runMCPIsolationPass(at: Date())
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            // Gates have to finish on the live invocation. Recovery would otherwise emit a second run.
+            if stagePass {
+                let lines = try store.runStagePass(owner: "daemon", at: Date())
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            // The fast-forward has to finish on the live gating merge. Recovery would otherwise emit a second startMerge.
+            if mergePass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runMergePass(owner: "daemon", at: Date(), workspaceRoot: root)
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            // Recovery changes running/gating invocations only. Git clone, cleanup, and process groups run only for their passes.
             try store.recoverProjectOperations()
             try store.recoverPipelineOperations()
             try store.refreshProjectLocations()
             try store.refreshPipelines()
-            _ = try store.recover(passId: UUID(), at: Date())
-            _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            let diagnosticPass = effectPass || clonePass || processPass || mcpPass || isolationPass || stagePass || mergePass || logPass
+            if diagnosticPass {
+                _ = try store.recover(passId: UUID(), at: Date())
+                _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            } else {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                _ = try store.recoverProduction(passId: UUID(), at: Date(), workspaceRoot: root)
+            }
+            if let cursorAgent { try store.setRunnerExecutable(cursorAgent) }
+            if processPass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runProcessPass(owner: "daemon", at: Date(), workspaceRoot: root, runner: runner, runnerArguments: runnerArguments)
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
             if effectPass {
                 let lines = try store.runEffectPass(owner: "daemon", at: Date(), sideEffectLog: path + ".side-effects")
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            if clonePass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runClonePass(owner: "daemon", at: Date(), workspaceRoot: root)
                 for line in lines {
                     try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
                 }

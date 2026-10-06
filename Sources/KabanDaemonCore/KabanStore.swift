@@ -31,6 +31,19 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("production_pipelines_v5", migrate: Self.migratePipelines)
         migrator.registerMigration("production_scheduler_v6", migrate: Self.migrateScheduler)
         migrator.registerMigration("effect_execution_v7", migrate: Self.migrateEffectExecution)
+        migrator.registerMigration("task_clone_v8", migrate: Self.migrateTaskClones)
+        migrator.registerMigration("agent_process_v9", migrate: Self.migrateAgentProcesses)
+        migrator.registerMigration("cursor_runner_v10", migrate: Self.migrateCursorRunner)
+        migrator.registerMigration("model_catalog_v11", migrate: Self.migrateModelCatalog)
+        migrator.registerMigration("model_probe_v12", migrate: Self.migrateModelProbes)
+        migrator.registerMigration("mcp_run_token_v13", migrate: Self.migrateMCPTokens)
+        migrator.registerMigration("mcp_isolation_v14", migrate: Self.migrateMCPIsolation)
+        migrator.registerMigration("stage_execution_v15", migrate: Self.migrateStageExecution)
+        migrator.registerMigration("git_policy_extra_v16", migrate: Self.migrateGitPolicy)
+        migrator.registerMigration("incidents_v17", migrate: Self.migrateIncidents)
+        migrator.registerMigration("run_log_v18", migrate: Self.migrateRunLogs)
+        migrator.registerMigration("merge_intent_v19", migrate: Self.migrateMergeIntent)
+        migrator.registerMigration("recovery_stage_process_v20", migrate: Self.migrateStageProcesses)
         try migrator.migrate(database)
     }
 
@@ -148,6 +161,9 @@ public final class KabanStore: Sendable {
                 try Self.supersedeEffects(taskId: taskId, db: db)
                 try db.execute(sql: "DELETE FROM pipeline_deferred WHERE task_id = ?", arguments: [taskId.rawValue])
             }
+            if before.currentRunId != result.state.currentRunId {
+                try Self.revokeMCPTokens(runId: before.currentRunId, db: db)
+            }
             task.machine = result.state
             if result.state.stageId != before.stageId { task.pipeline = reductionPipeline }
             if result.state.stageId != before.stageId || stopped { task.runSpecId = nil }
@@ -163,6 +179,17 @@ public final class KabanStore: Sendable {
                 if case .scheduleRetry(let seconds, _) = effect { task.card.retryAt = at.addingTimeInterval(TimeInterval(seconds)) }
             }
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try Self.encode(task), taskId.rawValue])
+            if case .merged = command, let path = owner?.summary.path {
+                // The next result check must not treat this daemon fast-forward as a foreign ref move.
+                let snapshot = try TaskClone.captureProtection(path, identity: owner?.summary.identity)
+                try Self.replaceProtectionSnapshot(snapshot, projectId: task.card.projectId, db: db)
+            }
+            for effect in result.effects {
+                if case .raiseModelFlag(let request) = effect {
+                    try Self.installModelFlag(request, at: at, commandId: commandId, db: db)
+                }
+                try Self.installLimitEffect(effect, at: at, db: db)
+            }
             for effect in result.effects {
                 if case .recordTransition(let transition) = effect {
                     let seq = try Self.journal(.taskTransitioned(transition), task: task, commandId: commandId, at: at, db: db)
@@ -170,17 +197,18 @@ public final class KabanStore: Sendable {
                 }
             }
             let detailSeq = try Self.persistDetail(before: before, task: task, command: command, effects: result.effects, commandId: commandId, at: at, db: db)
+            try Self.expireGitGrants(in: result.effects, task: task, commandId: commandId, at: at, db: db)
+            try Self.recordSafetyEffects(command: command, effects: result.effects, task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = detailSeq }
             let seq = try Self.journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = seq }
+            try Self.recordStageBoundary(before: before, after: task, pipeline: reductionPipeline, effects: result.effects, commandId: commandId, db: db)
         }
         try Self.recordChangedLoads(from: previousLoad, commandId: commandId, at: at, db: db)
         try Self.recordChangedSchedulerFlags(from: previousFlags, commandId: commandId, at: at, db: db)
         let receipt = DurableReceipt(commandId: commandId, firstSeq: first, lastSeq: try Self.seq(db), task: task)
         try Self.saveReceipt(receipt, request: request, db: db)
-        let pending = result.effects.filter { effect in
-            switch effect { case .recordTransition, .recordHumanRequest, .recordHumanAnswer: false; default: true }
-        }
+        let pending = result.effects.filter(Self.isDurableEffect)
         if !pending.isEmpty {
             let batch = PendingEffectBatch(version: 1, commandId: commandId, taskId: taskId, effects: pending, runSpecId: task.runSpecId ?? previousRunSpecId)
             try Self.enqueue(batch, db: db)
@@ -192,6 +220,7 @@ public final class KabanStore: Sendable {
     /// Recovery pass and all its transitions commit atomically, including pass replay receipts.
     public func recover(passId: UUID, at: Date) throws -> [DurableReceipt] {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        _ = try restoreInstalledMCPConfigs()
         return try database.write { db in
             if let data = try Data.fetchOne(db, sql: "SELECT payload FROM recovery WHERE id = ?", arguments: [passId.uuidString]) {
                 return try Self.decode([DurableReceipt].self, data)

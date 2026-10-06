@@ -53,24 +53,38 @@ extension KabanStore {
     }
     static func taskDetail(_ taskId: TaskID, db: Database) throws -> TaskDetail {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
-        return TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
-                          suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: d.acceptedFiles, clonePath: d.clonePath,
-                          artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
+        let detail = TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
+                                suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
+                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
+        try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
+        return detail
+    }
+    static func runSummaries(_ taskId: TaskID, db: Database) throws -> [RunSummary] {
+        _ = try task(taskId, db: db)
+        return try detail(taskId, db: db).runs
+    }
+    static func ensureWireFit<T: Encodable>(_ value: T, code: String, message: String) throws {
+        let bytes = try KabanCoding.makeEncoder().encode(value).count
+        guard bytes <= DaemonWire.maxMessageBytes else {
+            throw StoreError.rejected(CommandError(code: code, message: message, params: ["bytes": String(bytes), "limit": String(DaemonWire.maxMessageBytes)]))
+        }
     }
     public func getSnapshot() throws -> Snapshot {
         try database.read { db in
             let projects = try Self.projects(db)
             let removed = try Set(String.fetchAll(db, sql: "SELECT project_id FROM removed_project"))
             let tasks = try Self.allTasks(db).filter { !removed.contains($0.card.projectId.rawValue) }
-            // A v1 unregistered project or unresolved incident lacks an authoritative projection.
-            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
+            // A v1 unregistered project lacks an authoritative projection. An open incident is part of that projection.
+            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } }) else { throw StoreError.incompleteProjection }
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
             let flags = try Self.schedulerFlags(db)
             let inputs = try Self.schedulerInputs(db)
-            return Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
-                            tasks: tasks.map(\.card), schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
-                            openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
-                            stageLoad: try Self.stageLoads(db), settings: settings)
+            let snapshot = Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
+                                    tasks: tasks.map(\.card), schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
+                                    openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
+                                    stageLoad: try Self.stageLoads(db), settings: settings)
+            try Self.ensureWireFit(snapshot, code: CommandError.snapshotTooLargeCode, message: "Снимок доски не помещается в сообщение.")
+            return snapshot
         }
     }
     static func projects(_ db: Database) throws -> [ProjectRecord] {

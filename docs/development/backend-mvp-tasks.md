@@ -3,10 +3,22 @@
 Очередь поручена Артёмом 5 октября 2026 и перенесена из приложенного
 `backend-mvp-tasks.md`. Объём и зависимости BE-01–20 сохраняются.
 
-Срез 6 октября 2026, база `origin/main` `77a0dc1`: BE-01–04 приняты в main в PR #71–74.
-BE-05 выполнен в [PR #76](https://github.com/imedfan/kaban/pull/76), открытом в main и ещё не принятом; границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
-BE-06–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
-Мерж выполняет Артём; следующий связный инкремент — BE-06.
+Срез 6 октября 2026, база `origin/main` `ea02f0c`: BE-01–04 приняты в main в PR #71–74.
+BE-05 выполнен и принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`); границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
+BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), влитом в `codex/be-05-effect-execution` и ещё не принятом в main; границы — [клоны задач](backend-task-clones-2026-10-06.md).
+BE-08 выполнен в [PR #78](https://github.com/imedfan/kaban/pull/78), влитом в `codex/be-06-task-clones` и ещё не принятом в main; границы — [управление процессами](backend-process-control-2026-10-06.md).
+BE-07 выполнен в [PR #79](https://github.com/imedfan/kaban/pull/79), влитом в `codex/be-08-process-control` и ещё не принятом в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
+BE-14 выполнен в [PR #80](https://github.com/imedfan/kaban/pull/80), влитом в `codex/be-07-cursor-driver` и ещё не принятом в main; остановка до первого инструмента не проверена; границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
+BE-15 выполнен в [PR #81](https://github.com/imedfan/kaban/pull/81), влитом в `codex/be-14-model-catalog` и ещё не принятом в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
+BE-09 выполнен в [PR #82](https://github.com/imedfan/kaban/pull/82), влитом в `codex/be-15-limit-handling` и ещё не принятом в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
+BE-10 выполнен в [PR #83](https://github.com/imedfan/kaban/pull/83), влитом в `codex/be-09-mcp-server` и ещё не принятом в main. Auth, сборка и MCP в реальном профиле не проверены: CLI не залогинен. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
+BE-11 выполнен в [PR #84](https://github.com/imedfan/kaban/pull/84), влитом в `codex/be-10-mcp-isolation` и ещё не принятом в main. Подозрительные файлы, инциденты, `/git/check` и merge в этот инкремент не входят. Грязное дерево стадии без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
+BE-12 выполнен в [PR #85](https://github.com/imedfan/kaban/pull/85), открытом поверх `codex/be-10-mcp-isolation` и ещё не принятом в main. Автокоммит `.kaban/pipeline.yaml` не делается. Подозрительные файлы и merge в этот инкремент не входят. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
+BE-13 выполнен в [PR #86](https://github.com/imedfan/kaban/pull/86), открытом поверх `codex/be-12-git-grants` и ещё не принятом в main. Обычное грязное дерево без read-only остаётся чистым для проверки результата. Merge остаётся BE-17. Откат git до записи инцидента не обещает exactly-once внешнего процесса. Границы — [инциденты](backend-incidents-2026-10-06.md).
+BE-16 выполнен в [PR #87](https://github.com/imedfan/kaban/pull/87), открытом поверх `codex/be-13-incidents` и ещё не принятом в main. Чтение лога поддерживается. Секреты вырезаются до записи. Слишком большой снимок и detail возвращают ошибку, а не урезанный ответ. Границы — [логи запусков](backend-run-logs-2026-10-06.md).
+BE-17 выполнен в [PR #88](https://github.com/imedfan/kaban/pull/88) поверх `codex/be-16-run-logs` и ещё не принят в main. Один merge на проект. Dirty `main` не переписывается. Повторный проход не делает второе слияние. Границы — [очередь слияния](backend-merge-queue-2026-10-06.md).
+BE-18 реализован в этой ветке; BE-19–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
+Мерж выполняет Артём; следующий связный инкремент — BE-19.
 
 
 ## BE-01. Расширить wire-контракты демона
@@ -131,7 +143,7 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ## BE-05. Реализовать исполнение внешних эффектов с claim, lease и receipt
 
-**Статус:** выполнено; [PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main, ещё не принят. Проверки и границы — [отчёт BE-05](backend-effect-execution-2026-10-06.md).
+**Статус:** выполнено; [PR #76](https://github.com/imedfan/kaban/pull/76) принят в main (`ea02f0c`). Проверки и границы — [отчёт BE-05](backend-effect-execution-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -158,6 +170,8 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ## BE-06. Реализовать создание и очистку рабочих клонов задач
 
+**Статус:** выполнено; [PR #77](https://github.com/imedfan/kaban/pull/77) влит в `codex/be-05-effect-execution`, ещё не принят в main. Проверки и границы — [отчёт BE-06](backend-task-clones-2026-10-06.md).
+
 **Приоритет:** P0
 
 **Зависимости:** BE-02, BE-05
@@ -177,11 +191,13 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] параллельные задачи имеют разные refs/config/cwd; основная копия пользователя не изменяется агентом.
-- [ ] Частично созданный клон не приводит к двойному run после reopen.
-- [ ] Cancel сохраняет архив по выбору, cleanup не удаляет чужой путь.
+- [x] параллельные задачи имеют разные refs/config/cwd; основная копия пользователя не изменяется агентом.
+- [x] Частично созданный клон не приводит к двойному run после reopen.
+- [x] Cancel сохраняет архив по выбору, cleanup не удаляет чужой путь.
 
 ## BE-07. Реализовать и проверить драйвер Cursor CLI
+
+**Статус:** выполнено; [PR #79](https://github.com/imedfan/kaban/pull/79) влит в `codex/be-08-process-control`, ещё не принят в main. Проверки и границы — [отчёт BE-07](backend-cursor-driver-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -204,13 +220,15 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] неизвестное stream-событие не ломает run, partial lines корректны, malformed/слишком большая строка ограничена.
-- [ ] Model обязательна.
-- [ ] Без проверенного resume стартует новая сессия с сохранённым контекстом, без выдуманного sessionId.
-- [ ] Не найден/не залогинен → runner_unavailable, проверка каждые 5 мин и по кнопке.
-- [ ] Версия CLI и фактические ограничения зафиксированы; проверка help не заменяет реальный запуск.
+- [x] неизвестное stream-событие не ломает run, partial lines корректны, malformed/слишком большая строка ограничена.
+- [x] Model обязательна.
+- [x] Без проверенного resume стартует новая сессия с сохранённым контекстом, без выдуманного sessionId.
+- [x] Не найден/не залогинен → runner_unavailable, проверка каждые 5 мин и по кнопке.
+- [x] Версия CLI и фактические ограничения зафиксированы; проверка help не заменяет реальный запуск.
 
 ## BE-08. Реализовать управление процессами агентов и технические ретраи
+
+**Статус:** выполнено; [PR #78](https://github.com/imedfan/kaban/pull/78) влит в `codex/be-06-task-clones`, ещё не принят в main. Проверки и границы — [отчёт BE-08](backend-process-control-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -231,11 +249,13 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] технический exit 0 сам не завершает стадию; без final MCP идёт no_final_call, а молчаливый run отдельно классифицируется BE-15.
-- [ ] Попытки/autoRuns не списываются за manual stop, daemon restart, auth/limit/substitution.
-- [ ] Run с descendants останавливается целиком; timeout не блокирует daemon/XPC.
+- [x] технический exit 0 сам не завершает стадию; без final MCP идёт no_final_call, а молчаливый run отдельно классифицируется BE-15.
+- [x] Попытки/autoRuns не списываются за manual stop, daemon restart, auth/limit/substitution.
+- [x] Run с descendants останавливается целиком; timeout не блокирует daemon/XPC.
 
 ## BE-09. Реализовать MCP-сервер доски
+
+**Статус:** выполнено; [PR #82](https://github.com/imedfan/kaban/pull/82) влит в `codex/be-15-limit-handling`, ещё не принят в main. Границы — [MCP-сервер](backend-mcp-server-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -256,12 +276,14 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] чужой/отозванный token и stale run не меняют задачу; агент не подменяет target taskId.
-- [ ] Duplicate completion не создаёт второй переход.
-- [ ] Нелегальная return target отклонена; request_human освобождает execution slot; final call запускает проверки, а не напрямую выставляет следующую стадию/Done.
-- [ ] Notices доставляются адресно.
+- [x] чужой/отозванный token и stale run не меняют задачу; агент не подменяет target taskId.
+- [x] Duplicate completion не создаёт второй переход.
+- [x] Нелегальная return target отклонена; request_human освобождает execution slot; final call запускает проверки, а не напрямую выставляет следующую стадию/Done.
+- [x] Notices доставляются адресно.
 
 ## BE-10. Реализовать проверку MCP-конфигурации и изоляцию запуска
+
+**Статус:** выполнено; [PR #83](https://github.com/imedfan/kaban/pull/83) влит в `codex/be-09-mcp-server`, ещё не принят в main. Auth, сборка и MCP в реальном профиле не проверены. Границы — [изоляция MCP](backend-mcp-isolation-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -284,13 +306,15 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] unexpected/неразрешимый MCP preflight блокирует run, не одобряет всё молча; disabled selected server даёт warning.
-- [ ] Подмена файла не остаётся в diff.
-- [ ] Проверены прямой /usr/bin/git и прямые записи, а не только shim.
+- [x] unexpected/неразрешимый MCP preflight блокирует run, не одобряет всё молча; disabled selected server даёт warning.
+- [x] Подмена файла не остаётся в diff.
+- [x] Проверены прямой /usr/bin/git и прямые записи, а не только shim.
 - [ ] Auth/сборка/MCP работают в реальном профиле.
-- [ ] Непроверенная изоляция не выдаётся за гарантированную; остаточный риск CLI token явно описан по архитектуре §13.
+- [x] Непроверенная изоляция не выдаётся за гарантированную; остаточный риск CLI token явно описан по архитектуре §13.
 
 ## BE-11. Реализовать гейты, hooks и передачу результатов между стадиями
+
+**Статус:** выполнено; [PR #84](https://github.com/imedfan/kaban/pull/84) влит в `codex/be-10-mcp-isolation`, ещё не принят в main. Подозрительные файлы и инциденты остаются BE-13, `/git/check` — BE-12, merge — BE-17. Грязное дерево без read-only для проверки результата считается чистым. Границы — [гейты стадий](backend-stage-gates-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -313,12 +337,14 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] зелёный exit без final call не заменяет MCP.
-- [ ] Красный stage gate повторяет тот же stage/клон; красная отдельная gate-стадия возвращает в resolved coding target.
-- [ ] Test → Dev передаёт конкретные issues, новый заход сбрасывает attempts.
-- [ ] После replay нет второго commit/hook; полный pipeline доходит до Human Review.
+- [x] зелёный exit без final call не заменяет MCP.
+- [x] Красный stage gate повторяет тот же stage/клон; красная отдельная gate-стадия возвращает в resolved coding target.
+- [x] Test → Dev передаёт конкретные issues, новый заход сбрасывает attempts.
+- [x] После replay нет второго commit/hook; полный pipeline доходит до Human Review.
 
 ## BE-12. Реализовать git-обёртку и разовые разрешения
+
+**Статус:** выполнено; [PR #85](https://github.com/imedfan/kaban/pull/85) открыт поверх `codex/be-10-mcp-isolation`, ещё не принят в main. Дополнительный запрет пишется в `git_policy_extra` и виден run, стартовавшим после записи. Автокоммит YAML не делается, production `updatePipeline` не поддержан. Подозрительные файлы остаются BE-13, merge — BE-17. Границы — [git-разрешения](backend-git-grants-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -338,13 +364,15 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] разрешение однократно и адресно, повтор запроса не расширяет scope; hard invariants grant не отменяет.
-- [ ] Условный override проверяется сервером.
-- [ ] Delivered не равен consumed, unknown reason не теряет payload.
-- [ ] После done/cancel grants истекают.
-- [ ] CLI deny-rules не перехватывают настраиваемый запрет раньше shim.
+- [x] разрешение однократно и адресно, повтор запроса не расширяет scope; hard invariants grant не отменяет.
+- [x] Условный override проверяется сервером.
+- [x] Delivered не равен consumed, unknown reason не теряет payload.
+- [x] После done/cancel grants истекают.
+- [x] CLI deny-rules не перехватывают настраиваемый запрет раньше shim.
 
 ## BE-13. Реализовать проверку результата, подозрительных файлов и инциденты
+
+**Статус:** выполнено; [PR #86](https://github.com/imedfan/kaban/pull/86) открыт поверх `codex/be-12-git-grants`, ещё не принят в main. `acceptSuspiciousFiles` и `listIncidents` поддержаны. `restoreWIP`, `checkEnvironment`, `getCursorEnvironment`, `configureCursor`, `listProjectMcpServers` и `setProjectMcpAllowlist` остаются неподдержанными. Merge остаётся BE-17. Границы — [инциденты](backend-incidents-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -365,12 +393,14 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] `incidentOpened/Resolved` и `projectUpdated` атомарны.
-- [ ] Snapshot/detail переживают journal retention.
-- [ ] Stale file set отклонён; изменённый blob проверяется снова. answerHuman/requestChanges не принимают набор; retry/move/cancel применяют ровно правила UC-25.
-- [ ] Никакого автоматического продолжения после hard-invariant incident.
+- [x] `incidentOpened/Resolved` и `projectUpdated` атомарны.
+- [x] Snapshot/detail переживают journal retention.
+- [x] Stale file set отклонён; изменённый blob проверяется снова. answerHuman/requestChanges не принимают набор; retry/move/cancel применяют ровно правила UC-25.
+- [x] Никакого автоматического продолжения после hard-invariant incident.
 
 ## BE-14. Реализовать каталог моделей и проверку подмены модели
+
+**Статус:** выполнено; [PR #80](https://github.com/imedfan/kaban/pull/80) влит в `codex/be-07-cursor-driver`, ещё не принят в main. Остановка до первого инструмента не проверена. Границы — [каталог моделей](backend-model-catalog-2026-10-06.md).
 
 **Приоритет:** P0
 
@@ -391,12 +421,14 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] Auto отвергается в API/YAML; override не меняет другие задачи.
-- [ ] Неизвестное/неоднозначное actual имя → model_unconfirmed, без выдуманного совпадения.
+- [x] Auto отвергается в API/YAML; override не меняет другие задачи.
+- [x] Неизвестное/неоднозначное actual имя → model_unconfirmed, без выдуманного совпадения.
 - [ ] Проверить экспериментом, доступна ли остановка до первого инструмента; если CLI не даёт такой гарантии, зафиксировать расхождение и требуемый способ реализации.
-- [ ] Подмена не принимается как успешный результат, Флаги и счётчики доступны после повторного подключения.
+- [x] Подмена не принимается как успешный результат, Флаги и счётчики доступны после повторного подключения.
 
 ## BE-15. Реализовать обработку лимитов Cursor и проверочные запуски
+
+**Статус:** выполнено; [PR #81](https://github.com/imedfan/kaban/pull/81) влит в `codex/be-14-model-catalog`, ещё не принят в main. Платный пробный `-p` не запускался. Границы — [лимиты](backend-limit-handling-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -417,11 +449,11 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] текущие другие runs доигрывают; только ошибочный run освобождается по правилам.
-- [ ] Om flag не блокирует Cm; unknown usage блокирует весь Мак.
-- [ ] Не списываются attempts/autoRuns.
-- [ ] Перезапуск не сбрасывает cooldown; eligible task не стоит за заблокированной.
-- [ ] `quota=nil` не означает 100% свободно.
+- [x] текущие другие runs доигрывают; только ошибочный run освобождается по правилам.
+- [x] Om flag не блокирует Cm; unknown usage блокирует весь Мак.
+- [x] Не списываются attempts/autoRuns.
+- [x] Перезапуск не сбрасывает cooldown; eligible task не стоит за заблокированной.
+- [x] `quota=nil` не означает 100% свободно.
 
 ## BE-16. Реализовать долговечную историю запусков и чтение логов
 
@@ -442,12 +474,14 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 - Ограничить страницу/буфер/размер сообщений, дать явный resume/error при backlog;
   TaskDetail не восстанавливается из обрезанного журнала.
 
+**Статус:** выполнено; [PR #87](https://github.com/imedfan/kaban/pull/87) открыт поверх `codex/be-13-incidents`, ещё не принят в main.
+
 ### Критерии приёмки
 
-- [ ] log offset не пропускает/дублирует строки после reconnect; удалённый log показывает «недоступен», а не пустой успешный run.
-- [ ] Секреты и run-token не попадают в артефакты.
-- [ ] Размер snapshot/detail не даёт молчаливой потери: pagination или явная recoverable диагностика.
-- [ ] Медленный клиент не останавливает executor.
+- [x] log offset не пропускает/дублирует строки после reconnect; удалённый log показывает «недоступен», а не пустой успешный run.
+- [x] Секреты и run-token не попадают в артефакты.
+- [x] Размер snapshot/detail не даёт молчаливой потери: pagination или явная recoverable диагностика.
+- [x] Медленный клиент не останавливает executor.
 
 ## BE-17. Реализовать очередь локального слияния
 
@@ -468,15 +502,19 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 - Конфликт вернуть в первую coding stage, считать conflict limit; после исправления
   всегда снова Human Review. Done только после подтверждённого local fast-forward.
 
+**Статус:** выполнено в [PR #88](https://github.com/imedfan/kaban/pull/88) поверх `codex/be-16-run-logs`. Ещё не принят в main. Границы — [очередь слияния](backend-merge-queue-2026-10-06.md).
+
 ### Критерии приёмки
 
-- [ ] две одобренные задачи не пишут main одновременно.
-- [ ] Main изменился между проверкой и update → безопасная повторная сверка, без перетирания.
-- [ ] Dirty/index state сохраняется.
-- [ ] Crash после merge до receipt сверяется по git фактам, не делает второе слияние.
-- [ ] Conflict loop и отмена ожидающего merge проверены.
+- [x] две одобренные задачи не пишут main одновременно.
+- [x] Main изменился между проверкой и update → безопасная повторная сверка, без перетирания.
+- [x] Dirty/index state сохраняется.
+- [x] Crash после merge до receipt сверяется по git фактам, не делает второе слияние.
+- [x] Conflict loop и отмена ожидающего merge проверены.
 
 ## BE-18. Реализовать восстановление после сбоя демона
+
+**Статус:** реализовано в `codex/be-18-daemon-recovery`; ещё не принято в main. [Проверки и границы](backend-daemon-recovery-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -496,9 +534,9 @@ BE-06–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] PID reuse не убивает чужой процесс.
-- [ ] После reopen нет второго агента для того же run, lost completion не принимается дважды. daemon_restart не списывает попытку; сохранённый WIP доступен человеку.
-- [ ] Human Review/paused/done остаются стабильными, Клиент получает пропущенные события журнала либо замещающий snapshot.
+- [x] PID reuse не убивает чужой процесс.
+- [x] После reopen нет второго агента для того же run, lost completion не принимается дважды. daemon_restart не списывает попытку; сохранённый WIP доступен человеку.
+- [x] Human Review/paused/done остаются стабильными, Клиент получает пропущенные события журнала либо замещающий snapshot.
 
 ## BE-19. Подключить ручные команды к реальному исполнению
 

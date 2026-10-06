@@ -47,16 +47,15 @@ public struct DaemonService: Sendable {
             case .capabilities: return .init(.capabilities(Self.capabilities))
             case .synchronize: return .init(.replacement(try liveEvents.synchronize { try store.getSnapshot() }))
             case .ephemeral(let cursor, let limit): return .init(.ephemeral(try liveEvents.page(after: cursor, limit: limit)))
-            case .readLog(_, let offset, let limit):
-                guard offset >= 0, (1...DaemonWire.maxPageSize).contains(limit) else {
-                    throw CommandError(code: "invalid_request", message: "Некорректное смещение или размер пакета лога.")
-                }
-                throw CommandError(code: CommandError.unsupportedOperationCode, message: "Чтение логов ещё не поддерживается этим backend.", params: ["operation": "readLog"])
+            case .readLog(let runId, let offset, let limit):
+                return .init(.log(try store.readLog(runId: runId, fromOffset: offset, limit: limit)))
             }
         } catch let error as CommandError {
             return .init(.error(error))
         } catch StoreError.incompleteProjection {
             return .init(.error(.init(code: "incomplete_projection", message: "Сохранённые данные не содержат полной проекции.")))
+        } catch StoreError.rejected(let error) {
+            return .init(.error(error))
         } catch {
             // SQL, repository paths and internal exception text never cross the process boundary.
             return .init(.error(.init(code: "storage_failure", message: "Не удалось выполнить операцию с хранилищем. Повторите запрос.")))
@@ -65,8 +64,8 @@ public struct DaemonService: Sendable {
 
     public static var capabilities: DaemonCapabilities {
         .init(operations: ["snapshot", "subscribe", "command", "capabilities", "synchronize", "ephemeral", "readLog"].map {
-            .init(name: $0, supported: $0 != "readLog")
-        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0), scopes: $0 == .recheck ? ["project"] : nil) })
+            .init(name: $0, supported: true)
+        }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: support($0), scopes: $0 == .recheck ? ["project", "runner"] : nil) })
     }
     private static func support(_ command: CommandName) -> CommandSupport {
         switch command {
@@ -75,12 +74,12 @@ public struct DaemonService: Sendable {
              .createTask, .editTask, .setPriority, .cancelTask, .getTaskDetail, .getRunHistory,
              .pauseProject, .resumeProject, .setMascot, .setProjectWeight, .setProjectIdentity,
              .validatePipeline, .validatePipelineDraft, .updatePipeline,
-             .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject: .supported
-        case .setModelOverride, .restoreWIP, .acceptSuspiciousFiles, .allowGitOnce, .addDenialToPolicy,
-             .revokeGitGrant, .resumeAfterRateLimit, .checkEnvironment, .getCursorEnvironment,
-             .configureCursor, .listModels, .refreshModelCatalog, .setModelPoolRule,
-             .removeModelPoolRule, .clearModelFlag, .listProjectMcpServers, .setProjectMcpAllowlist,
-             .listIncidents: .unsupported
+             .moveTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject,
+             .setModelOverride, .listModels, .refreshModelCatalog, .setModelPoolRule, .removeModelPoolRule, .clearModelFlag,
+             .resumeAfterRateLimit, .allowGitOnce, .addDenialToPolicy, .revokeGitGrant,
+             .acceptSuspiciousFiles, .listIncidents: .supported
+        case .restoreWIP, .checkEnvironment, .getCursorEnvironment,
+             .configureCursor, .listProjectMcpServers, .setProjectMcpAllowlist: .unsupported
         }
     }
 

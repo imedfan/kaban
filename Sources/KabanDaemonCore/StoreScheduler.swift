@@ -12,6 +12,8 @@ extension KabanStore {
     /// Idle wakes do not create receipts. Backoff never holds a transaction/timer open.
     public func runSchedulerPass(at: Date, budget: Int = 8) throws -> [TickReceipt] {
         precondition((1...32).contains(budget))
+        try refreshRunnerIfDue(at: at)
+        try refreshCatalogIfDue(at: at)
         guard try database.read({ try Bool.fetchOne($0, sql: "SELECT EXISTS(SELECT 1 FROM global_settings)") == true }) else { return [] }
         var receipts: [TickReceipt] = []
         for _ in 0..<budget {
@@ -101,25 +103,31 @@ private struct SchedulerContext {
     let settings: GlobalSettings
     let inputs: SchedulerInputs
     let flags: [SchedulerFlag]
+    let overrides: [String: ModelID]
     let managed: Set<String>
     let queue: [String: Int64]
     let admissions: [String: String]
     let pendingProjects: Set<String>
+    let mcpBlocked: Set<String>
     init(_ db: Database) throws {
         projects = try KabanStore.projects(db); tasks = try KabanStore.allTasks(db)
         settings = try KabanStore.settings(db); inputs = try KabanStore.schedulerInputs(db)
         flags = try KabanStore.schedulerFlags(db)
+        overrides = try KabanStore.modelOverrides(db)
         let rows = try Row.fetchAll(db, sql: "SELECT task_id, queue_seq FROM task_admission")
         managed = Set(rows.map { $0["task_id"] as String })
         queue = Dictionary(uniqueKeysWithValues: rows.map { ($0["task_id"] as String, $0["queue_seq"] as Int64) })
         admissions = Dictionary(uniqueKeysWithValues: try Row.fetchAll(db, sql: "SELECT task_id, stage_id FROM human_admission").map { ($0["task_id"] as String, $0["stage_id"] as String) })
         pendingProjects = try Set(String.fetchAll(db, sql: "SELECT project_id FROM pipeline_operation UNION SELECT project_id FROM project_operation"))
+        mcpBlocked = try Set(String.fetchAll(db, sql: "SELECT project_id FROM mcp_preflight WHERE blocked = 1"))
     }
     func eligibility(_ task: DurableTask, at: Date) -> Eligibility {
         guard task.machine.state.status == .queued || task.machine.state.status == .retryWait,
+              task.machine.state != .retryWait(.silentExit),
               task.card.retryAt.map({ $0 <= at }) ?? true,
               let project = projects.first(where: { $0.summary.id == task.card.projectId }),
               project.summary.availability == .available, project.production?.unavailableReason == nil,
+              !mcpBlocked.contains(project.summary.id.rawValue),
               !pendingProjects.contains(project.summary.id.rawValue),
               project.production == nil || project.projectedPipeline.isValid,
               let stage = project.pipeline.stage(task.machine.stageId) else { return .ineligible }
@@ -134,7 +142,7 @@ private struct SchedulerContext {
             }
         }
         let modelStage = stage.kind == .queue ? project.pipeline.firstAgentStage : stage
-        if modelStage?.kind == .agent, let model = modelStage?.agent?.model {
+        if modelStage?.kind == .agent, let model = modelStage.flatMap({ overrides["\(task.card.id.rawValue)\n\($0.id.rawValue)"] }) ?? modelStage?.agent?.model {
             let pool = ModelPoolResolver.pool(for: model, rules: inputs.modelPoolRules)
             for flag in flags {
                 switch flag {
@@ -148,14 +156,14 @@ private struct SchedulerContext {
             }
             if inputs.modelFlags.contains(where: { $0.modelId == model }) { return .blocked(.modelFlag) }
             if settings.quotaOptions.enabled && settings.quotaOptions.consent,
-               let quota = inputs.quota, !quota.isStale(now: at, staleAfter: 60), let used = quota.percentUsed(pool) {
+               let quota = inputs.quota, !quota.isStale(now: at, staleAfter: 60), let free = quota.freePercent(pool) {
                 let live = tasks.filter { task in
                     task.machine.state == .running && task.pipeline.stage(task.machine.stageId)?.agent?.model.map {
                         ModelPoolResolver.pool(for: $0, rules: inputs.modelPoolRules) == pool
                     } == true
                 }.count
                 let threshold = pool == .cm ? settings.quotaOptions.thresholdCm : settings.quotaOptions.thresholdOm
-                if 100 - used - Double(live) * (inputs.usagePerRun[pool] ?? 2) <= threshold {
+                if free - Double(live) * (inputs.usagePerRun[pool] ?? 2) <= threshold {
                     return .blocked(pool == .cm ? .quotaCm : .quotaOm)
                 }
             }

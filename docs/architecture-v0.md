@@ -272,8 +272,9 @@ gate/merge занимают execution WIP, human — persisted admission. Руч
 блокирует новый admission всех видов, reactive runner/model/quota ограничения
 применяются к агентам/первой модели intake. Host coalesces command/observer wakes
 и имеет секундный timer: до восьми ticks на pass, idle receipt не записывается.
-Время backoff проверяется между проходами. Process reconciliation, реальные
-runner/catalog/quota producers и процессы Cursor остаются BE-06–11.
+Время backoff проверяется между проходами. Клоны задач добавлены в BE-06.
+BE-08 запускает локальный runner в своей process group только при `--process-pass`;
+сверка timeout не ждёт. BE-07 разбирает stream, требует явную модель и проверяет runner; сравнение с каталогом, квота и модельный запуск остаются дальше.
 Claim/lease/receipt внешних effects добавлен в BE-05: finished fact и receipt
 сходятся в один переход, повторный claim без факта не обещает exactly-once процесса,
 а process/git выполняются после commit и вне транзакции SQLite.
@@ -370,8 +371,9 @@ signature; private stdio является явным development transport. По
   `tailLog` клиента опрашивает страницы раз в 200 мс на live EOF; завершает поток
   после всех страниц completed run. Удалённый лог — `log_unavailable`, потерянный
   prefix — `log_offset_expired` (params содержат доступное смещение). Сбой/overflow
-  явен; resume идёт с последнего потреблённого nextOffset. Хранилище логов — BE-16;
-  до него сервер отвечает `unsupported_operation` и capabilities.readLog=false.
+  явен; resume идёт с последнего потреблённого nextOffset. Хранилище — `Logs/<run-id>.jsonl`
+  и строки `run_log_event` (миграция `run_log_v18`). `capabilities.readLog` поддерживается.
+  Префикс старше 1024 событий не перенумеровывается. Файл, которого нет, не становится пустой страницей.
 - `PipelineDraft { projectId, baseVersionHash, baseSourceHash?, contentHash, content }` переносит
   точный UTF-8 YAML. Hash — `sha256:` + 64 lowercase hex, без нормализации пробелов
   или перевода строк. `baseVersionHash` обязателен на проводе, explicit null
@@ -398,7 +400,7 @@ signature; private stdio является явным development transport. По
   executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
   argv и произвольный env не передаются. Query reply — cursorEnvironment,
   применённая настройка подтверждается journal cursorEnvironmentChanged.
-  Реальная настройка/check/login — BE-07/20, сейчас unsupported_command.
+  Проверка runner — BE-07. Настройка пути через `configureCursor`, discovery и login под launchd остаются BE-20 и сейчас unsupported_command.
 - `restoreWIP(taskId, runId, wipRef)` адресует сохранённый run/ref задачи, без пути
   или разрешения на произвольный git ref. Сервер обязан проверить ownership,
   актуальное состояние и WIP metadata; событие wipRestored несёт тот же набор
@@ -465,7 +467,8 @@ commandId. Подробные границы — [wire contract](development/bac
 **Команды.**
 - Проекты: `addProject(path, createTemplate, identity?)` (без автора — `identity_required`, §8.2), `setProjectIdentity(projectId, identity)`, `removeProject`, `relinkProject(id, path)`, `listBranches(projectId)`, `detectGates(projectId)` (предложить гейты по файлам сборки), `setMascot`, `setProjectWeight(weight, maxRuns?)`.
   BE-02 реализует локальный lifecycle: [транзакционные границы и removal/history](development/backend-project-lifecycle-2026-10-05.md).
-  Capability может содержать optional `scopes`; для `recheck` сейчас поддержан только `project`.
+  Capability может содержать optional `scopes`; для `recheck` поддержаны `project` и `runner`.
+  `recheck(runner)` проверяет заданный абсолютный путь и ставит `runner_unavailable`; `configureCursor` остаётся unsupported.
   Шаблон требует checkout main и отсутствия конфликтующих `.kaban/` файлов; другие ветки не переключаются.
 
 - Пайплайн и политика: `updatePipeline(projectId, contentHash) -> PipelineVersion | [ValidationIssue]`, `validatePipeline(projectId, content)` (без записи, для живой проверки в настройках).
@@ -525,7 +528,7 @@ LaunchAgent не получает PATH из shell. Путь к `cursor-agent`, P
 ## 8. Git и изоляция
 
 ### 8.1 Рабочая копия задачи
-- `git clone --local` основного репозитория в `~/Library/Application Support/Kaban/Workspaces/<project>/<task>`: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`.
+- `git clone --local` основного репозитория в каталог workspace проекта и задачи: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`. BE-06 резервирует путь до git, повторяет тот же путь после обрыва и удаляет каталог только если он совпадает с записью задачи и лежит вне копии пользователя. Архив `refs/kaban/archive/<task>` пишется лишь при `keepBranch`. BE-08 перед откатом после crash или timeout пишет `refs/kaban/wip/<run>` внутри клона и не меняет копию пользователя; восстановление человеком остаётся BE-18/19.
 - Ветка `kaban/<task>-<slug>` от актуального `main` при входе в первую agent-стадию; один клон проходит все стадии задачи. Режим `fresh-readonly` даёт стадии отдельный свежий клон ветки.
 - Прогрев: `warm_paths` из основной копии через `cp -c` до старта агента, затем `on_create`. Для Xcode — свой `-derivedDataPath` внутри клона. Выигрыш по типам кэшей замеряем в **[спайк 6]**.
 - Порты: на задачу диапазон `KABAN_PORT_BASE`.

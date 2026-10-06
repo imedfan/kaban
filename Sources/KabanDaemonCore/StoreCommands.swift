@@ -12,6 +12,21 @@ extension KabanStore {
         projectOperations.lock(); defer { projectOperations.unlock() }
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
+        if case .recheck(.runner) = envelope.command { return try recheckRunner(envelope, at: now()) }
+        if case .refreshModelCatalog = envelope.command { return try refreshModelCatalog(envelope, at: now()) }
+        if case .setModelOverride(let taskId, let stageId, let model) = envelope.command {
+            return try setModelOverride(envelope, taskId: taskId, stageId: stageId, model: model, at: now())
+        }
+        if case .setModelPoolRule(let pattern, let pool) = envelope.command {
+            return try setModelPoolRule(envelope, pattern: pattern, pool: pool, at: now())
+        }
+        if case .removeModelPoolRule(let pattern) = envelope.command {
+            return try removeModelPoolRule(envelope, pattern: pattern, at: now())
+        }
+        if case .clearModelFlag(let modelId) = envelope.command {
+            return try clearModelFlag(envelope, modelId: modelId, at: now())
+        }
+        if case .resumeAfterRateLimit = envelope.command { return try resumeAfterRateLimit(envelope, at: now()) }
         let request = try Self.encode(envelope)
         let validating: ProjectID?
         switch envelope.command {
@@ -40,8 +55,17 @@ extension KabanStore {
                 do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .taskDetail(try Self.taskDetail(id, db: db))) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .getRunHistory(let id):
-                do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(try Self.taskDetail(id, db: db).runs)) }
+                do {
+                    let runs = try Self.runSummaries(id, db: db)
+                    try Self.ensureWireFit(runs, code: CommandError.detailTooLargeCode, message: "История запусков не помещается в сообщение.")
+                    return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(runs))
+                }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            case .listModels:
+                do {
+                    let rows = try Self.catalogRecord(db).rows.filter { !$0.forbidden }.sorted { $0.id.rawValue < $1.id.rawValue }
+                    return CommandReply(commandId: envelope.commandId, seq: nil, result: .models(rows))
+                } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .validatePipeline(let projectId, let content):
                 do {
                     let validation = try Self.validateDraftContent(projectId: projectId, content: content, db: db)
@@ -152,6 +176,19 @@ extension KabanStore {
             do { try draft.checkBinding(projectId: projectId, currentVersionHash: project.projectedPipeline.versionHash, requestedHash: hash) }
             catch let error as CommandError { throw StoreError.rejected(error) }
             throw StoreError.rejected(.init(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна требует production lifecycle проекта.", params: ["command": envelope.command.name.rawValue]))
+        case .allowGitOnce(let denialId):
+            return ok(try allowGitOnce(denialId, commandId: id, at: now(), db: db))
+        case .addDenialToPolicy(let denialId, let scope):
+            return ok(try addDenialToPolicy(denialId, scope: scope, commandId: id, at: now(), db: db))
+        case .revokeGitGrant(let grantId):
+            return ok(try revokeGitGrant(grantId, commandId: id, at: now(), db: db))
+        case .acceptSuspiciousFiles(let taskId, let files):
+            _ = try managedTask(taskId, db: db)
+            let receipt = try apply(.acceptSuspicious(files), taskId: taskId, commandId: id, at: now(), request: request, db: db)
+            guard receipt.firstSeq != nil else { throw invalidState("Команда не изменила состояние задачи.") }
+            return ok(receipt.lastSeq)
+        case .listIncidents(let projectIds, let state):
+            return CommandReply(commandId: id, seq: nil, result: .incidents(try Self.incidents(projectIds: projectIds, state: state, db: db)))
         default:
             guard let (taskId, command) = transitionCommand(envelope.command) else {
                 throw StoreError.rejected(CommandError(code: CommandError.unsupportedCommandCode, message: "Команда ещё не поддерживается этим backend.", params: ["command": envelope.command.name.rawValue]))
