@@ -178,6 +178,13 @@ extension KabanStore {
             return ok(try addDenialToPolicy(denialId, scope: scope, commandId: id, at: now(), db: db))
         case .revokeGitGrant(let grantId):
             return ok(try revokeGitGrant(grantId, commandId: id, at: now(), db: db))
+        case .acceptSuspiciousFiles(let taskId, let files):
+            _ = try managedTask(taskId, db: db)
+            let receipt = try apply(.acceptSuspicious(files), taskId: taskId, commandId: id, at: now(), request: request, db: db)
+            guard receipt.firstSeq != nil else { throw invalidState("Команда не изменила состояние задачи.") }
+            return ok(receipt.lastSeq)
+        case .listIncidents(let projectIds, let state):
+            return CommandReply(commandId: id, seq: nil, result: .incidents(try Self.incidents(projectIds: projectIds, state: state, db: db)))
         default:
             guard let (taskId, command) = transitionCommand(envelope.command) else {
                 throw StoreError.rejected(CommandError(code: CommandError.unsupportedCommandCode, message: "Команда ещё не поддерживается этим backend.", params: ["command": envelope.command.name.rawValue]))

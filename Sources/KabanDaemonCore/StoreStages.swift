@@ -39,7 +39,8 @@ extension KabanStore {
     static func isDurableEffect(_ effect: TaskEffect) -> Bool {
         switch effect {
         case .recordTransition, .recordHumanRequest, .recordHumanAnswer, .raiseModelFlag,
-             .raiseRateLimit, .raiseUsageExhausted, .raiseRunnerUnavailable, .requestModelProbe:
+             .raiseRateLimit, .raiseUsageExhausted, .raiseRunnerUnavailable, .requestModelProbe,
+             .openIncident, .resolveIncident, .reportSuspiciousFiles, .acceptSuspiciousFiles:
             return false
         default:
             return true
@@ -230,13 +231,42 @@ extension KabanStore {
             let stage = task.pipeline.stage(task.machine.stageId)
             let readOnly = stage?.isReadOnly == true
             let clone = try readyClone(item.taskId)
-            let dirty = readOnly && clone != nil && ((try? TaskClone.worktreeDirty(clone!.clonePath, identity: try projectIdentity(task))) ?? true)
-            let outcome: RealEffectOutcome = dirty ? .readOnlyChanges : .clean
-            _ = try commitEffectResult(effectId: lease.effectId, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: lease.effectId + "/result", phase: .finished, outcome: outcome), at: at, diagnostic: "BE-11 result check reads the worktree; suspicious files stay BE-13")
-            try remember(taskId: item.taskId.rawValue, line: "stage \(item.taskId.rawValue) result \(task.machine.stageId.rawValue) \(dirty ? "readonly" : "clean")")
+            let identity = try projectIdentity(task)
+            let judged = try judgeResult(task: task, clone: clone, identity: identity, readOnly: readOnly)
+            _ = try commitEffectResult(effectId: lease.effectId, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: lease.effectId + "/result", phase: .finished, outcome: judged.outcome), at: at, diagnostic: "BE-13 result check compares the main repository and the task branch; an ordinary dirty tree stays clean")
+            try remember(taskId: item.taskId.rawValue, line: "stage \(item.taskId.rawValue) result \(task.machine.stageId.rawValue) \(judged.label)")
             return true
         }
         return false
+    }
+
+    /// Incident beats a suspicious file, which beats a read-only dirty tree. A writable dirty tree with neither is clean.
+    private func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool) throws -> (outcome: RealEffectOutcome, label: String) {
+        guard let clone else { return (.clean, "clean") }
+        let snapshot = try database.read { db in try Self.protectionSnapshot(task.card.projectId, db: db) }
+        try TaskClone.restoreBoardMCP(clone: clone.clonePath, origin: clone.projectPath, identity: identity)
+        let base = clone.baseCommit ?? ""
+        if let snapshot, let drift = try TaskClone.protectionDrift(clone.projectPath, snapshot: snapshot, identity: identity) {
+            let restored = try TaskClone.rollbackProtection(clone.projectPath, snapshot: snapshot, identity: identity)
+            return (.incident(drift, rolledBack: restored), "incident")
+        }
+        if try TaskClone.kabanChanged(clone: clone.clonePath, base: base, identity: identity) {
+            let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
+            return (.incident(.kabanDirChanged, rolledBack: restored), "incident")
+        }
+        if try TaskClone.foreignBase(clone: clone.clonePath, base: base, identity: identity) {
+            let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
+            return (.incident(.foreignBase, rolledBack: restored), "incident")
+        }
+        let strict = task.pipeline.git.preset == .strict
+        let files = try TaskClone.collectBranchFiles(clone: clone.clonePath, base: base, strict: strict, identity: identity)
+        let accepted = try database.read { db in Set(try Self.acceptedFileRows(task.card.id, db: db).map { FileBlobRef(path: $0.path, blob: $0.blob) }) }
+        var found = SuspiciousFilesScanner.scan(files.map(\.file), policy: task.pipeline.suspiciousFiles, accepted: accepted)
+        let text = Dictionary(files.map { ($0.file.path, $0.isText) }, uniquingKeysWith: { _, last in last })
+        for index in found.indices { found[index].isText = text[found[index].path] ?? false }
+        if !found.isEmpty { return (.suspiciousFiles(found), "suspicious") }
+        let dirty = readOnly && ((try? TaskClone.worktreeDirty(clone.clonePath, identity: identity)) ?? true)
+        return (dirty ? .readOnlyChanges : .clean, dirty ? "readonly" : "clean")
     }
 
     private func runCommit(owner: String, at: Date) throws -> Bool {

@@ -310,6 +310,8 @@ extension KabanStore {
         case (.startAgentRun(let run), .completed(let summary)): return .completeStage(run.runId, summary: summary)
         case (.runResultCheck, .clean): return .resultClean
         case (.runResultCheck, .readOnlyChanges): return .resultReadOnly
+        case (.runResultCheck, .suspiciousFiles(let files)): return .resultSuspicious(files)
+        case (.runResultCheck, .incident(let kind, let rolled)): return .resultIncident(kind, rolledBack: rolled)
         case (.runGates, .gatesPassed): return .gatesPassed
         case (.runGates, .gatesFailed(let output)): return .gatesFailed(output: output)
         case (.killRun, .acknowledged), (.saveWipAndRollback, .acknowledged), (.commitStage, .acknowledged),

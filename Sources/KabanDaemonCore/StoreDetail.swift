@@ -12,8 +12,8 @@ extension KabanStore {
         let project = try Self.project(task.card.projectId, db: db)
         if project.production != nil {
             switch command {
-            case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage: break
-            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .resultReadOnly, .daemonRestarted, .runFailed, .modelMismatch, .gitDenialLimit:
+            case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage, .acceptSuspicious: break
+            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .resultClean, .resultReadOnly, .resultSuspicious, .resultIncident, .daemonRestarted, .runFailed, .modelMismatch, .gitDenialLimit:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }

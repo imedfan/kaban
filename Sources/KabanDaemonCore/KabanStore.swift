@@ -40,6 +40,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("mcp_isolation_v14", migrate: Self.migrateMCPIsolation)
         migrator.registerMigration("stage_execution_v15", migrate: Self.migrateStageExecution)
         migrator.registerMigration("git_policy_extra_v16", migrate: Self.migrateGitPolicy)
+        migrator.registerMigration("incidents_v17", migrate: Self.migrateIncidents)
         try migrator.migrate(database)
     }
 
@@ -189,6 +190,7 @@ public final class KabanStore: Sendable {
             }
             let detailSeq = try Self.persistDetail(before: before, task: task, command: command, effects: result.effects, commandId: commandId, at: at, db: db)
             try Self.expireGitGrants(in: result.effects, task: task, commandId: commandId, at: at, db: db)
+            try Self.recordSafetyEffects(command: command, effects: result.effects, task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = detailSeq }
             let seq = try Self.journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = seq }

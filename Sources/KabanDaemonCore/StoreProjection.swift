@@ -54,7 +54,7 @@ extension KabanStore {
     static func taskDetail(_ taskId: TaskID, db: Database) throws -> TaskDetail {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
         return TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
-                          suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: d.acceptedFiles, clonePath: d.clonePath,
+                          suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
                           artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
     }
     public func getSnapshot() throws -> Snapshot {
@@ -62,8 +62,8 @@ extension KabanStore {
             let projects = try Self.projects(db)
             let removed = try Set(String.fetchAll(db, sql: "SELECT project_id FROM removed_project"))
             let tasks = try Self.allTasks(db).filter { !removed.contains($0.card.projectId.rawValue) }
-            // A v1 unregistered project or unresolved incident lacks an authoritative projection.
-            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } && task.machine.openIncident == nil }) else { throw StoreError.incompleteProjection }
+            // A v1 unregistered project lacks an authoritative projection. An open incident is part of that projection.
+            guard tasks.allSatisfy({ task in projects.contains { $0.summary.id == task.card.projectId && ($0.production != nil || $0.pipeline == task.pipeline) } }) else { throw StoreError.incompleteProjection }
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
             let flags = try Self.schedulerFlags(db)
             let inputs = try Self.schedulerInputs(db)
