@@ -181,7 +181,7 @@ extension KabanStore {
     func setModelOverride(_ envelope: CommandEnvelope, taskId: TaskID, stageId: StageID, model: ModelID?, at: Date) throws -> CommandReply {
         try commitModelCommand(envelope, at: at) { db in
             let task = try Self.task(taskId, db: db)
-            guard task.pipeline.stage(stageId) != nil else { throw StoreError.rejected(CommandError(code: CommandError.notFoundCode, message: "Стадия не найдена.")) }
+            guard task.pipeline.stage(stageId)?.kind == .agent else { throw StoreError.rejected(CommandError(code: CommandError.notFoundCode, message: "Стадия не найдена.")) }
             if let model {
                 let trimmed = model.rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.lowercased() == "auto" {
@@ -194,7 +194,7 @@ extension KabanStore {
             } else {
                 try db.execute(sql: "DELETE FROM model_override WHERE task_id = ? AND stage_id = ?", arguments: [taskId.rawValue, stageId.rawValue])
             }
-            return try Self.journal(.taskUpdated(task.card), task: task, commandId: envelope.commandId, at: at, db: db)
+            return try Self.apply(.humanContextChanged, taskId: taskId, commandId: envelope.commandId, at: at, request: Self.encode(envelope), db: db).lastSeq
         }
     }
 

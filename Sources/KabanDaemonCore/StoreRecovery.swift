@@ -51,6 +51,7 @@ extension KabanStore {
         _ = try runProcessPass(owner: "recovery", at: at, workspaceRoot: workspaceRoot, runner: nil)
         for index in 0..<64 {
             let before = try pendingEffectItems().map(\.id)
+            _ = try runWIPRestorePass(owner: "recovery", at: at)
             _ = try runStagePass(owner: "recovery", at: at)
             _ = try runMergePass(owner: "recovery", at: at, workspaceRoot: workspaceRoot)
             _ = try runClonePass(owner: "recovery", at: at, workspaceRoot: workspaceRoot)

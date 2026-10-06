@@ -34,8 +34,15 @@ extension KabanStore {
         for row in rows {
             let pending = try decode(PendingEffect.self, row["payload"])
             switch pending.effect {
-            case .startAgentRun, .runGates, .runResultCheck, .startMerge, .fastForwardMerge, .scheduleRetry:
+            case .startAgentRun, .runGates, .runResultCheck, .startMerge, .fastForwardMerge, .scheduleRetry, .restoreWIP:
                 try db.execute(sql: "UPDATE effect SET status = 'superseded', diagnostic = 'superseded' WHERE id = ?", arguments: [row["id"] as String])
+                if case .restoreWIP(let run, _, _, _) = pending.effect {
+                    var detail = try Self.detail(taskId, db: db)
+                    detail.feed.append(FeedItem(id: pending.id + "/cancelled", at: (try Self.task(taskId, db: db)).card.updatedAt, kind: "wip_restore_cancelled", text: "WIP restoration superseded by another task action", runId: run))
+                    try Self.saveDetail(detail, taskId: taskId, db: db)
+                    let task = try Self.task(taskId, db: db)
+                    _ = try journal(.taskUpdated(task.card), task: task, commandId: pending.commandId, at: task.card.updatedAt, db: db)
+                }
             default: break
             }
         }

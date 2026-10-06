@@ -19,12 +19,12 @@ final class SessionContractTests: XCTestCase {
         XCTAssertEqual(Set(capabilities.commands.map(\.name)), Set(CommandName.allCases.map(\.rawValue)))
         XCTAssertEqual(capabilities.commands.first { $0.name == "createTask" }?.support, .supported)
         XCTAssertEqual(capabilities.commands.first { $0.name == "recheck" }?.scopes, ["project", "runner"])
-        XCTAssertEqual(capabilities.commands.first { $0.name == "restoreWIP" }?.support, .unsupported)
+        XCTAssertEqual(capabilities.commands.first { $0.name == "restoreWIP" }?.support, .supported)
         XCTAssertEqual(capabilities.commands.first { $0.name == "configureCursor" }?.support, .unsupported)
         XCTAssertEqual(capabilities.operations.first { $0.name == "readLog" }?.supported, true)
         do { _ = try await client.readLog(runId: "r", fromOffset: 0); XCTFail("Empty success hid a missing log") }
         catch { XCTAssertEqual((error as? CommandError)?.code, CommandError.logUnavailableCode) }
-        for command in [Command.restoreWIP(taskId: "t", runId: "r", wipRef: "refs/kaban/wip/r"),
+        for command in [Command.checkEnvironment,
                         .configureCursor(environment: .init(executablePath: "/tool")), .getCursorEnvironment] {
             let envelope = CommandEnvelope(command: command)
             let reply = try await client.send(envelope)

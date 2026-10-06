@@ -275,9 +275,20 @@ extension KabanStore {
             task = try Self.task(pending.taskId, db: db)
         }
         var detail = try detail(pending.taskId, db: db)
-        detail.feed.append(FeedItem(id: effectId + "/execution", at: at, kind: "execution", text: "Effect execution receipt", runId: task.machine.lastRunId))
+        var correlationId = transitionId
+        if case .restoreWIP(let run, let ref, _, _) = pending.effect {
+            correlationId = pending.commandId
+            if outcome == .acknowledged {
+                _ = try journal(.wipRestored(.init(taskId: pending.taskId, runId: run, wipRef: ref)), task: task, commandId: correlationId, at: at, db: db)
+                detail.feed.append(FeedItem(id: effectId + "/restore", at: at, kind: "wip_restored", text: "WIP restored: " + ref, runId: run))
+            } else if case .restoreFailed(let message) = outcome {
+                detail.feed.append(FeedItem(id: effectId + "/restore", at: at, kind: "wip_restore_failed", text: SecretText.redact(message), runId: run))
+            }
+        } else {
+            detail.feed.append(FeedItem(id: effectId + "/execution", at: at, kind: "execution", text: "Effect execution receipt", runId: task.machine.lastRunId))
+        }
         try saveDetail(detail, taskId: pending.taskId, db: db)
-        let seq = try journal(.taskUpdated(task.card), task: task, commandId: transitionId, at: at, db: db)
+        let seq = try journal(.taskUpdated(task.card), task: task, commandId: correlationId, at: at, db: db)
         task = try Self.task(pending.taskId, db: db)
         let receipt = EffectReceipt(effectId: effectId, seq: seq, task: task)
         try db.execute(sql: "UPDATE effect SET status = 'acknowledged', result = ?, receipt = ?, diagnostic = ? WHERE id = ? AND lease_id = ?", arguments: [resultBytes, try encode(receipt), diagnostic, effectId, leaseId])
@@ -293,6 +304,8 @@ extension KabanStore {
             return task.machine.state.status == .running && task.machine.currentRunId == request.runId
         case .runGates(let stage, _), .runResultCheck(let stage), .startMerge(let stage, _):
             return task.machine.state.status == .gating && task.machine.stageId == stage
+        case .restoreWIP(_, _, _, let stage):
+            return task.machine.stageId == stage && Self.canRestoreWIP(task)
         case .fastForwardMerge:
             return task.machine.state.status == .gating && task.machine.gatingPhase == .fastForward
         case .killRun, .saveWipAndRollback, .commitStage, .scheduleRetry, .expireGitGrants, .cleanupClone, .notifyHuman,
@@ -323,6 +336,8 @@ extension KabanStore {
         case (.fastForwardMerge, .suspiciousFiles(let files)): return .resultSuspicious(files)
         case (.fastForwardMerge, .incident(let kind, let rolled)): return .resultIncident(kind, rolledBack: rolled)
         case (.fastForwardMerge, .readOnlyChanges): return .resultReadOnly
+        case (.restoreWIP, .acknowledged): return .humanContextChanged
+        case (.restoreWIP, .restoreFailed): return nil
         case (.killRun, .acknowledged), (.saveWipAndRollback, .acknowledged), (.commitStage, .acknowledged),
              (.scheduleRetry, .acknowledged), (.expireGitGrants, .acknowledged), (.cleanupClone, .acknowledged), (.notifyHuman, .acknowledged):
             return nil

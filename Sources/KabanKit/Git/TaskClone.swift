@@ -258,6 +258,26 @@ public enum TaskClone {
         }
     }
 
+    public static func wipCommit(clone: String, ref: String, identity: GitIdentity?) throws -> String {
+        guard ref.hasPrefix("refs/kaban/wip/"), !ref.contains(".."), !ref.contains("\n") else { throw POSIXError(.EINVAL) }
+        return try text(["rev-parse", "--verify", ref + "^{commit}"], in: clone, identity: identity)
+    }
+
+    /// HEAD and the user's main stay fixed. A durable git marker reconciles a lost DB receipt.
+    public static func restoreWIP(clone: String, ref: String, sha: String, commandId: UUID,
+                                  recorded: String, workspaceRoot: String, origin: String, identity: GitIdentity?) throws {
+        try authorizeDeletion(candidate: clone, recorded: recorded, workspaceRoot: workspaceRoot, origin: origin)
+        guard try wipCommit(clone: clone, ref: ref, identity: identity) == sha else { throw POSIXError(.ESTALE) }
+        let marker = "refs/kaban/restored/" + commandId.uuidString.lowercased()
+        if let previous = try? text(["rev-parse", "--verify", marker], in: clone, identity: identity) {
+            guard previous == sha else { throw POSIXError(.ESTALE) }
+            return
+        }
+        _ = try saveWipAndReset(clone: clone, runId: RunID(rawValue: "restore-" + commandId.uuidString.lowercased()), recorded: recorded, workspaceRoot: workspaceRoot, origin: origin, identity: identity)
+        try run(["read-tree", "--reset", "-u", sha], in: clone, identity: identity)
+        try run(["update-ref", marker, sha], in: clone, identity: identity)
+    }
+
     public static func worktreeDirty(_ path: String, identity: GitIdentity?) throws -> Bool {
         try text(["status", "--porcelain"], in: path, identity: identity).isEmpty == false
     }
