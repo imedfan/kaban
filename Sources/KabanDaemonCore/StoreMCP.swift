@@ -208,7 +208,7 @@ extension KabanStore {
         var task = try task(taskId, db: db)
         let state = task.machine.state
         var detail = try detail(taskId, db: db)
-        detail.feed.append(FeedItem(id: "progress-\(UUID().uuidString.lowercased())", at: at, kind: "progress", text: text, runId: runId))
+        detail.feed.append(FeedItem(id: "progress-\(UUID().uuidString.lowercased())", at: at, kind: "progress", text: SecretText.redact(text), runId: runId))
         try saveDetail(detail, taskId: taskId, db: db)
         task.card.updatedAt = at
         guard task.machine.state == state else { throw StoreError.rejected(CommandError(code: "invalid_state", message: "progress не меняет статус")) }
@@ -226,7 +226,7 @@ extension KabanStore {
         for (offset, item) in texts.enumerated() {
             let id = "\(commandId.uuidString.lowercased())/artifact/\(offset)"
             guard !detail.artifacts.contains(where: { $0.id.rawValue == id }) else { continue }
-            detail.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: taskId, runId: runId, stageId: stageId, kind: item.0, text: item.1, createdAt: at))
+            detail.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: taskId, runId: runId, stageId: stageId, kind: item.0, text: SecretText.redact(item.1), createdAt: at))
         }
         try saveDetail(detail, taskId: taskId, db: db)
     }

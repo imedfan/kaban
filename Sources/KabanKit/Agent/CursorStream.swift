@@ -14,9 +14,12 @@ public struct CursorStreamDiagnostic: Equatable, Sendable {
 public struct CursorStreamBatch: Equatable, Sendable {
     public var events: [AgentEvent]
     public var diagnostics: [CursorStreamDiagnostic]
-    public init(events: [AgentEvent], diagnostics: [CursorStreamDiagnostic]) {
+    /// Redacted or raw NDJSON line that produced each event, in event order. One line may yield two events.
+    public var sources: [String]
+    public init(events: [AgentEvent], diagnostics: [CursorStreamDiagnostic], sources: [String] = []) {
         self.events = events
         self.diagnostics = diagnostics
+        self.sources = sources
     }
 }
 
@@ -30,16 +33,26 @@ public struct CursorStreamParser: Sendable {
 
     public init() {}
 
+    /// Continue a chunk that ended mid-line. The next `append` owns only the new bytes.
+    public mutating func resume(remainder: Data, skipping: Bool) {
+        line = remainder
+        self.skipping = skipping
+    }
+
+    public var remainder: Data { line }
+    public var skippingRemainder: Bool { skipping }
+
     public mutating func append(_ chunk: Data) -> CursorStreamBatch {
         var events: [AgentEvent] = []
         var diagnostics: [CursorStreamDiagnostic] = []
+        var sources: [String] = []
         for byte in chunk {
             if skipping {
                 if byte == 10 { skipping = false }
                 continue
             }
             if byte == 10 {
-                consume(line, events: &events, diagnostics: &diagnostics)
+                consume(line, events: &events, diagnostics: &diagnostics, sources: &sources)
                 line.removeAll(keepingCapacity: false)
                 continue
             }
@@ -51,10 +64,10 @@ public struct CursorStreamParser: Sendable {
             }
             line.append(byte)
         }
-        return CursorStreamBatch(events: events, diagnostics: diagnostics)
+        return CursorStreamBatch(events: events, diagnostics: diagnostics, sources: sources)
     }
 
-    private mutating func consume(_ raw: Data, events: inout [AgentEvent], diagnostics: inout [CursorStreamDiagnostic]) {
+    private mutating func consume(_ raw: Data, events: inout [AgentEvent], diagnostics: inout [CursorStreamDiagnostic], sources: inout [String]) {
         var data = raw
         if data.last == 13 { data.removeLast() }
         guard !data.isEmpty else { return }
@@ -66,6 +79,8 @@ public struct CursorStreamParser: Sendable {
             diagnostics.append(CursorStreamDiagnostic(kind: .unknown))
             return
         }
+        let before = events.count
+        let lineText = String(decoding: data, as: UTF8.self)
         switch type {
         case "system":
             let subtype = object["subtype"] as? String
@@ -94,6 +109,9 @@ public struct CursorStreamParser: Sendable {
             events.append(.error(code: nonEmpty(object["code"]), message: (object["message"] as? String) ?? ""))
         default:
             diagnostics.append(CursorStreamDiagnostic(kind: .unknown))
+        }
+        if events.count > before {
+            sources.append(contentsOf: Array(repeating: lineText, count: events.count - before))
         }
     }
 

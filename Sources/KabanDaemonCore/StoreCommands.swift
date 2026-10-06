@@ -55,7 +55,11 @@ extension KabanStore {
                 do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .taskDetail(try Self.taskDetail(id, db: db))) }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .getRunHistory(let id):
-                do { return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(try Self.taskDetail(id, db: db).runs)) }
+                do {
+                    let runs = try Self.runSummaries(id, db: db)
+                    try Self.ensureWireFit(runs, code: CommandError.detailTooLargeCode, message: "История запусков не помещается в сообщение.")
+                    return CommandReply(commandId: envelope.commandId, seq: nil, result: .runs(runs))
+                }
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .listModels:
                 do {

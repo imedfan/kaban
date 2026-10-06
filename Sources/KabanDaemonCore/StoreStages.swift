@@ -204,7 +204,7 @@ extension KabanStore {
             var failed = false
             for command in commands {
                 let result = try StageCommand.run(command: command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
-                combined = Self.cap(combined + "$ \(command)\n\(result.output)\n")
+                combined += "$ \(command)\n\(result.output)\n"
                 if result.timedOut || result.status != 0 {
                     failed = true
                     break
@@ -351,7 +351,7 @@ extension KabanStore {
 
     private func finishWork(id: String, output: String, code: Int, sha: String?) throws {
         try database.write { db in
-            try db.execute(sql: "UPDATE stage_work SET status = 'finished', output = ?, code = ?, sha = ? WHERE id = ?", arguments: [Self.cap(output), code, sha, id])
+            try db.execute(sql: "UPDATE stage_work SET status = 'finished', output = ?, code = ?, sha = ? WHERE id = ?", arguments: [Self.cap(SecretText.redact(output)), code, sha, id])
         }
     }
 
@@ -360,7 +360,7 @@ extension KabanStore {
             var detail = try Self.detail(TaskID(rawValue: taskId), db: db)
             let artifact = ArtifactID(rawValue: id)
             guard !detail.artifacts.contains(where: { $0.id == artifact }) else { return }
-            detail.artifacts.append(TaskArtifact(id: artifact, taskId: TaskID(rawValue: taskId), runId: nil, stageId: StageID(rawValue: stageId), kind: kind, text: Self.cap(text), createdAt: at))
+            detail.artifacts.append(TaskArtifact(id: artifact, taskId: TaskID(rawValue: taskId), runId: nil, stageId: StageID(rawValue: stageId), kind: kind, text: SecretText.redact(text), createdAt: at))
             try Self.saveDetail(detail, taskId: TaskID(rawValue: taskId), db: db)
         }
     }

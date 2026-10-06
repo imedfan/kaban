@@ -34,7 +34,7 @@ extension KabanStore {
         if let runner {
             try spawnPending(owner: owner, at: at, workspaceRoot: workspaceRoot, runner: runner, arguments: runnerArguments)
         }
-        try observeRunning(at: at)
+        try observeRunning(at: at, workspaceRoot: workspaceRoot)
         try acknowledgeStops(owner: owner, at: at)
         try acknowledgeRollbacks(owner: owner, at: at)
         return try storedProcessLines()
@@ -77,11 +77,16 @@ extension KabanStore {
         }
     }
 
-    private func observeRunning(at: Date) throws {
+    private func observeRunning(at: Date, workspaceRoot: String) throws {
         for var record in try allProcessRecords() where record.state == "running" {
+            let run = RunID(rawValue: record.runId)
+            let task = TaskID(rawValue: record.taskId)
+            try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: false)
             if let code = ProcessGroup.poll(record.pid) {
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
                 try classify(&record, code: code, at: at)
             } else if !ProcessGroup.isAlive(record.pid) {
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
                 guard record.exitClass == nil else { continue }
                 record.state = "exited"
                 record.exitClass = "unobserved"
@@ -97,6 +102,7 @@ extension KabanStore {
                 if let kind = ProcessDeadlines(stall: record.stallDeadline, wall: record.wallDeadline).due(at: at) {
                     let birth = ProcessGroup.ProcessBirth(seconds: record.birthSeconds, microseconds: record.birthMicroseconds)
                     try ProcessGroup.stop(pid: record.pid, processGroup: record.processGroup, birth: birth)
+                    try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
                     record.state = "stopped"
                     record.exitClass = kind == .wall ? "wall" : "stall"
                     record.passLines.append("process timeout \(record.runId) \(kind == .wall ? "wall" : "stall")")

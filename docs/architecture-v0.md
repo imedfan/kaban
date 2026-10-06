@@ -371,8 +371,9 @@ signature; private stdio является явным development transport. По
   `tailLog` клиента опрашивает страницы раз в 200 мс на live EOF; завершает поток
   после всех страниц completed run. Удалённый лог — `log_unavailable`, потерянный
   prefix — `log_offset_expired` (params содержат доступное смещение). Сбой/overflow
-  явен; resume идёт с последнего потреблённого nextOffset. Хранилище логов — BE-16;
-  до него сервер отвечает `unsupported_operation` и capabilities.readLog=false.
+  явен; resume идёт с последнего потреблённого nextOffset. Хранилище — `Logs/<run-id>.jsonl`
+  и строки `run_log_event` (миграция `run_log_v18`). `capabilities.readLog` поддерживается.
+  Префикс старше 1024 событий не перенумеровывается. Файл, которого нет, не становится пустой страницей.
 - `PipelineDraft { projectId, baseVersionHash, baseSourceHash?, contentHash, content }` переносит
   точный UTF-8 YAML. Hash — `sha256:` + 64 lowercase hex, без нормализации пробелов
   или перевода строк. `baseVersionHash` обязателен на проводе, explicit null
