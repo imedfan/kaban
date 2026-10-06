@@ -68,8 +68,13 @@ BE-06–08, gates/hooks — BE-11, merge — BE-17.
 external fact и receipt к существующим effect id. Сверка finished fact и receipt
 даёт один переход. Повторный claim без факта не обещает exactly-once процесса.
 Настоящий результат не проходит через `deliverFake`. Opt-in `--effect-pass`
-подтверждает lifecycle effects только после commit. Cursor, clone и process group
-остаются следующими задачами.
+подтверждает lifecycle effects только после commit. Cursor и process group остаются следующими задачами.
+
+[BE-06](development/backend-task-clones-2026-10-06.md) создаёт `git clone --local` и ветку задачи
+после commit плана. Параллельные задачи получают разные refs, config и cwd. Частичный каталог
+занимает тот же путь и не порождает второй run. `keepBranch` пишет архивный ref, иначе его нет.
+Удаление проверяет, что путь — записанный клон внутри workspace, и не трогает копию пользователя.
+WIP save/restore остаётся BE-18/19.
 
 ## Следующие результаты
 

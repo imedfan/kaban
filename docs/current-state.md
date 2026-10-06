@@ -21,8 +21,8 @@ BE-05 подготовлен в `codex/be-05-effect-execution` от этой б�
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции v1–v7, durable state/journal/effects, claim/lease/receipt, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor, клон и process group не подключены |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| DaemonCore | GRDB store, миграции v1–v8, durable state/journal/effects, claim/lease/receipt, клоны задач, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor и process group не подключены |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass` и `--clone-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -205,8 +205,18 @@ Additive v7 добавляет fencing, lease, external fact и diagnostic, не
 эффект не меняют отменённую задачу. Откат записи не оставляет полуперехода и сохраняет уже записанный факт.
 Side effect process/git пишется после commit, вне транзакции SQLite. `deliverFake` отклоняет production.
 Старт демона забирает незавершённые leases прежнего процесса. `--effect-pass` по желанию подтверждает
-только lifecycle effects и не является поведением по умолчанию. Cursor, удаление клона и process group
-не исполняются. Следующий инкремент — BE-06.
+только lifecycle effects и не является поведением по умолчанию. Cursor и process group не исполняются.
+
+## Backend: BE-06 клоны задач
+
+Открытый инкремент [PR #77](https://github.com/imedfan/kaban/pull/77) поверх #76, ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
+План пути коммитится до `git clone --local`. Повтор после обрыва использует тот же путь и не ставит второй run.
+У параллельных задач разные ветки, git dir, config и cwd; `fresh-readonly` получает отдельный клон.
+DerivedData и temp лежат внутри клона. Портовый диапазон записывается и не занимает сокет.
+`--clone-pass` печатает уже сохранённый результат и не создаёт второй каталог.
+Очистка архивирует `refs/kaban/archive/<task>` только при `keepBranch` и удаляет каталог лишь после проверки пути.
+Чужой путь и копия пользователя не удаляются. HEAD, `main` и status пользователя не меняются.
+WIP save/restore остаётся BE-18/19. Cursor не запускается. Следующий инкремент очереди — BE-07.
 
 ## Какие источники читать
 
