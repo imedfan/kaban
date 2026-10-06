@@ -187,6 +187,10 @@ public struct CommandError: Codable, Hashable, Sendable, Error {
     public static let pipelineHashMismatchCode = "pipeline_hash_mismatch"
     public static let logUnavailableCode = "log_unavailable"
     public static let logOffsetExpiredCode = "log_offset_expired"
+    /// `getTaskDetail` не обрезает сохранённые поля. Клиент запрашивает `getRunHistory` и `readLog`.
+    public static let detailTooLargeCode = "detail_too_large"
+    /// `getSnapshot` не обрезает карточки. Ответ — ошибка, а не урезанный снимок.
+    public static let snapshotTooLargeCode = "snapshot_too_large"
 }
 
 /// Автор коммитов демона в проекте (§8.2): передаётся в git явно `-c user.name=… -c user.email=…`.

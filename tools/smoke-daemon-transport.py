@@ -97,7 +97,8 @@ def main():
             assert live["events"] == [] and live["nextCursor"] == synced["cursor"] and not live["resetRequired"]
             owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"readLog": {"runId": "missing", "fromOffset": 0, "limit": 1}}}) + "\n")
             owner.stdin.flush()
-            assert read_reply()["result"]["error"]["_0"]["code"] == "unsupported_operation"
+            # A missing run is not an empty successful page and not an unsupported operation.
+            assert read_reply()["result"]["error"]["_0"]["code"] == "log_unavailable"
             duplicate = subprocess.run([str(daemon), "--stdio", "--database", str(database)], input="", text=True, capture_output=True, timeout=5)
             assert duplicate.returncode != 0 and "writerAlreadyRunning" in duplicate.stderr, duplicate.stderr
             owner.stdin.write("malformed\n")

@@ -41,6 +41,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("stage_execution_v15", migrate: Self.migrateStageExecution)
         migrator.registerMigration("git_policy_extra_v16", migrate: Self.migrateGitPolicy)
         migrator.registerMigration("incidents_v17", migrate: Self.migrateIncidents)
+        migrator.registerMigration("run_log_v18", migrate: Self.migrateRunLogs)
         try migrator.migrate(database)
     }
 

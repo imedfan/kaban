@@ -66,11 +66,13 @@ extension KabanStore {
                 d.runs.append(RunSummary(id: request.runId, taskId: task.card.id, stageId: request.stageId, number: d.runs.count + 1, status: .running,
                                          requestedModel: request.model, startedAt: at))
             case .recordHumanRequest(let question, let run):
+                let question = SecretText.redact(question)
                 let request = HumanRequest(requestId: HumanRequestID(rawValue: id), taskId: task.card.id, runId: run, question: question)
                 d.questions.append(StoredQuestion(request: request))
                 d.feed.append(FeedItem(id: id, at: at, kind: "question", text: question, runId: run))
                 try emit(.humanRequested(request))
             case .recordHumanAnswer(let text, let requestedId):
+                let text = SecretText.redact(text)
                 let index = d.questions.lastIndex { $0.answeredAt == nil && (requestedId == nil || $0.request.requestId == requestedId) }
                 let id = index.map { d.questions[$0].request.requestId } ?? requestedId
                 if let index { d.questions[index].answeredAt = at; d.questions[index].answer = text }
@@ -103,12 +105,14 @@ extension KabanStore {
             }
         }
         if case .completeStage(let run, let summary) = command {
+            let summary = SecretText.redact(summary)
             let id = commandId.uuidString.lowercased()
             d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, runId: run, stageId: before.stageId, kind: "summary", text: summary, createdAt: at))
             d.feed.append(FeedItem(id: id, at: at, kind: "summary", text: summary, runId: run))
         }
         if case .returnToStage(let run, _, let issues) = command {
             for (offset, issue) in issues.enumerated() {
+                let issue = SecretText.redact(issue)
                 let id = "\(commandId.uuidString.lowercased())/issue/\(offset)"
                 d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, runId: run, stageId: before.stageId, kind: "issue", text: issue, createdAt: at))
                 d.feed.append(FeedItem(id: id, at: at, kind: "issue", text: issue, runId: run))
