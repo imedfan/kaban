@@ -2,7 +2,8 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-05-effect-execution`, база после fetch —
 `origin/main` `77a0dc1` (срез статуса #75; BE-04 принят в #74).
-Очередь — [backend MVP](backend-mvp-tasks.md). PR открыт в main и ещё не принят.
+Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `e510e31`.
+[PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main и ещё не принят.
 
 ## Реализовано
 

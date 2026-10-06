@@ -9,7 +9,7 @@
 Проверенная после git fetch база реализации: `origin/main` —
 `77a0dc1` (приняты #63–75, включая native UI #67, transport #70, BE-01–04 #71–74 и срез статуса #75).
 BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
-BE-05 подготовлен в `codex/be-05-effect-execution` от этой базы: PR открыт в main и ещё не принят.
+BE-05 подготовлен в `codex/be-05-effect-execution` от этой базы: [PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main и ещё не принят.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код принятой базы и открытый инкремент BE-05. Отчёты development фиксируют проверки
@@ -197,7 +197,7 @@ Claim/lease описан в BE-05 ниже. `.running` в инкременте B
 
 ## Backend: BE-05 исполнение эффектов
 
-Открытый инкремент, ещё не принят в main — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
+Открытый инкремент [PR #76](https://github.com/imedfan/kaban/pull/76), ещё не принят в main — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
 Additive v7 добавляет fencing, lease, external fact и diagnostic, не переписывая payload.
 Один claim коммитится одним UPDATE. Crash до факта можно взять повторно, и это не exactly-once процесса.
 Наблюдаемый незаконченный факт не перезапускается и не получает receipt. Finished fact сходится
