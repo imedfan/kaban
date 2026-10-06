@@ -13,7 +13,7 @@ BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76)
 BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
 BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
 BE-07 влит в `codex/be-08-process-control` ([PR #79](https://github.com/imedfan/kaban/pull/79)) и ещё не принят в main. BE-14 влит в `codex/be-07-cursor-driver` ([PR #80](https://github.com/imedfan/kaban/pull/80)) и ещё не принят в main. BE-15 влит в `codex/be-14-model-catalog` ([PR #81](https://github.com/imedfan/kaban/pull/81)) и ещё не принят в main. BE-09 влит в `codex/be-15-limit-handling` ([PR #82](https://github.com/imedfan/kaban/pull/82)) и ещё не принят в main. BE-10 влит в `codex/be-09-mcp-server` ([PR #83](https://github.com/imedfan/kaban/pull/83)) и ещё не принят в main. BE-11 влит в `codex/be-10-mcp-isolation` ([PR #84](https://github.com/imedfan/kaban/pull/84)) и ещё не принят в main. BE-12 открыт в [PR #85](https://github.com/imedfan/kaban/pull/85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. BE-13 открыт в [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants` и ещё не принят в main.
-BE-16 выполнен на `codex/be-16-run-logs` поверх `codex/be-13-incidents` и ещё не принят в main.
+BE-16 открыт в [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents` и ещё не принят в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
 Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07, BE-14, BE-15, BE-09, BE-10, BE-11, BE-12, BE-13 и BE-16, которые ещё не в main. Отчёты development фиксируют проверки
@@ -65,7 +65,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 влит в `codex/be-10-mcp-isolation` (#84) и ещё не принят в main. BE-12 открыт (#85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. BE-13 открыт в [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants` и ещё не принят в main. BE-16 выполнен на `codex/be-16-run-logs` поверх `codex/be-13-incidents` и ещё не принят в main. Следующий в очереди — BE-17. BE-17–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06, BE-08, BE-07, BE-14, BE-15, BE-09 и BE-10 влиты в родительские ветки и ещё не в main. Остановка до первого инструмента не проверена. Платный пробный `-p` не запускался. Auth в реальном профиле не проверена. BE-11 влит в `codex/be-10-mcp-isolation` (#84) и ещё не принят в main. BE-12 открыт (#85) поверх `codex/be-10-mcp-isolation` и ещё не принят в main. BE-13 открыт в [PR #86](https://github.com/imedfan/kaban/pull/86) поверх `codex/be-12-git-grants` и ещё не принят в main. BE-16 открыт в [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents` и ещё не принят в main. Следующий в очереди — BE-17. BE-17–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -293,7 +293,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 ## Backend: BE-16 логи запусков
 
-Ветка `codex/be-16-run-logs` поверх `codex/be-13-incidents`, ещё не принята в main — [логи запусков](development/backend-run-logs-2026-10-06.md).
+Открытый инкремент [PR #87](https://github.com/imedfan/kaban/pull/87) поверх `codex/be-13-incidents`, ещё не принят в main — [логи запусков](development/backend-run-logs-2026-10-06.md).
 `readLog` отдаёт нормализованные события по смещению. Повтор смещения не дублирует и не пропускает строки. Нет файла или строки — `log_unavailable`, не пустая успешная страница. Префикс старше 1024 событий не перенумеровывается: чтение до него — `log_offset_expired`. `--log-pass` печатает ту же страницу и не запускает Cursor.
 Секреты и `KABAN_RUN_TOKEN` вырезаются до записи лога, артефакта, вопроса, ответа и резюме. Снимок и detail больше 8 МиБ возвращают `snapshot_too_large` и `detail_too_large`; сохранённый текст не укорачивается. `getRunHistory` остаётся отдельным ответом. Медленное чтение лог не удаляет, и планировщик продолжает следующий tick.
 Файл `Logs/<run-id>.jsonl` не откатывается вместе с SQLite. Пропавший файл — `log_unavailable`, даже если строки остались. Это не exactly-once файла. Merge остаётся BE-17.

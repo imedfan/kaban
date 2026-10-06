@@ -2,7 +2,7 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-16-run-logs`, база — `codex/be-13-incidents`
 (`9f34c4d`, [PR #86](https://github.com/imedfan/kaban/pull/86), открыт поверх `codex/be-12-git-grants` и ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md). Pull request открывается поверх `codex/be-13-incidents` и этим коммитом ещё не записан.
+Очередь — [backend MVP](backend-mvp-tasks.md). Pull request — [#87](https://github.com/imedfan/kaban/pull/87), открыт поверх `codex/be-13-incidents` и ещё не принят в main.
 
 ## Реализовано
 
