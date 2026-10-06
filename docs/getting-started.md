@@ -56,7 +56,10 @@ python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"
 Команда `send` принимает JSON CommandEnvelope с исходным commandId и сохраняет
 его при retry. Stdio запускает один child daemon для данного CLI; существующую БД
 параллельный второй daemon не открывает. Следует использовать development БД,
-поскольку startup выполняет recovery. Границы — [daemon transport](development/backend-daemon-transport-2026-10-05.md).
+поскольку startup выполняет recovery и запускает production scheduler. Scheduler
+создаёт RunSpec/outbox и reservations; внешний executor пока не подключён, Cursor
+и gates не запускаются. Границы транспорта — [отчёт #70](development/backend-daemon-transport-2026-10-05.md),
+текущего host — [BE-04](development/backend-full-scheduler-2026-10-05.md).
 
 ## macOS-приложение
 

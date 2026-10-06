@@ -7,7 +7,9 @@ macOS-приложение на SwiftUI и headless-ядро для запуск
 
 ## Начало задачи и источники
 
-- Проверь `git status --short`, текущую ветку и базу: отчёт о PR не означает, что код есть в checkout.
+- Проверь `git status --short`, текущую ветку и HEAD относительно `origin/main`. Перед новой веткой
+  обнови remote refs через `git fetch origin`; если fetch недоступен, явно укажи непроверенную актуальность базы.
+  Отчёт о PR и имя ветки не означают, что код есть в checkout.
 - Прочитай `docs/current-state.md` и `docs/contributing.md`.
 - Текущее поручение пользователя приоритетнее документов. Утверждённые решения — `docs/decisions-log.md`.
 - Требования ведутся в Git; вход — `docs/README.md`. Drive импортирован и остаётся историческим источником.
@@ -21,7 +23,10 @@ macOS-приложение на SwiftUI и headless-ядро для запуск
 
 - `Sources/KabanProtocol/` — Codable DTO, команды, события, идентификаторы и причины состояний.
 - `Sources/KabanKit/` — YAML/pipeline, git-policy и чистый автомат; использует Protocol.
-- `Sources/KabanDaemonCore/` — GRDB/SQLite, миграции, журнал, effects, fake driver и scheduler.
+- `Sources/KabanDaemonCore/` — GRDB/SQLite, journal/outbox, project/pipeline lifecycle, RunSpec,
+  production scheduler и отдельный fake driver.
+- `Sources/KabanDaemon/` — host, recovery, observer и scheduler loop;
+  `Sources/KabanTransport/` — Protocol-only transport/client; `Sources/kabanctl/` — CLI.
 - `Sources/KabanBoardCore/` — клиентский интерфейс, проекция, pending commands, BoardSet, presentation; только Protocol.
 - `App/KabanApp/` — нативные SwiftUI views и BoardStore; импортирует Protocol/BoardCore, без Kit/GRDB.
 - `Scenarios/M1/` — сценарии; источник генерации `Scenarios/gen_m1.py`, формат `Scenarios/README.md`.
@@ -36,7 +41,10 @@ macOS-приложение на SwiftUI и headless-ядро для запуск
 - Проекты/онбординг: `docs/frontend/projects-and-onboarding.md`; квота/менюбар: `docs/frontend/quota-and-menubar.md`.
 - Protocol: архитектура §5, `docs/frontend/protocol-fixtures.md`, nearby roundtrip/legacy fixtures.
 - State machine: архитектура §3, спецификация нужного UC, `Scenarios/README.md`.
-- Store/scheduler: `docs/backend-plan-v0.md`, архитектура §4/§10/§11, `docs/development/m1-headless-contract.md`.
+- Store/scheduler/executor: `docs/backend-plan-v0.md`, очередь `docs/development/backend-mvp-tasks.md`,
+  архитектура §3.4/§4/§10/§11. Границы fake — `docs/development/m1-headless-contract.md`.
+- Transport/daemon: архитектура §5, `docs/getting-started.md`; актуальные отчёты BE — по ссылкам
+  из `docs/current-state.md`, с учётом SHA и границ каждого инкремента.
 - UI-приёмка: `docs/frontend/acceptance.md`; критерии MVP: `docs/acceptance-criteria-v0.md`.
 - Документы дизайнера: `docs/design/README.md`; исследование и презентация читаются только по задаче.
 
@@ -50,6 +58,10 @@ macOS-приложение на SwiftUI и headless-ядро для запуск
 - WIP, агрегаты, настройки, политика и квота приходят от источника состояния. Отсутствующее поле
   означает неизвестность; не подставляй выдуманные значения. TaskDetail.body=nil не равен пустому тексту.
 - В store изменение состояния, journal и effect outbox атомарны; повтор commandId не дублирует действие.
+  Scheduler `.running` и pending effect ещё не доказывают запуск процесса. Внешний effect исполняется
+  после commit; DB receipt сам по себе не гарантирует exactly-once внешнего действия.
+- Поддержку wire-команд сверяй с `DaemonService.capabilities` и реализацией, а не только с DTO.
+  SchedulerInputs — факты producers; не подменяй отсутствующие Cursor/model/quota данные fixtures.
 - Совместимость DTO проверяй на legacy fixtures. Новые поля не делают старые обязательные поля optional.
 - Изменение общего pipeline-валидатора не оправдывается удобством четырёхстадийной fake fixture.
 
