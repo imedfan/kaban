@@ -2,7 +2,8 @@
 
 Дата: 6 октября 2026. Ветка `codex/be-07-cursor-driver`, база — `codex/be-08-process-control`
 (`df7185e`, [PR #78](https://github.com/imedfan/kaban/pull/78), ещё не принят в main).
-Очередь — [backend MVP](backend-mvp-tasks.md).
+Очередь — [backend MVP](backend-mvp-tasks.md). Реализация — `3874b9e`.
+[PR #79](https://github.com/imedfan/kaban/pull/79) открыт поверх #78 и ещё не принят в main.
 
 ## Реализовано
 

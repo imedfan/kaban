@@ -7,7 +7,7 @@
 BE-05 выполнен в [PR #76](https://github.com/imedfan/kaban/pull/76), открытом в main и ещё не принятом; границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
 BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), открытом поверх #76 и ещё не принятом в main; границы — [клоны задач](backend-task-clones-2026-10-06.md).
 BE-08 выполнен в [PR #78](https://github.com/imedfan/kaban/pull/78), открытом поверх #77 и ещё не принятом в main; границы — [управление процессами](backend-process-control-2026-10-06.md).
-BE-07 выполнен на ветке `codex/be-07-cursor-driver` поверх #78 и ещё не принят в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
+BE-07 выполнен в [PR #79](https://github.com/imedfan/kaban/pull/79), открытом поверх #78 и ещё не принятом в main; границы — [драйвер Cursor CLI](backend-cursor-driver-2026-10-06.md).
 BE-09–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-14.
 
@@ -188,7 +188,7 @@ BE-09–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ## BE-07. Реализовать и проверить драйвер Cursor CLI
 
-**Статус:** выполнено на ветке `codex/be-07-cursor-driver` поверх #78, ещё не принят в main. Проверки и границы — [отчёт BE-07](backend-cursor-driver-2026-10-06.md).
+**Статус:** выполнено; [PR #79](https://github.com/imedfan/kaban/pull/79) открыт поверх #78, ещё не принят в main. Проверки и границы — [отчёт BE-07](backend-cursor-driver-2026-10-06.md).
 
 **Приоритет:** P0
 
