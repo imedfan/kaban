@@ -60,7 +60,7 @@ extension KabanStore {
             let stderr = logs + "/" + safe(request.runId.rawValue) + ".err"
             FileManager.default.createFile(atPath: stdout, contents: Data())
             FileManager.default.createFile(atPath: stderr, contents: Data())
-            let handle = try ProcessGroup.spawn(executable: runner, arguments: arguments, workingDirectory: cwd, environment: Self.minimalEnvironment(), standardOutput: stdout, standardError: stderr)
+            let handle = try ProcessGroup.spawn(executable: runner, arguments: arguments, workingDirectory: cwd, environment: try environmentForAgentRun(taskId: item.taskId, at: at), standardOutput: stdout, standardError: stderr)
             let record = AgentProcessRecord(runId: request.runId.rawValue, taskId: item.taskId.rawValue, startId: lease.leaseId, pid: handle.pid,
                                             processGroup: handle.processGroup, birthSeconds: handle.birth.seconds, birthMicroseconds: handle.birth.microseconds,
                                             state: "running", startedAt: at, lastActivityAt: at, stallDeadline: at.addingTimeInterval(TimeInterval(stall)),

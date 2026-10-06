@@ -7,6 +7,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case start(RunID)
     case startBlocked(QueuedReason)
     case completeStage(RunID, summary: String)
+    case returnToStage(RunID, target: StageID, issues: [String])
     case requestHuman(RunID, question: String)
     case answer(text: String, requestId: HumanRequestID?)
     case approve
@@ -30,6 +31,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .startBlocked(let reason):
             .startBlocked(reason == .wipFull ? .wipFull : reason == .modelFlag ? .modelFlag : .quota(reason == .quotaCm ? .cm : .om))
         case .completeStage(let id, let summary): .completeStage(runId: id, summary: summary)
+        case .returnToStage(let id, let target, let issues): .returnToStage(runId: id, target: target, issues: issues)
         case .requestHuman(let id, let question): .requestHuman(runId: id, question: question)
         case .answer(let text, let request): .human(.answer(text: text, requestId: request))
         case .approve: .human(.approve)
