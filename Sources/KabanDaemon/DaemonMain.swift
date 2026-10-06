@@ -15,18 +15,26 @@ struct DaemonMain {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
                 print("""
-                KabanDaemon --database PATH [--stdio] [--effect-pass]
+                KabanDaemon --database PATH [--stdio] [--effect-pass] [--clone-pass] [--workspaces PATH]
                 Default: signed XPC Mach service app.kaban.agent (macOS 26+).
                 --stdio: private development JSON-lines channel; no service registration.
                 --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
                 Agent, gate, and merge effects stay pending. This pass does not run Cursor or git.
+                --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
                 """)
                 return
             }
             var positional = arguments
             let stdio = positional.contains("--stdio")
             let effectPass = positional.contains("--effect-pass")
-            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" }
+            let clonePass = positional.contains("--clone-pass")
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" || $0 == "--clone-pass" }
+            var workspaces: String?
+            if let index = positional.firstIndex(of: "--workspaces") {
+                guard positional.indices.contains(index + 1), !positional[index + 1].hasPrefix("--") else { throw HostError.arguments }
+                workspaces = positional[index + 1]
+                positional.removeSubrange(index...index + 1)
+            }
             guard positional.count == 2, positional[0] == "--database", !positional[1].hasPrefix("--") else { throw HostError.arguments }
             let path = URL(fileURLWithPath: positional[1]).standardizedFileURL.path
             if !stdio {
@@ -38,7 +46,7 @@ struct DaemonMain {
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
             let store = try KabanStore(path: path)
-            // Recovery changes running/gating invocations only. No external processes are spawned.
+            // Recovery changes running/gating invocations only. Git clone and cleanup run only for --clone-pass.
             try store.recoverProjectOperations()
             try store.recoverPipelineOperations()
             try store.refreshProjectLocations()
@@ -47,6 +55,13 @@ struct DaemonMain {
             _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
             if effectPass {
                 let lines = try store.runEffectPass(owner: "daemon", at: Date(), sideEffectLog: path + ".side-effects")
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
+            if clonePass {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                let lines = try store.runClonePass(owner: "daemon", at: Date(), workspaceRoot: root)
                 for line in lines {
                     try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
                 }

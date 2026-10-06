@@ -31,6 +31,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("production_pipelines_v5", migrate: Self.migratePipelines)
         migrator.registerMigration("production_scheduler_v6", migrate: Self.migrateScheduler)
         migrator.registerMigration("effect_execution_v7", migrate: Self.migrateEffectExecution)
+        migrator.registerMigration("task_clone_v8", migrate: Self.migrateTaskClones)
         try migrator.migrate(database)
     }
 

@@ -525,7 +525,7 @@ LaunchAgent не получает PATH из shell. Путь к `cursor-agent`, P
 ## 8. Git и изоляция
 
 ### 8.1 Рабочая копия задачи
-- `git clone --local` основного репозитория в `~/Library/Application Support/Kaban/Workspaces/<project>/<task>`: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`.
+- `git clone --local` основного репозитория в каталог workspace проекта и задачи: объекты хардлинками, свои refs, `config`, hooks. `remote.origin.pushurl = kaban-no-push`. BE-06 резервирует путь до git, повторяет тот же путь после обрыва и удаляет каталог только если он совпадает с записью задачи и лежит вне копии пользователя. Архив `refs/kaban/archive/<task>` пишется лишь при `keepBranch`. WIP save/restore остаётся BE-18/19.
 - Ветка `kaban/<task>-<slug>` от актуального `main` при входе в первую agent-стадию; один клон проходит все стадии задачи. Режим `fresh-readonly` даёт стадии отдельный свежий клон ветки.
 - Прогрев: `warm_paths` из основной копии через `cp -c` до старта агента, затем `on_create`. Для Xcode — свой `-derivedDataPath` внутри клона. Выигрыш по типам кэшей замеряем в **[спайк 6]**.
 - Порты: на задачу диапазон `KABAN_PORT_BASE`.
