@@ -9,6 +9,7 @@
 
 `agent_process` v9 хранит pid, pgid, время рождения, start id, stdout/stderr, stall и wall.
 `--process-pass` с `--runner` делает `posix_spawn` с `POSIX_SPAWN_SETPGROUP`: pgid равен pid и больше 1.
+На Darwin атрибуты spawn — nullable-указатели, на Glibc — структуры; флаги и группа процессов те же.
 Факт `started` пишется после spawn и не является receipt: `startAgentRun` не завершает стадию.
 Без `--runner` pending start остаётся pending. Флаг не включён в обычный старт демона и не запускает Cursor.
 
@@ -44,3 +45,4 @@ BE-07 не реализован: runner в проверках — `/bin/sh`, `/b
   подмена пути клона на origin отклоняется, HEAD и status пользователя не меняются.
 - Два запуска `KabanDaemon --process-pass` печатают один и тот же `process group task-run started` / `process exit task-run no_final_call` и не дописывают счётчик запусков.
 - macOS: полный `KABAN_SCENARIOS=Scenarios/M1 swift test` — 415 tests, 0 failures (Transport 23, Protocol 64, Kit 162, DaemonCore 100, Board 66).
+- Linux Swift 6.1: пакет собирается, `ProcessGroupTests` проходит. До правки типов CI останавливался на компиляции `ProcessGroup.swift` и до тестов не доходил.

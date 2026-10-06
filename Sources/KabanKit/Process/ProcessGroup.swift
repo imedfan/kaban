@@ -72,10 +72,16 @@ public enum ProcessGroup {
     }
 
     public static func spawn(executable: String, arguments: [String], workingDirectory: String, environment: [String: String], standardOutput: String, standardError: String) throws -> Handle {
+        // Darwin imports these as nullable pointers. Glibc imports them as structs.
+        #if os(Linux)
+        var actions = posix_spawn_file_actions_t()
+        var attr = posix_spawnattr_t()
+        #else
         var actions: posix_spawn_file_actions_t?
+        var attr: posix_spawnattr_t?
+        #endif
         guard posix_spawn_file_actions_init(&actions) == 0 else { throw Failure.spawn(errno) }
         defer { posix_spawn_file_actions_destroy(&actions) }
-        var attr: posix_spawnattr_t?
         guard posix_spawnattr_init(&attr) == 0 else { throw Failure.spawn(errno) }
         defer { posix_spawnattr_destroy(&attr) }
         guard posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETPGROUP)) == 0 else { throw Failure.spawn(errno) }
