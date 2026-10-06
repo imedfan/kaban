@@ -63,6 +63,7 @@ extension KabanStore {
             try TaskClone.materialize(plan, origin: record.projectPath, workspaceRoot: record.workspaceRoot, identity: context.1, fresh: true)
         }
         let base = try TaskClone.head(plan.clonePath, identity: context.1)
+        let protection = try TaskClone.captureProtection(record.projectPath, identity: context.1)
         record.phase = "ready"
         record.baseCommit = base
         record.passLines = ["clone ready \(taskId.rawValue) branch \(record.branch)", "clone origin-clean \(taskId.rawValue)"]
@@ -80,6 +81,7 @@ extension KabanStore {
             }
             try Self.saveDetail(detail, taskId: taskId, db: db)
             try db.execute(sql: "UPDATE task_clone SET payload = ? WHERE task_id = ?", arguments: [try Self.encode(record), taskId.rawValue])
+            try Self.saveProtectionSnapshot(protection, projectId: task.card.projectId, db: db)
             _ = try Self.journal(.taskUpdated(task.card), task: task, commandId: UUID(), at: at, db: db)
             return record.snapshot
         }

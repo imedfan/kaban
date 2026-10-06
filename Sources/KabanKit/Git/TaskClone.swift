@@ -206,6 +206,146 @@ public enum TaskClone {
         return try text(["log", "--format=%H %s", "\(base)..HEAD"], in: clone, identity: identity)
     }
 
+    /// Refs, tags and `config` of the main repository, excluding daemon archive refs.
+    public struct ProtectionSnapshot: Codable, Hashable, Sendable {
+        public var heads: [String: String]
+        public var tags: [String: String]
+        public var config: String
+        public init(heads: [String: String], tags: [String: String], config: String) {
+            self.heads = heads; self.tags = tags; self.config = config
+        }
+    }
+
+    public struct BranchFile: Hashable, Sendable {
+        public var file: ChangedFile
+        public var isText: Bool
+        public init(file: ChangedFile, isText: Bool) { self.file = file; self.isText = isText }
+    }
+
+    public static func captureProtection(_ origin: String, identity: GitIdentity?) throws -> ProtectionSnapshot {
+        let gitDir = try text(["rev-parse", "--absolute-git-dir"], in: origin, identity: identity)
+        let config = (try? String(contentsOfFile: gitDir + "/config", encoding: .utf8)) ?? ""
+        return ProtectionSnapshot(heads: try refMap(origin, "refs/heads", identity), tags: try refMap(origin, "refs/tags", identity), config: config)
+    }
+
+    /// Restores `.cursor/mcp.json` to the `main` blob. The caller still excludes that path from the diff.
+    public static func restoreBoardMCP(clone: String, origin: String, identity: GitIdentity?) throws {
+        let destination = clone + "/.cursor/mcp.json"
+        let shown = try output(["show", "refs/heads/main:.cursor/mcp.json"], in: origin, identity: identity, ok: [0, 128], trim: false)
+        if shown.status == 0 {
+            try FileManager.default.createDirectory(atPath: (destination as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+            try shown.text.write(toFile: destination, atomically: true, encoding: .utf8)
+        } else if FileManager.default.fileExists(atPath: destination) {
+            try FileManager.default.removeItem(atPath: destination)
+        }
+    }
+
+    public static func protectionDrift(_ origin: String, snapshot: ProtectionSnapshot, identity: GitIdentity?) throws -> IncidentKind? {
+        let current = try captureProtection(origin, identity: identity)
+        if current.heads != snapshot.heads { return .refsMoved }
+        if current.tags != snapshot.tags { return .tagsChanged }
+        if current.config != snapshot.config { return .configChanged }
+        return nil
+    }
+
+    /// Puts the main repository's refs, tags and config back. Returns the names that were restored.
+    public static func rollbackProtection(_ origin: String, snapshot: ProtectionSnapshot, identity: GitIdentity?) throws -> [String] {
+        let current = try captureProtection(origin, identity: identity)
+        var restored: [String] = []
+        for (ref, sha) in snapshot.heads where current.heads[ref] != sha {
+            try run(["update-ref", ref, sha], in: origin, identity: identity)
+            restored.append(ref)
+        }
+        for ref in current.heads.keys where snapshot.heads[ref] == nil {
+            try run(["update-ref", "-d", ref], in: origin, identity: identity)
+            restored.append(ref)
+        }
+        for (ref, sha) in snapshot.tags where current.tags[ref] != sha {
+            try run(["update-ref", ref, sha], in: origin, identity: identity)
+            restored.append(ref)
+        }
+        for ref in current.tags.keys where snapshot.tags[ref] == nil {
+            try run(["update-ref", "-d", ref], in: origin, identity: identity)
+            restored.append(ref)
+        }
+        if current.config != snapshot.config {
+            let gitDir = try text(["rev-parse", "--absolute-git-dir"], in: origin, identity: identity)
+            try snapshot.config.write(toFile: gitDir + "/config", atomically: true, encoding: .utf8)
+            restored.append("config")
+        }
+        return restored.sorted()
+    }
+
+    /// Committed `base...HEAD`, plus uncommitted and untracked files when `strict` is set.
+    /// `.cursor/mcp.json` is omitted: the board server swapped it.
+    public static func collectBranchFiles(clone: String, base: String, strict: Bool, identity: GitIdentity?) throws -> [BranchFile] {
+        guard !base.isEmpty else { return [] }
+        var byPath: [String: BranchFile] = [:]
+        func take(_ file: BranchFile) {
+            guard file.file.path != ".cursor/mcp.json" else { return }
+            byPath[file.file.path] = file
+        }
+        for file in try diffFiles(clone: clone, spec: "\(base)...HEAD", worktree: false, identity: identity) { take(file) }
+        if strict {
+            for file in try diffFiles(clone: clone, spec: "HEAD", worktree: true, identity: identity) { take(file) }
+            for file in try untrackedFiles(clone: clone, identity: identity) { take(file) }
+        }
+        return byPath.values.sorted { $0.file.path < $1.file.path }
+    }
+
+    /// Tracked, untracked, symlink, or directory replacement under `.kaban/`.
+    public static func kabanChanged(clone: String, base: String, identity: GitIdentity?) throws -> Bool {
+        if !base.isEmpty {
+            let spec = "\(base)...HEAD"
+            let committed = try output(["diff", "--name-only", spec, "--", ".kaban"], in: clone, identity: identity, ok: [0, 1, 128])
+            let names: String
+            if committed.status == 128 {
+                // An orphan commit has no merge base, so the three-dot diff is undefined. Compare the trees;
+                // a matching tree is foreign_base, not a .kaban edit.
+                names = try output(["diff", "--name-only", base, "HEAD", "--", ".kaban"], in: clone, identity: identity, ok: [0, 1]).text
+            } else {
+                names = committed.text
+            }
+            if !names.isEmpty { return true }
+        }
+        let dirty = try text(["status", "--porcelain", "--untracked-files=all", "--", ".kaban"], in: clone, identity: identity)
+        if !dirty.isEmpty { return true }
+        let path = clone + "/.kaban"
+        guard isSymlink(path) else { return false }
+        let listed = try text(["ls-tree", base, "--", ".kaban"], in: clone, identity: identity)
+        return !listed.contains("120000")
+    }
+
+    public static func foreignBase(clone: String, base: String, identity: GitIdentity?) throws -> Bool {
+        guard !base.isEmpty else { return false }
+        return try output(["merge-base", "--is-ancestor", base, "HEAD"], in: clone, identity: identity, ok: [0, 1]).status != 0
+    }
+
+    /// Drops task-branch commits that are not the recorded base, then removes untracked `.kaban` residue.
+    public static func rollbackBranch(clone: String, base: String, identity: GitIdentity?) throws -> [String] {
+        var restored: [String] = []
+        let root = clone + "/.kaban"
+        if isSymlink(root) {
+            try FileManager.default.removeItem(atPath: root)
+            restored.append(".kaban")
+        }
+        if !base.isEmpty {
+            try run(["reset", "--hard", base], in: clone, identity: identity)
+            restored.append(base)
+        }
+        let dirty = try text(["status", "--porcelain", "--untracked-files=all", "--", ".kaban"], in: clone, identity: identity)
+        for line in dirty.split(separator: "\n") {
+            let text = String(line)
+            guard text.hasPrefix("?? ") else { continue }
+            let relative = String(text.dropFirst(3))
+            let full = clone + "/" + relative
+            guard FileManager.default.fileExists(atPath: full) || isSymlink(full) else { continue }
+            try FileManager.default.removeItem(atPath: full)
+            restored.append(relative)
+        }
+        return restored
+    }
+
     public static func wipRef(_ runId: RunID) throws -> String {
         let raw = runId.rawValue
         let allowed = raw.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
@@ -217,11 +357,99 @@ public enum TaskClone {
         path != root && path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
     }
 
-    private static func text(_ command: [String], in directory: String, identity: GitIdentity?) throws -> String {
-        let data = try run(command, in: directory, identity: identity)
+    private static func refMap(_ repository: String, _ prefix: String, _ identity: GitIdentity?) throws -> [String: String] {
+        let raw = try text(["for-each-ref", "--format=%(refname)%00%(objectname)", prefix], in: repository, identity: identity)
+        var out: [String: String] = [:]
+        for line in raw.split(separator: "\n") {
+            let parts = line.split(separator: "\0", omittingEmptySubsequences: false).map(String.init)
+            guard parts.count >= 2, !parts[0].hasPrefix("refs/kaban/") else { continue }
+            out[parts[0]] = parts[1]
+        }
+        return out
+    }
+
+    private static func diffFiles(clone: String, spec: String, worktree: Bool, identity: GitIdentity?) throws -> [BranchFile] {
+        let names = try output(["diff", "--name-status", "--find-renames", spec], in: clone, identity: identity, ok: [0, 1]).text
+        let stats = try numstat(spec, in: clone, identity: identity)
+        var out: [BranchFile] = []
+        for line in names.split(separator: "\n") where !line.isEmpty {
+            let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            guard let status = parts.first, let path = parts.last else { continue }
+            if status.hasPrefix("D") {
+                out.append(BranchFile(file: ChangedFile(path: path, sizeBytes: 0, blob: "", deleted: true), isText: false))
+                continue
+            }
+            let blob = try blobAndSize(clone: clone, path: path, worktree: worktree, identity: identity)
+            out.append(BranchFile(file: ChangedFile(path: path, sizeBytes: blob.size, blob: blob.blob), isText: stats[path] ?? false))
+        }
+        return out
+    }
+
+    private static func untrackedFiles(clone: String, identity: GitIdentity?) throws -> [BranchFile] {
+        let raw = try text(["ls-files", "--others", "--exclude-standard", "-z"], in: clone, identity: identity)
+        var out: [BranchFile] = []
+        for path in raw.split(separator: "\0") where !path.isEmpty {
+            let relative = String(path)
+            let blob = try blobAndSize(clone: clone, path: relative, worktree: true, identity: identity)
+            let text = fileIsText(clone + "/" + relative)
+            out.append(BranchFile(file: ChangedFile(path: relative, sizeBytes: blob.size, blob: blob.blob), isText: text))
+        }
+        return out
+    }
+
+    private static func numstat(_ spec: String, in clone: String, identity: GitIdentity?) throws -> [String: Bool] {
+        let raw = try output(["diff", "--numstat", "--find-renames", spec], in: clone, identity: identity, ok: [0, 1]).text
+        var out: [String: Bool] = [:]
+        for line in raw.split(separator: "\n") where !line.isEmpty {
+            let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            guard parts.count >= 3, let path = parts.last else { continue }
+            out[path] = !(parts[0] == "-" && parts[1] == "-")
+        }
+        return out
+    }
+
+    private static func blobAndSize(clone: String, path: String, worktree: Bool, identity: GitIdentity?) throws -> (blob: String, size: Int64) {
+        let blob: String
+        if worktree {
+            // Without -w the hash is not stored, so cat-file cannot size a new untracked blob.
+            blob = try text(["hash-object", "-w", "--", path], in: clone, identity: identity)
+        } else {
+            blob = try text(["rev-parse", "--verify", "HEAD:\(path)"], in: clone, identity: identity)
+        }
+        let size = Int64(try text(["cat-file", "-s", blob], in: clone, identity: identity)) ?? 0
+        return (blob, size)
+    }
+
+    private static func fileIsText(_ path: String) -> Bool {
+        guard let data = FileManager.default.contents(atPath: path) else { return false }
+        return !data.contains(0)
+    }
+
+    private static func isSymlink(_ path: String) -> Bool {
+        (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+    }
+
+    private struct GitOutput { var status: Int32; var text: String }
+    private static func output(_ command: [String], in directory: String, identity: GitIdentity?, ok: Set<Int32>, trim: Bool = true) throws -> GitOutput {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: DaemonGit.executable)
+        process.arguments = try DaemonGit.arguments(command, in: directory, identity: identity)
+        process.environment = DaemonGit.processEnvironment
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard ok.contains(process.terminationStatus), data.count <= 1_048_576 else { throw Failure.gitFailed }
         var value = String(decoding: data, as: UTF8.self)
-        if value.hasSuffix("\n") { value.removeLast() }
-        return value
+        if trim, value.hasSuffix("\n") { value.removeLast() }
+        return GitOutput(status: process.terminationStatus, text: value)
+    }
+
+    private static func text(_ command: [String], in directory: String, identity: GitIdentity?) throws -> String {
+        try output(command, in: directory, identity: identity, ok: [0]).text
     }
 
     @discardableResult

@@ -98,12 +98,15 @@ Crash и timeout пишут WIP ref внутри клона и откатыва�
 
 [BE-12](development/backend-git-grants-2026-10-06.md) проверяет argv на `/git/check` и тратит одноразовый grant в той же записи. Условный override остаётся на сервере. Доставка не равна потреблению. `done` и `cancel` истекают grant. Cursor rules не содержат настраиваемый запрет. Автокоммит YAML не делается. Подозрительные файлы и merge не входят в инкремент. PR #85 открыт поверх `codex/be-10-mcp-isolation` и ещё не в main.
 
+[BE-13](development/backend-incidents-2026-10-06.md) после run сравнивает refs, tags и `config` основного репозитория со снимком prepare, проверяет `.kaban/` и предка task branch, затем сканирует подозрительные файлы. Инцидент и `projectUpdated` пишутся одной командой. Клиент не считает инциденты по предметным событиям. Принятие точного набора продолжает отложенный переход без нового run. Обычная грязь без read-only остаётся чистой. Откат git происходит до записи и не обещает exactly-once. PR #86 открыт поверх `codex/be-12-git-grants` и ещё не в main. Merge остаётся BE-17.
+
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement
    snapshot, pending commands/retry при reconnect и видимые состояния соединения.
    Отдельно проверить подписанный Mach service в составе бандла.
-2. Оставшиеся wire-команды: files/incidents, WIP restore, среда и интеграция settings.
+2. Оставшиеся wire-команды: WIP restore, среда и интеграция settings.
+   Подозрительные файлы и инциденты — BE-13, [PR #86](https://github.com/imedfan/kaban/pull/86) открыт поверх `codex/be-12-git-grants` и ещё не в main.
    Каталог — BE-14, лимиты — BE-15; оба инкремента ещё не в main.
 3. Cursor CLI поверх открытых клонов и process group. Exactly-once внешнего
    процесса не следует из SQLite-транзакции.
