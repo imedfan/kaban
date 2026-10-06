@@ -68,7 +68,7 @@ BE-06–08, gates/hooks — BE-11, merge — BE-17.
 external fact и receipt к существующим effect id. Сверка finished fact и receipt
 даёт один переход. Повторный claim без факта не обещает exactly-once процесса.
 Настоящий результат не проходит через `deliverFake`. Opt-in `--effect-pass`
-подтверждает lifecycle effects только после commit. Process group добавлен в BE-08. Драйвер Cursor — BE-07 ниже.
+подтверждает lifecycle effects только после commit. Process group добавлен в BE-08. Драйвер Cursor — BE-07 ниже. Каталог моделей — BE-14 ниже.
 
 [BE-06](development/backend-task-clones-2026-10-06.md) создаёт `git clone --local` и ветку задачи
 после commit плана. Параллельные задачи получают разные refs, config и cwd. Частичный каталог
@@ -86,13 +86,15 @@ Crash и timeout пишут WIP ref внутри клона и откатыва�
 `recheck(runner)` и пятиминутный срок ставят `runner_unavailable`, если файл не найден или status сообщает logout.
 `--cursor-agent` только записывает путь; без него демон Cursor не вызывает. Платный запуск и каталог без логина не входят в этот инкремент.
 
+[BE-14](development/backend-model-catalog-2026-10-06.md) принимает каталог только из строк `id<TAB>name`, отвергает `auto` и сверяет display name с каталогом. Неизвестный текст не затирает строки. Остановка до первого инструмента на этой машине не наблюдалась.
+
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement
    snapshot, pending commands/retry при reconnect и видимые состояния соединения.
    Отдельно проверить подписанный Mach service в составе бандла.
-2. Оставшиеся wire-команды: model override, files/incidents,
-   WIP restore, среда и интеграция settings.
+2. Оставшиеся wire-команды: files/incidents, WIP restore, среда и интеграция settings.
+   Model override и каталог — BE-14.
 3. Cursor CLI поверх открытых клонов и process group. Exactly-once внешнего
    процесса не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.

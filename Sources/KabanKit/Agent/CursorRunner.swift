@@ -57,6 +57,13 @@ public enum CursorRunner {
         }
     }
 
+    /// `--list-models` only. It does not start a model prompt. A missing executable returns nil.
+    public static func listModelsText(executable path: String?, environment: [String: String]) -> String? {
+        guard let path, !path.isEmpty, executableState(path) == .runnable else { return nil }
+        let models = invoke(path, ["--list-models"], environment)
+        return models.spawned ? models.text : nil
+    }
+
     public static func versionLine(_ text: String) -> String? {
         guard let line = text.split(separator: "\n").map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }).first(where: { !$0.isEmpty }) else { return nil }
         let value = String(line.prefix(120))

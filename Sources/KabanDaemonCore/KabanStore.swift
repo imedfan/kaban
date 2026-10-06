@@ -34,6 +34,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("task_clone_v8", migrate: Self.migrateTaskClones)
         migrator.registerMigration("agent_process_v9", migrate: Self.migrateAgentProcesses)
         migrator.registerMigration("cursor_runner_v10", migrate: Self.migrateCursorRunner)
+        migrator.registerMigration("model_catalog_v11", migrate: Self.migrateModelCatalog)
         try migrator.migrate(database)
     }
 
@@ -167,6 +168,11 @@ public final class KabanStore: Sendable {
             }
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try Self.encode(task), taskId.rawValue])
             for effect in result.effects {
+                if case .raiseModelFlag(let request) = effect {
+                    try Self.installModelFlag(request, at: at, commandId: commandId, db: db)
+                }
+            }
+            for effect in result.effects {
                 if case .recordTransition(let transition) = effect {
                     let seq = try Self.journal(.taskTransitioned(transition), task: task, commandId: commandId, at: at, db: db)
                     if first == nil { first = seq }
@@ -182,7 +188,10 @@ public final class KabanStore: Sendable {
         let receipt = DurableReceipt(commandId: commandId, firstSeq: first, lastSeq: try Self.seq(db), task: task)
         try Self.saveReceipt(receipt, request: request, db: db)
         let pending = result.effects.filter { effect in
-            switch effect { case .recordTransition, .recordHumanRequest, .recordHumanAnswer: false; default: true }
+            switch effect {
+            case .recordTransition, .recordHumanRequest, .recordHumanAnswer, .raiseModelFlag: false
+            default: true
+            }
         }
         if !pending.isEmpty {
             let batch = PendingEffectBatch(version: 1, commandId: commandId, taskId: taskId, effects: pending, runSpecId: task.runSpecId ?? previousRunSpecId)

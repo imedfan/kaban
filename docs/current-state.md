@@ -7,13 +7,15 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`77a0dc1` (приняты #63–75, включая native UI #67, transport #70, BE-01–04 #71–74 и срез статуса #75).
+`ea02f0c` (приняты #63–76, включая native UI #67, transport #70, BE-01–04 #71–74, срез статуса #75 и BE-05 #76).
 BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
-BE-05 подготовлен в `codex/be-05-effect-execution` от этой базы: [PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main и ещё не принят.
-BE-06 и BE-08 лежат поверх него и тоже ещё не приняты в main.
+BE-05 принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`).
+BE-06 влит в `codex/be-05-effect-execution` ([PR #77](https://github.com/imedfan/kaban/pull/77)) и ещё не принят в main.
+BE-08 влит в `codex/be-06-task-clones` ([PR #78](https://github.com/imedfan/kaban/pull/78)) и ещё не принят в main.
+BE-07 открыт в [PR #79](https://github.com/imedfan/kaban/pull/79) поверх #78. BE-14 лежит поверх #79 и ещё не принят в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы и открытые инкременты BE-05, BE-06 и BE-08. Отчёты development фиксируют проверки
+Этот документ описывает код принятой базы и инкременты BE-06, BE-08, BE-07 и BE-14, которые ещё не в main. Отчёты development фиксируют проверки
 своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
@@ -22,7 +24,7 @@ BE-06 и BE-08 лежат поверх него и тоже ещё не прин
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store, миграции v1–v9, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor не подключён. Process group исполняется только с `--process-pass` |
+| DaemonCore | GRDB store, миграции v1–v11, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, проверка runner, каталог моделей и override, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. `--cursor-agent` проверяет runner и каталог и не запускает `-p`. Process group исполняется только с `--process-pass` |
 | Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass` и `--process-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
@@ -62,7 +64,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-BE-05, BE-06, BE-08 и BE-07 открыты и ещё не приняты в main. Следующий в очереди — BE-14. BE-09–20 ещё не завершены.
+BE-05 принят в main (#76, `ea02f0c`). BE-06 и BE-08 влиты в родительские ветки и ещё не в main. BE-07 открыт (#79). BE-14 выполнен поверх #79 и ещё не принят в main; остановка до первого инструмента не проверена. Следующий в очереди — BE-15. BE-09–13 и BE-16–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -192,13 +194,13 @@ Additive v6 сохраняет факты scheduler/model/pool/quota от intern
 Snapshot/live delivery используют сохранённые значения; ручные паузы и intake
 вычисляются отдельно. Квота учитывает пул/порог и запас на текущие runs; nil или
 данные старше 60 с не выдумывают остаток и оставляют реактивные ограничения.
-Реальные catalog/environment/quota producers и процессы ещё не подключены.
+Каталог обновляется в BE-14, только если задан `--cursor-agent` и текст `--list-models` состоит из строк `id<TAB>name`. Environment и числовая квота по-прежнему не подставляются.
 Claim/lease описан в BE-05 ниже. `.running` в инкременте BE-04 — durable reservation
 с pending effect, а не доказательство живого Cursor. App остаётся на MockKabanClient.
 
 ## Backend: BE-05 исполнение эффектов
 
-Открытый инкремент [PR #76](https://github.com/imedfan/kaban/pull/76), ещё не принят в main — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
+Принят в main [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`) — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
 Additive v7 добавляет fencing, lease, external fact и diagnostic, не переписывая payload.
 Один claim коммитится одним UPDATE. Crash до факта можно взять повторно, и это не exactly-once процесса.
 Наблюдаемый незаконченный факт не перезапускается и не получает receipt. Finished fact сходится
@@ -210,7 +212,7 @@ Side effect process/git пишется после commit, вне транзак�
 
 ## Backend: BE-06 клоны задач
 
-Открытый инкремент [PR #77](https://github.com/imedfan/kaban/pull/77) поверх #76, ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
+[PR #77](https://github.com/imedfan/kaban/pull/77) влит в `codex/be-05-effect-execution` и ещё не принят в main — [клоны задач](development/backend-task-clones-2026-10-06.md).
 План пути коммитится до `git clone --local`. Повтор после обрыва использует тот же путь и не ставит второй run.
 У параллельных задач разные ветки, git dir, config и cwd; `fresh-readonly` получает отдельный клон.
 DerivedData и temp лежат внутри клона. Портовый диапазон записывается и не занимает сокет.
@@ -221,7 +223,7 @@ WIP save/restore остаётся BE-18/19. Cursor не запускается. 
 
 ## Backend: BE-08 управление процессами
 
-Открытый инкремент [PR #78](https://github.com/imedfan/kaban/pull/78) поверх #77, ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
+[PR #78](https://github.com/imedfan/kaban/pull/78) влит в `codex/be-06-task-clones` и ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
 `--process-pass` запускает переданный `--runner` через `posix_spawn` в новой process group и пишет pid, pgid и время рождения.
 Без флага и без `--runner` демон процесс не порождает и не убивает. Старт `startAgentRun` получает факт `started` и не receipt:
 receipt завершил бы стадию. Exit 0 с выводом или грязным клоном даёт `no_final_call` и оставляет ту же стадию.
@@ -241,6 +243,15 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 Отсутствующий или неисполняемый файл и status «not logged in» ставят `runner_unavailable`. Повтор — через 5 минут и по `recheck(.runner)`.
 Без `--cursor-agent` демон Cursor не вызывает. `--approve-mcps` не включён. Платный `-p`, каталог при отсутствии логина, launchd login и MCP preflight не выполнены.
 Установленный CLI `2026.09.23-86fc751`: `--list-models` требует аутентификацию, `status` сообщает `Not logged in`.
+
+## Backend: BE-14 каталог моделей
+
+Инкремент ветки `codex/be-14-model-catalog` поверх #79, ещё не принят в main — [каталог моделей](development/backend-model-catalog-2026-10-06.md).
+`auto` отвергается в YAML и в `setModelOverride`. Override хранится отдельно от версии pipeline и меняет только свою задачу и стадию.
+`--list-models` принимается только как строки `id<TAB>name`. Иной непустой текст, включая ошибку аутентификации, не заменяет сохранённые строки.
+Новая незапрещённая модель получает `needsReview`. Исчезнувший id блокирует только стадии, которые его используют.
+Неизвестное или неоднозначное фактическое имя даёт `model_unconfirmed` и не выдумывает совпадение. Известное другое имя останавливает run как `model_substituted`, не списывает попытку и не считается успехом. Флаги переживают reopen.
+Остановка процесса до первого инструмента на этой машине не наблюдалась: CLI не залогинен, платный `-p` не запускался. Process-pass по-прежнему не запускает Cursor.
 
 ## Какие источники читать
 

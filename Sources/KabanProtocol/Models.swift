@@ -33,6 +33,8 @@ public enum ModelPoolResolver {
         return .om
     }
 
+    public static func matches(_ pattern: String, _ value: String) -> Bool { glob(pattern, matches: value) }
+
     static func glob(_ pattern: String, matches s: String) -> Bool {
         if pattern.hasSuffix("*") { return s.hasPrefix(String(pattern.dropLast())) }
         return pattern == s

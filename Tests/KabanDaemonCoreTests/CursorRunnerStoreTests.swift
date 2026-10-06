@@ -58,23 +58,25 @@ final class CursorRunnerStoreTests: XCTestCase {
         XCTAssertEqual(replay.result, .ok)
         XCTAssertEqual(try count(root), "xxx")
         _ = try store.runSchedulerPass(at: at.addingTimeInterval(299))
-        XCTAssertEqual(try count(root), "xxx")
+        // Runner is not due. The catalog is due once and calls --list-models. A space-separated line is not a catalog.
+        XCTAssertEqual(try count(root), "xxxx")
+        XCTAssertEqual(try store.modelCatalog(), [])
 
         _ = try store.execute(.init(command: .recheck(scope: .runner)), now: { at.addingTimeInterval(10) })
-        XCTAssertEqual(try count(root), "xxxxxx")
+        XCTAssertEqual(try count(root), "xxxxxxx")
         XCTAssertEqual(try store.runnerCheck().nextCheckAt, at.addingTimeInterval(310))
         _ = try store.runSchedulerPass(at: at.addingTimeInterval(300))
-        XCTAssertEqual(try count(root), "xxxxxx")
+        XCTAssertEqual(try count(root), "xxxxxxx")
 
         try "in".write(to: root.appendingPathComponent("mode"), atomically: true, encoding: .utf8)
         _ = try store.runSchedulerPass(at: at.addingTimeInterval(310))
-        XCTAssertEqual(try count(root), "xxxxxxxxx")
+        XCTAssertEqual(try count(root), "xxxxxxxxxx")
         XCTAssertEqual(try store.getSnapshot().schedulerFlags, [])
         let reopened = try KabanStore(path: root.appendingPathComponent("store.sqlite").path)
         XCTAssertEqual(try reopened.runnerCheck().version, "probe-1.0")
         XCTAssertNil(try reopened.runnerCheck().reason)
         _ = try reopened.runSchedulerPass(at: at.addingTimeInterval(609))
-        XCTAssertEqual(try count(root), "xxxxxxxxx")
+        XCTAssertEqual(try count(root), "xxxxxxxxxx")
     }
 
     private func scratch() throws -> URL {
