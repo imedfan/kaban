@@ -29,6 +29,7 @@ extension ProcessControlTests {
         XCTAssertEqual(reply.result, .ok)
         XCTAssertEqual(try f.store.getSnapshot().seq, before)
         XCTAssertFalse(FileManager.default.fileExists(atPath: clone.clonePath + "/draft.txt"))
+        XCTAssertEqual(try f.store.getTaskDetail("restore").wipRestoreOperations, [.init(commandId: command.commandId, runId: run, wipRef: ref, status: .pending)])
         _ = try f.store.runWIPRestorePass(owner: "test", at: at)
         XCTAssertEqual(try String(contentsOfFile: clone.clonePath + "/draft.txt", encoding: .utf8), "selected snapshot")
         XCTAssertEqual(try TaskClone.head(clone.clonePath, identity: nil), head)
@@ -45,6 +46,21 @@ extension ProcessControlTests {
         XCTAssertTrue(try f.store.runWIPRestorePass(owner: "test", at: at).isEmpty)
         XCTAssertEqual(try f.store.getSnapshot().seq, seq)
         XCTAssertEqual(try String(contentsOfFile: clone.clonePath + "/draft.txt", encoding: .utf8), "later edit")
+        let completed = try XCTUnwrap(f.store.getTaskDetail("restore").wipRestoreOperations?.first)
+        XCTAssertEqual(completed.status, .succeeded)
+        XCTAssertEqual(completed.commandId, command.commandId)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(completed.completedSeq), seq)
+        let second = CommandEnvelope(command: command.command)
+        _ = try f.store.execute(second)
+        XCTAssertEqual(try f.store.getTaskDetail("restore").wipRestoreOperations?.last?.status, .pending)
+        _ = try f.store.runWIPRestorePass(owner: "test", at: at)
+        let outcomes = try XCTUnwrap(f.store.getTaskDetail("restore").wipRestoreOperations)
+        XCTAssertEqual(outcomes.map(\.commandId), [command.commandId, second.commandId])
+        XCTAssertTrue(outcomes.allSatisfy { $0.status == .succeeded })
+        try f.store.discardJournal()
+        let reopened = try KabanStore(path: f.path)
+        XCTAssertEqual(try reopened.getTaskDetail("restore").wipRestoreOperations, outcomes)
+        XCTAssertEqual(try reopened.execute(command), reply, "The original acceptance receipt remains an acceptance, not a git completion")
     }
 
     func testRestoreLostReceiptUsesGitMarkerWithoutOverwritingLaterEdits() throws {
@@ -79,6 +95,10 @@ extension ProcessControlTests {
         XCTAssertFalse(try f.store.events().contains { if case .wipRestored = $0.event { true } else { false } })
         XCTAssertEqual(try f.store.getTaskDetail("stale").feed.filter { $0.kind == "wip_restore_failed" }.count, 1)
         XCTAssertEqual(try task(f, "stale").machine.state, .retryWait(.crash))
+        try f.store.discardJournal()
+        let outcome = try XCTUnwrap(KabanStore(path: f.path).getTaskDetail("stale").wipRestoreOperations?.first)
+        XCTAssertEqual(outcome.commandId, command.commandId); XCTAssertEqual(outcome.status, .failed)
+        XCTAssertNotNil(outcome.completedSeq); XCTAssertFalse(try XCTUnwrap(outcome.message).isEmpty)
     }
 
     func testMoveSupersedesPendingRestoreWithCorrelatedCancellation() throws {
@@ -91,6 +111,8 @@ extension ProcessControlTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: clone.clonePath + "/draft.txt"))
         XCTAssertTrue(try f.store.events().contains { $0.commandId == command.commandId })
         XCTAssertEqual(try f.store.getTaskDetail("superseded").feed.filter { $0.kind == "wip_restore_cancelled" }.count, 1)
+        try f.store.discardJournal()
+        XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("superseded").wipRestoreOperations, [.init(commandId: command.commandId, runId: run, wipRef: ref, status: .superseded)])
     }
 
     func testRuntimeManualPauseStopsProcessWhileGlobalAndProjectPauseDoNot() throws {

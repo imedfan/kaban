@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`5b4fdc5` (BE-20, PR #91).
+`db9f73a` (FE-01, PR #92).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,11 +17,15 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до этой базы; рабочая ветка анализа —
-`codex/fe-01-daemon-client`. Имя ветки или соседний worktree не доказывает
-наличие реализации в checkout: перед следующей задачей снова проверь refs и diff.
-В FE-01 выполнены новые сборка, 516 Swift tests и UI QA настоящего WindowGroup;
-точные границы и снимки — [отчёт FE-01](development/frontend-fe-01-2026-10-06.md).
+Основной каталог обновлён до main `db9f73a`; FE-01 принят в #92, все Linux,
+native и context CI jobs его финального HEAD `81c73f3` завершились успешно.
+FE-02 реализован в отдельной `codex/fe-02-session-recovery` от этой базы:
+BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
+WIP outcomes после retention. Проверки и честные ограничения native live smoke —
+[отчёт FE-02](development/frontend-fe-02-2026-10-06.md).
+До принятия PR FE-02 основной checkout не содержит его реализацию; имя ветки
+или отчёт не заменяют проверку refs/diff. Проверки FE-01 —
+[отчёт](development/frontend-fe-01-2026-10-06.md).
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -33,7 +37,7 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; в FE-02 BoardSession/reconciliation/drafts | FE-02 находится в рабочей ветке до принятия PR; Core зависит только от Protocol |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, детали, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
@@ -76,8 +80,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Довести клиентскую интеграцию BE-20: capabilities/log API, reconciliation
-   pending commands, детали и recovery сессии; затем live-проекты и доску.
+1. Принять FE-02 после native checks; затем FE-03 окружение/онбординг и FE-04
+   live-проекты, по одной задаче в PR.
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.
 3. Завершить production Cursor/MCP, недостающие wire/producers и штатную

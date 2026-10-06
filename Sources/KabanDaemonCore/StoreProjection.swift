@@ -55,7 +55,7 @@ extension KabanStore {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
         let detail = TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
                                 suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
-                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body)
+                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
         return detail
     }

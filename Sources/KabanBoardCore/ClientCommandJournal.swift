@@ -14,17 +14,23 @@ import KabanProtocol
         // Optional fields preserve journals written before reconciliation existed.
         public var confirmedSeq: Seq? = nil
         public var coveredSnapshotSeq: Seq? = nil
+        public var createdTaskID: TaskID? = nil
+        public var effectError: CommandError? = nil
+        public var effectSuperseded: Bool? = nil
         public var scope: CommandScope? { envelope.command.mutationScope }
         public var phase: ClientCommandPhase {
-            if case .error(let error) = reply?.result { return .rejected(error) }
+            if let effectError { return .effectFailed(effectError) }
+            if effectSuperseded == true { return .superseded }
             if confirmedSeq != nil { return .applied }
+            if case .error(let error) = reply?.result { return .rejected(error) }
+            if case .validationIssues = reply?.result { return .rejected(.init(code: "validation_failed", message: "Проверка настроек выявила ошибки.")) }
             if deliveryUncertain { return .deliveryUncertain }
             guard reply != nil else { return .sending }
             return envelope.command.awaitsExternalCompletion ? .awaitingEffect : .awaitingEvent
         }
         public var isPending: Bool {
             switch phase {
-            case .applied, .rejected: false
+            case .applied, .rejected, .effectFailed, .superseded: false
             default: true
             }
         }
@@ -62,6 +68,7 @@ import KabanProtocol
         if next[index].envelope.command.isConfirmed(by: event.event) {
             next[index].confirmedSeq = max(next[index].confirmedSeq ?? 0, event.seq)
             next[index].deliveryUncertain = false
+            if case .taskCreated(let card) = event.event { next[index].createdTaskID = card.id }
         }
         try save(next)
     }
@@ -77,6 +84,29 @@ import KabanProtocol
             if case .error = next[index].reply?.result { continue }
             next[index].confirmedSeq = seq
             next[index].coveredSnapshotSeq = snapshotSeq
+            next[index].deliveryUncertain = false
+        }
+        if next != records { try save(next) }
+    }
+    /// An authoritative detail may outlive journal retention. Match the exact
+    /// intent, including run/ref; never parse private feed IDs or human text.
+    public func observeRestores(in detail: TaskDetail) throws {
+        guard let operations = detail.wipRestoreOperations else { return }
+        var next = records
+        for index in next.indices {
+            guard next[index].isPending,
+                  case .restoreWIP(let task, let run, let ref) = next[index].envelope.command,
+                  task == detail.task.id,
+                  let operation = operations.first(where: { $0.commandId == next[index].envelope.commandId && $0.runId == run && $0.wipRef == ref }) else { continue }
+            switch operation.status {
+            case .pending: continue
+            case .succeeded, .failed:
+                guard let seq = operation.completedSeq, seq > 0, seq <= detail.seq else { continue }
+                if operation.status == .succeeded { next[index].confirmedSeq = seq }
+                else { next[index].effectError = .init(code: "wip_restore_failed", message: operation.message ?? "Не удалось восстановить WIP.") }
+            case .superseded: next[index].effectSuperseded = true
+            }
+            next[index].coveredSnapshotSeq = detail.seq
             next[index].deliveryUncertain = false
         }
         if next != records { try save(next) }

@@ -45,6 +45,8 @@ final class CatchUpTests: XCTestCase {
         let done = Fix.card("t-9", stage: "backlog", state: .queued(nil), title: "После догонки")
         XCTAssertEqual(projection.apply(Fix.envelope(41, .taskUpdated(done), commandId: Fix.command)), .applied)
         XCTAssertEqual(projection.tasks["t-9"], done)
+        XCTAssertTrue(projection.isSent("t-1"), "Another resource cannot resolve this task intent")
+        projection.noteCommandError(Fix.command)
         XCTAssertFalse(projection.isSent("t-1"))
     }
 

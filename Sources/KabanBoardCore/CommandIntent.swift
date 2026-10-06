@@ -63,9 +63,10 @@ public extension Command {
             mutationScope == .project(project.id)
         case (.updatePipeline(let id, _, _), .pipelineApplied(let pipeline)):
             pipeline.projectId == id
-        case (.allowGitOnce, .gitGrantCreated), (.revokeGitGrant, .gitGrantRevoked),
-             (.addDenialToPolicy, .gitPolicyUpdated),
-             (.configureCursor, .cursorEnvironmentChanged): true
+        case (.allowGitOnce(let id), .gitGrantCreated(let value)): value.denialId == id
+        case (.revokeGitGrant(let id), .gitGrantRevoked(let value)): value.grantId == id
+        case (.addDenialToPolicy(_, let scope), .gitPolicyUpdated(let value)): value.scope == scope
+        case (.configureCursor, .cursorEnvironmentChanged): true
         case (_, .settingsChanged):
             mutationScope == .global || { if case .clearModelFlag = self { return true }; return false }()
         default: false
@@ -84,5 +85,7 @@ public enum ClientCommandPhase: Equatable, Sendable {
     case awaitingEvent
     case awaitingEffect
     case applied
+    case effectFailed(CommandError)
+    case superseded
     case rejected(CommandError)
 }

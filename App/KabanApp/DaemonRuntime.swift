@@ -48,7 +48,7 @@ import KabanTransport
                 await connectInstalled()
                 values["xpc"] = store != nil ? "connected" : (failure ?? "failed")
             }
-            try await service.unregister(); created = false; store = nil
+            try await service.unregister(); created = false; store?.stop(); store = nil
             await closeTransport?(); closeTransport = nil; observeStatus()
             values["unregistered"] = serviceStatusName(service.status)
             values["result"] = "observed"
@@ -97,7 +97,7 @@ import KabanTransport
             let key = "daemon.installed-helper-hash"
             if UserDefaults.standard.string(forKey: key) != fingerprint,
                service.status == .enabled || service.status == .requiresApproval {
-                store = nil; await closeTransport?(); closeTransport = nil
+                store?.stop(); store = nil; await closeTransport?(); closeTransport = nil
                 try await service.unregister()
             }
             if service.status == .notRegistered || service.status == .notFound { try service.register() }
@@ -109,7 +109,7 @@ import KabanTransport
     func unregister() async {
         guard !busy, !developer, !fixture else { return }; busy = true; defer { busy = false }
         do {
-            store = nil; await closeTransport?(); closeTransport = nil
+            store?.stop(); store = nil; await closeTransport?(); closeTransport = nil
             try await service.unregister(); failure = nil; observeStatus()
         } catch { failure = error.localizedDescription; observeStatus() }
     }
@@ -143,7 +143,7 @@ import KabanTransport
     }
     private func connectDeveloper() async {
         guard !busy else { return }; busy = true; defer { busy = false }
-        store = nil
+        store?.stop(); store = nil
         await closeTransport?(); closeTransport = nil
         failure = nil
         do {
@@ -187,10 +187,6 @@ struct DaemonRuntimeView: View {
         Group {
             if let store = runtime.store {
                 VStack(spacing: 0) {
-                    if !store.canSend {
-                        Text("Соединение с Kaban восстанавливается. Действия будут доступны после синхронизации.")
-                            .font(.callout).padding(10).frame(maxWidth: .infinity).background(.quaternary)
-                    }
                     BoardView(store: store).onAppear { BoardQA.store = store }
                 }
             } else {

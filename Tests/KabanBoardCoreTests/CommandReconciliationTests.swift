@@ -52,6 +52,18 @@ final class CommandReconciliationTests: XCTestCase {
         XCTAssertEqual(journal.records[0].confirmedSeq, 4)
     }
 
+    @MainActor func testPendingScopesAndGrantCorrelationAreIndependent() async throws {
+        let journal = try ClientCommandJournal(storage: MemoryKeyValueStore(), key: "commands")
+        let commands: [Command] = [.pauseTask(taskId: "t"), .createTask(projectId: "p", title: "Exact", body: ""), .pauseAll, .updatePipeline(projectId: "p", contentHash: "hash"), .revokeGitGrant(grantId: "g"), .allowGitOnce(denialId: "d"), .clearModelFlag(modelId: "m")]
+        for command in commands { try journal.begin(.init(command: command)) }
+        XCTAssertEqual(Set(journal.records.compactMap(\.scope)), Set([.task("t"), .project("p"), .global, .pipeline("p"), .grant("g"), .denial("d"), .model("m")]))
+        let grant = journal.records[4].envelope
+        try journal.observe(Fix.envelope(11, .gitGrantRevoked(.init(grantId: "other", by: .human)), commandId: grant.commandId))
+        XCTAssertTrue(journal.records[4].isPending)
+        try journal.observe(Fix.envelope(12, .gitGrantRevoked(.init(grantId: "g", by: .human)), commandId: grant.commandId))
+        XCTAssertFalse(journal.records[4].isPending)
+        XCTAssertEqual(journal.records.filter(\.isPending).count, 6)
+    }
     @MainActor func testLegacyJournalRetainsItsEnvelopeButRequiresReconciliation() async throws {
         let storage = MemoryKeyValueStore()
         let envelope = CommandEnvelope(command: .pauseTask(taskId: "t-1"))
