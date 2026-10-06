@@ -235,28 +235,7 @@ final class MCPServerTests: XCTestCase {
     }
 
     private func post(_ server: MCPBoardServer, token: String, method: String, params: [String: Any]) throws -> (status: Int, json: [String: Any]) {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(server.port)/mcp")!)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": method, "params": params])
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 5
-        let session = URLSession(configuration: configuration)
-        let ready = DispatchSemaphore(value: 0)
-        var data: Data?
-        var response: URLResponse?
-        var failure: Error?
-        session.dataTask(with: request) { body, reply, error in
-            data = body
-            response = reply
-            failure = error
-            ready.signal()
-        }.resume()
-        XCTAssertEqual(ready.wait(timeout: .now() + 5), .success)
-        if let failure { throw failure }
-        let json = (try? JSONSerialization.jsonObject(with: data ?? Data())) as? [String: Any] ?? [:]
-        return ((response as? HTTPURLResponse)?.statusCode ?? 0, json)
+        try server.roundTrip(token: token, method: method, params: params)
     }
 
     private struct DaemonOutput { var exit: Int32; var stderr: String }

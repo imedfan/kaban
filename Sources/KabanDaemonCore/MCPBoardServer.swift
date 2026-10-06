@@ -37,7 +37,7 @@ public final class MCPBoardServer: @unchecked Sendable {
         if fd >= 0 { close(fd) }
     }
 
-    func roundTrip(token: String, method: String, params: [String: Any]) throws -> [String: Any] {
+    func roundTrip(token: String, method: String, params: [String: Any]) throws -> (status: Int, json: [String: Any]) {
         let body = try JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "id": 1, "method": method, "params": params])
         let request = Data("POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer \(token)\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8) + body
         let fd = try Self.connectLoopback(port: port)
@@ -45,9 +45,11 @@ public final class MCPBoardServer: @unchecked Sendable {
         try Self.writeAll(fd, request)
         let data = try Self.readAll(fd, limit: 1_048_576)
         guard let range = data.range(of: Data("\r\n\r\n".utf8)) else { throw BoardFailure.invalid("Нет HTTP-ответа.") }
+        let head = String(decoding: data[..<range.lowerBound], as: UTF8.self)
+        let status = Int(head.split(separator: " ").dropFirst().first ?? "") ?? 0
         let payload = data[range.upperBound...]
-        let object = try JSONSerialization.jsonObject(with: payload)
-        return object as? [String: Any] ?? [:]
+        let object = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any] ?? [:]
+        return (status, object)
     }
 
     private func acceptLoop() {
