@@ -273,7 +273,10 @@ gate/merge занимают execution WIP, human — persisted admission. Руч
 применяются к агентам/первой модели intake. Host coalesces command/observer wakes
 и имеет секундный timer: до восьми ticks на pass, idle receipt не записывается.
 Время backoff проверяется между проходами. Process reconciliation, реальные
-runner/catalog/quota producers и исполнение effects остаются BE-05–11.
+runner/catalog/quota producers и процессы Cursor остаются BE-06–11.
+Claim/lease/receipt внешних effects добавлен в BE-05: finished fact и receipt
+сходятся в один переход, повторный claim без факта не обещает exactly-once процесса,
+а process/git выполняются после commit и вне транзакции SQLite.
 
 ## 4. Хранилище
 
@@ -288,6 +291,8 @@ runner/catalog/quota producers и исполнение effects остаются 
   quota sample и расхода на run от internal producers (BE-04, additive v6). Нет
   sample — нет выдуманного процента. Предстартовый check использует sample до 60 с;
   unknown/stale не снимает reactive usage/runner flags. Источники этих фактов следуют отдельно;
+- исполнение effect (BE-05, additive v7) — `fencing`, `lease_id`, `lease_owner`, `lease_until`,
+  `external_fact`, `diagnostic` на существующей строке effect. Исходный payload не переписывается;
 - `task` — `stage_id`, `status`, `reason`, хэш версии пайплайна при входе в стадию, приоритет, `bounce_by_reason`, ветка, путь клона, `session_id` для resume;
 - `run` — попытка: стадия, номер, pid, pgid, время старта процесса, запрошенная модель (id) и фактическое имя из `init`, `counts_toward_limits`, статус, `end_reason`, exit code, usage, путь к логу, счётчик git-отказов;
 - `git_grant` — разовые git-разрешения (раздел 8.3);

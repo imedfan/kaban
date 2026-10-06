@@ -7,11 +7,12 @@
 ## База этого среза
 
 Проверенная после git fetch база реализации: `origin/main` —
-`4e25ca3` (приняты #63–74, включая native UI #67, transport #70 и BE-01–04 #71–74).
-BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74); следующий backend-инкремент — BE-05.
+`77a0dc1` (приняты #63–75, включая native UI #67, transport #70, BE-01–04 #71–74 и срез статуса #75).
+BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
+BE-05 подготовлен в `codex/be-05-effect-execution` от этой базы: [PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main и ещё не принят.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы. Отчёты development фиксируют проверки
+Этот документ описывает код принятой базы и открытый инкремент BE-05. Отчёты development фиксируют проверки
 своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
@@ -20,8 +21,8 @@ BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74); сле
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции v1–v6, durable state/journal/effects, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production admission/start создаёт RunSpec/outbox; внешнее исполнение task effects ещё не подключено |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| DaemonCore | GRDB store, миграции v1–v7, durable state/journal/effects, claim/lease/receipt, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor, клон и process group не подключены |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -166,8 +167,8 @@ Startup, recheck и двухсекундный observer публикуют commi
 stage exit откладывается до валидного reload. RunSpec фиксирует pipeline, assets,
 identity и git policy; следующий запуск привязывается к новой версии. Удаление
 занятой стадии/смена её kind запрещены, WIP shrink не вытесняет задачи.
-Production scheduling добавлен в BE-04 ниже; executor, клоны и процессы следуют
-в BE-05–08, gates/hooks — BE-11, merge — BE-17;
+Production scheduling добавлен в BE-04 ниже; claim/lease/receipt — в BE-05 ниже.
+Клоны и процессы следуют в BE-06–08, gates/hooks — BE-11, merge — BE-17;
 проверка завершения использует сохранённые invocation fixtures. App не подключён.
 
 ## Backend: BE-04 полный планировщик
@@ -190,9 +191,22 @@ Additive v6 сохраняет факты scheduler/model/pool/quota от intern
 Snapshot/live delivery используют сохранённые значения; ручные паузы и intake
 вычисляются отдельно. Квота учитывает пул/порог и запас на текущие runs; nil или
 данные старше 60 с не выдумывают остаток и оставляют реактивные ограничения.
-Реальные catalog/environment/quota producers, процессы и внешний executor ещё
-не подключены. `.running` в этом инкременте — durable reservation с pending effect,
-а не доказательство живого Cursor. App остаётся на MockKabanClient.
+Реальные catalog/environment/quota producers и процессы ещё не подключены.
+Claim/lease описан в BE-05 ниже. `.running` в инкременте BE-04 — durable reservation
+с pending effect, а не доказательство живого Cursor. App остаётся на MockKabanClient.
+
+## Backend: BE-05 исполнение эффектов
+
+Открытый инкремент [PR #76](https://github.com/imedfan/kaban/pull/76), ещё не принят в main — [claim, lease и receipt](development/backend-effect-execution-2026-10-06.md).
+Additive v7 добавляет fencing, lease, external fact и diagnostic, не переписывая payload.
+Один claim коммитится одним UPDATE. Crash до факта можно взять повторно, и это не exactly-once процесса.
+Наблюдаемый незаконченный факт не перезапускается и не получает receipt. Finished fact сходится
+в один receipt; тот же факт идемпотентен, другой payload конфликтует. Старый lease и superseded
+эффект не меняют отменённую задачу. Откат записи не оставляет полуперехода и сохраняет уже записанный факт.
+Side effect process/git пишется после commit, вне транзакции SQLite. `deliverFake` отклоняет production.
+Старт демона забирает незавершённые leases прежнего процесса. `--effect-pass` по желанию подтверждает
+только lifecycle effects и не является поведением по умолчанию. Cursor, удаление клона и process group
+не исполняются. Следующий инкремент — BE-06.
 
 ## Какие источники читать
 

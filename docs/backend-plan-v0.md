@@ -61,8 +61,15 @@ Agent slots отделены от gate/merge WIP и human admission. Host буд
 observer и секундному timer; pass/tick ограничены, idle receipts не накапливаются.
 Durable scheduler inputs предоставляют границу будущим model/quota/environment
 producers; реальные CLI/пул/остаток не симулируются. Task-control/Human Review wire
-команды доступны production-задачам. Исполнение effects — BE-05, клоны/процессы —
+команды доступны production-задачам. Claim/lease/receipt — BE-05 ниже; клоны и процессы —
 BE-06–08, gates/hooks — BE-11, merge — BE-17.
+
+[BE-05](development/backend-effect-execution-2026-10-06.md) добавляет fencing, lease,
+external fact и receipt к существующим effect id. Сверка finished fact и receipt
+даёт один переход. Повторный claim без факта не обещает exactly-once процесса.
+Настоящий результат не проходит через `deliverFake`. Opt-in `--effect-pass`
+подтверждает lifecycle effects только после commit. Cursor, clone и process group
+остаются следующими задачами.
 
 ## Следующие результаты
 
@@ -71,8 +78,8 @@ BE-06–08, gates/hooks — BE-11, merge — BE-17.
    Отдельно проверить подписанный Mach service в составе бандла.
 2. Оставшиеся wire-команды: model override, files/incidents,
    WIP restore, среда и интеграция settings.
-3. Внешний executor с claim/lease, процессами Cursor, git-клонами и гейтами.
-   Exactly-once внешних действий не следует из SQLite-транзакции.
+3. Процессы Cursor, git-клоны и гейты поверх claim/lease. Exactly-once внешнего
+   процесса не следует из SQLite-транзакции.
 4. MCP/git shim, квота, реальные CLI fixtures и целевые isolation-спайки.
 5. Упаковка LaunchAgent, регистрация, подпись и нотаризация в соответствующей задаче.
 

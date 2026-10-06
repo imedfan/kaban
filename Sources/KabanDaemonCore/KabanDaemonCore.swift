@@ -2,7 +2,8 @@ import Foundation
 import KabanKit
 import KabanProtocol
 
-/// Portable headless coordinator. External effect workers are intentionally not connected yet.
+/// Portable headless coordinator. Effect claim/lease/receipt recovery is in the store.
+/// Process, clone, and Cursor drivers are not connected yet.
 public struct KabanDaemonCore: Sendable {
     public let store: KabanStore
     public init(store: KabanStore) { self.store = store }

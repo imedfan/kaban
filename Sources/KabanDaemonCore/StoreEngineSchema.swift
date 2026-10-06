@@ -30,12 +30,12 @@ extension KabanStore {
         }
     }
     static func supersedeEffects(taskId: TaskID, db: Database) throws {
-        let rows = try Row.fetchAll(db, sql: "SELECT id, payload FROM effect WHERE task_id = ? AND status = 'pending'", arguments: [taskId.rawValue])
+        let rows = try Row.fetchAll(db, sql: "SELECT id, payload FROM effect WHERE task_id = ? AND status IN ('pending', 'claimed')", arguments: [taskId.rawValue])
         for row in rows {
             let pending = try decode(PendingEffect.self, row["payload"])
             switch pending.effect {
             case .startAgentRun, .runGates, .runResultCheck, .startMerge, .fastForwardMerge, .scheduleRetry:
-                try db.execute(sql: "UPDATE effect SET status = 'superseded' WHERE id = ?", arguments: [row["id"] as String])
+                try db.execute(sql: "UPDATE effect SET status = 'superseded', diagnostic = 'superseded' WHERE id = ?", arguments: [row["id"] as String])
             default: break
             }
         }

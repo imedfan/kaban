@@ -14,14 +14,22 @@ struct DaemonMain {
         do {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["--help"] {
-                print("KabanDaemon --database PATH [--stdio]\nDefault: signed XPC Mach service app.kaban.agent (macOS 26+).\n--stdio: private development JSON-lines channel; no service registration.")
+                print("""
+                KabanDaemon --database PATH [--stdio] [--effect-pass]
+                Default: signed XPC Mach service app.kaban.agent (macOS 26+).
+                --stdio: private development JSON-lines channel; no service registration.
+                --effect-pass: acknowledge lifecycle effects after a post-commit side effect.
+                Agent, gate, and merge effects stay pending. This pass does not run Cursor or git.
+                """)
                 return
             }
-            guard let index = arguments.firstIndex(of: "--database"), arguments.indices.contains(index + 1),
-                  !arguments[index + 1].hasPrefix("--"),
-                  arguments.count == (arguments.contains("--stdio") ? 3 : 2) else { throw HostError.arguments }
-            let path = URL(fileURLWithPath: arguments[index + 1]).standardizedFileURL.path
-            if !arguments.contains("--stdio") {
+            var positional = arguments
+            let stdio = positional.contains("--stdio")
+            let effectPass = positional.contains("--effect-pass")
+            positional.removeAll { $0 == "--stdio" || $0 == "--effect-pass" }
+            guard positional.count == 2, positional[0] == "--database", !positional[1].hasPrefix("--") else { throw HostError.arguments }
+            let path = URL(fileURLWithPath: positional[1]).standardizedFileURL.path
+            if !stdio {
                 #if os(macOS)
                 guard #available(macOS 26.0, *) else { throw HostError.platform }
                 #else
@@ -36,6 +44,13 @@ struct DaemonMain {
             try store.refreshProjectLocations()
             try store.refreshPipelines()
             _ = try store.recover(passId: UUID(), at: Date())
+            _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            if effectPass {
+                let lines = try store.runEffectPass(owner: "daemon", at: Date(), sideEffectLog: path + ".side-effects")
+                for line in lines {
+                    try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
             let scheduler = DaemonScheduler(store: store) { error in
                 try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: scheduler pass failed: \(error)\n".utf8))
             }
@@ -50,7 +65,7 @@ struct DaemonMain {
             }
             observer.resume()
             defer { observer.cancel() }
-            if arguments.contains("--stdio") {
+            if stdio {
                 try withExtendedLifetime(lease) {
                     var buffer = Data()
                     while true {

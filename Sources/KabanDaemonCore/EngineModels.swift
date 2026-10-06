@@ -32,6 +32,44 @@ public struct EffectReceipt: Codable, Hashable, Sendable {
     public let task: DurableTask
 }
 
+/// Lease returned only after the claim transaction has committed.
+public struct EffectLease: Codable, Hashable, Sendable {
+    public let effectId: String
+    public let leaseId: String
+    public let owner: String
+    public let fencing: Int
+    public let expiresAt: Date
+    public let payload: PendingEffect
+}
+
+/// Fact observed outside SQLite. A finished fact can be reconciled into one receipt.
+public struct ExternalEffectFact: Codable, Hashable, Sendable {
+    public enum Phase: String, Codable, Hashable, Sendable { case started, finished }
+    public let actionId: String
+    public let phase: Phase
+    public var outcome: RealEffectOutcome?
+    public init(actionId: String, phase: Phase, outcome: RealEffectOutcome? = nil) {
+        self.actionId = actionId
+        self.phase = phase
+        self.outcome = outcome
+    }
+}
+
+/// Live result of a real effect. This is not a `FakeEffectResult` and is never written by `deliverFake`.
+public enum RealEffectOutcome: Codable, Hashable, Sendable {
+    case acknowledged
+    case completed(summary: String)
+    case question(String)
+    case gatesPassed
+    case clean
+}
+
+public enum EffectExecutionDiagnostic {
+    public static let reclaim = "external action was not observed; reclaim does not promise the process ran at most once"
+    public static let observedUnfinished = "external action was observed; the effect was not restarted and has no receipt yet"
+    public static let protocolReceipt = "BE-05 protocol receipt; process, git, clone, and notification actions are not performed"
+}
+
 public struct TickReceipt: Codable, Hashable, Sendable {
     public let tickId: UUID
     public let transitions: [DurableReceipt]
