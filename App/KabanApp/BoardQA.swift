@@ -160,7 +160,7 @@ import Darwin
         checks.append("search and attention filters read the same projection")
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Keyboard window missing") }
         window.makeKeyAndOrderFront(nil); NSApp.activate()
-        try await waitUntil("keyboard window focus") { window.isKeyWindow }
+        try await waitUntil("keyboard window focus") { NSApp.isActive && window.isKeyWindow }
         func creationMenuEnabled(_ menu: NSMenu?) -> Bool {
             menu?.update()
             return (menu?.items ?? []).contains { item in
@@ -185,7 +185,8 @@ import Darwin
             if condition() { return }
             try await Task.sleep(for: .milliseconds(50))
         }
-        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), windows=\(NSApp.windows.count)")
+        let windows = NSApp.windows.map { "\(type(of: $0)) title=\($0.title), visible=\($0.isVisible), key=\($0.isKeyWindow), canKey=\($0.canBecomeKey), main=\($0.isMainWindow), canMain=\($0.canBecomeMain), frame=\($0.frame)" }
+        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), active=\(NSApp.isActive), windows=\(windows)")
     }
     private static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
