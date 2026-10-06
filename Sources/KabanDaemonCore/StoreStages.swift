@@ -163,7 +163,7 @@ extension KabanStore {
             try db.execute(sql: "UPDATE stage_work SET status = 'running' WHERE id = ? AND status = 'pending'", arguments: [row.id])
         }
         let stage = try database.read { db in try Self.task(TaskID(rawValue: row.taskId), db: db).pipeline.stage(StageID(rawValue: row.stageId)) }
-        let result = try StageCommand.run(command: row.command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
+        let result = try runStageCommand(command: row.command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
         let code = result.timedOut ? 124 : Int(result.status)
         try finishWork(id: row.id, output: result.output, code: code, sha: nil)
         try rememberArtifact(taskId: row.taskId, id: row.id, stageId: row.stageId, kind: "hook", text: result.output, at: at)
@@ -203,7 +203,7 @@ extension KabanStore {
             var combined = ""
             var failed = false
             for command in commands {
-                let result = try StageCommand.run(command: command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
+                let result = try runStageCommand(command: command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
                 combined += "$ \(command)\n\(result.output)\n"
                 if result.timedOut || result.status != 0 {
                     failed = true

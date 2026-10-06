@@ -60,7 +60,11 @@ extension KabanStore {
             let stderr = logs + "/" + safe(request.runId.rawValue) + ".err"
             FileManager.default.createFile(atPath: stdout, contents: Data())
             FileManager.default.createFile(atPath: stderr, contents: Data())
-            let handle = try ProcessGroup.spawn(executable: runner, arguments: arguments, workingDirectory: cwd, environment: try environmentForAgentRun(taskId: item.taskId, at: at), standardOutput: stdout, standardError: stderr)
+            // The child cannot exec the runner until its identity is durable. An orphaned
+            // launcher times out without running user tools after a crash before saveProcess.
+            let gate = logs + "/" + lease.leaseId + ".start"
+            let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
+            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + arguments, workingDirectory: cwd, environment: try environmentForAgentRun(taskId: item.taskId, at: at), standardOutput: stdout, standardError: stderr)
             let record = AgentProcessRecord(runId: request.runId.rawValue, taskId: item.taskId.rawValue, startId: lease.leaseId, pid: handle.pid,
                                             processGroup: handle.processGroup, birthSeconds: handle.birth.seconds, birthMicroseconds: handle.birth.microseconds,
                                             state: "running", startedAt: at, lastActivityAt: at, stallDeadline: at.addingTimeInterval(TimeInterval(stall)),
@@ -70,7 +74,9 @@ extension KabanStore {
             do {
                 try saveProcess(record)
                 try recordExternalFact(effectId: item.id, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: item.id + "/process", phase: .started))
+                try Data().write(to: URL(fileURLWithPath: gate), options: .atomic)
             } catch {
+                try? FileManager.default.removeItem(atPath: gate)
                 _ = try? ProcessGroup.stop(pid: handle.pid, processGroup: handle.processGroup, birth: handle.birth)
                 throw error
             }
@@ -245,7 +251,7 @@ extension KabanStore {
         try allProcessRecords().sorted { $0.runId < $1.runId }.flatMap(\.passLines)
     }
 
-    private func allProcessRecords() throws -> [AgentProcessRecord] {
+    func allProcessRecords() throws -> [AgentProcessRecord] {
         try database.read { db in try Self.processRows(db) }
     }
 
@@ -253,7 +259,7 @@ extension KabanStore {
         try database.read { db in try Self.processRow(runId, db: db) }
     }
 
-    private func saveProcess(_ record: AgentProcessRecord) throws {
+    func saveProcess(_ record: AgentProcessRecord) throws {
         try database.write { db in
             try db.execute(sql: "INSERT INTO agent_process(run_id, payload) VALUES (?, ?) ON CONFLICT(run_id) DO UPDATE SET payload = excluded.payload", arguments: [record.runId, try Self.encode(record)])
         }

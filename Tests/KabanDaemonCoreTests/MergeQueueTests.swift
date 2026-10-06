@@ -207,6 +207,35 @@ final class MergeQueueTests: XCTestCase {
         }
     }
 
+    func testFullStartupRecoveryAfterFastForwardBeforeFactIsStable() throws {
+        let f = try fixture()
+        _ = try enqueue(f, "startup", "startup.txt", "once\n")
+        try approve(f, "startup")
+        _ = try tick(f, "startup-merge")
+        for _ in 0..<6 {
+            if try pendingFastForward(f, "startup") { break }
+            if try f.store.rebaseOneMerge(owner: "test", at: at, workspaceRoot: f.workspace) { continue }
+            if try f.store.runResultEffect(owner: "test", at: at) { continue }
+        }
+        let item = try XCTUnwrap(f.store.pendingEffectItems().first { if case .fastForwardMerge = $0.effect { return true }; return false })
+        let lease = try XCTUnwrap(f.store.claimEffect(id: item.id, owner: "test", at: at))
+        XCTAssertEqual(try f.store.prepareFastForward(lease: lease, at: at).outcome, .merged)
+        // Crash in the smaller gap: external git is visible but no fact has reached SQLite.
+        try f.store.database.write { db in try db.execute(sql: "UPDATE effect SET external_fact = NULL WHERE id = ?", arguments: [item.id]) }
+        let commits = try count(f)
+        let main = try sha(f, ["rev-parse", "refs/heads/main"])
+        let reopened = try KabanStore(path: f.path)
+        _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
+        XCTAssertEqual(try reopened.snapshot().tasks.first { $0.card.id == "startup" }?.machine.state, .done)
+        XCTAssertEqual(try count(f), commits)
+        XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/main"]), main)
+        let seq = try reopened.snapshot().seq
+        _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
+        XCTAssertEqual(try reopened.snapshot().seq, seq)
+        XCTAssertEqual(try count(f), commits)
+        XCTAssertEqual(try text(f.origin, "startup.txt"), "once\n")
+    }
+
     private struct Fixture { var root: URL; var workspace: String; var path: String; var store: KabanStore; var origin: String }
 
     private func pipeline() -> String {

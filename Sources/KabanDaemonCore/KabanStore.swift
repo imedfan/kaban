@@ -43,6 +43,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("incidents_v17", migrate: Self.migrateIncidents)
         migrator.registerMigration("run_log_v18", migrate: Self.migrateRunLogs)
         migrator.registerMigration("merge_intent_v19", migrate: Self.migrateMergeIntent)
+        migrator.registerMigration("recovery_stage_process_v20", migrate: Self.migrateStageProcesses)
         try migrator.migrate(database)
     }
 

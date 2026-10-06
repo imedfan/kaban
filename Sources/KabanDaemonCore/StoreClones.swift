@@ -95,7 +95,7 @@ extension KabanStore {
         guard case .cleanupClone(let keepBranch) = lease.payload.effect else { throw StoreError.unsupportedEffect }
         let taskId = lease.payload.taskId
         let record = try database.read { db in try Self.cloneRecord(taskId, db: db) }
-        if let record, record.phase == "ready" {
+        if let record, record.phase != "removed" {
             try TaskClone.authorizeDeletion(candidate: record.clonePath, recorded: record.clonePath, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
             if let fresh = record.freshPath {
                 try TaskClone.authorizeDeletion(candidate: fresh, recorded: fresh, workspaceRoot: record.workspaceRoot, origin: record.projectPath)

@@ -64,7 +64,7 @@ extension KabanStore {
     func requireBoardToken(_ token: String) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
         try database.read { db in
-            guard try Self.tokenRow(SHA256Digest.hex(token), db: db) != nil else {
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM mcp_run_token WHERE token_hash = ? AND restart_revoked = 0)", arguments: [SHA256Digest.hex(token)]) == true else {
                 throw BoardFailure.unauthorized("Токен не подходит к этому запуску.")
             }
         }
@@ -116,7 +116,8 @@ extension KabanStore {
     }
 
     private static func performBoardTool(token: String, name: String, arguments: [String: Any], at: Date, db: Database) throws -> BoardToolResponse {
-        guard let row = try tokenRow(SHA256Digest.hex(token), db: db) else {
+        guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM mcp_run_token WHERE token_hash = ? AND restart_revoked = 0)", arguments: [SHA256Digest.hex(token)]) == true,
+              let row = try tokenRow(SHA256Digest.hex(token), db: db) else {
             throw BoardFailure.unauthorized("Токен не подходит к этому запуску.")
         }
         if let claimed = arguments["taskId"] as? String, claimed != row.taskId {

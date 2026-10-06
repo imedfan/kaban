@@ -63,12 +63,27 @@ public enum ProcessGroup {
     /// Signals `processGroup` only when `pid` is still that group's leader and still the process we spawned.
     @discardableResult
     public static func stop(pid: Int32, processGroup: Int32, birth: ProcessBirth) throws -> Stop {
-        guard pid > 1, processGroup > 1 else { throw Failure.foreignGroup }
+        guard pid > 1, processGroup == pid else { throw Failure.foreignGroup }
         guard isAlive(pid) else { return .alreadyGone }
         guard getpgid(pid) == processGroup, self.birth(pid) == birth else { throw Failure.foreignGroup }
         let result = kill(-processGroup, SIGKILL)
         if result != 0 && errno != ESRCH { throw Failure.spawn(errno) }
         return result == 0 ? .signaled : .alreadyGone
+    }
+
+    /// A zombie cannot write to the clone; birth identity also excludes PID reuse.
+    public static func isExecuting(_ pid: Int32, birth expected: ProcessBirth) -> Bool {
+        guard birth(pid) == expected else { return false }
+        #if os(macOS)
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        let result = name.withUnsafeMutableBufferPointer { sysctl($0.baseAddress, 4, &info, &size, nil, 0) }
+        return result == 0 && size >= MemoryLayout<kinfo_proc>.stride && info.kp_proc.p_stat != SZOMB
+        #else
+        guard let stat = try? String(contentsOfFile: "/proc/\(pid)/stat", encoding: .utf8), let close = stat.lastIndex(of: ")") else { return false }
+        return stat[stat.index(after: close)...].split(separator: " ").first != "Z"
+        #endif
     }
 
     public static func spawn(executable: String, arguments: [String], workingDirectory: String, environment: [String: String], standardOutput: String, standardError: String) throws -> Handle {

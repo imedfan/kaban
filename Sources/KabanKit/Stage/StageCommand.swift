@@ -23,7 +23,7 @@ public enum StageCommand {
     }
 
     /// `timeout` is a deadline, not a sleep. A command that has already exited is reaped with `WNOHANG`.
-    public static func run(command: String, cwd: String, environment: [String: String], timeout: TimeInterval) throws -> Result {
+    public static func run(command: String, cwd: String, environment: [String: String], timeout: TimeInterval, onStart: ((ProcessGroup.Handle) throws -> Void)? = nil) throws -> Result {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return Result(status: 0, output: "", timedOut: false) }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-stage-" + UUID().uuidString)
@@ -31,7 +31,19 @@ public enum StageCommand {
         defer { try? FileManager.default.removeItem(at: directory) }
         let stdout = directory.appendingPathComponent("out").path
         let stderr = directory.appendingPathComponent("err").path
-        let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", trimmed], workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
+        let gate = directory.appendingPathComponent("start").path
+        let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
+        let arguments = onStart == nil ? ["-c", trimmed] : ["-c", launcher, "kaban-stage-launch", gate, "/bin/sh", "-c", trimmed]
+        let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: arguments, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
+        if let onStart {
+            do {
+                try onStart(handle)
+                try Data().write(to: URL(fileURLWithPath: gate), options: .atomic)
+            } catch {
+                _ = try? ProcessGroup.stop(pid: handle.pid, processGroup: handle.processGroup, birth: handle.birth)
+                throw error
+            }
+        }
         let deadline = Date().addingTimeInterval(max(timeout, 0.05))
         var status = ProcessGroup.poll(handle.pid)
         var timedOut = false

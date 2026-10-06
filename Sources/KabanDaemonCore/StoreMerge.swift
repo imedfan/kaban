@@ -83,7 +83,7 @@ extension KabanStore {
             var combined = ""
             var failed = false
             for command in gates {
-                let result = try StageCommand.run(command: command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
+                let result = try runStageCommand(command: command, cwd: clone.clonePath, environment: StageCommand.environment(stage: stage?.agent?.env ?? [:]), timeout: TimeInterval(stage?.timeouts.wallSeconds ?? 60))
                 combined += "$ \(command)\n\(result.output)\n"
                 if result.timedOut || result.status != 0 { failed = true; break }
             }

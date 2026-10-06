@@ -81,13 +81,14 @@ extension KabanStore {
 
     public func installMCPConfig(taskId: TaskID, cloneRoot: URL, generated: String) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
-        let installed = try MCPConfigFile.install(cloneRoot: cloneRoot, generated: generated)
+        let installed = try MCPConfigFile.capture(cloneRoot: cloneRoot)
         try database.write { db in
             try db.execute(sql: """
             INSERT INTO mcp_config_swap(task_id, clone_path, previous, had_file, exclude_added) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(task_id) DO UPDATE SET clone_path = excluded.clone_path, previous = excluded.previous, had_file = excluded.had_file, exclude_added = excluded.exclude_added
+            ON CONFLICT(task_id) DO NOTHING
             """, arguments: [taskId.rawValue, cloneRoot.path, installed.previous, installed.previous == nil ? 0 : 1, installed.excludeAdded ? 1 : 0])
         }
+        _ = try MCPConfigFile.install(cloneRoot: cloneRoot, generated: generated)
     }
 
     func restoreInstalledMCPConfigs() throws -> [String] {

@@ -33,17 +33,24 @@ public enum MCPConfigFile {
         }
     }
 
-    public static func install(cloneRoot: URL, generated: String) throws -> MCPInstalledFile {
+    /// Capture restoration data before the first filesystem mutation.
+    public static func capture(cloneRoot: URL) throws -> MCPInstalledFile {
         let cursor = cloneRoot.appendingPathComponent(".cursor", isDirectory: true)
         let file = cursor.appendingPathComponent("mcp.json")
         if isSymlink(cursor) || isSymlink(file) { throw MCPConfigError.symlink }
-        if !FileManager.default.fileExists(atPath: cursor.path) {
-            try FileManager.default.createDirectory(at: cursor, withIntermediateDirectories: true)
-        }
         let previous = FileManager.default.fileExists(atPath: file.path) ? try Data(contentsOf: file) : nil
-        try Data(generated.utf8).write(to: file, options: .atomic)
-        let excludeAdded = previous == nil && addExclude(cloneRoot)
-        return MCPInstalledFile(previous: previous, excludeAdded: excludeAdded)
+        let exclude = cloneRoot.appendingPathComponent(".git/info/exclude")
+        let lines = ((try? String(contentsOf: exclude, encoding: .utf8)) ?? "").split(separator: "\n")
+        return MCPInstalledFile(previous: previous, excludeAdded: previous == nil && !lines.contains(Substring(excludeLine)))
+    }
+
+    public static func install(cloneRoot: URL, generated: String) throws -> MCPInstalledFile {
+        let captured = try capture(cloneRoot: cloneRoot)
+        let cursor = cloneRoot.appendingPathComponent(".cursor", isDirectory: true)
+        try FileManager.default.createDirectory(at: cursor, withIntermediateDirectories: true)
+        try Data(generated.utf8).write(to: cursor.appendingPathComponent("mcp.json"), options: .atomic)
+        let added = captured.previous == nil && addExclude(cloneRoot)
+        return MCPInstalledFile(previous: captured.previous, excludeAdded: added)
     }
 
     public static func restore(cloneRoot: URL, installed: MCPInstalledFile) throws {

@@ -134,3 +134,7 @@ StageLoad/ProjectSummary; эти расчёты не дублируются в �
 
 Linux CI использует Swift 6.1 и SQLite headers. macOS/Xcode/App проверяются отдельно.
 Исследования и синтетический Seatbelt probe не являются доказательством production isolation.
+
+BE-18 реализован в ветке `codex/be-18-daemon-recovery`, не принят в main.
+Штатный startup исполняет физический recovery перед scheduler; [проверки и границы](development/backend-daemon-recovery-2026-10-06.md).
+Следующие инкременты — ручные actions/runtime BE-19 и LaunchAgent BE-20.

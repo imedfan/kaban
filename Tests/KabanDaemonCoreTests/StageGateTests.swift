@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import GRDB
 import KabanKit
 import KabanProtocol
 @testable import KabanDaemonCore
@@ -204,6 +205,48 @@ final class StageGateTests: XCTestCase {
     }
 
     private struct Fixture { let root: URL; let workspace: String; let path: String; var store: KabanStore; let origin: String }
+
+    func testStartupRecoveryRepeatsInterruptedGatesAndReconcilesStageCommit() throws {
+        let f = try fixture(pipeline(devGates: "/usr/bin/true"))
+        let run = try launch(f, "gate-crash")
+        let clone = try prepare(f, "gate-crash")
+        try "draft".write(toFile: clone.clonePath + "/draft.txt", atomically: true, encoding: .utf8)
+        _ = try apply(f, "gate-crash", .completeStage(run, summary: "done"))
+        let old = try XCTUnwrap(f.store.pendingEffectItems().first { if case .runGates = $0.effect { return true }; return false })
+        _ = try f.store.claimEffect(id: old.id, owner: "dead", at: at)
+        try f.store.database.write { db in
+            try db.execute(sql: "INSERT INTO stage_work(id, task_id, entry, stage_id, kind, command, status, output, code, effect_id) VALUES ('dead-gate', 'gate-crash', 1, 'dev', 'gate', '/usr/bin/true', 'running', '', 0, ?)", arguments: [old.id])
+        }
+        let reopened = try KabanStore(path: f.path)
+        _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
+        let after = try XCTUnwrap(reopened.snapshot().tasks.first { $0.card.id == "gate-crash" })
+        XCTAssertEqual(after.machine.attemptsUsed, 0)
+        XCTAssertNotEqual(after.machine.state.status, .retryWait)
+        XCTAssertEqual(try reopened.getTaskDetail("gate-crash").runs.first?.status, .succeeded)
+        let commitCount = try count(URL(fileURLWithPath: clone.clonePath))
+        let seq = try reopened.snapshot().seq
+        _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
+        XCTAssertEqual(try reopened.snapshot().seq, seq)
+        XCTAssertEqual(try count(URL(fileURLWithPath: clone.clonePath)), commitCount)
+    }
+
+    func testStartupFindsStageCommitBeforeDatabaseReceipt() throws {
+        let f = try fixture(pipeline(devGates: "/usr/bin/true"))
+        let run = try launch(f, "commit-crash")
+        let clone = try prepare(f, "commit-crash")
+        try "draft".write(toFile: clone.clonePath + "/draft.txt", atomically: true, encoding: .utf8)
+        _ = try apply(f, "commit-crash", .completeStage(run, summary: "commit once"))
+        _ = try apply(f, "commit-crash", .gatesPassed)
+        _ = try apply(f, "commit-crash", .resultClean)
+        let row = try f.store.database.read { db in try XCTUnwrap(Row.fetchOne(db, sql: "SELECT id, command FROM stage_work WHERE kind = 'commit'")) }
+        let identity = try f.store.getSnapshot().projects.first?.identity
+        _ = try TaskClone.commitMarked(clone: clone.clonePath, message: row["command"], marker: TaskClone.effectMarkerPrefix + (row["id"] as String), identity: identity)
+        let commitCount = try count(URL(fileURLWithPath: clone.clonePath))
+        let reopened = try KabanStore(path: f.path)
+        _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
+        XCTAssertEqual(try count(URL(fileURLWithPath: clone.clonePath)), commitCount)
+        XCTAssertEqual(try reopened.getTaskDetail("commit-crash").artifacts.filter { $0.kind == "summary" }.count, 1)
+    }
 
     private func pipeline(devGates: String, lint: String? = nil, hooks: Bool = false, readOnly: Bool = false, preset: String? = nil, returns: Int = 3, totalBounces: Int = 5, maxRuns: Int = 12) -> String {
         let hook = hooks ? "\n    hooks: {on_enter: \"printf enter >> hook-log\", on_exit: \"printf exit >> hook-log\"}" : ""

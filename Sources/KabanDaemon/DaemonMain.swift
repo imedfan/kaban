@@ -115,8 +115,14 @@ struct DaemonMain {
             try store.recoverPipelineOperations()
             try store.refreshProjectLocations()
             try store.refreshPipelines()
-            _ = try store.recover(passId: UUID(), at: Date())
-            _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            let diagnosticPass = effectPass || clonePass || processPass || mcpPass || isolationPass || stagePass || mergePass || logPass
+            if diagnosticPass {
+                _ = try store.recover(passId: UUID(), at: Date())
+                _ = try store.recoverEffectExecution(at: Date(), reclaimUnexpired: true)
+            } else {
+                let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
+                _ = try store.recoverProduction(passId: UUID(), at: Date(), workspaceRoot: root)
+            }
             if let cursorAgent { try store.setRunnerExecutable(cursorAgent) }
             if processPass {
                 let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path

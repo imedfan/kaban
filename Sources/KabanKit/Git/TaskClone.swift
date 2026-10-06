@@ -232,8 +232,16 @@ public enum TaskClone {
     public static func saveWipAndReset(clone: String, runId: RunID, recorded: String, workspaceRoot: String, origin: String, identity: GitIdentity?) throws -> String? {
         try authorizeDeletion(candidate: clone, recorded: recorded, workspaceRoot: workspaceRoot, origin: origin)
         guard FileManager.default.fileExists(atPath: clone) else { return nil }
-        guard try worktreeDirty(clone, identity: identity) else { return nil }
         let ref = try wipRef(runId)
+        // A crash may have reset the clone before the DB received the WIP ref.
+        // Keep that original snapshot and return it on replay.
+        if (try? text(["rev-parse", "--verify", ref], in: clone, identity: identity)) != nil {
+            let parent = try text(["rev-parse", ref + "^"], in: clone, identity: identity)
+            try run(["reset", "--hard", parent], in: clone, identity: identity)
+            try run(["clean", "-fd"], in: clone, identity: identity)
+            return ref
+        }
+        guard try worktreeDirty(clone, identity: identity) else { return nil }
         let head = try text(["rev-parse", "HEAD"], in: clone, identity: identity)
         try run(["add", "-A"], in: clone, identity: identity)
         do {
@@ -244,7 +252,8 @@ public enum TaskClone {
             try run(["clean", "-fd"], in: clone, identity: identity)
             return ref
         } catch {
-            _ = try? run(["reset", "--hard", head], in: clone, identity: identity)
+            // A failed WIP save must leave the dirty files available for the next recovery.
+            // Reset is safe only after update-ref published the snapshot above.
             throw error
         }
     }
