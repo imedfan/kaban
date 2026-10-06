@@ -77,7 +77,7 @@ public struct DurableSnapshot: Sendable {
 public enum StoreError: Error, Equatable {
     case taskExists, taskMissing, invalidPipeline, commandIdConflict
     case projectMissing, incompleteProjection, settingsInvalid, schedulerBlocked
-    case effectMissing, effectSuperseded, unsupportedEffect, effectResultConflict
+    case effectMissing, effectSuperseded, effectLeaseStale, unsupportedEffect, effectResultConflict
     case questionInvalid
     case rejected(CommandError)
 }
