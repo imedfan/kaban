@@ -6,7 +6,8 @@
 Срез 6 октября 2026, база `origin/main` `77a0dc1`: BE-01–04 приняты в main в PR #71–74.
 BE-05 выполнен в [PR #76](https://github.com/imedfan/kaban/pull/76), открытом в main и ещё не принятом; границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
 BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), открытом поверх #76 и ещё не принятом в main; границы — [клоны задач](backend-task-clones-2026-10-06.md).
-BE-07–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
+BE-08 выполнен в [PR #78](https://github.com/imedfan/kaban/pull/78), открытом поверх #77 и ещё не принятом в main; границы — [управление процессами](backend-process-control-2026-10-06.md).
+BE-07 и BE-09–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
 Мерж выполняет Артём; следующий связный инкремент — BE-07.
 
 
@@ -215,6 +216,8 @@ BE-07–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ## BE-08. Реализовать управление процессами агентов и технические ретраи
 
+**Статус:** выполнено; [PR #78](https://github.com/imedfan/kaban/pull/78) открыт поверх #77, ещё не принят в main. Проверки и границы — [отчёт BE-08](backend-process-control-2026-10-06.md).
+
 **Приоритет:** P0
 
 **Зависимости:** BE-05, BE-06, BE-07
@@ -234,9 +237,9 @@ BE-07–20 ещё не завершены. Наличие DTO/fixtures не яв
 
 ### Критерии приёмки
 
-- [ ] технический exit 0 сам не завершает стадию; без final MCP идёт no_final_call, а молчаливый run отдельно классифицируется BE-15.
-- [ ] Попытки/autoRuns не списываются за manual stop, daemon restart, auth/limit/substitution.
-- [ ] Run с descendants останавливается целиком; timeout не блокирует daemon/XPC.
+- [x] технический exit 0 сам не завершает стадию; без final MCP идёт no_final_call, а молчаливый run отдельно классифицируется BE-15.
+- [x] Попытки/autoRuns не списываются за manual stop, daemon restart, auth/limit/substitution.
+- [x] Run с descendants останавливается целиком; timeout не блокирует daemon/XPC.
 
 ## BE-09. Реализовать MCP-сервер доски
 

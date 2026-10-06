@@ -166,7 +166,7 @@ extension KabanStore {
                                tempPath: planned.tempPath, passLines: [])
     }
 
-    private static func cloneRecord(_ taskId: TaskID, db: Database) throws -> TaskCloneRecord? {
+    static func cloneRecord(_ taskId: TaskID, db: Database) throws -> TaskCloneRecord? {
         guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM task_clone WHERE task_id = ?", arguments: [taskId.rawValue]) else { return nil }
         return try decode(TaskCloneRecord.self, data)
     }

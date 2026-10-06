@@ -10,9 +10,10 @@
 `77a0dc1` (приняты #63–75, включая native UI #67, transport #70, BE-01–04 #71–74 и срез статуса #75).
 BE-04 принят в [PR #74](https://github.com/imedfan/kaban/pull/74).
 BE-05 подготовлен в `codex/be-05-effect-execution` от этой базы: [PR #76](https://github.com/imedfan/kaban/pull/76) открыт в main и ещё не принят.
+BE-06 и BE-08 лежат поверх него и тоже ещё не приняты в main.
 Локальная ветка с именем main
 может быть старее origin/main; перед новой задачей проверь refs и diff.
-Этот документ описывает код принятой базы и открытый инкремент BE-05. Отчёты development фиксируют проверки
+Этот документ описывает код принятой базы и открытые инкременты BE-05, BE-06 и BE-08. Отчёты development фиксируют проверки
 своих инкрементов, а не новый прогон на текущем HEAD.
 
 ## Что есть в основном коде
@@ -20,9 +21,9 @@ BE-05 подготовлен в `codex/be-05-effect-execution` от этой б�
 | Область | Реализовано | Граница |
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
-| Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules | Не является процессом демона |
-| DaemonCore | GRDB store, миграции v1–v8, durable state/journal/effects, claim/lease/receipt, клоны задач, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor и process group не подключены |
-| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass` и `--clone-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. Без LaunchAgent packaging, проверки Developer ID и подключения App |
+| Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
+| DaemonCore | GRDB store, миграции v1–v9, durable state/journal/effects, claim/lease/receipt, клоны задач, process group локального runner, wire-команды, project lifecycle, pipeline apply/recovery/RunSpec, полный production scheduler и bounded fake driver | Production result не идёт через `deliverFake`. Cursor не подключён. Process group исполняется только с `--process-pass` |
+| Daemon/Transport/CLI | Host с эксклюзивной lease БД, recovery effect leases, opt-in `--effect-pass`, `--clone-pass` и `--process-pass`, XPC listener/client, snapshot/catch-up/live polling, reconnect/resync, kabanctl; capabilities, session/ephemeral, observer и scheduler loop | Transport/BE-01–04 приняты #70–74. `--effect-pass` не запускает Cursor или git. `--clone-pass` не запускает Cursor. `--process-pass` запускает только переданный `--runner` и не запускает Cursor. Без LaunchAgent packaging, проверки Developer ID и подключения App |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation | Отдельный чистый клиентский слой |
 | Kaban.app | SwiftUI BoardView/BoardStore, mock-доска, create/edit/move/cancel, детали, pause/resume | Нет связи с DaemonCore через XPC |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
@@ -61,7 +62,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Порученная backend-очередь — [BE-01–20](development/backend-mvp-tasks.md).
 BE-01–04 приняты в #71–74.
-Следующий — BE-05 (executor с claim/lease/receipt). BE-05–20 ещё не завершены.
+BE-05, BE-06 и BE-08 открыты и ещё не приняты в main. Следующий в очереди — BE-07. BE-07 и BE-09–20 ещё не завершены.
 
 1. Ручная проверка принятого UI и завершение оставшихся экранов
    настроек/Human Review по закреплённым макетам.
@@ -217,6 +218,20 @@ DerivedData и temp лежат внутри клона. Портовый диа�
 Очистка архивирует `refs/kaban/archive/<task>` только при `keepBranch` и удаляет каталог лишь после проверки пути.
 Чужой путь и копия пользователя не удаляются. HEAD, `main` и status пользователя не меняются.
 WIP save/restore остаётся BE-18/19. Cursor не запускается. Следующий инкремент очереди — BE-07.
+
+## Backend: BE-08 управление процессами
+
+Открытый инкремент [PR #78](https://github.com/imedfan/kaban/pull/78) поверх #77, ещё не принят в main — [управление процессами](development/backend-process-control-2026-10-06.md).
+`--process-pass` запускает переданный `--runner` через `posix_spawn` в новой process group и пишет pid, pgid и время рождения.
+Без флага и без `--runner` демон процесс не порождает и не убивает. Старт `startAgentRun` получает факт `started` и не receipt:
+receipt завершил бы стадию. Exit 0 с выводом или грязным клоном даёт `no_final_call` и оставляет ту же стадию.
+Тихий exit 0 остаётся `.running` с меткой `silent_deferred`; классификация BE-15 не выполняется и попытка не списывается.
+Поздний exit после паузы или `completeStage` не меняет задачу. Crash, stall и wall списывают попытку; паузы — 30 с и 2 мин, третья попытка ждёт человека.
+Пауза, перенос и отмена шлют SIGKILL только записанной группе, включая потомков, и не принимают поздний результат.
+Повторный stop с чужим pgid не сигналит. Timeout сравнивает часы вызывающего и не блокирует проход.
+Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и откатывают его. `no_final_call` и `gate_failed` клон сохраняют.
+Копия пользователя не меняется. Восстановление WIP человеком остаётся BE-18/19. Cursor не запускается.
+Обрыв между spawn и записью строки может стартовать процесс дважды; exactly-once внешнего процесса нет.
 
 ## Какие источники читать
 

@@ -20,6 +20,9 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case gatesPassed
     case daemonRestarted
     case cancel(keepBranch: Bool)
+    case runFailed(RunID, RunFailure)
+    case modelMismatch(runId: RunID, requested: String, actual: String, fallback: String?)
+    case gatesFailed(output: String)
 
     var event: TaskEvent {
         switch self {
@@ -40,6 +43,10 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .gatesPassed: .gatesPassed
         case .daemonRestarted: .daemonRestarted
         case .cancel(let keep): .human(.cancel(keepBranch: keep))
+        case .runFailed(let id, let failure): .runEnded(runId: id, failure)
+        case .modelMismatch(let id, let requested, let actual, let fallback):
+            .modelMismatch(runId: id, requested: requested, actual: actual, fallback: fallback)
+        case .gatesFailed(let output): .gatesFailed(output: output)
         }
     }
 }

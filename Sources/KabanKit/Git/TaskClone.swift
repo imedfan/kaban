@@ -139,6 +139,39 @@ public enum TaskClone {
         URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
     }
 
+    /// Writes `refs/kaban/wip/<run>` inside this clone, then resets that clone to its current HEAD.
+    /// Returns nil when the worktree is clean. Refuses a path that is not the recorded clone.
+    public static func saveWipAndReset(clone: String, runId: RunID, recorded: String, workspaceRoot: String, origin: String, identity: GitIdentity?) throws -> String? {
+        try authorizeDeletion(candidate: clone, recorded: recorded, workspaceRoot: workspaceRoot, origin: origin)
+        guard FileManager.default.fileExists(atPath: clone) else { return nil }
+        guard try worktreeDirty(clone, identity: identity) else { return nil }
+        let ref = try wipRef(runId)
+        let head = try text(["rev-parse", "HEAD"], in: clone, identity: identity)
+        try run(["add", "-A"], in: clone, identity: identity)
+        do {
+            let tree = try text(["write-tree"], in: clone, identity: identity)
+            let commit = try text(["commit-tree", tree, "-p", head, "-m", "kaban wip \(runId.rawValue)"], in: clone, identity: identity)
+            try run(["update-ref", ref, commit], in: clone, identity: identity)
+            try run(["reset", "--hard", head], in: clone, identity: identity)
+            try run(["clean", "-fd"], in: clone, identity: identity)
+            return ref
+        } catch {
+            _ = try? run(["reset", "--hard", head], in: clone, identity: identity)
+            throw error
+        }
+    }
+
+    public static func worktreeDirty(_ path: String, identity: GitIdentity?) throws -> Bool {
+        try text(["status", "--porcelain"], in: path, identity: identity).isEmpty == false
+    }
+
+    public static func wipRef(_ runId: RunID) throws -> String {
+        let raw = runId.rawValue
+        let allowed = raw.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+        guard !raw.isEmpty, raw.count < 200, allowed else { throw Failure.unsafeName }
+        return "refs/kaban/wip/\(raw)"
+    }
+
     private static func isInside(_ path: String, _ root: String) -> Bool {
         path != root && path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
     }
