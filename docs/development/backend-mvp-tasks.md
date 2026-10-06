@@ -17,8 +17,8 @@ BE-12 выполнен в [PR #85](https://github.com/imedfan/kaban/pull/85), о
 BE-13 выполнен в [PR #86](https://github.com/imedfan/kaban/pull/86), открытом поверх `codex/be-12-git-grants` и ещё не принятом в main. Обычное грязное дерево без read-only остаётся чистым для проверки результата. Merge остаётся BE-17. Откат git до записи инцидента не обещает exactly-once внешнего процесса. Границы — [инциденты](backend-incidents-2026-10-06.md).
 BE-16 выполнен в [PR #87](https://github.com/imedfan/kaban/pull/87), открытом поверх `codex/be-13-incidents` и ещё не принятом в main. Чтение лога поддерживается. Секреты вырезаются до записи. Слишком большой снимок и detail возвращают ошибку, а не урезанный ответ. Границы — [логи запусков](backend-run-logs-2026-10-06.md).
 BE-17 выполнен в [PR #88](https://github.com/imedfan/kaban/pull/88) поверх `codex/be-16-run-logs` и ещё не принят в main. Один merge на проект. Dirty `main` не переписывается. Повторный проход не делает второе слияние. Границы — [очередь слияния](backend-merge-queue-2026-10-06.md).
-BE-18 реализован в этой ветке; BE-19–20 ещё не завершены. Наличие DTO/fixtures не является реализацией последующих задач.
-Мерж выполняет Артём; следующий связный инкремент — BE-19.
+BE-18 выполнен в [PR #89](https://github.com/imedfan/kaban/pull/89), ещё не принят в main. BE-19 реализован в этой ветке; BE-20 ещё не завершён. Наличие DTO/fixtures не является реализацией последующих задач.
+Мерж выполняет Артём; следующий связный инкремент — BE-20.
 
 
 ## BE-01. Расширить wire-контракты демона
@@ -514,7 +514,7 @@ BE-18 реализован в этой ветке; BE-19–20 ещё не зав
 
 ## BE-18. Реализовать восстановление после сбоя демона
 
-**Статус:** реализовано в `codex/be-18-daemon-recovery`; ещё не принято в main. [Проверки и границы](backend-daemon-recovery-2026-10-06.md).
+**Статус:** выполнено в [PR #89](https://github.com/imedfan/kaban/pull/89); ещё не принято в main. [Проверки и границы](backend-daemon-recovery-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -540,6 +540,8 @@ BE-18 реализован в этой ветке; BE-19–20 ещё не зав
 
 ## BE-19. Подключить ручные команды к реальному исполнению
 
+**Статус:** реализовано в `codex/be-19-manual-execution`; ещё не принято в main. [Проверки и границы](backend-manual-execution-2026-10-06.md).
+
 **Приоритет:** P1
 
 **Зависимости:** BE-11, BE-12, BE-13, BE-14, BE-15, BE-16, BE-17, BE-18
@@ -559,11 +561,11 @@ BE-18 реализован в этой ветке; BE-19–20 ещё не зав
 
 ### Критерии приёмки
 
-- [ ] pauseAll/project не kill, pauseTask kill; move вперёд через проверки отклонён.
-- [ ] Answer только agent, stale question/grant/file IDs не применяются.
-- [ ] Human Review reject имеет cancel/archive или coding target.
-- [ ] Restore не меняет main и не подменяет run receipt.
-- [ ] Repeated commandId не повторяет external action.
+- [x] pauseAll/project не kill, pauseTask kill; move вперёд через проверки отклонён.
+- [x] Answer только agent, stale question/grant/file IDs не применяются.
+- [x] Human Review reject имеет cancel/archive или coding target.
+- [x] Restore не меняет main и не подменяет run receipt.
+- [x] Repeated commandId не повторяет external action.
 
 ## BE-20. Упаковать демон и реализовать lifecycle LaunchAgent
 

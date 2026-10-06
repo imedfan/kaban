@@ -70,6 +70,7 @@ public enum RealEffectOutcome: Codable, Hashable, Sendable {
     case mainDirty
     case mainMoved
     case merged
+    case restoreFailed(String)
 }
 
 public enum EffectExecutionDiagnostic {

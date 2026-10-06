@@ -507,6 +507,7 @@ private struct Machine {
         case .retryStage(let grant): retryStage(stage, grant: grant)
         case .cancel(let keep): cancel(keepBranch: keep)
         case .acceptSuspiciousFiles(let shown): acceptSuspicious(stage, shown: shown)
+        case .contextChanged: break
         }
         if case .applied = outcome { s.runsSinceHuman = 0 }
     }

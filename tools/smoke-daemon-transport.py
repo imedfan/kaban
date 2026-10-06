@@ -41,7 +41,7 @@ def main():
         assert run("snapshot")["seq"] == 0
         capabilities = run("capabilities")
         commands = {entry["name"]: entry["support"] for entry in capabilities["commands"]}
-        assert commands["restoreWIP"] == "unsupported" and commands["createTask"] == "supported" and commands["addProject"] == "supported"
+        assert commands["restoreWIP"] == "supported" and commands["createTask"] == "supported" and commands["addProject"] == "supported"
         replacement = run("synchronize")
         assert replacement["snapshot"]["seq"] == 0 and replacement["cursor"]["offset"] == 0
         assert replacement["current"] == []

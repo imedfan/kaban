@@ -144,7 +144,8 @@ struct DaemonMain {
                     try FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
                 }
             }
-            let scheduler = DaemonScheduler(store: store) { error in
+            let runtimeRoot = diagnosticPass ? nil : (workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path)
+            let scheduler = DaemonScheduler(store: store, workspaceRoot: runtimeRoot, runner: runner, runnerArguments: runnerArguments) { error in
                 try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: scheduler pass failed: \(error)\n".utf8))
             }
             defer { scheduler.stop() }

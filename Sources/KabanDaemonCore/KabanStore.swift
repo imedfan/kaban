@@ -156,7 +156,7 @@ public final class KabanStore: Sendable {
         if case .applied = result.outcome {
             let invocationEnded = result.state.stageId != before.stageId || result.state.currentRunId != before.currentRunId
             let stopped = [.cancelled, .done, .paused].contains(result.state.state.status)
-            if invocationEnded || stopped || command == .daemonRestarted {
+            if invocationEnded || (stopped && before.state != result.state.state) || command == .daemonRestarted {
                 // A stage exit or interrupted invocation must never deliver its old launch/gate result.
                 try Self.supersedeEffects(taskId: taskId, db: db)
                 try db.execute(sql: "DELETE FROM pipeline_deferred WHERE task_id = ?", arguments: [taskId.rawValue])

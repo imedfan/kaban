@@ -96,17 +96,23 @@ extension KabanStore {
         let taskId = lease.payload.taskId
         let record = try database.read { db in try Self.cloneRecord(taskId, db: db) }
         if let record, record.phase != "removed" {
-            try TaskClone.authorizeDeletion(candidate: record.clonePath, recorded: record.clonePath, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
-            if let fresh = record.freshPath {
-                try TaskClone.authorizeDeletion(candidate: fresh, recorded: fresh, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
+            // Removed projects retain metadata for archival/cleanup. A relink changes
+            // the origin path; the clone's recorded path still identifies our workspace.
+            let project = try database.read { db -> ProjectRecord in
+                let id = try Self.task(taskId, db: db).card.projectId
+                guard let bytes = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [id.rawValue]) else { throw StoreError.projectMissing }
+                return try Self.decode(ProjectRecord.self, bytes)
             }
-            let project = try database.read { db in try Self.project(try Self.task(taskId, db: db).card.projectId, db: db) }
+            try TaskClone.authorizeDeletion(candidate: record.clonePath, recorded: record.clonePath, workspaceRoot: record.workspaceRoot, origin: project.summary.path)
+            if let fresh = record.freshPath {
+                try TaskClone.authorizeDeletion(candidate: fresh, recorded: fresh, workspaceRoot: record.workspaceRoot, origin: project.summary.path)
+            }
             if keepBranch, FileManager.default.fileExists(atPath: record.clonePath) {
-                try TaskClone.archiveTip(record.plan, taskId: taskId, origin: record.projectPath, identity: project.summary.identity)
+                try TaskClone.archiveTip(record.plan, taskId: taskId, origin: project.summary.path, identity: project.summary.identity)
             }
-            try TaskClone.removeAuthorized(record.clonePath, recorded: record.clonePath, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
+            try TaskClone.removeAuthorized(record.clonePath, recorded: record.clonePath, workspaceRoot: record.workspaceRoot, origin: project.summary.path)
             if let fresh = record.freshPath {
-                try TaskClone.removeAuthorized(fresh, recorded: fresh, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
+                try TaskClone.removeAuthorized(fresh, recorded: fresh, workspaceRoot: record.workspaceRoot, origin: project.summary.path)
             }
             try database.write { db in
                 var removed = record

@@ -201,6 +201,8 @@ public enum HumanAction: Hashable, Sendable {
     case retryStage(grantAttempts: Int?)
     case cancel(keepBranch: Bool)
     case acceptSuspiciousFiles([FileBlobRef])
+    /// Successful model/context change, including a physically restored WIP.
+    case contextChanged
 
     public init?(command: Command) {
         switch command {
@@ -230,6 +232,8 @@ public enum TaskEffect: Codable, Hashable, Sendable {
     case killRun(RunID)
     /// Save dirty clone state to `refs/kaban/wip/<run-id>` (inside the clone) and reset to the last stage commit.
     case saveWipAndRollback(RunID)
+    /// Frozen selected snapshot; only the recorded clone may be changed.
+    case restoreWIP(runId: RunID, ref: String, sha: String, stageId: StageID)
     case runGates(stageId: StageID, commands: [String])
     case runResultCheck(stageId: StageID)
     /// Merge stage: fetch task branch, rebase onto `main` in the merge clone, run gates (§8.5).

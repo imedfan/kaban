@@ -194,7 +194,13 @@ extension KabanStore {
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }
             if var record = try processRecord(runId), record.state == "running" {
                 let birth = ProcessGroup.ProcessBirth(seconds: record.birthSeconds, microseconds: record.birthMicroseconds)
-                try ProcessGroup.stop(pid: record.pid, processGroup: record.processGroup, birth: birth)
+                _ = try ProcessGroup.stop(pid: record.pid, processGroup: record.processGroup, birth: birth)
+                let deadline = Date().addingTimeInterval(5)
+                while ProcessGroup.isExecuting(record.pid, birth: birth) {
+                    _ = ProcessGroup.poll(record.pid)
+                    guard Date() < deadline else { throw POSIXError(.EBUSY) }
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
                 record.state = "stopped"
                 if record.exitClass == nil { record.exitClass = "killed" }
                 record.passLines.append("process group \(record.runId) stopped")
