@@ -12,7 +12,8 @@ extension KabanStore {
 
     static func schedulerFlags(_ db: Database) throws -> [SchedulerFlag] {
         let pauses = try Set(String.fetchAll(db, sql: "SELECT scope FROM scheduler_pause"))
-        var flags: [SchedulerFlag] = pauses.contains(pauseScope(nil)) ? [.macPaused] : []
+        var flags = try schedulerInputs(db).flags
+        if pauses.contains(pauseScope(nil)) { flags.append(.macPaused) }
         let tasks = try allTasks(db)
         for project in try projects(db) {
             let id = project.summary.id
@@ -22,10 +23,12 @@ extension KabanStore {
                 flags.append(.projectUnavailable(id, reason, detail: project.projectedPipeline.issues.first(where: { $0.severity == .error })?.message))
             }
             if pauses.contains(pauseScope(id)) { flags.append(.projectPaused(id)) }
-            let waiting = tasks.filter { $0.card.projectId == id && $0.pipeline.stage($0.machine.stageId)?.kind == .agent && $0.machine.state.status == .waitingHuman }.count
+            let waiting = tasks.filter { $0.card.projectId == id && $0.machine.state.status == .waitingHuman && $0.machine.state != .waitingHuman(.review) }.count
             if waiting >= project.pipeline.board.maxWaitingHuman { flags.append(.intakePaused(id)) }
+            if tasks.contains(where: { $0.card.projectId == id && $0.machine.state == .blocked(.mainDirty) }) { flags.append(.mergeBlocked(id)) }
         }
-        return flags
+        var seen: Set<SchedulerFlag> = []
+        return flags.filter { seen.insert($0).inserted }
     }
 
     static func recordChangedSchedulerFlags(from previous: [SchedulerFlag], commandId: CommandID, at: Date, db: Database) throws {

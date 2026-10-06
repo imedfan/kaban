@@ -76,7 +76,9 @@ build и 377 tests, но smoke оборвал addProject через 15 секу�
 вместо polling `Process.isRunning`, project completion повторно не читает уже
 полученный source/dirty state. После правки macOS full suite (377), Linux full
 suite (375), build и process smoke прошли. Git-интеграционные сценарии выполняются
-заметно быстрее. Результат повторного CI проверяется на новом HEAD.
+заметно быстрее. На `c15e8ff` Linux build/tests/smoke прошли, macOS CI прошёл
+build, unsigned App build, 377 tests и ранее падавший process smoke.
+PR #73 принят в main как `bc9abc9`; оставшиеся дублирующие jobs ожидали runners.
 
 17 PipelineLifecycleTests покрывают общий validator, exact draft/source races,
 only-.kaban commit, working/staged preservation, crash/recovery/index lock,

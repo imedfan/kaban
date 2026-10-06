@@ -18,7 +18,7 @@ move/pause/resume/cancel/retry, Human Review/answer, детали/runs, ручн
 и ответ сохраняются в additive v3; replay предшествует ID/time generation.
 Domain refusal сохраняется без перехода; сбой БД откатывает всё действие.
 Эти команды обслуживают managed fake; production Backlog/lifecycle/pipeline
-подключены в BE-02/03 ниже, execution-команды ещё ограничены fake.
+подключены в BE-02/03 ниже; production task-control и scheduler добавлены в BE-04.
 
 Managed fake engine — ограниченная portable вертикаль. Четырёхстадийный fake pipeline
 допускается узким внутренним исключением merge_count; общий production-валидатор
@@ -32,8 +32,8 @@ Managed fake engine — ограниченная portable вертикаль. Ч
 Транспортный инкремент [daemon/CLI](development/backend-daemon-transport-2026-10-05.md)
 добавляет единый DaemonService, bounded journal pages, monotonic seq при retention,
 XPC адаптеры macOS 26, reconnect/resync клиент и kabanctl. Live subscription пока
-использует polling глобального журнала. Host выполняет recovery, но ещё не запускает
-scheduler/executor loop; приложение не подключено.
+использует polling глобального журнала. Host выполняет recovery; BE-04 добавляет
+scheduler loop, внешний executor и приложение ещё не подключены.
 
 Порученная очередь — [BE-01–20](development/backend-mvp-tasks.md). BE-01 расширяет
 контракт replacement/session, эфирного потока, log pages, version-bound draft,
@@ -50,14 +50,22 @@ asset snapshots, валидные pipeline_version, source-bound draft/apply, is
 `.kaban/` commit и восстановление файлового эффекта. Startup/recheck/observer
 подхватывают manual main, отдельные working issues не меняют committed правила.
 Immutable RunSpec и отложенный stage exit сохраняют текущую попытку при invalid
-main; полный production scheduler и внешний executor ещё не подключены.
+main; полный production scheduler добавлен в BE-04 ниже, внешний executor ещё не подключён.
+
+[BE-04](development/backend-full-scheduler-2026-10-05.md) допускает все stage kinds
+production-пайплайна, сохраняет RunSpec/outbox и weighted cursor в одной транзакции.
+Agent slots отделены от gate/merge WIP и human admission. Host будится по командам,
+observer и секундному timer; pass/tick ограничены, idle receipts не накапливаются.
+Durable scheduler inputs предоставляют границу будущим model/quota/environment
+producers; реальные CLI/пул/остаток не симулируются. Task-control/Human Review wire
+команды доступны production-задачам, физические эффекты ждут BE-05–08.
 
 ## Следующие результаты
 
 1. Подключение приложения к durable источнику через готовый transport: replacement
    snapshot, pending commands/retry при reconnect и видимые состояния соединения.
    Отдельно проверить подписанный Mach service в составе бандла.
-2. Production scheduler и оставшиеся wire-команды: model override, files/incidents,
+2. Оставшиеся wire-команды: model override, files/incidents,
    WIP restore, среда и интеграция settings.
 3. Внешний executor с claim/lease, процессами Cursor, git-клонами и гейтами.
    Exactly-once внешних действий не следует из SQLite-транзакции.

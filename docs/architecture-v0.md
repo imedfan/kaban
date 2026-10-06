@@ -1,6 +1,6 @@
-# Kaban: архитектура MVP (черновик v0.11.25)
+# Kaban: архитектура MVP (черновик v0.11.26)
 
-Рабочая техническая спецификация v0.11.25. Утверждённые решения — [decisions-log](decisions-log.md); фактическая реализация — [current-state](current-state.md). Предложения и спайки сохраняют свои пометки.
+Рабочая техническая спецификация v0.11.26. Утверждённые решения — [decisions-log](decisions-log.md); фактическая реализация — [current-state](current-state.md). Предложения и спайки сохраняют свои пометки.
 
 Решения, на которых стоит документ: macOS 26 минимум; Swift-демон через launchd и тонкий SwiftUI-клиент; одна SQLite через GRDB на все проекты; агент в MVP только Cursor CLI; MCP доски по HTTP на loopback с токеном на запуск; Developer ID без App Store; изоляция задачи через `git clone --local`; слияние локально в `main`; бюджета в долларах в MVP нет; стадии абстрактные и задаются `.kaban/pipeline.yaml`; в Human Review сводка изменений и «Открыть в Cursor» вместо своего диффа.
 
@@ -264,6 +264,17 @@ checkout main и явного автора; вместо переключени�
 4. Слоты делятся между проектами взвешенным круговым обходом (deficit round robin) с учётом личных максимумов; курсор обхода в БД.
 5. Выбор и старт run — одна транзакция с проверкой WIP и глобального потолка.
 
+**Реализованный BE-04.** Tick делает один admission/start и до 32 изменившихся
+quota/model labels; повтор token возвращает прежний receipt. Стадии обходятся по
+расстоянию до конца `on_success`, независимо от порядка YAML/display. Weighted
+cursor сохраняется в БД. Agent `running` расходует глобальный/личный слот;
+gate/merge занимают execution WIP, human — persisted admission. Ручная пауза
+блокирует новый admission всех видов, reactive runner/model/quota ограничения
+применяются к агентам/первой модели intake. Host coalesces command/observer wakes
+и имеет секундный timer: до восьми ticks на pass, idle receipt не записывается.
+Время backoff проверяется между проходами. Process reconciliation, реальные
+runner/catalog/quota producers и исполнение effects остаются BE-05–11.
+
 ## 4. Хранилище
 
 `~/Library/Application Support/Kaban/kaban.sqlite`, WAL, один писатель. Во всех таблицах `project_id`.
@@ -273,6 +284,10 @@ checkout main и явного автора; вместо переключени�
 - `pipeline_version` — снимки валидных версий, включая committed config assets;
 - `pipeline_operation` — durable план Git/file apply до receipt; `run_spec` —
   immutable вход каждой попытки; `pipeline_deferred` — ожидающий valid reload stage exit (BE-03, additive v5);
+- `scheduler_inputs` — сохранённый полный набор runtime flags, model flags/pool rules,
+  quota sample и расхода на run от internal producers (BE-04, additive v6). Нет
+  sample — нет выдуманного процента. Предстартовый check использует sample до 60 с;
+  unknown/stale не снимает reactive usage/runner flags. Источники этих фактов следуют отдельно;
 - `task` — `stage_id`, `status`, `reason`, хэш версии пайплайна при входе в стадию, приоритет, `bounce_by_reason`, ветка, путь клона, `session_id` для resume;
 - `run` — попытка: стадия, номер, pid, pgid, время старта процесса, запрошенная модель (id) и фактическое имя из `init`, `counts_toward_limits`, статус, `end_reason`, exit code, usage, путь к логу, счётчик git-отказов;
 - `git_grant` — разовые git-разрешения (раздел 8.3);
@@ -620,7 +635,7 @@ Git hooks защитой не считаем (`--no-verify`, `-c core.hooksPath=
 
 Срез разработки от 4 октября 2026 описан в [контракте headless M1](development/m1-headless-contract.md). Кандидат реализации добавляет additive v2 schema поверх опубликованной v1: явные project/settings/Markdown detail, согласованные Protocol queries, стабильные per-effect IDs и атомарные simulated result/reducer/journal/ack, конечный scheduler tick с durable human admission и weighted cursor. Приёмка конкретного PR опирается на его результаты тестов по HC-матрице; наличие этого описания не подтверждает выполнение всех HC-критериев.
 
-Fake-срез работает только на внутренней фиксированной цепочке `queue → agent → human → terminal` без hooks/gates. Для неё managed fake API исключает лишь ошибку `merge_count`; общий production validator по-прежнему требует merge. Protocol summary сохраняет production validation issues (включая `merge_count`) и `isValid = false`; fake fixture не подтверждает валидность production `.kaban/pipeline.yaml`. Fake driver явно записывает симуляцию; git, Cursor, сеть, квота, авторизация, реальные гейты и процессы не исполняются. XPC/CLI transport добавлен отдельным рабочим инкрементом выше. Полный M1, общий scheduler для произвольного pipeline, retention API и весь M2 остаются отдельной работой. Приложение использует mock adapter; его подключение к готовому transport остаётся следующим инкрементом.
+Fake-срез работает только на внутренней фиксированной цепочке `queue → agent → human → terminal` без hooks/gates. Для неё managed fake API исключает лишь ошибку `merge_count`; общий production validator по-прежнему требует merge. Protocol summary сохраняет production validation issues (включая `merge_count`) и `isValid = false`; fake fixture не подтверждает валидность production `.kaban/pipeline.yaml`. Fake driver явно записывает симуляцию; git, Cursor, сеть, квота, авторизация, реальные гейты и процессы не исполняются. XPC/CLI transport добавлен отдельным рабочим инкрементом выше. Общий production scheduler добавлен в BE-04 (§3.4). Полный M1, внешний executor, retention API и весь M2 остаются отдельной работой. Приложение использует mock adapter; его подключение к готовому transport остаётся следующим инкрементом.
 
 ## 16. Открытые вопросы
 

@@ -252,6 +252,8 @@ final class WireCommandTests: XCTestCase {
         _ = try create("first", in: store); _ = try create("second", in: store)
         _ = try send(.editTask(taskId: "first", title: "Edited later", body: nil), to: store)
         XCTAssertEqual(try tick(store).transitions.first?.task.card.id, "first")
+        // Downstream execution drains before another Backlog admission.
+        XCTAssertEqual(try tick(store).transitions.first?.task.card.id, "first")
         _ = try create("third", in: store)
         _ = try send(.setPriority(taskId: "third", priority: 10), to: store)
         XCTAssertEqual(try tick(store).transitions.first?.task.card.id, "third")

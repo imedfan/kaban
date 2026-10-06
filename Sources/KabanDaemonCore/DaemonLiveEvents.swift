@@ -21,6 +21,14 @@ public final class DaemonLiveEvents: @unchecked Sendable {
     }
     private var cursor: EphemeralCursor { .init(sessionId: sessionId, offset: offset) }
 
+    /// A producer cleared its durable sample. Replacement must not reintroduce an old
+    /// retained value; the service follows this with the existing resyncRequired event.
+    func discardQuota() {
+        lock.withLock {
+            if let previous = current.removeValue(forKey: "quota") { currentBytes -= previous.bytes }
+        }
+    }
+
     func synchronize(snapshot: () throws -> Snapshot) throws -> SnapshotReplacement {
         try lock.withLock {
             let state = try snapshot()

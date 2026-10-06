@@ -166,6 +166,10 @@ def main():
         assert git("diff", "--cached", "--binary", "--", "tracked.txt") == staged
         assert git("diff", "--binary", "--", "tracked.txt") == unstaged
         assert run("snapshot")["pipelines"][0]["versionHash"] == applied["result"]["pipelineVersion"]["hash"]
+        # Explicit persisted test settings; the daemon never guesses missing global settings.
+        with sqlite3.connect(database) as connection:
+            settings = {"maxConcurrentRuns": 3, "quotaOptions": {"enabled": False, "consent": False, "pollInterval": 300, "thresholdCm": 10, "thresholdOm": 10}}
+            connection.execute("INSERT INTO global_settings(id, payload) VALUES (1, ?)", (json.dumps(settings).encode(),))
         moved = root / "moved-project"
         owner = subprocess.Popen([str(daemon), "--stdio", "--database", str(database)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
@@ -173,6 +177,12 @@ def main():
                 owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"snapshot": {}}}) + "\n")
                 owner.stdin.flush()
                 return read_reply()["result"]["snapshot"]["_0"]
+            def owner_command(value):
+                owner.stdin.write(json.dumps({"protocolVersion": 1, "operation": {"command": {"_0": value}}}) + "\n")
+                owner.stdin.flush()
+                result = read_reply()["result"]["command"]["_0"]
+                assert "error" not in result["result"], result
+                return result
             assert owner_snapshot()["projects"][0]["availability"] == "available"
             # Live committed reload must run on the background observer without restarting.
             pipeline_file.write_text(valid_yaml.replace("model: smoke-model", "model: auto"))
@@ -189,6 +199,38 @@ def main():
             while owner_snapshot()["pipelines"][0].get("versionHash") is None:
                 assert time.monotonic() < deadline, "Live pipeline observer did not clear invalid main"
                 time.sleep(0.2)
+            # Live host scheduling, with no explicit tick and no fake/Cursor worker.
+            for n in range(3):
+                queued = envelope("createTask")
+                queued["command"]["createTask"] = {"projectId": project_id, "title": f"Queued {n}", "body": "Task\n\n## Критерии приёмки\n- [ ] Ready"}
+                owner_command(queued)
+            head_before_start = git("rev-parse", "HEAD")
+            checkout_before_start = git("status", "--porcelain")
+            owner_command(envelope("resumeAll"))
+            deadline = time.monotonic() + 8
+            while True:
+                scheduled = owner_snapshot()
+                running = [task for task in scheduled["tasks"] if task["state"]["status"] == "running"]
+                if len(running) == 3:
+                    break
+                assert time.monotonic() < deadline, "Host scheduler did not start three eligible tasks"
+                time.sleep(0.1)
+            assert len(scheduled["tasks"]) == 4
+            live_ids = {task["id"] for task in running}
+            pause_project = envelope("pauseProject")
+            pause_project["command"]["pauseProject"] = {"projectId": project_id}
+            owner_command(pause_project)
+            ceiling = envelope("setMaxConcurrentRuns")
+            ceiling["command"]["setMaxConcurrentRuns"] = {"count": 1}
+            owner_command(ceiling)
+            time.sleep(1.1)
+            assert {task["id"] for task in owner_snapshot()["tasks"] if task["state"]["status"] == "running"} == live_ids
+            assert git("rev-parse", "HEAD") == head_before_start
+            assert git("status", "--porcelain") == checkout_before_start
+            with sqlite3.connect(database) as connection:
+                assert connection.execute("SELECT COUNT(*) FROM run_spec").fetchone()[0] == 3
+                assert connection.execute("SELECT COUNT(*) FROM effect WHERE status='pending'").fetchone()[0] >= 3
+            owner_command(envelope("pauseAll"))
             repo.rename(moved)
             deadline = time.monotonic() + 8
             while owner_snapshot()["projects"][0]["availability"] != "missing":
@@ -216,7 +258,7 @@ def main():
         detail["command"]["getTaskDetail"] = {"taskId": task_id}
         archived = send(detail)["result"]["taskDetail"]["_0"]
         assert archived["task"]["state"]["status"] == "cancelled"
-    print("Daemon/CLI smoke passed: wire sessions/replay/retention, real project/template/pipeline apply/live reload/dirty checkout, Backlog, gates, missing folder/relink, removal/history and single writer.")
+    print("Daemon/CLI smoke passed: wire sessions/replay/retention, real project/pipeline/live reload, bounded production scheduler/ceiling/pause/RunSpec, dirty checkout, relink/removal/history and single writer.")
 
 
 if __name__ == "__main__":
