@@ -30,3 +30,4 @@
 - Вопрос, ответ, запуск и лог переживают `discardJournal` и повторное открытие базы.
 - Два `--log-pass` печатают один stderr: `log page-log 0 1 1 complete`.
 - macOS: `KABAN_SCENARIOS=Scenarios/M1 swift test --filter RunLogTests` — 7 tests, 0 failures. Полный `KABAN_SCENARIOS=Scenarios/M1 swift test` — 484 tests, 0 failures (Transport 23, Protocol 64, Kit 180, DaemonCore 151, Board 66).
+- Процессный smoke `tools/smoke-daemon-transport.py` ждёт у отсутствующего run код `log_unavailable`, а не `unsupported_operation`.
