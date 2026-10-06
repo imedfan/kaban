@@ -80,3 +80,27 @@ ConnectionStore, SchedulerStore, PipelineEditorStore, ModelCatalogStore и LogSt
 Проверь app build и основной пользовательский сценарий в настоящем окне.
 Рендер отдельного ReferenceFrameView не заменяет проверку WindowGroup.
 Матрица экранов/доступности — [acceptance](acceptance.md); визуальные источники — [design](../../design/README.md).
+
+## FE-02: восстановление клиентского состояния
+
+В `codex/fe-02-session-recovery` BoardStore владеет Task с BoardSession из
+BoardCore, независимо от view selection/remount. Сессия применяет полный
+SnapshotReplacement, держит durable seq и received/applied ephemeral cursors,
+очищает volatile state и защищает detail reads generation/epoch/seq. Перед
+connected выполняется replay сохранённых exact envelopes и reconciliation
+receipt с authoritative snapshot; новые мутации во время догонки недоступны.
+После overflow/gap поток пересоздаётся с backoff; явный retry дожидается прежнего.
+
+ClientCommandJournal различает sending, deliveryUncertain, awaitingEvent,
+awaitingEffect, applied, rejected/effectFailed/superseded. Scope взят из typed
+payload; unrelated correlation не завершает другую task/grant/denial operation.
+TaskDraftStore отдельно сохраняет create/edit ввод и его исходную карточку,
+reconnect не отправляет drafts. Закрытие формы не отменяет команду и не теряет ввод.
+Подтверждение title-only не удаляет неотправленное описание.
+
+Restore receipt остаётся acceptance. Optional TaskDetail.wipRestoreOperations
+даёт durable исход конкретного commandId/run/ref после journal retention;
+legacy nil остаётся неизвестностью. Claim не является стартом git, success
+подтверждается effect receipt/своим event, failed/superseded сообщаются явно.
+Полная приёмка и непроверенные native состояния —
+[отчёт FE-02](../development/frontend-fe-02-2026-10-06.md).

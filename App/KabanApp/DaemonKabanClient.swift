@@ -7,6 +7,7 @@ import KabanTransport
     let daemon: DaemonClient
     init(transport: any DaemonTransport) { daemon = DaemonClient(transport: transport) }
     func getSnapshot() async throws -> Snapshot { try await daemon.getSnapshot() }
+    func synchronize() async throws -> SnapshotReplacement { try await daemon.synchronize() }
     func send(_ envelope: CommandEnvelope) async throws -> CommandReply { try await daemon.send(envelope) }
     func capabilities() async throws -> DaemonCapabilities { try await daemon.capabilities() }
     func readLog(runId: RunID, fromOffset: Int64, limit: Int) async throws -> LogPage {

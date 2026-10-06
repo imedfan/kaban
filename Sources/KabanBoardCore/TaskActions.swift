@@ -2,7 +2,7 @@ import Foundation
 import KabanProtocol
 
 /// Editor data for the demo adapter. The wire contract currently has a single Markdown body.
-public struct DemoTaskDraft: Equatable, Sendable {
+public struct DemoTaskDraft: Codable, Equatable, Sendable {
     public var title: String
     public var description: String
     public var acceptanceCriteria: String

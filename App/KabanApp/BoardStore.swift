@@ -10,189 +10,85 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
 
 @MainActor @Observable final class BoardStore {
     private let client: any KabanClient
+    let session: BoardSession
     let usesFixture: Bool
     let dataSource: String
     let dataSourceDetail: String
-    private(set) var capabilities: DaemonCapabilities?
-    private(set) var commandJournal: ClientCommandJournal?
-    private let boardSet: BoardSetStore
+    private var subscription: Task<Void, Never>?
+    var capabilities: DaemonCapabilities? { session.capabilities }
+    var commandJournal: ClientCommandJournal? { session.journal }
+    private var boardSet: BoardSetStore { session.boardSet }
     var screen: BoardScreen = .board
     var filter: BoardFilter = .all
     var query = ""
     var searchRequest = 0
     var sheet: TaskSheetRoute?
     var qaLayoutRevision = 0
-    var projection: BoardProjection?
+    var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
     var visibleIDs: [ProjectID] = []
-    var selectedProjectID: ProjectID?
-    var selectedID: TaskID?
-    var detail: TaskDetail?
-    var error: String?
-    var editorError: String?
-    private(set) var creation = TaskCreationPending()
-    private(set) var createdTaskID: TaskID?
-    private var selection = TaskDetailSelection()
-    private var taskReadFloors: [TaskID: Seq] = [:]
-    var connectionState: DaemonConnectionState = .connecting
-    var canSend: Bool { connectionState == .connected && capabilities != nil && commandJournal != nil }
-    func can(_ name: CommandName) -> Bool { canSend && capabilities?.supports(name) == true }
+    var selectedProjectID: ProjectID? { get { session.selectedProjectID } set { session.selectedProjectID = newValue } }
+    var selectedID: TaskID? { session.selectedID }
+    var detail: TaskDetail? { session.detail }
+    var error: String? { get { session.error } set { session.error = newValue } }
+    var editorError: String? { get { session.editorError } set { session.editorError = newValue } }
+    var creation: TaskCreationPending { session.creation }
+    var createdTaskID: TaskID? { session.createdTaskID }
+    var connectionState: DaemonConnectionState { get { session.connectionState } set { session.connectionState = newValue } }
+    var canSend: Bool { session.canSend }
+    func can(_ name: CommandName) -> Bool { session.can(name) }
     func unavailableReason(_ name: CommandName) -> String {
         if can(name) { return "" }
         return canSend ? "Подключённая служба не поддерживает это действие. Обновите службу Kaban." : "Действие будет доступно после подключения и синхронизации."
     }
-    private var didConnect = false
-
     init(client: any KabanClient, storage: any KeyValueStoring = DefaultsStorage(), dataSource: String = "Служба Kaban · на этом Маке", dataSourceDetail: String = "", commandStorageKey: String = "client.commands.installed") {
-        self.client = client
-        self.usesFixture = client is MockKabanClient
+        self.client = client; usesFixture = client is MockKabanClient
         self.dataSource = usesFixture ? "Демонстрация · данные в памяти" : dataSource
         self.dataSourceDetail = dataSourceDetail
-        self.boardSet = BoardSetStore(storage: storage)
-        do { commandJournal = try ClientCommandJournal(storage: storage, key: usesFixture ? "client.commands.fixture" : commandStorageKey) }
-        catch { self.error = "Не удалось прочитать сохранённые отправки. \(error.localizedDescription)" }
+        session = BoardSession(client: client, storage: storage, key: usesFixture ? "client.commands.fixture" : commandStorageKey)
     }
+    isolated deinit { subscription?.cancel() }
     func connect() async {
-        guard !didConnect else { return }
-        didConnect = true
-        let stream = client.updates()
-        do {
-            capabilities = try await client.capabilities()
-            let snapshot = try await client.getSnapshot()
-            projection = BoardProjection(snapshot: snapshot)
-            taskReadFloors = Dictionary(uniqueKeysWithValues: snapshot.tasks.map { ($0.id, snapshot.seq) })
-            boardSet.bootstrap(projects: snapshot.projects.map(\.id))
-            visibleIDs = boardSet.visibleProjectIds
-            selectedProjectID = snapshot.projects.first?.id
-            for try await update in stream {
-                switch update {
-                case .capabilities(let value): capabilities = value; continue
-                case .connection(let value): connectionState = value; continue
-                case .replacement(let value):
-                    if var board = projection { board.replace(with: value.snapshot); projection = board }
-                    else { projection = BoardProjection(snapshot: value.snapshot) }
-                    for current in value.current { _ = projection?.apply(current.event) }
-                    taskReadFloors = Dictionary(uniqueKeysWithValues: value.snapshot.tasks.map { ($0.id, value.snapshot.seq) })
-                    boardSet.bootstrap(projects: value.snapshot.projects.map(\.id)); visibleIDs = boardSet.visibleProjectIds
-                    if selectedProjectID.map({ projection?.projects[$0] == nil }) ?? true { selectedProjectID = value.snapshot.projects.first?.id }
-                    if let id = selectedID { await select(projection?.tasks[id] == nil ? nil : id) }
-                    continue
-                case .ephemeral(let value): _ = projection?.apply(value.event); continue
-                case .event: break
-                }
-                guard case .event(let event) = update else { continue }
-                guard !Task.isCancelled else { break }
-                guard var board = projection else { continue }
-                let result = board.apply(event)
-                if case .gap = result {
-                    let snapshot = try await client.getSnapshot()
-                    board.replace(with: snapshot)
-                    taskReadFloors = Dictionary(uniqueKeysWithValues: snapshot.tasks.map { ($0.id, snapshot.seq) })
-                    projection = board
-                    boardSet.bootstrap(projects: board.projectOrder)
-                    visibleIDs = boardSet.visibleProjectIds
-                    if selectedProjectID == nil || selectedProjectID.map({ board.projects[$0] == nil }) == true { selectedProjectID = board.projectOrder.first }
-                    // Invalidate older detail requests, including same-task body responses.
-                    if let id = selectedID { await select(board.tasks[id] == nil ? nil : id) }
-                    continue
-                }
-                projection = board
-                guard result == .applied else { continue }
-                try commandJournal?.observe(event)
-                switch event.event {
-                case .taskCreated(let card), .taskEdited(let card), .taskUpdated(let card): taskReadFloors[card.id] = event.seq
-                default: break
-                }
-                boardSet.apply(event.event)
-                visibleIDs = boardSet.visibleProjectIds
-                if selectedProjectID == nil || selectedProjectID.map({ board.projects[$0] == nil }) == true { selectedProjectID = board.projectOrder.first }
-                if let id = creation.finish(with: event) {
-                    createdTaskID = id
-                    if let project = board.tasks[id]?.projectId { show(project); selectedProjectID = project }
-                    Task { await select(id) }
-                } else if let id = selectedID {
-                    if board.tasks[id] == nil { await select(nil) }
-                    else {
-                        switch event.event {
-                        case .taskUpdated(let card) where card.id == id, .taskEdited(let card) where card.id == id:
-                            Task { await refreshDetail(id) }
-                        default: break
-                        }
-                    }
-                }
-            }
-        } catch { self.error = (error as? CommandError)?.message ?? error.localizedDescription; connectionState = .disconnected(.init(code: "transport_failure", message: self.error ?? "Соединение прервано.")) }
-        didConnect = false
+        guard subscription == nil else { return }
+        let session = session
+        subscription = Task { await session.run() }
     }
-    func select(_ id: TaskID?) async {
-        selectedID = id
-        detail = nil
-        _ = selection.begin(id)
-        if let id { await refreshDetail(id) }
+    func stop() { subscription?.cancel(); subscription = nil }
+    func retry() {
+        let previous = subscription, session = session
+        previous?.cancel()
+        subscription = Task { await previous?.value; await session.run() }
     }
-    private func refreshDetail(_ id: TaskID) async {
-        guard selectedID == id else { return }
-        let generation = selection.begin(id)
-        do {
-            guard capabilities?.supports(.getTaskDetail) == true else { self.error = unavailableReason(.getTaskDetail); return }
-            let result = try await client.send(.init(command: .getTaskDetail(taskId: id))).result
-            guard selection.accepts(generation, taskID: id) else { return }
-            switch result {
-            case .taskDetail(let detail):
-                guard selection.accepts(generation, detail: detail, minimumSeq: taskReadFloors[id] ?? 0) else { return }
-                self.detail = detail
-            case .error(let error): self.error = error.message
-            default: self.error = "Не удалось получить детали задачи."
-            }
-        } catch {
-            guard selection.accepts(generation, taskID: id) else { return }
-            self.error = error.localizedDescription
-        }
-    }
-    func prepareCreation() { editorError = nil; createdTaskID = nil }
+    func updateVisibleProjects() { visibleIDs = session.visibleIDs }
+    func select(_ id: TaskID?) async { await session.select(id) }
+    func prepareCreation() { session.prepareCreation() }
     func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
-        guard can(.createTask), draft.canSubmit, projection?.projects[projectID] != nil else { return }
-        let commandID = UUID()
-        guard creation.begin(commandID: commandID, projectID: projectID) else { return }
-        editorError = nil
-        let envelope = CommandEnvelope(commandId: commandID, command: .createTask(projectId: projectID, title: draft.title, body: draft.body))
-        do {
-            try commandJournal?.begin(envelope)
-        } catch { creation.fail(commandID); editorError = error.localizedDescription; return }
-        do {
-            let reply = try await client.send(envelope)
-            try commandJournal?.receive(reply)
-            if case .error(let error) = reply.result {
-                guard creation.commandID == commandID else { return }
-                creation.fail(commandID); editorError = error.message
-            }
-            // A task ID in the receipt is not a card. Selection waits for correlated taskCreated.
-        } catch {
-            guard creation.commandID == commandID else { return }
-            try? commandJournal?.markUncertain(commandID)
-            editorError = "Не удалось подтвердить отправку. Она сохранена; не создавайте задачу повторно."
-        }
+        let command = Command.createTask(projectId: projectID, title: draft.title, body: draft.body)
+        guard draft.canSubmit, projection?.projects[projectID] != nil, session.can(command) else { return }
+        do { try session.drafts?.save(.init(key: .create(projectID), draft: draft)) }
+        catch { editorError = "Не удалось сохранить черновик. \(error.localizedDescription)"; return }
+        _ = await session.send(command, editor: true)
     }
     @discardableResult func send(_ command: Command, taskID: TaskID, editor: Bool = false) async -> Bool {
-        guard can(command.name), let board = projection, board.tasks[taskID] != nil, !board.isSent(taskID) else { return false }
-        let commandID = UUID()
-        let envelope = CommandEnvelope(commandId: commandID, command: command)
-        do { try commandJournal?.begin(envelope) }
-        catch { self.error = error.localizedDescription; return false }
-        projection?.markSent(commandId: commandID, taskId: taskID, at: Date())
-        do {
-            let reply = try await client.send(envelope)
-            try commandJournal?.receive(reply)
-            if case .error(let commandError) = reply.result {
-                projection?.noteCommandError(commandID)
-                if editor { editorError = commandError.message } else { error = commandError.message }
-                return false
-            }
-            return true
-        } catch {
-            try? commandJournal?.markUncertain(commandID)
-            let message = "Не удалось подтвердить отправку. Она сохранена для восстановления соединения."
-            if editor { editorError = message } else { self.error = message }
-            return false
+        guard projection?.tasks[taskID] != nil else { return false }
+        return await session.send(command, editor: editor)
+    }
+    func pendingLabel(_ scope: CommandScope) -> String? {
+        guard let phase = session.pending(in: scope)?.phase else { return nil }
+        switch phase {
+        case .sending: return "Отправляем…"
+        case .deliveryUncertain: return "Проверяем отправку…"
+        case .awaitingEvent: return "Ждём подтверждения…"
+        case .awaitingEffect: return "Восстанавливаем WIP…"
+        default: return nil
+        }
+    }
+    var connectionLabel: String? {
+        switch connectionState {
+        case .connecting: "Подключаемся к Kaban…"
+        case .synchronizing: "Сверяем доску и сохранённые отправки…"
+        case .connected: nil
+        case .reconnecting: "Связь прервана. Восстанавливаем соединение…"
+        case .disconnected(let error): error.message
         }
     }
     func readLog(runId: RunID, fromOffset: Int64, limit: Int = DaemonWire.maxPageSize) async throws -> LogPage {
@@ -237,9 +133,9 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         return queued > 0 ? "В очереди · \(queued)" : "Очередь пуста"
     }
     func beginCreation(_ projectID: ProjectID? = nil) {
-        guard can(.createTask), let id = projectID ?? selectedProjectID, creation.commandID == nil else { return }
+        guard can(.createTask), let id = projectID ?? selectedProjectID else { return }
         selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
-    func hide(_ id: ProjectID) { boardSet.hide(id); visibleIDs = boardSet.visibleProjectIds }
-    func show(_ id: ProjectID) { boardSet.show(id); visibleIDs = boardSet.visibleProjectIds }
+    func hide(_ id: ProjectID) { session.hide(id); updateVisibleProjects() }
+    func show(_ id: ProjectID) { session.show(id); updateVisibleProjects() }
 }

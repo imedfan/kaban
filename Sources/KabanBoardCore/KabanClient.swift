@@ -5,6 +5,7 @@ import KabanProtocol
 /// Commands return acknowledgements; only snapshots and events change the board.
 @MainActor public protocol KabanClient: AnyObject {
     func getSnapshot() async throws -> Snapshot
+    func synchronize() async throws -> SnapshotReplacement
     func updates() -> AsyncThrowingStream<KabanClientUpdate, Error>
     func events() -> AsyncStream<EventEnvelope>
     func send(_ envelope: CommandEnvelope) async throws -> CommandReply
@@ -21,6 +22,9 @@ public enum KabanClientUpdate: Sendable {
     case ephemeral(EphemeralEnvelope)
 }
 extension KabanClient {
+    public func synchronize() async throws -> SnapshotReplacement {
+        throw CommandError(code: CommandError.unsupportedOperationCode, message: "Источник данных не поддерживает восстановление сессии.")
+    }
     public func send(_ command: Command, commandId: CommandID) async throws -> CommandResult {
         try await send(.init(commandId: commandId, command: command)).result
     }
@@ -49,6 +53,7 @@ extension KabanClient {
 
 @MainActor public final class MockKabanClient: KabanClient {
     private var snapshot: Snapshot
+    private let sessionId = UUID()
     private var continuations: [UUID: AsyncStream<EventEnvelope>.Continuation] = [:]
     private var journal: [EventEnvelope] = []
     private var bodies: [TaskID: String] = [:]
@@ -58,6 +63,9 @@ extension KabanClient {
 
     public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:]) { self.snapshot = snapshot; self.bodies = taskBodies }
     public func getSnapshot() async throws -> Snapshot { snapshot }
+    public func synchronize() async throws -> SnapshotReplacement {
+        .init(snapshot: snapshot, cursor: .init(sessionId: sessionId, offset: 0), current: [])
+    }
     public func events() -> AsyncStream<EventEnvelope> {
         let id = UUID()
         return AsyncStream { continuation in
@@ -69,7 +77,7 @@ extension KabanClient {
     }
     public func capabilities() async throws -> DaemonCapabilities {
         let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask]
-        return .init(operations: ["snapshot", "command", "subscribe"].map { .init(name: $0, supported: true) },
+        return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
     public func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
@@ -96,7 +104,7 @@ extension KabanClient {
             }
             feed += notes[id] ?? []
             feed.sort { $0.at < $1.at }
-            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id]))
+            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
         case .createTask(let projectID, let title, let body):
             guard snapshot.projects.contains(where: { $0.id == projectID }) else { return .error(CommandError(code: "project_not_found", message: "Проект не найден.")) }
             guard let pipeline = snapshot.pipelines.first(where: { $0.projectId == projectID }),

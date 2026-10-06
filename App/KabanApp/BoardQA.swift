@@ -74,7 +74,7 @@ import Darwin
         store.prepareCreation()
         let before = store.projection?.tasks.count ?? 0
         await store.create(.init(title: "Durable UI task", body: "Durable body"), in: project)
-        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil }
+        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil && store.canSend }
         guard let id = store.createdTaskID else { throw failure("Correlated creation missing") }
         guard store.projection?.tasks.count == before + 1,
               let record = store.commandJournal?.records.first(where: { if case .createTask = $0.envelope.command { return true }; return false }),
@@ -88,13 +88,13 @@ import Darwin
             throw failure("Missing tail became empty success")
         } catch let error as CommandError { guard error.code != CommandError.unsupportedOperationCode else { throw failure("Tail API was not forwarded") } }
         guard await store.send(.editTask(taskId: id, title: "Edited durable task", body: "Durable body\n"), taskID: id) else { throw failure("Live edit rejected") }
-        try await waitUntil("durable task edit") { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false }
+        try await waitUntil("durable task edit") { store.projection?.tasks[id]?.title == "Edited durable task" && store.projection?.isSent(id) == false && store.canSend }
         guard await store.send(.pauseTask(taskId: id), taskID: id) else { throw failure("Live pause rejected") }
-        try await waitUntil("task pause") { store.projection?.tasks[id]?.state == .paused && store.projection?.isSent(id) == false }
+        try await waitUntil("task pause") { store.projection?.tasks[id]?.state == .paused && store.projection?.isSent(id) == false && store.canSend }
         guard await store.send(.resumeTask(taskId: id), taskID: id) else { throw failure("Live resume rejected") }
-        try await waitUntil("task resume") { store.projection?.tasks[id]?.state.status == .queued && store.projection?.isSent(id) == false }
+        try await waitUntil("task resume") { store.projection?.tasks[id]?.state.status == .queued && store.projection?.isSent(id) == false && store.canSend }
         guard await store.send(.cancelTask(taskId: id, keepBranch: false), taskID: id) else { throw failure("Live cancel rejected") }
-        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
+        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false && store.canSend }
         await store.select(id)
         guard store.detail?.body == "Durable body\n" else { throw failure("Live body changed") }
         if let path = argument("--daemon-smoke-window") {
@@ -121,6 +121,13 @@ import Darwin
         case "hidden": store.visibleIDs = []
         case "error": store.error = "Не удалось связаться с источником состояния. Попробуйте ещё раз."
         case "reconnecting": store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq)
+        case "connection-error": store.connectionState = .disconnected(.init(code: "reconciliation_failed", message: "Не удалось проверить сохранённые отправки. Служба временно недоступна; задачи и черновики сохранены. Проверьте подключение снова."))
+        case "pending-create":
+            let draft = DemoTaskDraft(title: "Сохранённый черновик с длинным заголовком и точным Markdown", description: "## Описание\n\nТекст остаётся в форме после разрыва связи. **Проверяем исходную отправку**; второе создание заблокировано.\n", acceptanceCriteria: "- Одна задача после восстановления связи.\n- Текст сохранён буквально.")
+            try store.session.drafts?.save(.init(key: .create("shop"), draft: draft))
+            let envelope = CommandEnvelope(command: .createTask(projectId: "shop", title: draft.title, body: draft.body))
+            try store.commandJournal?.begin(envelope); try store.commandJournal?.markUncertain(envelope.commandId)
+            store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq); store.sheet = .create("shop")
         default: break
         }
         // Remount the same WindowGroup subtree so view caching includes unchanged controls.
@@ -135,22 +142,22 @@ import Darwin
         store.prepareCreation()
         let body = "## Описание\n\nSmoke content\n\n## Критерии приёмки\n\n- Текст сохраняется."
         await store.create(.init(title: "UI smoke task", body: body), in: "shop")
-        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil }
+        try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil && store.canSend }
         guard let id = store.createdTaskID, store.projection?.tasks.count == before + 1 else { throw failure("Creation event missing") }
         await store.select(id)
         guard store.detail?.body == body else { throw failure("Task body was changed") }
         checks.append("create selects task after correlated event and preserves Markdown")
         guard await store.send(.editTask(taskId: id, title: "Edited smoke task", body: body + "\n"), taskID: id) else { throw failure("Edit rejected") }
-        try await waitUntil("task edit") { store.projection?.tasks[id]?.title == "Edited smoke task" && store.projection?.isSent(id) == false }
+        try await waitUntil("task edit") { store.projection?.tasks[id]?.title == "Edited smoke task" && store.projection?.isSent(id) == false && store.canSend }
         guard await store.send(.moveTask(taskId: id, stage: "dev"), taskID: id) else { throw failure("Move rejected") }
-        try await waitUntil("task move") { store.projection?.tasks[id]?.stageId == "dev" && store.projection?.isSent(id) == false }
+        try await waitUntil("task move") { store.projection?.tasks[id]?.stageId == "dev" && store.projection?.isSent(id) == false && store.canSend }
         guard await store.send(.cancelTask(taskId: id, keepBranch: false), taskID: id) else { throw failure("Cancel rejected") }
-        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false }
+        try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false && store.canSend }
         checks.append("edit, move and cancel resolve through typed commands and journal projection")
         guard await store.send(.pauseTask(taskId: "SHOP-42"), taskID: "SHOP-42") else { throw failure("Pause rejected") }
-        try await waitUntil("fixture task pause") { store.projection?.tasks["SHOP-42"]?.state == .paused && store.projection?.isSent("SHOP-42") == false }
+        try await waitUntil("fixture task pause") { store.projection?.tasks["SHOP-42"]?.state == .paused && store.projection?.isSent("SHOP-42") == false && store.canSend }
         guard await store.send(.resumeTask(taskId: "SHOP-42"), taskID: "SHOP-42") else { throw failure("Resume rejected") }
-        try await waitUntil("fixture task resume") { store.projection?.tasks["SHOP-42"]?.state == .queued(nil) && store.projection?.isSent("SHOP-42") == false }
+        try await waitUntil("fixture task resume") { store.projection?.tasks["SHOP-42"]?.state == .queued(nil) && store.projection?.isSent("SHOP-42") == false && store.canSend }
         checks.append("pause and resume use the client; resume returns queued")
         store.query = "платёж"
         guard store.matches("SHOP-52"), !store.matches("SHOP-58") else { throw failure("Search mismatch") }

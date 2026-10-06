@@ -220,6 +220,9 @@ public struct BoardProjection: Equatable, Sendable {
         pending.clear(commandId: commandId)
     }
 
+    /// Session journal owns resolution, including external effects.
+    public mutating func replacePending(_ pending: PendingCommands) { self.pending = pending }
+
     public func isSent(_ taskId: TaskID) -> Bool {
         pending.isSent(taskId)
     }
@@ -323,7 +326,7 @@ public struct BoardProjection: Equatable, Sendable {
             return .applied
         case .taskUpdated(let card):
             replaceCard(card)
-            if let commandId = envelope.commandId {
+            if let commandId = envelope.commandId, pending.marks[commandId]?.taskId == card.id {
                 pending.clear(commandId: commandId)
             }
             return .applied

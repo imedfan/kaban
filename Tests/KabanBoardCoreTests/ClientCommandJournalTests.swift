@@ -34,10 +34,12 @@ final class ClientCommandJournalTests: XCTestCase {
 
         let create = CommandEnvelope(command: .createTask(projectId: "shop", title: "Task", body: ""))
         try journal.begin(create)
-        try journal.observe(Fix.envelope(9, .taskCreated(Fix.card("t-2")), commandId: create.commandId))
-        try journal.receive(.init(commandId: create.commandId, seq: 9, result: .taskCreated("t-2")))
+        try journal.observe(Fix.envelope(9, .taskCreated(Fix.card("other-project")), commandId: create.commandId))
+        XCTAssertTrue(journal.records[1].isPending, "A card in another project cannot fulfill this creation")
+        try journal.observe(Fix.envelope(10, .taskCreated(Fix.card("t-2", project: "shop")), commandId: create.commandId, projectId: "shop"))
+        try journal.receive(.init(commandId: create.commandId, seq: 10, result: .taskCreated("t-2")))
         XCTAssertFalse(journal.records[1].isPending)
-        XCTAssertEqual(journal.records[1].eventSeq, 9)
+        XCTAssertEqual(journal.records[1].eventSeq, 10)
     }
     @MainActor func testRejectionAndCorruptStorageDoNotSilentlyLoseTheRequest() async throws {
         let storage = MemoryKeyValueStore()
