@@ -22,3 +22,16 @@ Frontend FE-03 реализует состояния этих отказов и 
 приёмку перечисленных контрактов. Остальные известные ограничения production
 Cursor/MCP, quota и policy описаны в [current-state](../current-state.md);
 они уточняются в соответствующей FE-задаче.
+
+## FE-06: первоначальный приоритет при создании
+
+F3/UC-02 включает приоритет в создание. Command.createTask и StoreCommands
+принимают projectId/title/body; новая TaskCard получает default priority=0.
+setPriority поддержан и durable, но влияет на следующий выбор scheduler.
+После создания задача уже может быть выбрана до отдельной смены приоритета.
+
+В FE-06 приоритет меняется явным отдельным действием после создания.
+UI не обещает атомарное создание с приоритетом и не останавливает проект
+ради скрытого обхода. Для полного UC-02 нужен согласованный контракт
+initial priority в createTask с legacy decoding/default=0 и atomic card/journal
+в той же transaction. Это расхождение не закрыто native smoke или зелёным CI.

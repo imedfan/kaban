@@ -1,0 +1,11 @@
+{
+  "checks" : [
+    "Cmd-2 focuses a visible project through the real native menu",
+    "Cmd-Option-Up reorders the project through the real native menu",
+    "Hide and reorder preserve all task state and the waiting badge without a daemon mutation",
+    "The same drop handler used by SwiftUI restores a hidden project; foreign payload is rejected",
+    "Mascot choice is applied through setMascot and the correlated projectUpdated event",
+    "Compact view and local board changes render in the actual WindowGroup"
+  ],
+  "result" : "passed"
+}

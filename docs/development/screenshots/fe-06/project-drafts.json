@@ -1,0 +1,7 @@
+{
+  "checks" : [
+    "native editor restores separate title and exact Markdown after programmatic project route changes",
+    "Return creates in selected project; correlated event closes its form and keeps other project draft"
+  ],
+  "result" : "passed"
+}

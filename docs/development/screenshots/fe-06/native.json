@@ -1,0 +1,9 @@
+{
+  "checks" : [
+    "Return in real SwiftUI create, edit and priority sheets sends typed commands",
+    "taskCreated selects one task after correlation; lost reply uses exact replay",
+    "native TextEditor preserves CRLF, trailing whitespace and Markdown byte for byte",
+    "priority changes on taskUpdated; unsent draft remains separate"
+  ],
+  "result" : "passed"
+}
