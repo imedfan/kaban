@@ -14,6 +14,9 @@ UI не заменяет отсутствующие producers локальным
 | FE-04: папка после restart | App хранит security-scoped bookmarks и даёт повторный выбор, но штатная App/helper установка не принята из-за BE-20. Developer private DB reopen проходит. | Проверить NSOpenPanel grant, сохранённый bookmark, права именно helper, утрату grant и исправление на принятом signed bundle после restart. Entitlement и stdio smoke не закрывают эту проверку. |
 | FE-04: редактирование обнаруженных гейтов | detectGates — предложения команд из committed descriptors; отдельной wire-команды записи гейтов нет. | Продолжить flow через единый FE-13 pipeline draft/validate/apply. Это frontend dependency, не право запустить найденный script или молча заменить pipeline. |
 
+| FE-05: подтверждённые процессы и время исполнения | TaskCard имеет running/updatedAt, RunSummary — DB status/startedAt; отдельного подтверждения external spawn/актуальной liveness и wall deadline нет. | Дать producer/wire факты по runId и process lifecycle. Сейчас UI показывает резервирование / полученный current-run progress и неизвестность числа живых процессов, без счёта gating или выдуманного elapsed. |
+| FE-05: причины лимитов и прогресс гейтов | PipelineSummary не передаёт bounce_limit_total/структурированный exhausted rule; TaskCard counters не доказывают выбранный rule. DTO также не имеет queuePosition и gate-step progress. | Передать точный rule/title/qualifier и числа из источника. UI использует известные onConflict/runLimit; неизвестный общий limit, очередь и gate N/M не угадываются. |
+
 Frontend FE-03 реализует состояния этих отказов и путь действий по capabilities.
 Протокольные fixtures проверяют rendering/correlation, но не закрывают live
 приёмку перечисленных контрактов. Остальные известные ограничения production

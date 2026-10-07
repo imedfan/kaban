@@ -25,6 +25,17 @@ enum DesignSystem {
         case .terminal: return "checkmark.circle"
         }
     }
+    static func stageColor(_ stage: StageSummary, theme: ReferenceTheme) -> Color {
+        switch stage.display.color?.lowercased() {
+        case "blue": return theme.status("running").0
+        case "teal", "cyan": return theme.status("review").0
+        case "purple": return theme.status("gating").0
+        case "green": return theme.status("done").0
+        case "orange", "amber": return theme.status("waiting").0
+        case "gray", "grey": return theme.faint
+        default: return theme.status(tone(stage)).0
+        }
+    }
     static func tone(_ stage: StageSummary) -> String {
         switch stage.kind {
         case .queue: "queued"

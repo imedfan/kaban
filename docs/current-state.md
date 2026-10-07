@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`0dcfd91` (FE-03, PR #94).
+`e47c468` (FE-04, PR #95).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,7 +17,7 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `0dcfd91`; FE-01 принят в #92, FE-02 —
+Основной каталог обновлён до main `e47c468`; FE-01 принят в #92, FE-02 —
 в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
 CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
@@ -26,12 +26,19 @@ FE-03 принят в main через [#94](https://github.com/imedfan/kaban/pul
 по capabilities, optional permissions и защита старого journal owner при shutdown.
 Проверки и незавершённая live-приёмка — [отчёт FE-03](development/frontend-fe-03-2026-10-07.md).
 Основной checkout содержит FE-03; все шесть jobs её финального кода `4307d13` прошли.
-FE-04 подготовлена в отдельной ветке от принятого FE-03: формы
+FE-04 принята в main через [#95](https://github.com/imedfan/kaban/pull/95): формы
 Add/Relink/Remove, durable project drafts, folder bookmarks и серверные reads.
 Native private DB сценарий проверил настоящие отказы, Backlog, reopening,
 сохранение ID при relink и authoritative remove. [Отчёт FE-04](development/frontend-fe-04-2026-10-07.md).
 Первые три критерия FE-04 отмечены; signed App/helper grants после restart
-не проверены. Её отдельный PR направляется в main, по одной задаче в PR.
+не проверены. Все шесть jobs финального FE-04 `ff584b7` успешны.
+FE-05 подготовлена в отдельной ветке от принятого FE-04:
+нативные дорожки/compact, hidden/collapsed/gate, local reorder, truthful WIP,
+карточки/reasons/current-run progress и mascot picker. 112 BoardCore tests,
+App build, native actions и два запуска App с persisted BoardSet прошли.
+[Отчёт FE-05](development/frontend-fe-05-2026-10-07.md) содержит настоящие окна,
+непроверенную pointer/system приёмку и отсутствующие process/limit facts.
+В main её кода пока нет; отдельный PR содержит только FE-05.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -86,7 +93,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельный FE-04 и завершить его и FE-03
+1. Принять отдельный FE-05 и завершить системные зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.

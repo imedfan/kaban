@@ -61,6 +61,9 @@ import KabanProtocol
     public func prepareCreation() { editorError = nil; createdTaskID = nil }
     public func show(_ id: ProjectID) { boardSet.show(id); visibleIDs = boardSet.visibleProjectIds }
     public func hide(_ id: ProjectID) { boardSet.hide(id); visibleIDs = boardSet.visibleProjectIds }
+    public func move(_ id: ProjectID, to index: Int) { boardSet.move(id, to: index); visibleIDs = boardSet.visibleProjectIds }
+    public func show(_ id: ProjectID, at index: Int) { boardSet.show(id, at: index); visibleIDs = boardSet.visibleProjectIds }
+
 
     /// Quiesce storage writes before a runtime replaces this session/transport.
     /// Late RPC responses may finish, but cannot overwrite the next journal owner.

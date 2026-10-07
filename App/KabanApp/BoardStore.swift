@@ -4,8 +4,10 @@ import KabanProtocol
 import KabanBoardCore
 
 final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
-    func data(forKey key: String) -> Data? { UserDefaults.standard.data(forKey: key) }
-    func set(_ data: Data?, forKey key: String) { UserDefaults.standard.set(data, forKey: key) }
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    func data(forKey key: String) -> Data? { defaults.data(forKey: key) }
+    func set(_ data: Data?, forKey key: String) { defaults.set(data, forKey: key) }
 }
 
 @MainActor @Observable final class BoardStore {
@@ -25,6 +27,10 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var filter: BoardFilter = .all
     var query = ""
     var searchRequest = 0
+    var focusRequest = 0
+    var compactBoard = false
+    var mascotProjectID: ProjectID?
+    private var runFacts: [TaskID: (card: TaskCard, generation: UUID, run: RunSummary?)] = [:]
     var sheet: TaskSheetRoute?
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
@@ -109,11 +115,37 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         }
         return client.tailLog(runId: runId, fromOffset: fromOffset)
     }
-    var runningCount: Int { projection?.tasks.values.filter { $0.state == .running || $0.state == .gating }.count ?? 0 }
+    var reservationCount: Int { projection?.tasks.values.filter { $0.state == .running }.count ?? 0 }
+    func currentRun(for card: TaskCard) -> RunSummary? { runFacts[card.id].flatMap { $0.card == card && $0.generation == session.sessionGeneration ? $0.run : nil } }
+    func progress(for card: TaskCard) -> RunProgress? {
+        CardPresentation.progress(card: card, currentRun: currentRun(for: card), reports: projection?.ephemeral.runProgress ?? [:])
+    }
+    func readRunFacts(for card: TaskCard) async {
+        guard card.state == .running || card.state == .waitingHuman(.modelSubstituted), can(.getTaskDetail) else { return }
+        if let facts = runFacts[card.id], facts.card == card && facts.generation == session.sessionGeneration { return }
+        let generation = session.sessionGeneration
+        do {
+            let reply = try await client.send(.init(command: .getTaskDetail(taskId: card.id)))
+            guard case .taskDetail(let detail) = reply.result else { return }
+            guard !Task.isCancelled, session.sessionGeneration == generation,
+                  projection?.tasks[card.id] == card, detail.task == card else { return }
+            let matching = detail.runs.filter { run in
+                run.taskId == card.id && run.stageId == card.stageId &&
+                (card.state != .running || (run.endedAt == nil && (run.status == .starting || run.status == .running)))
+            }
+            let run = matching.max { $0.number < $1.number }
+            runFacts[card.id] = (card, generation, run)
+        } catch { /* Optional presentation facts stay unknown; task commands are unaffected. */ }
+    }
+    var hiddenStageCount: Int {
+        projection?.tasks.values.filter { card in
+            projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.display.hidden == true
+        }.count ?? 0
+    }
     var waitingCount: Int { projection?.tasks.values.filter { $0.state.status == .waitingHuman }.count ?? 0 }
     func matches(_ id: TaskID) -> Bool {
         guard let card = projection?.tasks[id] else { return false }
-        let acceptsFilter = filter == .all || (filter == .waiting && card.state.status == .waitingHuman) || (filter == .incidents && card.state == .waitingHuman(.incident))
+        let acceptsFilter = filter == .all || (filter == .waiting && card.state.status == .waitingHuman) || (filter == .incidents && card.state == .waitingHuman(.incident)) || (filter == .hiddenStages && projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.display.hidden == true)
         return acceptsFilter && (query.isEmpty || card.title.localizedCaseInsensitiveContains(query) || card.id.rawValue.localizedCaseInsensitiveContains(query))
     }
     func mascot(_ id: ProjectID) -> MascotPick {
@@ -122,6 +154,12 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
             return (id.rawValue, project.mascotSeed)
         }
         return MascotKit.resolveBoard(projects)[id.rawValue] ?? MascotKit.pick(seed: projection?.projects[id]?.mascotSeed ?? id.rawValue)
+    }
+    func completionTrigger(_ id: ProjectID) -> Int64 {
+        projection?.feed.last { item in
+            guard item.projectId == id, case .taskTransitioned(let transition) = item.event else { return false }
+            return transition.to == .done
+        }?.seq ?? 0
     }
     func projectStatus(_ id: ProjectID) -> String {
         if (projection?.projects[id]?.openIncidentCount ?? 0) > 0 { return "incident" }
@@ -154,4 +192,33 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     }
     func hide(_ id: ProjectID) { session.hide(id) }
     func show(_ id: ProjectID) { session.show(id) }
+    func focusProject(_ id: ProjectID) {
+        guard projection?.projects[id] != nil else { return }
+        selectedProjectID = id; screen = .board
+        if !visibleIDs.contains(id) { show(id) }
+        focusRequest += 1
+    }
+    func focusProject(at index: Int) {
+        guard visibleIDs.indices.contains(index) else { return }; focusProject(visibleIDs[index])
+    }
+    func moveProject(_ id: ProjectID, by delta: Int) {
+        guard let index = visibleIDs.firstIndex(of: id), visibleIDs.indices.contains(index + delta) else { return }
+        session.move(id, to: index + delta); focusProject(id)
+    }
+    @discardableResult func dropProject(_ values: [String], before target: ProjectID?) -> Bool {
+        guard values.count == 1, values[0].hasPrefix("kaban-project:"),
+              !values[0].dropFirst("kaban-project:".count).isEmpty else { return false }
+        let id = ProjectID(rawValue: String(values[0].dropFirst("kaban-project:".count)))
+        guard projection?.projects[id] != nil, id != target else { return false }
+        let remaining = visibleIDs.filter { $0 != id }
+        let index = target.flatMap { remaining.firstIndex(of: $0) } ?? remaining.count
+        if visibleIDs.contains(id) { session.move(id, to: index) } else { session.show(id, at: index) }
+        focusProject(id); return true
+    }
+    func setMascot(_ id: ProjectID, index: Int, texture: EdgeTexture) async {
+        guard projection?.projects[id] != nil,
+              let seed = MascotKit.seed(for: id.rawValue, mascotIndex: index, texture: texture) else { return }
+        _ = await session.send(.setMascot(projectId: id, seed: seed))
+    }
+
 }

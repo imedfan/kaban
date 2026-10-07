@@ -11,7 +11,7 @@ final class Team2TakeoverFrontendFoundationTests: XCTestCase {
         }
         XCTAssertEqual(CardPresentation(state: .waitingHuman(.suspiciousFiles)).tone, .waiting)
         XCTAssertEqual(CardPresentation(state: .queued(.wipFull)).label, "Ждёт места")
-        XCTAssertEqual(CardPresentation(state: .queued(.quotaOm)).label, "Ждёт квоту")
+        XCTAssertEqual(CardPresentation(state: .queued(.quotaOm)).label, "Ждёт квоту Om")
     }
 
     @MainActor func testMockCommandsPublishCorrelatedAuthoritativeCards() async throws {

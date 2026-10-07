@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil }
+    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--board-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,7 +27,11 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--project-smoke") {
+            if let path = argument("--board-smoke") {
+                let checks = try await boardSmoke(store)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--project-smoke") {
                 let checks = try await projectSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
@@ -57,6 +61,22 @@ import Darwin
         window.setContentSize(argument("--qa-size") == "minimum" || argument("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
         try await Task.sleep(for: .milliseconds(700))
+        if argument("--qa-state") == "mascot" {
+            store?.mascotProjectID = nil
+            try await Task.sleep(for: .milliseconds(100))
+            store?.mascotProjectID = "shop"
+            try await waitUntil("actual mascot popover") {
+                NSApp.windows.contains { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }
+            }
+            guard let popover = NSApp.windows.first(where: { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }),
+                  let view = popover.contentView?.superview ?? popover.contentView else { throw failure("Native mascot popover missing") }
+            popover.layoutIfNeeded(); view.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(200))
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Native mascot capture unavailable") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Mascot PNG unavailable") }
+            try png.write(to: URL(fileURLWithPath: path + ".popover.png"))
+        }
         if argument("--qa-window-id") != nil {
             try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
         }
@@ -211,6 +231,10 @@ import Darwin
     }
     private static func prepare(_ store: BoardStore) async throws {
         switch argument("--qa-state") {
+        case "grouped": store.compactBoard = true
+        case "hidden-stages": store.filter = .hiddenStages
+        case "hidden-project": store.hide("shop")
+        case "mascot": store.mascotProjectID = "shop"
         case "details": await store.select("SHOP-52")
         case "review": await store.select("SHOP-31")
         case "project": store.screen = .project("shop")
@@ -249,6 +273,52 @@ import Darwin
         // Remount the same WindowGroup subtree so view caching includes unchanged controls.
         // This is export-only; the normal application keeps its existing view identity.
         store.qaLayoutRevision += 1
+    }
+    private static func boardSmoke(_ store: BoardStore) async throws -> [String] {
+        guard store.usesFixture else { throw failure("Board smoke requires explicit DTO fixtures") }
+        guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No actual board WindowGroup") }
+        window.makeKeyAndOrderFront(nil)
+        if argument("--qa-board-restart") == "verify" {
+            guard store.visibleIDs == ["docs", "kaban", "mobile"], store.projection?.projects["shop"] != nil,
+                  (store.projection?.badgeCounts(for: "shop").waitingHuman ?? 0) > 0,
+                  store.projection?.projects["shop"]?.openIncidentCount == 1,
+                  store.projection?.tasks["SHOP-42"]?.state == .running else { throw failure("BoardSet did not survive an actual process restart") }
+            return ["Actual application process restart restored hidden shop and lane order docs/kaban/mobile; waiting/incident badges and task state remain authoritative"]
+        }
+        let initialIDs = store.visibleIDs, initialTasks = store.projection?.tasks, initialSeq = store.projection?.stateSeq
+        guard initialIDs.count >= 2 else { throw failure("Board fixture lacks projects") }
+        var checks: [String] = []
+        guard let shortcut = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "2", charactersIgnoringModifiers: "2", isARepeat: false, keyCode: 19), NSApp.mainMenu?.performKeyEquivalent(with: shortcut) == true else { throw failure("Cmd-2 project menu missing") }
+        try await waitUntil("native project shortcut") { store.selectedProjectID == initialIDs[1] && store.focusRequest > 0 }
+        checks.append("Cmd-2 focuses a visible project through the real native menu")
+        guard let reorder = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .option], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\u{f700}", charactersIgnoringModifiers: "\u{f700}", isARepeat: false, keyCode: 126), NSApp.mainMenu?.performKeyEquivalent(with: reorder) == true else { throw failure("Cmd-Option-Up project menu missing") }
+        try await waitUntil("native lane reorder shortcut") { store.visibleIDs.first == initialIDs[1] }
+        checks.append("Cmd-Option-Up reorders the project through the real native menu")
+        guard store.visibleIDs.first == initialIDs[1] else { throw failure("Project order unchanged") }
+        store.hide(initialIDs[0])
+        guard store.projection?.tasks == initialTasks, store.projection?.stateSeq == initialSeq else { throw failure("Local board operation mutated daemon state") }
+        let badges = store.projection?.badgeCounts(for: initialIDs[0])
+        guard (badges?.waitingHuman ?? 0) > 0 else { throw failure("Hidden project lost waiting badge") }
+        checks.append("Hide and reorder preserve all task state and the waiting badge without a daemon mutation")
+        guard store.dropProject(["kaban-project:" + initialIDs[0].rawValue], before: initialIDs[1]), store.visibleIDs.first == initialIDs[0],
+              !store.dropProject(["foreign"], before: nil) else { throw failure("Project drop handler failed") }
+        checks.append("The same drop handler used by SwiftUI restores a hidden project; foreign payload is rejected")
+        for (index, id) in initialIDs.enumerated() { store.session.move(id, to: index) }
+        let before = store.projection?.projects["shop"]?.mascotSeed
+        await store.setMascot("shop", index: 2, texture: .waves)
+        try await waitUntil("correlated mascot update") { store.projection?.projects["shop"]?.mascotSeed != before && store.pendingLabel(.project("shop")) == nil }
+        guard MascotKit.pick(seed: store.projection?.projects["shop"]?.mascotSeed ?? "").texture == .waves else { throw failure("Mascot seed did not confirm the selected texture") }
+        checks.append("Mascot choice is applied through setMascot and the correlated projectUpdated event")
+        store.compactBoard = true
+        try await Task.sleep(for: .milliseconds(200))
+        guard store.projection?.tasks == initialTasks else { throw failure("Compact board mutated task state") }
+        checks.append("Compact view and local board changes render in the actual WindowGroup")
+        if argument("--qa-board-restart") == "seed" {
+            store.hide("shop"); store.session.move("docs", to: 0)
+            guard store.visibleIDs == ["docs", "kaban", "mobile"] else { throw failure("Restart seed order wrong") }
+            checks.append("Separate QA UserDefaults suite persisted hidden shop and reordered docs for a new application process")
+        }
+        return checks
     }
     private static func smoke(_ store: BoardStore) async throws -> [String] {
         var checks: [String] = []

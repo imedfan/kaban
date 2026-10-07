@@ -57,14 +57,22 @@ extension KabanClient {
     private var continuations: [UUID: AsyncStream<EventEnvelope>.Continuation] = [:]
     private var journal: [EventEnvelope] = []
     private var bodies: [TaskID: String] = [:]
+    private var runs: [TaskID: [RunSummary]] = [:]
+    private var currentEvents: [EphemeralEvent] = []
     private var receipts: [CommandID: (CommandEnvelope, CommandReply)] = [:]
     private var notes: [TaskID: [FeedItem]] = [:]
 
 
-    public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:]) { self.snapshot = snapshot; self.bodies = taskBodies }
+    public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:],
+                taskRuns: [TaskID: [RunSummary]] = [:], currentEvents: [EphemeralEvent] = []) {
+        self.snapshot = snapshot; self.bodies = taskBodies; self.runs = taskRuns; self.currentEvents = currentEvents
+    }
     public func getSnapshot() async throws -> Snapshot { snapshot }
     public func synchronize() async throws -> SnapshotReplacement {
-        .init(snapshot: snapshot, cursor: .init(sessionId: sessionId, offset: 0), current: [])
+        let current = currentEvents.enumerated().map { index, event in
+            EphemeralEnvelope(cursor: .init(sessionId: sessionId, offset: Int64(index + 1)), afterSeq: snapshot.seq, at: Date(), event: event)
+        }
+        return .init(snapshot: snapshot, cursor: .init(sessionId: sessionId, offset: Int64(current.count)), current: current)
     }
     public func events() -> AsyncStream<EventEnvelope> {
         let id = UUID()
@@ -76,7 +84,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -104,7 +112,15 @@ extension KabanClient {
             }
             feed += notes[id] ?? []
             feed.sort { $0.at < $1.at }
-            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: runs[id] ?? [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+        case .setMascot(let projectID, let seed):
+            guard let index = snapshot.projects.firstIndex(where: { $0.id == projectID }) else {
+                return .error(.init(code: "project_not_found", message: "Проект не найден."))
+            }
+            guard !seed.contains("\0") else { return .error(.init(code: "invalid_request", message: "Seed содержит NUL.")) }
+            snapshot.projects[index].mascotSeed = seed
+            emit(.projectUpdated(snapshot.projects[index]), projectID: projectID, commandID: commandId)
+            return .ok
         case .createTask(let projectID, let title, let body):
             guard snapshot.projects.contains(where: { $0.id == projectID }) else { return .error(CommandError(code: "project_not_found", message: "Проект не найден.")) }
             guard let pipeline = snapshot.pipelines.first(where: { $0.projectId == projectID }),

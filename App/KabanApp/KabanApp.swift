@@ -32,6 +32,23 @@ import KabanBoardCore
             }
             CommandMenu("Доска") {
                 ForEach(BoardFilter.allCases, id: \.self) { filter in Button(filter.rawValue) { runtime.store?.screen = .board; runtime.store?.filter = filter } }
+                Divider()
+                ForEach(1...9, id: \.self) { index in
+                    Button("Проект \(index)") { runtime.store?.focusProject(at: index - 1) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(index))), modifiers: .command)
+                }
+                Divider()
+                Button("Дорожка выше") { if let store = runtime.store, let id = store.selectedProjectID { store.moveProject(id, by: -1) } }
+                    .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                Button("Дорожка ниже") { if let store = runtime.store, let id = store.selectedProjectID { store.moveProject(id, by: 1) } }
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                Button("Предыдущая дорожка") { if let store = runtime.store, let id = store.selectedProjectID { store.moveProject(id, by: -1) } }
+                    .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+                Button("Следующая дорожка") { if let store = runtime.store, let id = store.selectedProjectID { store.moveProject(id, by: 1) } }
+                    .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+                Button("Скрыть выбранный проект") { if let store = runtime.store, let id = store.selectedProjectID { store.hide(id) } }
+                Button("Показать выбранный проект") { if let store = runtime.store, let id = store.selectedProjectID { store.focusProject(id) } }
+
             }
         }
     }
