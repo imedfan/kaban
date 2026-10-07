@@ -918,28 +918,38 @@ struct TaskDetailView: View {
         }
         if let values {
             if values.isEmpty { empty("Запусков пока нет") }
-            ForEach(values, id: \.id) { run in
+            ForEach(Array(values.reversed()), id: \.id) { run in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("\(stageName(run.stageId, detail: store.detail)) · запуск №\(run.number)").font(.system(size: 12, weight: .semibold))
                         Spacer(); Text(runStatus(run.status)).font(.system(size: 10)).foregroundStyle(theme.secondary)
                     }
-                    Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                    Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary)
-                    Text("Начало: " + detailDate(run.startedAt)).font(.system(size: 10)).foregroundStyle(theme.faint)
-                    Text(run.endedAt.map { "Завершение: " + detailDate($0) } ?? "Завершение не подтверждено").font(.system(size: 10)).foregroundStyle(theme.faint)
+                    Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled).lineLimit(2).help(run.requestedModel.rawValue)
+                    Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary).lineLimit(2).help(run.actualModelName ?? "Фактическая модель не подтверждена")
                     Text(run.countsTowardLimits ? "Учитывается в лимите попыток" : "Не учитывается в лимите попыток").font(.system(size: 10)).foregroundStyle(theme.secondary)
-                    Text(run.stageId == store.projection?.tasks[run.taskId]?.stageId ? "Стадия текущей задачи" : "Предыдущая стадия").font(.system(size: 10)).foregroundStyle(theme.faint)
-                    if let exit = run.exitCode { Text("Код завершения: \(exit)").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary) }
-                    if let ref = run.wipRef {
-                        Text("WIP: " + ref).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                    } else { Text("WIP не передан").font(.system(size: 10)).foregroundStyle(theme.faint) }
-                    if let end = run.endedAt, end >= run.startedAt {
-                        Text("Длительность: \(Int(end.timeIntervalSince(run.startedAt))) с").font(.system(size: 10)).foregroundStyle(theme.faint)
-                    }
-                    Text("Номер попытки в заходе не передан").font(.system(size: 10)).foregroundStyle(theme.faint)
                     if let reason = run.endReason { Text("Причина завершения: " + runEndReason(reason)).font(.system(size: 11)).foregroundStyle(theme.secondary) }
-                    if let path = run.logPath { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                    DisclosureGroup("Время, WIP и сведения запуска") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Начало: " + detailDate(run.startedAt))
+                            Text(run.endedAt.map { "Завершение: " + detailDate($0) } ?? "Завершение не подтверждено")
+                            if let end = run.endedAt, end >= run.startedAt { Text("Длительность: \(Int(end.timeIntervalSince(run.startedAt))) с") }
+                            Text(run.stageId == store.projection?.tasks[run.taskId]?.stageId ? "Стадия текущей задачи" : "Предыдущая стадия")
+                            Text("Номер попытки в заходе не передан")
+                            if let exit = run.exitCode { Text("Код завершения: \(exit)") }
+                            if let ref = run.wipRef {
+                                Text("WIP: " + ref).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                                    .lineLimit(3).truncationMode(.middle).help(ref)
+                                    .contextMenu { Button("Скопировать WIP") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ref, forType: .string) } }
+                            } else { Text("WIP не передан") }
+                            if let path = run.logPath { Text(path).font(.system(size: 10, design: .monospaced)).textSelection(.enabled).lineLimit(2).truncationMode(.middle).help(path) }
+                            Button("Все сведения целиком…") {
+                                let encoder = KabanCoding.makeEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                                if let data = try? encoder.encode(run) {
+                                    store.materialTextRoute = .init(id: "run:" + run.id.rawValue, title: "Сведения запуска №\(run.number)", text: String(decoding: data, as: UTF8.self))
+                                }
+                            }.buttonStyle(.link)
+                        }.font(.system(size: 10)).foregroundStyle(theme.faint).padding(.top, 5)
+                    }.font(.system(size: 11)).foregroundStyle(theme.secondary)
                     HStack {
                         Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
                         if run.wipRef != nil, let card = store.projection?.tasks[run.taskId],

@@ -127,7 +127,7 @@ extension BoardQA {
     static func prepareRunHistory(_ store: BoardStore) async throws -> Bool {
         guard let mode = argument("--qa-log") else { return false }
         await store.select("SHOP-31"); await store.session.readRunHistory(); store.detailTab = "Запуски"
-        guard let run = store.session.runHistory?.first else { throw failure("QA run history missing") }
+        guard let run = store.session.runHistory?.last else { throw failure("QA run history missing") }
         if mode == "history" { return true }
         if mode == "wip" || mode == "wip-long", let wip = store.session.runHistory?.first(where: { $0.wipRef != nil }) { store.beginWIPRestore(wip) }
         else { store.logRunRoute = run }
@@ -218,6 +218,13 @@ extension BoardQA {
               sourceText.textLayoutManager != nil, !sourceText.isEditable, !store.runLog.isVisible else { throw failure("Source reader/lifecycle missing") }
         store.find()
         try await waitUntil("source find bar") { sourceText.enclosingScrollView?.isFindBarVisible == true }
+        if let path = argument("--log-source-capture"), let view = sourceSheet.contentView?.superview ?? sourceSheet.contentView {
+            sourceSheet.layoutIfNeeded(); view.layoutSubtreeIfNeeded(); view.displayIfNeeded()
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Native source capture unavailable") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Native source PNG missing") }
+            try png.write(to: URL(fileURLWithPath: path))
+        }
         guard let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: sourceSheet.windowNumber,
                                            context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53),
               sourceSheet.performKeyEquivalent(with: escape) else { throw failure("Source Escape missing") }
