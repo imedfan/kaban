@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-07",
+  "sourceCodeSHA": "67de3a0e04a9aff78dc8a27488120ec8bfc17865",
+  "base": "cdce9b63ca98a803b170e16a1dc4862f8cf49214",
+  "minimumWindowPoints": [
+    1040,
+    640
+  ],
+  "logSheetPoints": [
+    720,
+    552
+  ],
+  "wipSheetWidthPoints": 560,
+  "capture": "AppKit backing-store of actual NativeShell/WindowGroup; attached sheets composed by ReferenceExport. Source frames are actual nested native sheet, not a reference gallery. No system compositor/pointer/VoiceOver proof.",
+  "images": [
+    {
+      "file": "summary-light.png",
+      "sha256": "00624a2d62dc0a77fc8d5718d4e789f5489ce2e5f11294622184aed9e5aecccc",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "summary-dark.png",
+      "sha256": "73d365432bb965a153b1fbdc656b1f59b2ebe664388ca7f8b139e5e694f48ba5",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "history-light.png",
+      "sha256": "db811e41cf66e3076e1776c0f875ab6f43827c30ed914991f7bb82e71085f31c",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "history-dark.png",
+      "sha256": "abc15921179120a2b1f972ee9c5d58708925c3c24f50d1741049a1f6201a8e06",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "empty-light.png",
+      "sha256": "d40993f44b86004069bc7a867dd9a42275f69338cb5713d98bfd53fc7163364c",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "missing-dark.png",
+      "sha256": "10076c6a9360e4c901277cabc88cbd7ed72f12076a272362695917c258f8de3a",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "expired-light.png",
+      "sha256": "ca033e33cc66fd5d9e0d69f092929812b28c4f521668ded9e7ccfbc6e2d280ba",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "expired-dark.png",
+      "sha256": "97fb6b7918f153494cd6230346ccb66ba0d07ac5c253f8b765c5e2eb1f6bc86b",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "loading-light.png",
+      "sha256": "34396a9caefc5d63ff85be4908310eddc4763ddd5271daecc0d43ac659bd3446",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "live-dark.png",
+      "sha256": "5421deb818ebd8c5a301e1e15f11ac7e429ff1c69a7cee4b5086997befb37b94",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "wip-light.png",
+      "sha256": "b744a709116b0e9f3b03b56ab968a661d3e6427eda05162a44deeea459a86560",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "wip-dark.png",
+      "sha256": "a31f671adee06901e300ef0d04e19002c722407f7aa408069667c80f6639e69b",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "wip-long-dark.png",
+      "sha256": "eb5802c3b197674d86a88403c0cf0eb8c9574ee7896d771bbf9ad19280532e29",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "source-light.png",
+      "sha256": "3dc3ff6844c2bd58e6497fa4acc2eaa1bbf601359cf0b4234d259062cac0a122",
+      "pixels": [
+        1280,
+        880
+      ],
+      "surface": "attached native source sheet",
+      "theme": "light"
+    },
+    {
+      "file": "source-dark.png",
+      "sha256": "aac070824457f871d21c586c6144f7f804967c80fdfe7c3f34b92107692a3566",
+      "pixels": [
+        1280,
+        880
+      ],
+      "surface": "attached native source sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "live-retained-light.png",
+      "sha256": "52bcfc74d63808029c81b5c3e14a2141d1ba025be8e1f6600c0b60c1bd46b271",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "light"
+    },
+    {
+      "file": "live-retained-dark.png",
+      "sha256": "3827134eea9de8826c3d89aed963e1ad885cc6318cc89512befba703fd8f27bb",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    },
+    {
+      "file": "live-missing-dark.png",
+      "sha256": "3fa39511cf45d2712e7d7322124075be3412c898566f49e0319f0e01d8384d02",
+      "pixels": [
+        2080,
+        1280
+      ],
+      "surface": "actual minimum NativeShell/WindowGroup with attached sheet",
+      "theme": "dark"
+    }
+  ],
+  "proofs": [
+    "native-light.json",
+    "native-dark.json",
+    "volume.json",
+    "detail.json",
+    "live-first.json",
+    "live-reopen.json",
+    "live-missing.json"
+  ]
+}

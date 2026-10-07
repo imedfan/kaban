@@ -10,70 +10,70 @@ struct MaterialTextRoute: Identifiable {
 struct MaterialTextSheet: View {
     let route: MaterialTextRoute
     @Environment(\.dismiss) private var dismiss
+    @State private var loading = true
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack { Text(route.title).font(.headline); Spacer(); Button("Закрыть") { dismiss() }.keyboardShortcut(.cancelAction) }
-            MaterialTextView(text: route.text)
-            Text("\(route.text.utf8.count) байт · исходный текст целиком").font(.caption).foregroundStyle(.secondary)
+            MaterialTextView(text: route.text, loading: $loading)
+            HStack {
+                Text("\(route.text.utf8.count) байт · исходный текст целиком").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if loading { ProgressView("Загружаем текст…").controlSize(.small) }
+            }
         }.padding(20).frame(width: 640, height: 440)
     }
 }
 struct MaterialTextView: NSViewRepresentable {
     let text: String
+    @Binding var loading: Bool
+    func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false
-        let view = NSTextView()
+        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false; scroll.drawsBackground = false
+        let view = NSTextView(usingTextLayoutManager: true)
         view.isEditable = false; view.isSelectable = true; view.usesFindBar = true
-        view.isRichText = false; view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        view.isRichText = false; view.drawsBackground = false
+        view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         view.textContainerInset = .init(width: 10, height: 10)
         view.autoresizingMask = [.width]; view.isVerticallyResizable = true
         view.textContainer?.widthTracksTextView = true
-        scroll.documentView = view; view.string = text
+        scroll.documentView = view
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
-        if view.string != text { view.string = text }
+        context.coordinator.load(text, in: view, loading: $loading)
+    }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) { coordinator.cancel() }
+    @MainActor final class Coordinator {
+        private var source: String?
+        private var work: Task<Void, Never>?
+        private var owner = UUID()
+        func cancel() { owner = UUID(); work?.cancel(); work = nil }
+        func load(_ value: String, in text: NSTextView, loading: Binding<Bool>) {
+            guard source != value else { return }
+            cancel(); source = value; let current = owner
+            work = Task { [weak self, weak text] in
+                guard let self, let text else { return }
+                loading.wrappedValue = true
+                text.textStorage?.setAttributedString(.init(string: ""))
+                let source = value as NSString; var offset = 0
+                while offset < source.length {
+                    guard !Task.isCancelled, self.owner == current else { return }
+                    var count = min(32_768, source.length - offset)
+                    // Preserve UTF-16 surrogate pairs at batch boundaries.
+                    if offset + count < source.length, (0xD800...0xDBFF).contains(source.character(at: offset + count - 1)) { count += 1 }
+                    let chunk = source.substring(with: NSRange(location: offset, length: count))
+                    text.textStorage?.beginEditing()
+                    text.textStorage?.append(.init(string: chunk, attributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.labelColor]))
+                    text.textStorage?.endEditing()
+                    offset += count
+                    do { try await Task.sleep(for: .milliseconds(8)) } catch { return }
+                }
+                guard self.owner == current else { return }
+                loading.wrappedValue = false
+            }
+        }
     }
 }
 extension RunSummary: @retroactive Identifiable {}
-/// Bounded separate log reads for inspector fallback. Live tail/navigation is FE-09.
-struct TaskLogPageSheet: View {
-    let store: BoardStore
-    let run: RunSummary
-    @Environment(\.dismiss) private var dismiss
-    @State private var page: LogPage?
-    @State private var failure: String?
-    @State private var busy = false
-    @State private var offset: Int64 = 0
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack { Text("Лог · попытка \(run.number)").font(.headline); Spacer(); Button("Закрыть") { dismiss() }.keyboardShortcut(.cancelAction) }
-            Text(run.id.rawValue).font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
-            if busy { ProgressView("Читаем страницу…") }
-            if let failure { Text(failure).font(.system(size: 12)).textSelection(.enabled); Button("Повторить") { Task { await read(offset) } }.disabled(busy) }
-            if let page {
-                if page.batch.events.isEmpty { Text(page.isComplete ? "В этой странице нет записей" : "Записей пока нет").foregroundStyle(.secondary) }
-                MaterialTextView(text: page.batch.events.map { event in
-                    // Codable output preserves every field without assuming Cursor's raw format.
-                    (try? KabanCoding.makeEncoder().encode(event)).flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: event)
-                }.joined(separator: "\n\n"))
-                HStack {
-                    Text("Записи \(page.batch.fromOffset)…\(page.batch.nextOffset) · доступно с \(page.availableFromOffset)").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button(page.batch.nextOffset < page.endOffset ? "Следующая страница" : "Обновить") { Task { await read(page.batch.nextOffset) } }.disabled(busy)
-                }
-            } else { Spacer() }
-        }.padding(20).frame(width: 680, height: 440).task { await read(0) }
-    }
-    private func read(_ from: Int64) async {
-        guard !busy else { return }; busy = true; failure = nil; offset = from
-        defer { busy = false }
-        do {
-            let value = try await store.readLog(runId: run.id, fromOffset: from, limit: 100)
-            guard value.batch.runId == run.id else { throw CommandError(code: "invalid_reply", message: "Служба вернула лог другого запуска.") }
-            page = value
-        } catch { failure = error.localizedDescription }
-    }
-}

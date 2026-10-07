@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "real bundled stdio daemon, private SQLite and git clone; Cursor never launched",
+    "retained prefix 76; 1024 records keep offsets through read\/tail and cleaned export",
+    "native Enter submits exact selected WIP; correlated outcome refreshes durable details",
+    "clone tree restored; current edits backed up; main, clone HEAD and original history preserved",
+    "stale ref rejection keeps authoritative board\/main; durable completion survives reopening"
+  ],
+  "result" : "passed"
+}

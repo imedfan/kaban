@@ -75,8 +75,11 @@ import KabanBoardCore
                 if index == 0 { value.hasAcceptanceCriteria = false }; tasks.append(value)
             }
         }
-        if BoardQA.argument("--qa-detail") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if BoardQA.argument("--qa-detail") != nil || BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].title = "Платёжный шлюз: проверить возвраты, вебхуки и сохранность результата при повторной доставке"
+        }
+        if BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+            tasks[index].stageId = "dev"; tasks[index].state = .paused
         }
         let state = BoardQA.argument("--qa-state")
         if state == "long" {

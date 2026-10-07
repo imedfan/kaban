@@ -1,0 +1,11 @@
+{
+  "checks" : [
+    "native WindowGroup readonly TextKit2 and find bar",
+    "tool output expands with full Unicode source and native copy",
+    "oversized records use separate exact read and chunked native TextKit2 source; foreground find and Escape",
+    "old tail cancelled on run change and modal close",
+    "exact WIP confirmation; OK remains awaitingEffect without local card mutation",
+    "correlated WIP event confirms outcome through BoardSession"
+  ],
+  "result" : "passed"
+}

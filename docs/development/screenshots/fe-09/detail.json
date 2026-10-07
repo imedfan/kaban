@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "actual WindowGroup inspector and four tabs",
+    "question event refreshes progress and gate output without reopening",
+    "detail_too_large keeps exact body and has separate history\/log reads",
+    "unknown material\/feed kinds and nil clonePath remain readable",
+    "full readonly source text and native Escape sheet dismissal"
+  ],
+  "result" : "passed"
+}
