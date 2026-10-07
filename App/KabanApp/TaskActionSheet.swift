@@ -190,7 +190,7 @@ struct TaskActionSheet: View {
                     if let error = store.editorError { Text(error).font(.callout).foregroundStyle(.orange) }
     }
     private var formHeight: CGFloat {
-        switch route { case .create: 420; case .edit: stale ? (compareCurrent ? 180 : 240) : 420; case .move: 310; case .cancel: 180; case .priority: 140 }
+        switch route { case .create: 420; case .edit: stale ? (compareCurrent ? 210 : 270) : 420; case .move: 310; case .cancel: 180; case .priority: 140 }
     }
     private var pendingText: String? {
         switch route { case .create(let id): store.pendingLabel(.project(id)); default: card.flatMap { store.pendingLabel(.task($0.id)) } }

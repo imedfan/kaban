@@ -220,7 +220,7 @@ struct BoardView: View {
                         VStack(spacing: 10) {
                             Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(.secondary)
                             Text("Задачи не найдены").font(.headline)
-                            Text("В показанных проектах нет задач по этому запросу и фильтру.")
+                            Text("В показанных стадиях нет совпадений по запросу и фильтру.")
                                 .font(.callout).foregroundStyle(.secondary)
                             Button("Сбросить поиск и фильтр") { store.query = ""; store.filter = .all }
                                 .buttonStyle(KabanButtonStyle())
@@ -236,7 +236,7 @@ struct BoardView: View {
                                 .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: lane.project.id) } isTargeted: { active in dropTarget = active ? lane.project.id : dropTarget == lane.project.id ? nil : dropTarget }
                         }
                     }
-                    if !lanes.isEmpty {
+                    if !lanes.isEmpty && !(store.hasTaskFilter && store.visibleMatchCount == 0) {
                         Text("Перетащите проект сюда, чтобы поставить его последним")
                             .font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).padding(14)
                             .background(endDropTarget ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
