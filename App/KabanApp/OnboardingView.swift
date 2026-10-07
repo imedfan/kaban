@@ -54,19 +54,19 @@ struct OnboardingView: View {
                     }
                     section("Локальная служба", symbol: "externaldrive.badge.wifi") {
                         HStack(alignment: .top, spacing: 10) {
-                            if runtime.busy || (runtime.store != nil && runtime.store?.canSend != true) { ProgressView().controlSize(.small) }
+                            if connecting { ProgressView().controlSize(.small) }
                             else { Image(systemName: runtime.store?.canSend == true ? "checkmark.circle.fill" : "exclamationmark.triangle").foregroundStyle(theme.status(runtime.store?.canSend == true ? "done" : "waiting").2) }
                             Text(runtime.store?.canSend == true ? "Соединение установлено" : (runtime.store?.connectionLabel ?? runtime.status))
                                 .font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
                         }
                         if let failure = runtime.failure { explanation(failure) }
-                        if runtime.store == nil {
+                        if runtime.store?.canSend != true {
                             HStack(spacing: 10) {
                                 if !runtime.developer {
                                     Button("Объекты входа…") { runtime.openSettings() }.buttonStyle(KabanButtonStyle())
                                 }
                                 Button("Проверить снова") { Task { await runtime.retry() } }
-                                    .buttonStyle(KabanButtonStyle(primary: true)).disabled(runtime.busy)
+                                    .buttonStyle(KabanButtonStyle(primary: true)).disabled(connecting)
                             }
                         }
                         explanation(runtime.developer ? "Режим разработки · отдельная БД" : runtime.fixture ? "Демонстрация · данные в памяти" : "Задачи и настройки сохраняются локальной службой на этом Маке.")
@@ -118,6 +118,13 @@ struct OnboardingView: View {
         }.background(ReferenceBackdrop(theme: theme)).foregroundStyle(theme.text)
             .task { await system.refresh(fixture: runtime.fixture) }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await system.refresh(fixture: runtime.fixture) } } }
+    }
+    private var connecting: Bool {
+        if runtime.busy { return true }
+        switch runtime.store?.connectionState {
+        case .connecting, .synchronizing, .reconnecting: return true
+        default: return false
+        }
     }
     private var notificationDescription: String {
         switch system.notifications {
@@ -199,6 +206,9 @@ private struct OnboardingEnvironmentView: View {
             .onAppear { if environment.session.canSend { Task { await environment.refresh() } } }
             .onChange(of: environment.session.connectionState) { _, state in
                 if state == .connected { Task { await environment.refresh() } }
+            }
+            .onChange(of: environment.submissionPhase) { _, phase in
+                if phase == .applied { Task { await environment.refresh() } }
             }
     }
     private func fact(_ label: String, value: String) -> some View {

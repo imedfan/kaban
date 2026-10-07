@@ -139,6 +139,7 @@ import KabanTransport
         } catch { failure = error.localizedDescription; observeStatus() }
     }
     func retry() async {
+        if let store, !store.canSend { store.retry(); return }
         if developer { await connectDeveloper() } else { await registerIfNeeded() }
     }
     func restart() async {

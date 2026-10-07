@@ -158,6 +158,45 @@ final class BoardSessionTests: XCTestCase {
         XCTAssertNil(try TaskDraftStore(storage: storage, key: "drafts").record(for: .edit("a"))?.exactBody)
         XCTAssertEqual(try TaskDraftStore(storage: storage, key: "other-source").records, [])
     }
+    @MainActor func testClosedSessionCannotOverwriteJournalRecoveredByItsReplacement() async throws {
+        let storage = MemoryKeyValueStore(), client = SessionFaultClient()
+        let old = BoardSession(client: client, storage: storage, key: "test")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        var held: CheckedContinuation<CommandReply, Error>?
+        client.mutationHandler = { _ in try await withCheckedThrowingContinuation { held = $0 } }
+        let oldRun = Task { await old.run() }
+        try await wait { old.canSend }
+        let sending = Task { await old.send(.editTask(taskId: "a", title: "committed", body: nil)) }
+        try await wait { held != nil }
+        let envelope = try XCTUnwrap(client.mutations.first)
+        old.stop(); oldRun.cancel(); await oldRun.value
+        XCTAssertFalse(old.canSend)
+        XCTAssertEqual(try ClientCommandJournal(storage: storage, key: "test").records.first?.phase, .deliveryUncertain)
+        client.mutationHandler = nil; client.snapshot = Fix.snapshot(seq: 11, tasks: [Fix.card("a", title: "committed")])
+        let new = BoardSession(client: client, storage: storage, key: "test")
+        let newRun = Task { await new.run() }; defer { newRun.cancel() }
+        try await wait { new.canSend && new.pendingRecords.isEmpty }
+        XCTAssertTrue(client.mutations.allSatisfy { $0 == envelope })
+        held?.resume(throwing: CommandError(code: "closed", message: "Late close"))
+        let result = await sending.value; XCTAssertFalse(result)
+        try old.consume(.event(Fix.envelope(12, .taskUpdated(Fix.card("a", title: "late event")), commandId: envelope.commandId)))
+        XCTAssertEqual(try ClientCommandJournal(storage: storage, key: "test").records.first?.phase, .applied)
+        XCTAssertNotEqual(old.projection?.tasks["a"]?.title, "late event")
+    }
+    @MainActor func testStoppedSessionDiscardsAnInFlightInitialSnapshot() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        var held: CheckedContinuation<SnapshotReplacement, Error>?
+        client.synchronizationHandler = { try await withCheckedThrowingContinuation { held = $0 } }
+        let run = Task { await session.run() }
+        try await wait { held != nil }
+        session.stop()
+        held?.resume(returning: .init(snapshot: Fix.snapshot(seq: 42, tasks: [Fix.card("late")]), cursor: client.cursor, current: []))
+        await run.value
+        XCTAssertNil(session.projection, "A stopped owner must not publish its late snapshot")
+        XCTAssertFalse(session.canSend)
+        XCTAssertEqual(session.connectionState, .disconnected(.init(code: "session_stopped", message: "Соединение со службой остановлено.")))
+        XCTAssertEqual(client.subscriptions, 1)
+    }
     @MainActor func testBurstOfDetailUpdatesCoalescesWithoutCancellingSharedRPC() async throws {
         let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
         client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
@@ -209,12 +248,16 @@ final class BoardSessionTests: XCTestCase {
     var mutations: [CommandEnvelope] = []
     var receipt: CommandReply?
     var mutationHandler: ((CommandEnvelope) async throws -> CommandReply)?
+    var synchronizationHandler: (() async throws -> SnapshotReplacement)?
     var unsupported: Set<CommandName> = []
     var detailCancellations = 0
     var holdDetails = false
     var details: [(CommandEnvelope, CheckedContinuation<CommandReply, Error>)] = []
     func getSnapshot() async throws -> Snapshot { snapshot }
-    func synchronize() async throws -> SnapshotReplacement { .init(snapshot: snapshot, cursor: cursor, current: []) }
+    func synchronize() async throws -> SnapshotReplacement {
+        if let synchronizationHandler { return try await synchronizationHandler() }
+        return .init(snapshot: snapshot, cursor: cursor, current: [])
+    }
     func capabilities() async throws -> DaemonCapabilities {
         .init(operations: ["synchronize"].map { .init(name: $0, supported: true) }, commands: CommandName.allCases.map { .init(name: $0.rawValue, support: unsupported.contains($0) ? .unsupported : .supported) })
     }

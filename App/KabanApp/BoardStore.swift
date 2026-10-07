@@ -49,13 +49,13 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         self.session = session
         environment = RunnerEnvironmentStore(client: client, session: session)
     }
-    isolated deinit { subscription?.cancel() }
+    isolated deinit { session.stop(); subscription?.cancel() }
     func connect() async {
         guard subscription == nil else { return }
         let session = session
         subscription = Task { await session.run() }
     }
-    func stop() { subscription?.cancel(); subscription = nil }
+    func stop() { session.stop(); subscription?.cancel(); subscription = nil }
     func retry() {
         let previous = subscription, session = session
         previous?.cancel()
