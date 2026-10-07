@@ -39,19 +39,22 @@ struct BoardView: View {
         .foregroundStyle(theme.text)
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0) }
+        .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
+        .onChange(of: store.projection?.projectOrder) { _, ids in
+            if case .project(let id) = store.screen, ids?.contains(id) != true { store.screen = .board }
+        }
         .onChange(of: store.createdTaskID) { _, id in
             if let id, case .create(let project) = store.sheet,
                store.projection?.tasks[id]?.projectId == project,
                store.session.drafts?.record(for: .create(project)) == nil { store.sheet = nil }
         }
-        .onChange(of: store.session.visibleIDs, initial: true) { _, _ in store.updateVisibleProjects() }
         .onChange(of: store.projection == nil) { _, loading in
             if !loading {
                 collapsed = Set(lanes.filter { $0.columns.allSatisfy { $0.taskIds.isEmpty } }.map(\.project.id))
             }
         }
         .onChange(of: store.searchRequest) { _, _ in searchFocused = true }
-        .alert("Не удалось выполнить действие", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+        .alert("Не удалось выполнить действие", isPresented: Binding(get: { store.error != nil && store.projectSheet == nil }, set: { if !$0 { store.error = nil } })) {
             Button("Закрыть") { store.error = nil }
         } message: { Text(store.error ?? "") }
         .onExitCommand {
@@ -102,16 +105,23 @@ struct BoardView: View {
                     }.buttonStyle(.plain)
                 }
             }.padding(.horizontal, 12)
-            HStack { Text("Проекты").font(.system(size: 11, weight: .semibold)); Spacer(); Text("\(store.projection?.projects.count ?? 0)").monospacedDigit() }
+            HStack {
+                Text("Проекты").font(.system(size: 11, weight: .semibold)); Spacer()
+                Text("\(store.projection?.projects.count ?? 0)").monospacedDigit()
+                Button { store.beginProjectFlow(.add) } label: { Image(systemName: "plus").frame(width: 20, height: 20) }
+                    .buttonStyle(.plain).disabled(!store.can(.addProject)).help(store.can(.addProject) ? "Добавить проект" : store.unavailableReason(.addProject)).accessibilityLabel("Добавить проект")
+            }
                 .foregroundStyle(theme.faint).padding(.horizontal, 22).padding(.top, 24).padding(.bottom, 8)
             ScrollView {
                 VStack(spacing: 4) {
                     ForEach(store.projection?.projectOrder ?? [], id: \.self) { id in
                         if let project = store.projection?.projects[id] { projectRow(project) }
                     }
-                    Text("Покажите проект на доске через его меню.")
-                        .font(.system(size: 11)).foregroundStyle(theme.faint)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 8)
+                    if (store.projection?.projectOrder ?? []).contains(where: { !store.visibleIDs.contains($0) }) {
+                        Text("Покажите проект на доске через его меню.")
+                            .font(.system(size: 11)).foregroundStyle(theme.faint)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 8)
+                    }
                 }.padding(.horizontal, 12)
             }
             macCard.padding(12)
@@ -142,6 +152,8 @@ struct BoardView: View {
                 Button("Новая задача") { store.beginCreation(id) }
                     .disabled(!store.can(.createTask)).help(store.unavailableReason(.createTask))
                 Button("Настройки проекта") { store.screen = .project(id) }
+                Button("Переподключить папку…") { store.beginProjectFlow(.relink(id)) }.disabled(!store.session.can(.relinkProject(projectId: id, path: project.path)))
+                Button("Удалить из Kaban…", role: .destructive) { store.beginProjectFlow(.remove(id)) }.disabled(!store.session.can(.removeProject(projectId: id)))
                 Divider()
                 if store.visibleIDs.contains(id) { Button("Скрыть с доски") { store.hide(id) } }
                 else { Button("Показать на доске") { store.show(id) } }
@@ -214,7 +226,10 @@ struct BoardView: View {
         VStack(spacing: 12) {
             Image(systemName: "rectangle.split.3x1").font(.system(size: 32)).foregroundStyle(theme.faint)
             Text("Доска пуста").font(.system(size: 18, weight: .semibold))
-            Text("Выберите проект слева, чтобы показать его задачи.").font(.system(size: 12)).foregroundStyle(theme.secondary)
+            Text(store.projection?.projects.isEmpty == true ? "Подключите git-репозиторий, чтобы завести первую задачу." : "Выберите проект слева, чтобы показать его задачи.").font(.system(size: 12)).foregroundStyle(theme.secondary)
+            if store.projection?.projects.isEmpty == true {
+                Button("Добавить проект…") { store.beginProjectFlow(.add) }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.addProject))
+            }
         }.frame(maxWidth: .infinity)
     }
     private func laneView(_ lane: BoardLane, width: CGFloat) -> some View {
@@ -561,6 +576,16 @@ struct ProjectSettingsView: View {
                     HStack(spacing: 12) {
                         ReferenceMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
                         VStack(alignment: .leading, spacing: 4) { Text(project.name).font(.system(size: 22, weight: .bold)); Text(project.path).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled) }
+                    }
+                    settingsSection("Папка проекта") {
+                        if project.availability == .missing { Text("Папка недоступна. Выберите её новый путь или удалите проект из Kaban.").font(.system(size: 12)).foregroundStyle(theme.status("waiting").2) }
+                        HStack {
+                            Button("Переподключить папку…") { store.beginProjectFlow(.relink(projectID)) }.buttonStyle(KabanButtonStyle()).disabled(!store.session.can(.relinkProject(projectId: projectID, path: project.path)))
+                            Button("Проверить снова") { Task { await store.session.send(.recheck(scope: .project(projectId: projectID))) } }.buttonStyle(KabanButtonStyle()).disabled(!store.session.can(.recheck(scope: .project(projectId: projectID))) || store.capabilities?.commands.first { $0.name == CommandName.recheck.rawValue }?.scopes?.contains("project") != true)
+                            Spacer(minLength: 8)
+                            Button("Удалить из Kaban…") { store.beginProjectFlow(.remove(projectID)) }.buttonStyle(KabanButtonStyle()).disabled(!store.session.can(.removeProject(projectId: projectID)))
+                        }
+                        if let pending = store.pendingLabel(.project(projectID)) { Text(pending).font(.system(size: 12)).foregroundStyle(theme.secondary) }
                     }
                     settingsSection("Проект") {
                         settingsRow("Основная ветка", project.baseBranch)

@@ -1,0 +1,12 @@
+{
+  "checks" : [
+    "real application WindowGroup is mounted",
+    "create selects task after correlated event and preserves Markdown",
+    "edit, move and cancel resolve through typed commands and journal projection",
+    "pause and resume use the client; resume returns queued",
+    "search and attention filters read the same projection",
+    "Cmd-N and Cmd-F invoke the real application menu commands",
+    "AddProject Return submits, refusal focuses missing email; Escape closes and reopening preserves input"
+  ],
+  "result" : "passed"
+}

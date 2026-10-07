@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil }
+    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,7 +27,11 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--daemon-smoke") {
+            if let path = argument("--project-smoke") {
+                let checks = try await projectSmoke(store)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--daemon-smoke") {
                 let checks = try await daemonSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks, "seq": store.projection?.stateSeq ?? 0], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
@@ -130,6 +134,81 @@ import Darwin
         }
         return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
+    private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
+        guard !initial.usesFixture, let repository = argument("--project-smoke-repository"), let relocated = argument("--project-smoke-relink"), let runtime else { throw failure("Real project smoke configuration missing") }
+        guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Project WindowGroup missing") }
+        let before = initial.projection?.projects.count ?? 0
+        initial.beginProjectFlow(.add)
+        try await waitUntil("actual AddProject sheet") { window.attachedSheet != nil }
+        initial.projects.setCreateTemplate(false)
+        var enteredIdentity: GitIdentity?
+        if let nonGit = argument("--project-smoke-non-git") {
+            initial.projects.editPath(nonGit); _ = await initial.projects.submit()
+            try await waitUntil("real non-git refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "not_git_repository" && initial.canSend }; return false }
+            guard initial.projection?.projects.count == before, initial.projects.draft.path == nonGit, !initial.projects.draft.createTemplate else { throw failure("Non-git refusal lost input or registered a lane") }
+            initial.projects.editPath(repository); _ = await initial.projects.submit()
+            try await waitUntil("real git identity refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "identity_required" && initial.canSend }; return false }
+            guard initial.projection?.projects.count == before, initial.projects.draft.identity.focus == .name,
+                  initial.projects.draft.identity.name.caption != nil, !initial.projects.draft.identity.name.highlighted else { throw failure("First invalid identity rendering does not follow server params") }
+            initial.projects.editIdentity(.name, value: "\n"); initial.projects.editIdentity(.email, value: " ")
+            _ = await initial.projects.submit()
+            try await waitUntil("real repeated identity refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "identity_required" && error.params["invalid"] == "name" && error.params["missing"] == "email" && initial.canSend }; return false }
+            guard initial.projection?.projects.count == before, initial.projects.draft.identity.name.highlighted,
+                  initial.projects.draft.identity.email.highlighted, initial.projects.draft.path == repository,
+                  !initial.projects.draft.createTemplate else { throw failure("Repeated identity refusal lost input or created a lane") }
+            let identity = GitIdentity(name: "Kaban Project QA", email: "project-qa@example.test")
+            enteredIdentity = identity
+            initial.projects.editIdentity(.name, value: identity.name); initial.projects.editIdentity(.email, value: identity.email)
+        } else { initial.projects.editPath(repository) }
+        _ = await initial.projects.submit()
+        try await waitUntil("correlated project registration") { initial.projects.observeOutcome(); return initial.projects.phase == .applied && initial.projects.connectedProjectID != nil && initial.canSend }
+        let id = initial.projects.connectedProjectID!
+        guard initial.projection?.projects.count == before + 1,
+              let record = initial.projects.record, record.confirmedSeq != nil,
+              record.envelope.command == .addProject(path: repository, createTemplate: false, identity: enteredIdentity),
+              initial.projection?.projects[id]?.path == URL(fileURLWithPath: repository).standardizedFileURL.path else { throw failure("Project registration proof missing: \(String(describing: initial.projects.record))") }
+        // A catch-up replacement can cover committed projectAdded before its
+        // individual delivery. The original receipt plus that authoritative
+        // snapshot proves recovery; acceptance alone fails this assertion.
+        let eventProof = record.createdProjectID == id && record.eventSeq != nil
+        let receiptProof: Bool
+        if let reply = record.reply, reply.commandId == record.envelope.commandId, reply.result == .ok,
+           let seq = reply.seq, seq > 0, let covered = record.coveredSnapshotSeq, covered >= seq,
+           (initial.projection?.stateSeq ?? 0) >= covered { receiptProof = true }
+        else { receiptProof = false }
+        guard eventProof || receiptProof else { throw failure("Project lacks correlated event or covered original receipt") }
+        try await waitUntil("one new board lane") { initial.visibleIDs.filter { $0 == id }.count == 1 }
+        await initial.projects.refreshDiagnostics()
+        try await waitUntil("completed server project diagnostics") { !initial.projects.isReading && initial.projects.branches != nil && initial.projects.gates != nil && initial.projects.environmentError != nil }
+        guard initial.projects.branches?.contains("main") == true, initial.projects.gates != nil, initial.projects.environment == nil, initial.projects.environmentError != nil else { throw failure("Project diagnostics lost authoritative/unknown distinction") }
+        if argument("--project-smoke-non-git") != nil, initial.projectCaption(id) != "Пайплайн не настроен" { throw failure("no_pipeline caption does not reflect server validation") }
+        if argument("--export-live-window") != nil { try await captureWindow() }
+        initial.projectSheet = nil; initial.selectedProjectID = id
+        try await waitUntil("closed AddProject sheet") { window.attachedSheet == nil }
+        initial.beginCreation(id)
+        try await waitUntil("Backlog creation sheet") { window.attachedSheet != nil }
+        await initial.create(.init(title: "Project lifecycle smoke task", body: "Backlog without valid pipeline"), in: id)
+        try await waitUntil("project Backlog creation") { initial.createdTaskID != nil && initial.canSend }
+        let taskID = initial.createdTaskID!
+        initial.sheet = nil
+        try await waitUntil("closed task sheet") { window.attachedSheet == nil }
+        await runtime.retry()
+        try await waitUntil("reopened project database") { runtime.store !== initial && runtime.store?.canSend == true }
+        guard let store = runtime.store, store.projection?.projects[id]?.path == repository, store.projection?.tasks[taskID]?.projectId == id else { throw failure("Project or task lost on reopen") }
+        store.beginProjectFlow(.relink(id))
+        try await waitUntil("actual relink sheet") { window.attachedSheet != nil }
+        store.projects.editPath(relocated); _ = await store.projects.submit()
+        try await waitUntil("correlated project relink") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id]?.path == relocated && store.canSend }
+        guard store.projection?.tasks[taskID]?.projectId == id else { throw failure("Relink changed task identity") }
+        store.projectSheet = nil; store.screen = .project(id)
+        try await waitUntil("closed relink sheet") { window.attachedSheet == nil }
+        store.beginProjectFlow(.remove(id))
+        try await waitUntil("actual removal confirmation") { window.attachedSheet != nil }
+        _ = await store.projects.submit()
+        try await waitUntil("correlated project removal") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id] == nil && store.canSend && store.screen == .board }
+        guard !store.visibleIDs.contains(id), FileManager.default.fileExists(atPath: repository + "/.git"), FileManager.default.fileExists(atPath: relocated + "/.git") else { throw failure("Removal changed user repository or left lane") }
+        return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears after correlated event or covered receipt and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
+    }
     private static func prepare(_ store: BoardStore) async throws {
         switch argument("--qa-state") {
         case "details": await store.select("SHOP-52")
@@ -142,7 +221,7 @@ import Darwin
         case "edit": await store.select("SHOP-58"); if let detail = store.detail { store.sheet = .edit(detail.task, detail.body) }
         case "search": store.query = "платёж"
         case "no-results": store.query = "нет такой задачи"
-        case "hidden": store.visibleIDs = []
+        case "hidden": for id in store.visibleIDs { store.hide(id) }
         case "error": store.error = "Не удалось связаться с источником состояния. Попробуйте ещё раз."
         case "reconnecting": store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq)
         case "connection-error": store.connectionState = .disconnected(.init(code: "reconciliation_failed", message: "Не удалось проверить сохранённые отправки. Служба временно недоступна; задачи и черновики сохранены. Проверьте подключение снова."))
@@ -153,6 +232,19 @@ import Darwin
             try store.commandJournal?.begin(envelope); try store.commandJournal?.markUncertain(envelope.commandId)
             store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq); store.sheet = .create("shop")
         default: break
+        }
+        if let state = argument("--qa-project-form") {
+            if state == "remove" { store.beginProjectFlow(.remove("shop")) }
+            else if state == "relink" { store.beginProjectFlow(.relink("shop")) }
+            else {
+                store.beginProjectFlow(.add)
+                store.projects.editPath("/Users/local/Projects/Очень длинное название выбранного репозитория/shop-api")
+                if state != "add" { _ = await store.projects.submit(); store.projects.observeOutcome() }
+                if state == "repeat" {
+                    store.projects.editIdentity(.email, value: " ")
+                    _ = await store.projects.submit(); store.projects.observeOutcome()
+                }
+            }
         }
         // Remount the same WindowGroup subtree so view caching includes unchanged controls.
         // This is export-only; the normal application keeps its existing view identity.
@@ -209,7 +301,37 @@ import Darwin
         try await waitUntil("menu shortcuts") { store.sheet != nil && store.searchRequest > 0 }
         store.sheet = nil
         checks.append("Cmd-N and Cmd-F invoke the real application menu commands")
+        if argument("--qa-project-form") != nil {
+            try await projectKeyboardSmoke(store)
+            checks.append("AddProject Return submits, refusal focuses missing email; Escape closes and reopening preserves input")
+        }
         return checks
+    }
+    private static func projectKeyboardSmoke(_ store: BoardStore) async throws {
+        guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Project keyboard window missing") }
+        try await waitUntil("closed previous keyboard sheet") { window.attachedSheet == nil }
+        store.beginProjectFlow(.add)
+        store.projects.editPath("/chosen/project-keyboard"); store.projects.setCreateTemplate(false)
+        try await waitUntil("AddProject keyboard sheet") { window.attachedSheet != nil }
+        let sheet = window.attachedSheet!
+        sheet.makeKeyAndOrderFront(nil); NSApp.activate()
+        try await waitUntil("AddProject key focus") { sheet.isKeyWindow }
+        func key(_ text: String, code: UInt16) throws {
+            guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: sheet.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code), sheet.performKeyEquivalent(with: event) else { throw failure("Project sheet keyboard action unavailable") }
+        }
+        try key("\r", code: 36)
+        try await waitUntil("AddProject keyboard refusal") { if case .rejected = store.projects.phase { return true }; return false }
+        guard store.projects.draft.path == "/chosen/project-keyboard", !store.projects.draft.createTemplate,
+              store.projects.draft.identity.focus == .email else { throw failure("Refusal lost input or focus target") }
+        try await waitUntil("missing email native field focus") { (sheet.firstResponder as? NSTextView)?.string == "" }
+        try key("\u{1b}", code: 53)
+        try await waitUntil("Escape closes AddProject") { window.attachedSheet == nil && store.projectSheet == nil }
+        store.beginProjectFlow(.add)
+        try await waitUntil("reopened AddProject") { window.attachedSheet != nil }
+        guard store.projects.draft.path == "/chosen/project-keyboard", !store.projects.draft.createTemplate,
+              store.projects.draft.identity.name.value == "Автор проекта", store.projects.draft.showsIdentity else { throw failure("Project draft lost after keyboard dismissal") }
+        store.projectSheet = nil
+        try await waitUntil("project keyboard sheet cleanup") { window.attachedSheet == nil }
     }
     private static func waitUntil(_ state: String, _ condition: () -> Bool) async throws {
         for _ in 0..<400 {

@@ -1,0 +1,12 @@
+{
+  "checks" : [
+    "actual WindowGroup and Add\/Relink\/Remove sheets",
+    "project appears after correlated event or covered receipt and gets one lane",
+    "server branch\/gates reads and unknown environment",
+    "Backlog task with invalid\/missing pipeline",
+    "real private DB reopens with project and task IDs",
+    "relink keeps project\/task IDs",
+    "remove updates selection and leaves both repositories on disk"
+  ],
+  "result" : "passed"
+}

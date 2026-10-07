@@ -32,6 +32,7 @@ import KabanTransport
             let base = AppFixture.client()
             let client: any KabanClient
             if let state = BoardQA.argument("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
+            else if let state = BoardQA.argument("--qa-project-form") { client = QAProjectClient(base: base, state: state) }
             else { client = base }
             store = BoardStore(client: client, storage: MemoryKeyValueStore(), fixture: true)
         }

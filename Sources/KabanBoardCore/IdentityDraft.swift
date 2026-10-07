@@ -1,13 +1,13 @@
 import Foundation
 import KabanProtocol
 
-public enum IdentityField: String, Equatable, Sendable {
+public enum IdentityField: String, Codable, Equatable, Sendable {
     case name
     case email
 }
 
 /// Поле «Имя» или «Почта» в листе «Добавить проект» и в строке «Автор коммитов».
-public struct IdentityFieldDraft: Equatable, Sendable {
+public struct IdentityFieldDraft: Codable, Equatable, Sendable {
     public var value: String
     /// Значение подставлено из `params` первого отказа, пометка «из настроек git».
     public var fromGitSettings: Bool
@@ -24,7 +24,7 @@ public struct IdentityFieldDraft: Equatable, Sendable {
 
 /// Черновик автора коммитов. Пустоту, пробелы и служебные символы проверяет демон;
 /// после отказа вызову с `identity` в полях остаётся то, что ввёл пользователь.
-public struct IdentityDraft: Equatable, Sendable {
+public struct IdentityDraft: Codable, Equatable, Sendable {
     public static let generalText = "Не задан автор коммитов: укажите имя и почту"
 
     public var name: IdentityFieldDraft
