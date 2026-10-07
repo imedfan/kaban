@@ -34,6 +34,7 @@ import KabanTransport
             if let state = BoardQA.argument("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
             else if let state = BoardQA.argument("--qa-project-form") { client = QAProjectClient(base: base, state: state) }
             else if BoardQA.argument("--qa-state") == "control-pending" { client = QADeferredControlClient(base: base) }
+            else if let mode = BoardQA.argument("--qa-review") { let reviewClient = QAHumanReviewClient(base: base, mode: mode); BoardQA.reviewClient = reviewClient; client = reviewClient }
             else if let mode = BoardQA.argument("--qa-answer") { let answerClient = QAHumanAnswerClient(base: base, mode: mode); BoardQA.answerClient = answerClient; client = answerClient }
             else if let mode = BoardQA.argument("--qa-log") { let logClient = QARunHistoryClient(base: base, mode: mode); BoardQA.logClient = logClient; client = logClient }
             else if let mode = BoardQA.argument("--qa-detail") { let detailClient = QADetailClient(base: base, mode: mode); BoardQA.detailClient = detailClient; client = detailClient }

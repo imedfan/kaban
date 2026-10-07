@@ -278,7 +278,10 @@ import KabanProtocol
             if let message {
                 // The addressed answer composer presents its own durable receipt
                 // beside the retained text. A modal alert would cover the new question.
-                if case .answerHuman = record.envelope.command {} else { error = message; editorError = message }
+                switch record.envelope.command {
+                case .answerHuman, .approve, .requestChanges, .reject: break
+                default: error = message; editorError = message
+                }
                 reportedFailures.insert(record.envelope.commandId)
             }
         }

@@ -50,6 +50,7 @@ struct BoardView: View {
         .foregroundStyle(theme.text)
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
+        .sheet(item: $store.reviewRoute) { HumanReviewSheet(store: store, route: $0) }
         .sheet(item: $store.controlSheet) { TaskControlSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
         .popover(isPresented: Binding(get: { store.mascotProjectID != nil }, set: { if !$0 { store.mascotProjectID = nil } })) { if let id = store.mascotProjectID { MascotPickerView(store: store, projectID: id) } }
@@ -714,18 +715,21 @@ struct TaskDetailView: View {
     @Bindable var store: BoardStore
     let openSheet: (TaskSheetRoute) -> Void
     @Environment(\.colorScheme) private var scheme
-        @State private var openingError: String?
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     private var tab: String { store.detailTab }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let card = store.selectedID.flatMap({ store.projection?.tasks[$0] }) {
                 detailHeader(card)
+                ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        HumanAnswerView(store: store, card: card)
-                        if let openingError { Text(openingError).font(.caption).foregroundStyle(theme.secondary) }
+                        if card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human {
+                            HumanAnswerView(store: store, card: card)
+                        }
+                        HumanReviewNotice(store: store, taskID: card.id)
+                        if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
@@ -738,6 +742,12 @@ struct TaskDetailView: View {
                         }
                         if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                }.task(id: store.detail?.task.id) {
+                    if let source = BoardQA.argument("--qa-review-artifact") {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        proxy.scrollTo(source, anchor: .top)
+                    }
+                }
                 }
                 if let detail = store.detail { detailActions(detail).padding(12).background(theme.window) }
             } else {
@@ -749,7 +759,7 @@ struct TaskDetailView: View {
             .sheet(item: $store.materialTextRoute) { MaterialTextSheet(route: $0) }
             .sheet(item: $store.logRunRoute) { run in RunLogSheet(store: store, run: run) }
             .sheet(item: $store.wipRestoreRoute) { route in WIPRestoreSheet(store: store, route: route) }
-            .onChange(of: store.selectedID) { _, _ in store.detailTab = "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil; openingError = nil }
+            .onChange(of: store.selectedID) { _, id in store.detailTab = id.flatMap { store.projection?.tasks[$0] }?.state == .waitingHuman(.review) ? "Сводка" : "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil }
     }
     private var availableRuns: [RunSummary]? {
         if case .unavailable = store.session.detailReadState { return store.session.runHistory ?? store.detail?.runs }
@@ -858,37 +868,8 @@ struct TaskDetailView: View {
             Divider()
         }
     }
-    @ViewBuilder private func summary(_ detail: TaskDetail) -> some View {
-        if let path = detail.clonePath {
-            VStack(alignment: .leading, spacing: 7) {
-                Label("Клон задачи", systemImage: "folder").font(.system(size: 11, weight: .semibold))
-                Text(path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                Button("Открыть в Cursor") { openClone(path) }.buttonStyle(KabanButtonStyle(compact: true))
-            }
-        } else { empty("Клон задачи недоступен") }
-        Divider()
-        if detail.artifacts.isEmpty { empty("Материалов результата пока нет") }
-        ForEach(TaskDetailPresentation.summaryArtifacts(detail), id: \.id) { artifact in
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(TaskDetailPresentation.artifactTitle(artifact.kind)).font(.system(size: 12, weight: .semibold))
-                    Spacer()
-                    if let stage = artifact.stageId { Text(stageName(stage, detail: detail)).font(.system(size: 10)).foregroundStyle(theme.secondary) }
-                }
-                if artifact.text.utf8.count > TaskDetailPresentation.largeTextBytes {
-                    Text("Большой материал · \(ByteCountFormatter.string(fromByteCount: Int64(artifact.text.utf8.count), countStyle: .file)). Полный текст доступен отдельно.")
-                        .font(.system(size: 11)).foregroundStyle(theme.secondary)
-                } else if artifact.text.isEmpty { empty("Материал без текста") }
-                else { Text(artifact.text).font(.system(size: 11, design: artifact.kind == "summary" || artifact.kind == "issue" ? .default : .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
-                if let path = artifact.path { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
-                HStack {
-                    Button("Полный текст…") { store.materialTextRoute = .init(id: artifact.id.rawValue, title: TaskDetailPresentation.artifactTitle(artifact.kind), text: artifact.text) }.buttonStyle(KabanButtonStyle(compact: true))
-                    Spacer()
-                    runLink(artifact.runId, detail: detail)
-                }
-            }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 9))
-                .overlay(RoundedRectangle(cornerRadius: 9).stroke(theme.line, lineWidth: 0.5))
-        }
+    private func summary(_ detail: TaskDetail) -> some View {
+        ReviewMaterialsView(store: store, detail: detail)
     }
     @ViewBuilder private func runs(_ values: [RunSummary]?) -> some View {
         HStack {
@@ -1013,13 +994,6 @@ struct TaskDetailView: View {
         return project.flatMap { store.projection?.pipelines[$0]?.stages.first { $0.id == id }?.name } ?? id.rawValue
     }
     private func empty(_ text: String) -> some View { Text(text).font(.system(size: 12)).foregroundStyle(theme.faint) }
-    private func openClone(_ path: String) {
-        guard path.hasPrefix("/"), FileManager.default.fileExists(atPath: path) else { openingError = "Папка клона недоступна: " + path; return }
-        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.todesktop.230313mzl4w4u92") else { openingError = "Cursor не найден. Путь клона можно скопировать выше."; return }
-        NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: app, configuration: .init()) { _, failure in
-            if let failure { Task { @MainActor in openingError = failure.localizedDescription } }
-        }
-    }
     private func suspiciousBlock(_ files: [SuspiciousFile]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Подозрительные файлы · \(files.count)", systemImage: "exclamationmark.shield")
@@ -1037,7 +1011,12 @@ struct TaskDetailView: View {
         }.padding(12).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.status("waiting").0.opacity(0.4), lineWidth: 0.5))
     }
-    private func detailActions(_ detail: TaskDetail) -> some View {
+    @ViewBuilder private func detailActions(_ detail: TaskDetail) -> some View {
+        if detail.task.state == .waitingHuman(.review), store.projection?.pipelines[detail.task.projectId]?.stages.first(where: { $0.id == detail.task.stageId })?.kind == .human {
+            HumanReviewFooter(store: store, detail: detail,
+                edit: { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) },
+                priority: { store.editorError = nil; openSheet(.priority(detail.task)) })
+        } else {
         VStack(alignment: .leading, spacing: 8) {
             if store.humanAnswers.currentContext(for: detail.task.id)?.card.state == .waitingHuman(.suspiciousFiles) {
                 Text("Набор файлов не принимается · агент получит новый запуск")
@@ -1069,6 +1048,7 @@ struct TaskDetailView: View {
                 if store.projection?.isSent(detail.task.id) == true, store.humanAnswers.receipt(for: detail.task.id)?.isPending != true { ProgressView().controlSize(.small) }
             }.disabled(store.projection?.isSent(detail.task.id) ?? false)
         }
+        }
     }
 }
 
@@ -1084,6 +1064,20 @@ struct ProjectSettingsView: View {
                     HStack(spacing: 12) {
                         ReferenceMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
                         VStack(alignment: .leading, spacing: 4) { Text(project.name).font(.system(size: 22, weight: .bold)); Text(project.path).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled) }
+                    }
+                    if store.showPipelineIssues {
+                        settingsSection("Ошибки пайплайна") {
+                            if let pipeline = store.projection?.pipelines[projectID] {
+                                if pipeline.issues.isEmpty { Text("Служба не передала ошибок текущего пайплайна.").font(.system(size: 12)).foregroundStyle(theme.secondary) }
+                                ForEach(Array(pipeline.issues.enumerated()), id: \.offset) { _, issue in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(issue.message).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                                        Text(issue.code + " · " + issue.path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
+                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                if pipeline.defaultReturnStage == nil { Text("Стадия возврата не передана. Возврат с комментарием недоступен.").font(.system(size: 11)).foregroundStyle(theme.secondary) }
+                            }
+                        }
                     }
                     settingsSection("Папка проекта") {
                         if project.availability == .missing { Text("Папка недоступна. Выберите её новый путь или удалите проект из Kaban.").font(.system(size: 12)).foregroundStyle(theme.status("waiting").2) }

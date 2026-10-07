@@ -15,6 +15,7 @@ import KabanBoardCore
             .init(id: "merge", name: "Merge", kind: .merge, display: .init(order: 5), onSuccess: "done", onConflict: .init(stage: "dev", limit: 2)),
             .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 6))
         ]
+        if BoardQA.argument("--qa-review") != nil { stages[2].readOnly = false }
         let boardMatrix = BoardQA.argument("--qa-board") == "matrix"
         if BoardQA.argument("--qa-answer") == "gate" {
             stages.append(.init(id: "checks", name: "Checks", kind: .gate, display: .init(order: 7), onFail: .init(stage: "dev", limit: 3)))
@@ -83,6 +84,11 @@ import KabanBoardCore
         }
         if BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].stageId = "dev"; tasks[index].state = .paused
+        }
+        if let mode = BoardQA.argument("--qa-review"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+            tasks[index].stageId = "review"; tasks[index].state = .waitingHuman(.review)
+            if mode == "conflict" { tasks[index].bounceByReason = ["merge_conflict": 1] }
+            if mode == "long" || mode == "long-comment" { tasks[index].title = String(repeating: "Слияние гостевой корзины после повторной доставки и проверки платежа · ", count: 3) }
         }
         var questions: [TaskID: [HumanRequest]] = [:]
         if let mode = BoardQA.argument("--qa-answer"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {

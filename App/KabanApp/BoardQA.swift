@@ -9,13 +9,25 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--answer-smoke") != nil || argument("--answer-live-smoke") != nil ||  argument("--log-live-smoke") != nil ||  argument("--log-volume-smoke") != nil ||  argument("--log-smoke") != nil ||  argument("--control-live-smoke") != nil || argument("--control-routing-smoke") != nil || argument("--control-smoke") != nil || argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil || argument("--detail-smoke") != nil || argument("--detail-live-smoke") != nil }
+    static var isActive: Bool { ["--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
     }
     static func run() async {
         do {
+            if argument("--review-live-smoke") != nil {
+                func find(_ menu: NSMenu?) -> NSMenuItem? {
+                    for item in menu?.items ?? [] {
+                        if item.title == "Открыть окно ревью для проверки" { return item }
+                        if let nested = find(item.submenu) { return nested }
+                    }
+                    return nil
+                }
+                try await waitUntil("review WindowGroup command") { find(NSApp.mainMenu) != nil }
+                guard let item = find(NSApp.mainMenu), let menu = item.menu else { throw failure("WindowGroup command missing") }
+                menu.performActionForItem(at: menu.index(of: item))
+            }
             if argument("--qa-runtime-state") != nil {
                 try await waitUntil("runtime WindowGroup") { NSApp.windows.contains { $0.styleMask.contains(.titled) } }
                 if CommandLine.arguments.contains("--qa-incompatible-daemon") {
@@ -27,7 +39,13 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--answer-live-smoke") {
+            if let path = argument("--review-live-smoke") {
+                let checks = try await reviewLiveSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--review-smoke") {
+                let checks = try await reviewSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--answer-live-smoke") {
                 let checks = try await answerLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--answer-smoke") {
@@ -82,7 +100,7 @@ import Darwin
             }
             Darwin.exit(EXIT_SUCCESS)
         } catch {
-            if let path = argument("--answer-smoke") ?? argument("--answer-live-smoke") ?? argument("--log-live-smoke") ?? argument("--log-smoke") ?? argument("--log-volume-smoke") ?? argument("--control-smoke") ?? argument("--control-routing-smoke") ?? argument("--control-live-smoke"),
+            if let path = ["--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
@@ -265,6 +283,7 @@ import Darwin
         return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears after correlated event or covered receipt and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
     }
     private static func prepare(_ store: BoardStore) async throws {
+        if try await prepareReview(store) { return }
         if try await prepareAnswer(store) { return }
         if try await prepareRunHistory(store) { return }
         if try await prepareDetails(store) { return }

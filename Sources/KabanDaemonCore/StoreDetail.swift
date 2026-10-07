@@ -110,6 +110,12 @@ extension KabanStore {
             d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, runId: run, stageId: before.stageId, kind: "summary", text: summary, createdAt: at))
             d.feed.append(FeedItem(id: id, at: at, kind: "summary", text: summary, runId: run))
         }
+        if case .requestChanges(let comments, _) = command {
+            // This is a review note, not an answer to an outstanding question.
+            // Persist with the state mutation so retention/restart cannot lose it.
+            d.feed.append(FeedItem(id: commandId.uuidString.lowercased() + "/review", at: at,
+                                  kind: "review_comment", text: SecretText.redact(comments), runId: before.lastRunId))
+        }
         if case .returnToStage(let run, _, let issues) = command {
             for (offset, issue) in issues.enumerated() {
                 let issue = SecretText.redact(issue)

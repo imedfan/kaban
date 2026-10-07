@@ -50,12 +50,14 @@ extension BoardStore {
         }
     }
     func beginControl(_ card: TaskCard, action: TaskControlRequest.Action) {
-        guard sheet == nil, projectSheet == nil, controlSheet == nil, canControl(card, action: action) else { return }
+        guard sheet == nil, projectSheet == nil, controlSheet == nil, reviewRoute == nil,
+              logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, canControl(card, action: action) else { return }
         editorError = nil
         controlSheet = .init(store: self, card: card, action: action)
     }
     func canPerform(_ menuAction: TaskMenuAction) -> Bool {
-        guard sheet == nil, controlSheet == nil, projectSheet == nil, let card = selectedCard else { return false }
+        guard sheet == nil, controlSheet == nil, projectSheet == nil, reviewRoute == nil,
+              logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, let card = selectedCard else { return false }
         return canControl(card, action: menuAction.request(for: card))
     }
     func perform(_ menuAction: TaskMenuAction) {
