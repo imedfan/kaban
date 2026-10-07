@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "16000 normalized records through actual TextKit2",
+    "resident bounds <=50000 lines and 8MiB; stable daemon offsets after eviction",
+    "100 appended records preserve reading anchor and selection without autoscroll",
+    "normalized loaded-fragment export",
+    "native main-actor heartbeat maximum gap 0.30064779170788825 seconds"
+  ],
+  "result" : "passed"
+}

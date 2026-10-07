@@ -1,0 +1,6 @@
+{
+  "checks" : [
+    "bundled daemon distinguishes removed log file from empty log and preserves RunSummary"
+  ],
+  "result" : "passed"
+}
