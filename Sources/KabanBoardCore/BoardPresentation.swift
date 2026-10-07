@@ -67,11 +67,12 @@ extension CardPresentation {
             var name = key
             if key == "merge_conflict" { name = "При конфликте" }
             else if let pipeline {
-                for source in pipeline.stages {
-                    for target in pipeline.stages where key == "\(source.id.rawValue)_\(target.id.rawValue)" {
-                        name = source.name + " → " + target.name
+                let matches = pipeline.stages.flatMap { source in
+                    pipeline.stages.compactMap { target -> String? in
+                        key == "\(source.id.rawValue)_\(target.id.rawValue)" ? source.name + " → " + target.name : nil
                     }
                 }
+                if matches.count == 1 { name = matches[0] }
             }
             result.append(.init("\(name) · \(count)", symbol: "arrow.uturn.backward", help: "Возвраты: \(name), \(count)"))
         }
@@ -91,5 +92,23 @@ extension CardPresentation {
         let remaining = max(0, Int(ceil(retryAt.timeIntervalSince(now))))
         if remaining == 0 { return "Ожидает повторного запуска" }
         return "Повтор через \(remaining / 60):\(String(format: "%02d", remaining % 60))"
+    }
+}
+
+
+/// Do not infer the exhausted bounce rule by summing card counters: a total
+/// limit and its source are not present in the current summary contract.
+public struct LimitReasonText: Equatable, Sendable {
+    public let title: String
+    public let qualifier: String?
+    public init(card: TaskCard, pipeline: PipelineSummary?) {
+        title = CardPresentation(state: card.state).label
+        let stage = pipeline?.stages.first { $0.id == card.stageId }
+        if card.state == .waitingHuman(.conflictLimit), stage?.kind == .merge,
+           let limit = stage?.onConflict?.limit, let count = card.bounceByReason["merge_conflict"] {
+            qualifier = "при конфликте, \(count) из \(limit)"
+        } else if card.state == .waitingHuman(.runLimit), let limit = pipeline?.maxRunsPerTask {
+            qualifier = "\(card.runsSinceHuman) из \(limit)"
+        } else { qualifier = nil }
     }
 }

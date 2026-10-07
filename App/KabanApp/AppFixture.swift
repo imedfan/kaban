@@ -96,7 +96,15 @@ import KabanBoardCore
             }
         }
         let bodies = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, "## Описание\n\n\($0.title).\n\n## Критерии приёмки\n\n- Существующее поведение сохранено.\n- Граничные случаи проверены.\n- Изменения готовы к ревью.") })
-        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies)
+        var runs: [TaskID: [RunSummary]] = [:]
+        var current: [EphemeralEvent] = []
+        if boardMatrix {
+            let run = RunSummary(id: "fixture-current-run", taskId: "SHOP-42", stageId: "dev", number: 2, status: .running, requestedModel: "composer-1", startedAt: now.addingTimeInterval(-120))
+            runs["SHOP-42"] = [run]
+            current = [.runProgress(.init(runId: run.id, taskId: run.taskId, message: "Добавлены проверки границ курсора", lastActivityAt: now))]
+            runs["SHOP-35"] = [.init(id: "fixture-substitution", taskId: "SHOP-35", stageId: "ai-review", number: 1, status: .failed, requestedModel: "opus-4.5", actualModelName: "Sonnet 4", countsTowardLimits: false, startedAt: now.addingTimeInterval(-180), endedAt: now)]
+        }
+        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current)
     }
 }
 

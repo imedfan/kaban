@@ -72,6 +72,26 @@ final class LiveBoardPresentationTests: XCTestCase {
         let empty = Fix.card("empty", hasAcceptanceCriteria: true)
         XCTAssertTrue(CardPresentation.badges(card: empty, pipeline: nil).isEmpty)
     }
+    func testAmbiguousLegacyBounceKeyDoesNotInventStagePair() {
+        let stages = [Fix.stage("a_b", .agent, order: 0), Fix.stage("c", .agent, order: 1),
+                      Fix.stage("a", .agent, order: 2), Fix.stage("b_c", .agent, order: 3)]
+        var card = Fix.card("bounce", hasAcceptanceCriteria: true)
+        card.bounceByReason = ["a_b_c": 2]
+        XCTAssertEqual(CardPresentation.badges(card: card, pipeline: Fix.pipeline(stages)).first?.label, "a_b_c · 2")
+    }
+    func testLimitQualifierUsesExactServerRuleAndKeepsMissingTotalUnknown() {
+        var merge = Fix.stage("merge", .merge, order: 1)
+        merge.onConflict = .init(stage: "dev", limit: 2)
+        let pipeline = Fix.pipeline([merge])
+        var card = Fix.card("limit", stage: "merge", state: .waitingHuman(.conflictLimit))
+        card.bounceByReason = ["merge_conflict": 2]
+        XCTAssertEqual(LimitReasonText(card: card, pipeline: pipeline).qualifier, "при конфликте, 2 из 2")
+        XCTAssertNil(LimitReasonText(card: card, pipeline: nil).qualifier)
+        card.state = .waitingHuman(.bounceLimit)
+        XCTAssertNil(LimitReasonText(card: card, pipeline: pipeline).qualifier)
+        card.state = .waitingHuman(.runLimit); card.runsSinceHuman = 12
+        XCTAssertEqual(LimitReasonText(card: card, pipeline: pipeline).qualifier, "12 из 12")
+    }
     @MainActor func testLocalHideReorderRestartsAndStillReceivesHiddenProjectEvents() async throws {
         let storage = MemoryKeyValueStore()
         let hiddenTask = Fix.card("hidden", project: Fix.other)

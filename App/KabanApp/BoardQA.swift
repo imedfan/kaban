@@ -61,6 +61,22 @@ import Darwin
         window.setContentSize(argument("--qa-size") == "minimum" || argument("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
         try await Task.sleep(for: .milliseconds(700))
+        if argument("--qa-state") == "mascot" {
+            store?.mascotProjectID = nil
+            try await Task.sleep(for: .milliseconds(100))
+            store?.mascotProjectID = "shop"
+            try await waitUntil("actual mascot popover") {
+                NSApp.windows.contains { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }
+            }
+            guard let popover = NSApp.windows.first(where: { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }),
+                  let view = popover.contentView?.superview ?? popover.contentView else { throw failure("Native mascot popover missing") }
+            popover.layoutIfNeeded(); view.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(200))
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Native mascot capture unavailable") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Mascot PNG unavailable") }
+            try png.write(to: URL(fileURLWithPath: path + ".popover.png"))
+        }
         if argument("--qa-window-id") != nil {
             try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
         }
@@ -262,6 +278,13 @@ import Darwin
         guard store.usesFixture else { throw failure("Board smoke requires explicit DTO fixtures") }
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No actual board WindowGroup") }
         window.makeKeyAndOrderFront(nil)
+        if argument("--qa-board-restart") == "verify" {
+            guard store.visibleIDs == ["docs", "kaban", "mobile"], store.projection?.projects["shop"] != nil,
+                  (store.projection?.badgeCounts(for: "shop").waitingHuman ?? 0) > 0,
+                  store.projection?.projects["shop"]?.openIncidentCount == 1,
+                  store.projection?.tasks["SHOP-42"]?.state == .running else { throw failure("BoardSet did not survive an actual process restart") }
+            return ["Actual application process restart restored hidden shop and lane order docs/kaban/mobile; waiting/incident badges and task state remain authoritative"]
+        }
         let initialIDs = store.visibleIDs, initialTasks = store.projection?.tasks, initialSeq = store.projection?.stateSeq
         guard initialIDs.count >= 2 else { throw failure("Board fixture lacks projects") }
         var checks: [String] = []
@@ -290,6 +313,11 @@ import Darwin
         try await Task.sleep(for: .milliseconds(200))
         guard store.projection?.tasks == initialTasks else { throw failure("Compact board mutated task state") }
         checks.append("Compact view and local board changes render in the actual WindowGroup")
+        if argument("--qa-board-restart") == "seed" {
+            store.hide("shop"); store.session.move("docs", to: 0)
+            guard store.visibleIDs == ["docs", "kaban", "mobile"] else { throw failure("Restart seed order wrong") }
+            checks.append("Separate QA UserDefaults suite persisted hidden shop and reordered docs for a new application process")
+        }
         return checks
     }
     private static func smoke(_ store: BoardStore) async throws -> [String] {

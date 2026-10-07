@@ -1,0 +1,6 @@
+{
+  "checks" : [
+    "Actual application process restart restored hidden shop and lane order docs\/kaban\/mobile; waiting\/incident badges and task state remain authoritative"
+  ],
+  "result" : "passed"
+}

@@ -4,8 +4,10 @@ import KabanProtocol
 import KabanBoardCore
 
 final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
-    func data(forKey key: String) -> Data? { UserDefaults.standard.data(forKey: key) }
-    func set(_ data: Data?, forKey key: String) { UserDefaults.standard.set(data, forKey: key) }
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    func data(forKey key: String) -> Data? { defaults.data(forKey: key) }
+    func set(_ data: Data?, forKey key: String) { defaults.set(data, forKey: key) }
 }
 
 @MainActor @Observable final class BoardStore {
@@ -28,7 +30,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var focusRequest = 0
     var compactBoard = false
     var mascotProjectID: ProjectID?
-    private var runFacts: [TaskID: (card: TaskCard, run: RunSummary?)] = [:]
+    private var runFacts: [TaskID: (card: TaskCard, generation: UUID, run: RunSummary?)] = [:]
     var sheet: TaskSheetRoute?
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
@@ -114,22 +116,31 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         return client.tailLog(runId: runId, fromOffset: fromOffset)
     }
     var reservationCount: Int { projection?.tasks.values.filter { $0.state == .running }.count ?? 0 }
-    func currentRun(for card: TaskCard) -> RunSummary? { runFacts[card.id].flatMap { $0.card == card ? $0.run : nil } }
+    func currentRun(for card: TaskCard) -> RunSummary? { runFacts[card.id].flatMap { $0.card == card && $0.generation == session.sessionGeneration ? $0.run : nil } }
     func progress(for card: TaskCard) -> RunProgress? {
         CardPresentation.progress(card: card, currentRun: currentRun(for: card), reports: projection?.ephemeral.runProgress ?? [:])
     }
     func readRunFacts(for card: TaskCard) async {
-        guard card.state == .running, can(.getTaskDetail), runFacts[card.id]?.card != card else { return }
+        guard card.state == .running || card.state == .waitingHuman(.modelSubstituted), can(.getTaskDetail) else { return }
+        if let facts = runFacts[card.id], facts.card == card && facts.generation == session.sessionGeneration { return }
         let generation = session.sessionGeneration
         do {
             let reply = try await client.send(.init(command: .getTaskDetail(taskId: card.id)))
             guard case .taskDetail(let detail) = reply.result else { return }
             guard !Task.isCancelled, session.sessionGeneration == generation,
-                  projection?.tasks[card.id] == card, detail.task == card,
-                  detail.seq >= (projection?.stateSeq ?? 0) else { return }
-            let run = detail.runs.filter { $0.stageId == card.stageId && $0.endedAt == nil && ($0.status == .starting || $0.status == .running) }.max { $0.number < $1.number }
-            runFacts[card.id] = (card, run)
+                  projection?.tasks[card.id] == card, detail.task == card else { return }
+            let matching = detail.runs.filter { run in
+                run.taskId == card.id && run.stageId == card.stageId &&
+                (card.state != .running || (run.endedAt == nil && (run.status == .starting || run.status == .running)))
+            }
+            let run = matching.max { $0.number < $1.number }
+            runFacts[card.id] = (card, generation, run)
         } catch { /* Optional presentation facts stay unknown; task commands are unaffected. */ }
+    }
+    var hiddenStageCount: Int {
+        projection?.tasks.values.filter { card in
+            projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.display.hidden == true
+        }.count ?? 0
     }
     var waitingCount: Int { projection?.tasks.values.filter { $0.state.status == .waitingHuman }.count ?? 0 }
     func matches(_ id: TaskID) -> Bool {
@@ -143,6 +154,12 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
             return (id.rawValue, project.mascotSeed)
         }
         return MascotKit.resolveBoard(projects)[id.rawValue] ?? MascotKit.pick(seed: projection?.projects[id]?.mascotSeed ?? id.rawValue)
+    }
+    func completionTrigger(_ id: ProjectID) -> Int64 {
+        projection?.feed.last { item in
+            guard item.projectId == id, case .taskTransitioned(let transition) = item.event else { return false }
+            return transition.to == .done
+        }?.seq ?? 0
     }
     func projectStatus(_ id: ProjectID) -> String {
         if (projection?.projects[id]?.openIncidentCount ?? 0) > 0 { return "incident" }

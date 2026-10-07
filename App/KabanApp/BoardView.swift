@@ -12,6 +12,8 @@ struct BoardView: View {
     private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
     @State private var sidebarVisible = true
     @State private var collapsed: Set<ProjectID> = []
+    @State private var dropTarget: ProjectID?
+    @State private var endDropTarget = false
     @State private var stageCollapsed: [BoardStageKey: Bool] = [:]
     @FocusState private var searchFocused: Bool
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
@@ -94,13 +96,13 @@ struct BoardView: View {
                         store.screen = .board; store.filter = filter
                     } label: {
                         HStack(spacing: 9) {
-                            Image(systemName: filter == .all ? "rectangle.split.3x1" : filter == .waiting ? "hand.raised" : "light.beacon.max")
+                            Image(systemName: filter == .all ? "rectangle.split.3x1" : filter == .waiting ? "hand.raised" : filter == .hiddenStages ? "eye.slash" : "light.beacon.max")
                                 .foregroundStyle(filter == .incidents && (store.projection?.openIncidentCount ?? 0) > 0 ? theme.status("incident").0 : theme.accent)
                                 .frame(width: 18)
                             Text(filter.rawValue).font(.system(size: 13, weight: store.filter == filter && store.screen == .board ? .semibold : .medium))
                             Spacer()
                             if filter != .all {
-                                countBadge(filter == .waiting ? store.waitingCount : store.projection?.openIncidentCount ?? 0, attention: filter == .waiting)
+                                countBadge(filter == .waiting ? store.waitingCount : filter == .hiddenStages ? store.hiddenStageCount : store.projection?.openIncidentCount ?? 0, attention: filter == .waiting)
                             }
                         }.padding(.horizontal, 10).frame(height: 34)
                             .background(store.screen == .board && store.filter == filter ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
@@ -137,7 +139,7 @@ struct BoardView: View {
             store.filter = .all; store.focusProject(id)
         } label: {
             HStack(spacing: 10) {
-                ReferenceMascot(emoji: store.mascot(id).emoji, theme: theme, state: store.projectStatus(id), size: 28)
+                ReferenceMascot(emoji: store.mascot(id).emoji, theme: theme, state: store.projectStatus(id), size: 28, completionTrigger: store.completionTrigger(id))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(project.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
                     Text(store.projectCaption(id)).font(.system(size: 10.5)).foregroundStyle(theme.secondary).lineLimit(1)
@@ -220,14 +222,15 @@ struct BoardView: View {
                         ForEach(lanes, id: \.project.id) { lane in
                             Section {
                                 if !collapsed.contains(lane.project.id) { laneBody(lane, width: max(width - 24, 0)) }
-                            } header: { laneHeader(lane).id(lane.project.id) }
-                                .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: lane.project.id) }
+                            } header: { laneHeader(lane, width: width).id(lane.project.id) }
+                                .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: lane.project.id) } isTargeted: { active in dropTarget = active ? lane.project.id : dropTarget == lane.project.id ? nil : dropTarget }
                         }
                     }
                     if !lanes.isEmpty {
                         Text("Перетащите проект сюда, чтобы поставить его последним")
                             .font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).padding(14)
-                            .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: nil) }
+                            .background(endDropTarget ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
+                            .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: nil) } isTargeted: { endDropTarget = $0 }
                     }
                 }.padding(12)
             }.scrollIndicators(.automatic)
@@ -262,7 +265,7 @@ struct BoardView: View {
     private func isCollapsed(_ stage: StageSummary, project: ProjectID) -> Bool {
         stageCollapsed[.init(projectID: project, stageID: stage.id)] ?? (stage.display.collapsed || stage.kind == .gate)
     }
-    private func laneHeader(_ lane: BoardLane) -> some View {
+    private func laneHeader(_ lane: BoardLane, width: CGFloat) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "line.3.horizontal").foregroundStyle(theme.faint)
                 .draggable("kaban-project:" + lane.project.id.rawValue).help("Переставить дорожку")
@@ -271,12 +274,16 @@ struct BoardView: View {
             } label: { Image(systemName: collapsed.contains(lane.project.id) ? "chevron.right" : "chevron.down").frame(width: 16, height: 28) }
                 .buttonStyle(.plain).foregroundStyle(theme.faint).help("Свернуть или раскрыть проект")
             Button { store.mascotProjectID = lane.project.id } label: {
-                ReferenceMascot(emoji: store.mascot(lane.project.id).emoji, theme: theme, state: store.projectStatus(lane.project.id), size: 24)
+                ReferenceMascot(emoji: store.mascot(lane.project.id).emoji, theme: theme, state: store.projectStatus(lane.project.id), size: 24, completionTrigger: store.completionTrigger(lane.project.id))
             }.buttonStyle(.plain).disabled(!store.can(.setMascot)).help("Выбрать маскота")
             Text(lane.project.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
             ReferenceChip(title: "⑂ " + lane.project.baseBranch, theme: theme, mono: true)
             Text(store.projectCaption(lane.project.id)).font(.system(size: 11)).foregroundStyle(theme.faint).lineLimit(1)
             Spacer(minLength: 0)
+            if width > 1080 {
+                ReferenceChip(title: "вес \(lane.project.weight)", theme: theme)
+                Text("Процессы —").font(.system(size: 10)).foregroundStyle(theme.faint).help("Служба не сообщает подтверждённые агентские процессы.")
+            }
             if lane.project.openIncidentCount > 0 {
                 Label("\(lane.project.openIncidentCount)", systemImage: "light.beacon.max").font(.system(size: 11)).foregroundStyle(theme.status("incident").2).help("Открытые инциденты")
             }
@@ -289,6 +296,7 @@ struct BoardView: View {
         }.padding(.horizontal, 10).frame(height: 40)
             .background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(store.selectedProjectID == lane.project.id ? theme.accent.opacity(0.5) : theme.line, lineWidth: 0.5))
+            .overlay(alignment: .top) { if dropTarget == lane.project.id { theme.accent.frame(height: 2).allowsHitTesting(false) } }
     }
     private func laneBody(_ lane: BoardLane, width: CGFloat) -> some View {
         let displayed = columns(lane)
@@ -303,12 +311,12 @@ struct BoardView: View {
             } else {
                 ScrollView(.horizontal) {
                     GlassEffectContainer(spacing: 6) {
-                    HStack(alignment: .top, spacing: 6) {
-                        ForEach(displayed, id: \.stage.id) { column in
-                            columnView(column, project: lane.project, height: laneHeight(lane))
-                                .frame(width: columnWidth(column.stage, project: lane.project.id, all: displayed, available: width - 16))
-                        }
-                    }.padding(.bottom, 4)
+                        HStack(alignment: .top, spacing: 6) {
+                            ForEach(displayed, id: \.stage.id) { column in
+                                columnView(column, project: lane.project, height: laneHeight(lane))
+                                    .frame(width: columnWidth(column.stage, project: lane.project.id, all: displayed, available: width - 16))
+                            }
+                        }.padding(.bottom, 4)
                     }
                 }.scrollIndicators(.automatic)
             }
@@ -322,7 +330,8 @@ struct BoardView: View {
     private func columnWidth(_ stage: StageSummary, project: ProjectID, all: [BoardColumn], available: CGFloat) -> CGFloat {
         let minimums = all.map { minimumColumnWidth($0.stage, project: project) }
         let extra = max(available - minimums.reduce(0, +) - CGFloat(max(all.count - 1, 0)) * 6, 0)
-        return minimumColumnWidth(stage, project: project) + extra / CGFloat(max(all.count, 1))
+        let maximum: CGFloat = isCollapsed(stage, project: project) ? (stage.kind == .gate ? 88 : 104) : stage.kind == .queue || stage.kind == .terminal ? 200 : 260
+        return min(maximum, minimumColumnWidth(stage, project: project) + extra / CGFloat(max(all.count, 1)))
     }
     private func laneHeight(_ lane: BoardLane) -> CGFloat {
         let count = columns(lane).map { $0.taskIds.filter { store.matches($0) }.count }.max() ?? 0
@@ -353,7 +362,7 @@ struct BoardView: View {
                             Image(systemName: "chevron.down").font(.system(size: 8))
                         }
                     }
-                }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading).padding(4).frame(minHeight: 28)
+                }.font(.system(size: 11)).foregroundStyle(Color(hex: theme.dark ? 0xf2f2f5 : 0x1d1d1f)).frame(maxWidth: .infinity, alignment: .leading).padding(4).frame(minHeight: 28)
             }.buttonStyle(.plain).help((folded ? "Раскрыть: " : "Свернуть: ") + column.stage.name)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 8))
             if folded {
@@ -383,16 +392,16 @@ struct BoardView: View {
         if let load = store.projection?.load(projectId: project, stageId: stage) {
             let presentation = StageLoadPresentation(load: load)
             Text(presentation.label).monospacedDigit().padding(.horizontal, 4)
-                .foregroundStyle(presentation.exceeded ? theme.status("waiting").2 : theme.secondary)
+                .foregroundStyle(presentation.exceeded ? theme.status("waiting").2 : Color(hex: theme.dark ? 0xb0b2b9 : 0x5f6168))
                 .background(presentation.exceeded ? theme.status("waiting").1 : theme.control, in: Capsule())
                 .help(presentation.exceeded ? "WIP превышен. Текущие задачи продолжаются." : "Загрузка WIP из службы Kaban")
         }
     }
     private func taskButton(_ card: TaskCard, project: ProjectSummary, stageChip: String? = nil) -> some View {
         Button { Task { await store.select(card.id) } } label: {
-            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), stageChip: stageChip)
+            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), actualModel: store.currentRun(for: card)?.actualModelName, stageChip: stageChip)
         }.buttonStyle(.plain)
-            .task(id: card) { await store.readRunFacts(for: card) }
+            .task(id: BoardCardReadKey(card: card, generation: store.session.sessionGeneration)) { await store.readRunFacts(for: card) }
             .contextMenu {
                 Button("Открыть детали") { Task { await store.select(card.id) } }
                 if TaskActions.canEdit(card) {
@@ -441,7 +450,7 @@ struct BoardView: View {
     private var macCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Label("Этот Мак", systemImage: "cpu").font(.system(size: 12, weight: .semibold)); Spacer(); KabanIconButton(symbol: "slider.horizontal.3", help: "Квота и агенты") { store.screen = .quota } }
-            HStack { Text("Агентские процессы"); Spacer(); Text("Нет данных").foregroundStyle(theme.faint) }.font(.system(size: 11))
+            HStack { Text("Процессы агентов").fixedSize(horizontal: false, vertical: true); Spacer(); Text("Нет данных").foregroundStyle(theme.faint).fixedSize() }.font(.system(size: 11))
                 .help("Служба пока не сообщает подтверждённые процессы и их потолок.")
             HStack { Text("Резервирования"); Spacer(); Text("\(store.reservationCount)").monospacedDigit() }.font(.system(size: 10)).foregroundStyle(theme.secondary)
             theme.line.frame(height: 0.5)
@@ -476,6 +485,10 @@ struct BoardView: View {
     }
 }
 
+private struct BoardCardReadKey: Hashable {
+    let card: TaskCard
+    let generation: UUID
+}
 struct TaskCardView: View {
     let card: TaskCard
     var mascot: MascotPick = MascotKit.pick(seed: "kaban")
@@ -483,6 +496,7 @@ struct TaskCardView: View {
     let pendingLabel: String?
     var pipeline: PipelineSummary? = nil
     var progress: RunProgress? = nil
+    var actualModel: String? = nil
     var stageChip: String? = nil
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -526,6 +540,10 @@ struct TaskCardView: View {
                     Text(file.path).font(.system(size: 10, design: .monospaced)).foregroundStyle(colors.2).lineLimit(1).truncationMode(.middle).help(file.path)
                 }
                 if card.suspiciousFiles.count > 2 { Text("+\(card.suspiciousFiles.count - 2) файла").font(.system(size: 10)).foregroundStyle(colors.2) }
+                if card.state == .waitingHuman(.modelSubstituted), let actualModel {
+                    Text("\(card.model?.rawValue ?? "Запрошенная модель неизвестна") → \(actualModel)")
+                        .font(.system(size: 10)).foregroundStyle(colors.2).lineLimit(2)
+                }
                 if let message = progress?.message, !message.isEmpty {
                     Text(message).font(.system(size: 10)).foregroundStyle(theme.secondary).lineLimit(2).help(message)
                 }
@@ -536,8 +554,10 @@ struct TaskCardView: View {
                                 .font(.system(size: 10)).foregroundStyle(theme.status("retry").2).monospacedDigit()
                         }
                     } else {
-                        Text(CardPresentation.retryCountdown(card: card, now: .now) ?? "")
-                            .font(.system(size: 10)).foregroundStyle(theme.status("retry").2).monospacedDigit()
+                        if let retryAt = card.retryAt {
+                            Text("Повтор после " + retryAt.formatted(date: .omitted, time: .standard))
+                                .font(.system(size: 10)).foregroundStyle(theme.status("retry").2).monospacedDigit()
+                        }
                     }
                 }
             }.padding(.init(top: 8, leading: 11, bottom: 8, trailing: 8))
@@ -546,7 +566,9 @@ struct TaskCardView: View {
                 Text(pendingLabel ?? presentation.label).font(.system(size: 10.5, weight: .semibold)).lineLimit(2)
                 Spacer(minLength: 0)
                 if case .waitingHuman(.runLimit) = card.state, let pipeline {
-                    Text("\(card.runsSinceHuman)/\(pipeline.maxRunsPerTask)").font(.system(size: 10)).monospacedDigit().fixedSize()
+                    Text("\(card.runsSinceHuman) из \(pipeline.maxRunsPerTask)").font(.system(size: 10)).monospacedDigit().fixedSize()
+                } else if let qualifier = LimitReasonText(card: card, pipeline: pipeline).qualifier {
+                    Text(qualifier).font(.system(size: 10)).monospacedDigit().lineLimit(2)
                 } else if card.attempt > 0 {
                     Text(card.maxAttempts.map { "\(card.attempt)/\($0)" } ?? "\(card.attempt)").font(.system(size: 10)).monospacedDigit().foregroundStyle(theme.faint).fixedSize().help("Попытки в текущей стадии")
                 }
