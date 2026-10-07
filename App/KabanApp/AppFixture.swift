@@ -67,3 +67,36 @@ import KabanBoardCore
         return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, stageLoad: loads), taskBodies: bodies)
     }
 }
+
+/// Explicit read fixtures for the real onboarding WindowGroup. They never
+/// execute/configure Cursor or claim that a helper was installed.
+@MainActor final class QAEnvironmentClient: KabanClient {
+    let base: MockKabanClient
+    let state: String
+    init(base: MockKabanClient, state: String) { self.base = base; self.state = state }
+    func getSnapshot() async throws -> Snapshot { try await base.getSnapshot() }
+    func synchronize() async throws -> SnapshotReplacement { try await base.synchronize() }
+    func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> { base.updates() }
+    func events() -> AsyncStream<EventEnvelope> { base.events() }
+    func capabilities() async throws -> DaemonCapabilities {
+        var value = try await base.capabilities()
+        for command in [CommandName.checkEnvironment, .getCursorEnvironment] {
+            value.commands.removeAll { $0.name == command.rawValue }
+            value.commands.append(.init(name: command.rawValue, support: .supported))
+        }
+        return value
+    }
+    func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
+        let path = "/Users/local/Library/Application Support/Очень длинное название каталога проекта/Cursor CLI/bin/cursor-agent"
+        let result: CommandResult
+        switch envelope.command {
+        case .getCursorEnvironment: result = .cursorEnvironment(.init(executablePath: path))
+        case .checkEnvironment:
+            result = .environment(.init(cursorAgentPath: state == "missing" ? nil : path,
+                version: state == "missing" ? nil : "2026.10.05-fixture", authOK: state == "ready",
+                gitVersion: state == "toolchain" ? nil : "git 2.53.0 (fixture)", sandboxOK: state != "toolchain", notificationsAuthorized: false))
+        default: return try await base.send(envelope)
+        }
+        return .init(commandId: envelope.commandId, seq: nil, result: result)
+    }
+}

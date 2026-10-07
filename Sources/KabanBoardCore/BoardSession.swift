@@ -51,6 +51,7 @@ import KabanProtocol
             self.error = message; connectionState = .disconnected(.init(code: "client_storage_invalid", message: message))
         }
     }
+    public var sessionGeneration: UUID { epoch }
     public var canSend: Bool { connectionState == .connected && capabilities != nil && journal != nil && drafts != nil }
     public func can(_ name: CommandName) -> Bool { canSend && capabilities?.supports(name) == true }
     public func pending(in scope: CommandScope) -> ClientCommandJournal.Record? { journal?.records.first { $0.isPending && $0.scope == scope } }

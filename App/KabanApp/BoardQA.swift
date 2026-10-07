@@ -56,6 +56,16 @@ import Darwin
         if argument("--qa-window-id") != nil {
             try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
         }
+        if argument("--qa-onboarding-scroll") == "bottom", let root = window.contentView {
+            func scrollViews(_ view: NSView) -> [NSScrollView] {
+                (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews($0) }
+            }
+            guard let scroll = scrollViews(root).first(where: { ($0.documentView?.bounds.height ?? 0) > $0.contentView.bounds.height }),
+                  let document = scroll.documentView else { throw failure("Onboarding scroll view missing") }
+            let y = document.isFlipped ? document.bounds.height - scroll.contentView.bounds.height : 0
+            scroll.contentView.scroll(to: .init(x: 0, y: max(y, 0))); scroll.reflectScrolledClipView(scroll.contentView)
+            try await Task.sleep(for: .milliseconds(300))
+        }
         let bitmap = try await ReferenceExport.captureLiveWindow()
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
         let url = URL(fileURLWithPath: path)

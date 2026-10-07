@@ -24,6 +24,7 @@ import KabanBoardCore
                 Button("Закрыть детали") { Task { await runtime.store?.select(nil) } }.keyboardShortcut("w", modifiers: [.command, .shift])
             }
             CommandMenu("Служба Kaban") {
+                Button("Настройка Kaban…") { runtime.showSetup = true }
                 Button("Проверить состояние") { Task { await runtime.refresh() } }
                 Button("Перезапустить службу") { Task { await runtime.restart() } }.disabled(runtime.developer || runtime.fixture)
                 Button("Отключить службу") { Task { await runtime.unregister() } }.disabled(runtime.developer || runtime.fixture)
