@@ -127,11 +127,13 @@ struct TaskControlSheet: View {
                 Text("Карточка обновится после подтверждения Kaban").font(.system(size: 10)).foregroundStyle(theme.faint)
                 Spacer(minLength: 8)
                 Button("Закрыть") { dismiss() }.buttonStyle(KabanButtonStyle()).keyboardShortcut(.cancelAction)
-                Button(actionTitle) {
+                Button {
                     Task {
                         guard let command else { return }
                         if await store.send(command, taskID: card.id, editor: true) { dismiss() }
                     }
+                } label: {
+                    Text(actionTitle).fixedSize(horizontal: true, vertical: false)
                 }.buttonStyle(KabanButtonStyle(primary: true)).keyboardShortcut(.defaultAction)
                     .disabled(command == nil || !store.can(name))
                     .accessibilityIdentifier("task-control-submit")
