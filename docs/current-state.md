@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`cdce9b63` (FE-08, PR #99).
+`05b60c5b` (FE-09, PR #100).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,7 +17,7 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `cdce9b63`; FE-01 принят в #92, FE-02 —
+Основной каталог обновлён до main `05b60c5b`; FE-01 принят в #92, FE-02 —
 в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
 CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
@@ -57,8 +57,7 @@ FE-08 принята в main через [#99](https://github.com/imedfan/kaban/p
 stage materials и отдельные history/log reads. Все шесть CI jobs финального
 `0c579a9` успешны. [Отчёт FE-08](development/frontend-fe-08-2026-10-07.md)
 фиксирует 582 tests, 17 кадров и ограничения системного фокуса/живого Cursor.
-Основной checkout обновлён до merge `cdce9b63`.
-FE-09 подготовлена отдельной веткой от этого main: история runs, bounded
+FE-09 принята в main через [#100](https://github.com/imedfan/kaban/pull/100): история runs, bounded
 read/tail с offset recovery, native TextKit2/find/copy/tool expansion, полный
 крупный source и exact WIP confirmation с correlated результатом.
 596 tests, App build, native light/dark и 16 000 записей прошли. Настоящий
@@ -67,7 +66,15 @@ backup текущих edits, неизменность main/history, stale ref о
 и удалённый log file. [Отчёт FE-09](development/frontend-fe-09-2026-10-07.md)
 содержит 18 кадров minimum WindowGroup. Исторические attempt/stage entry
 отсутствуют в wire DTO; системные permissions/installed проверки не завершены.
-Следующая задача — FE-10.
+Все шесть CI jobs финального FE-09 `67de3a0` успешны; checkout обновлён до merge `05b60c5b`.
+FE-10 подготовлена в отдельной ветке `codex/fe-10-answer-flow` от этого main:
+нативные ответы на конкретный вопрос и замечания, сохранённый адресованный draft,
+inline stale/refusal/pending и ⌘↩. Карточка меняется по correlated event;
+замечание не принимает suspicious blobs. 604 tests, App build, native light/dark
+и private daemon restart после очистки журнала прошли. [Отчёт FE-10](development/frontend-fe-10-2026-10-07.md)
+содержит 26 кадров настоящего WindowGroup и границы проверки. Продолжение
+подтверждено до очереди той же agent-стадии; живой Cursor/installed helper
+и ручная системная клавиатура остаются в полной приёмке. Следующая задача — FE-11.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -79,8 +86,8 @@ backup текущих edits, неизменность main/history, stale ref о
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore и exact WIPRestoreRequest | Core зависит только от Protocol; FE-03 environment store принят в main |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest и HumanAnswerStore | Core зависит только от Protocol; FE-10 подготовлена отдельным PR |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, pause/resume, lifecycle UI | Ответы FE-10 подготовлены отдельным PR. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
@@ -123,7 +130,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельный FE-09, затем FE-10 (вопросы/замечания); завершить
+1. Принять отдельный FE-10 (вопросы/замечания), затем реализовать FE-11 (Human Review); завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы

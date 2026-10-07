@@ -1,0 +1,9 @@
+{
+  "checks" : [
+    "private bundled daemon restarted after journal deletion",
+    "durable exact question answer and nil-request note read from getTaskDetail",
+    "files remain unaccepted after restart",
+    "Cursor not launched; tasks kept queued by pauseAll"
+  ],
+  "result" : "passed"
+}

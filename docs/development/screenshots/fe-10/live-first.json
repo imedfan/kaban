@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "real bundled daemon over private stdio, isolated git repo\/database",
+    "specific requestId answer commits durable feed and correlated taskUpdated",
+    "stale requestId rejected without feed entry or draft loss",
+    "nil-request note queues same agent stage without adding accepted file blobs",
+    "pauseAll keeps new starts stopped; no Cursor run initiated by acceptance"
+  ],
+  "result" : "passed"
+}

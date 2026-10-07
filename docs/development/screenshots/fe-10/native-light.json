@@ -1,0 +1,11 @@
+{
+  "checks" : [
+    "real WindowGroup native answer TextEditor preserves CRLF and Unicode",
+    "Cmd-Return sends one typed answer to its specific requestId",
+    "stale refusal refreshes details and retains original text and question",
+    "lost receipt reconciles the exact commandId without duplicate answer",
+    "correlated taskUpdated queues the task; reopening retains the answer feed",
+    "fixtures only; no Cursor process launched"
+  ],
+  "result" : "passed"
+}
