@@ -16,6 +16,9 @@ import KabanBoardCore
             .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 6))
         ]
         let boardMatrix = BoardQA.argument("--qa-board") == "matrix"
+        if BoardQA.argument("--qa-answer") == "gate" {
+            stages.append(.init(id: "checks", name: "Checks", kind: .gate, display: .init(order: 7), onFail: .init(stage: "dev", limit: 3)))
+        }
         if boardMatrix {
             for index in 2..<stages.count { stages[index].display.order += 1 }
             stages.insert(.init(id: "checks", name: "Checks", kind: .gate, display: .init(order: 2), gates: ["swift test"], onFail: .init(stage: "dev", limit: 3)), at: 2)
@@ -81,6 +84,27 @@ import KabanBoardCore
         if BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].stageId = "dev"; tasks[index].state = .paused
         }
+        var questions: [TaskID: [HumanRequest]] = [:]
+        if let mode = BoardQA.argument("--qa-answer"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+            tasks[index].stageId = "dev"; tasks[index].state = .waitingHuman(.question)
+            tasks[index].title = "Платёжный шлюз: сохранить ответ при повторной доставке и продолжить работу"
+            let question = mode == "long" ? String(repeating: "При повторной доставке вебхука сначала проверить состояние возврата или повторить запрос к провайдеру? ", count: 8) : "При сетевой ошибке повторять возврат или сначала проверить его состояние?"
+            questions["SHOP-31"] = [.init(requestId: "qa-answer-question", taskId: "SHOP-31", runId: nil, question: question)]
+            switch mode {
+            case "note": tasks[index].state = .waitingHuman(.bounceLimit)
+            case "retries": tasks[index].state = .waitingHuman(.retriesExhausted); tasks[index].attempt = 3; tasks[index].maxAttempts = 3
+            case "run-limit": tasks[index].state = .waitingHuman(.runLimit); tasks[index].runsSinceHuman = 12
+            case "suspicious":
+                tasks[index].state = .waitingHuman(.suspiciousFiles)
+                tasks[index].suspiciousFiles = [.init(path: ".env.local", rule: .pattern, pattern: ".env*", sizeBytes: 212, blob: "abc123")]
+            case "human": tasks[index].stageId = "review"; tasks[index].state = .waitingHuman(.review)
+            case "gate": tasks[index].stageId = "checks"; tasks[index].state = .waitingHuman(.retriesExhausted)
+            case "merge": tasks[index].stageId = "merge"; tasks[index].state = .waitingHuman(.conflictLimit)
+            case "running": tasks[index].state = .running
+            case "gating": tasks[index].state = .gating
+            default: break
+            }
+        }
         let state = BoardQA.argument("--qa-state")
         if state == "long" {
             tasks[2].title = "Очень длинное название задачи: пагинация, фильтрация и согласованная обработка заказов для нескольких международных магазинов"
@@ -113,7 +137,7 @@ import KabanBoardCore
             current = [.runProgress(.init(runId: run.id, taskId: run.taskId, message: "Добавлены проверки границ курсора", lastActivityAt: now))]
             runs["SHOP-35"] = [.init(id: "fixture-substitution", taskId: "SHOP-35", stageId: "ai-review", number: 1, status: .failed, requestedModel: "opus-4.5", actualModelName: "Sonnet 4", countsTowardLimits: false, startedAt: now.addingTimeInterval(-180), endedAt: now)]
         }
-        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current)
+        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
     }
 }
 

@@ -275,7 +275,12 @@ import KabanProtocol
             case .superseded: message = "Восстановление WIP отменено другим действием с задачей."
             default: message = nil
             }
-            if let message { error = message; editorError = message; reportedFailures.insert(record.envelope.commandId) }
+            if let message {
+                // The addressed answer composer presents its own durable receipt
+                // beside the retained text. A modal alert would cover the new question.
+                if case .answerHuman = record.envelope.command {} else { error = message; editorError = message }
+                reportedFailures.insert(record.envelope.commandId)
+            }
         }
         var marks = PendingCommands()
         for record in pendingRecords {

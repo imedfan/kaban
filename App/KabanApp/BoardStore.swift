@@ -16,6 +16,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private let client: any KabanClient
     let runLog: RunLogStore
     let session: BoardSession
+    let humanAnswers: HumanAnswerStore
     let environment: RunnerEnvironmentStore
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
@@ -58,6 +59,12 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var createdTaskID: TaskID? { session.createdTaskID }
     var connectionState: DaemonConnectionState { get { session.connectionState } set { session.connectionState = newValue } }
     var canSend: Bool { session.canSend }
+    var canAnswerSelected: Bool {
+        guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil,
+              projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil else { return false }
+        return humanAnswers.canSubmit(id)
+    }
+    func answerSelected() { if canAnswerSelected, let id = selectedID { Task { await humanAnswers.submit(id) } } }
     func can(_ name: CommandName) -> Bool { session.can(name) }
     func unavailableReason(_ name: CommandName) -> String {
         if can(name) { return "" }
@@ -70,6 +77,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         let sourceKey = usesFixture ? "client.commands.fixture" : commandStorageKey
         let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
+        humanAnswers = HumanAnswerStore(session: session, storage: storage, key: sourceKey + ".humanAnswers")
         runLog = RunLogStore(client: client)
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
