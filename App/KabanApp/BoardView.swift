@@ -437,7 +437,7 @@ struct BoardView: View {
                             await store.select(card.id)
                             if let detail = store.detail, detail.task.id == card.id, TaskActions.canEdit(detail.task) { store.sheet = .edit(detail.task, detail.body) }
                         }
-                    }.disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
+                    }.disabled(!store.can(.editTask) || store.session.detailReadState != .loaded).help(store.unavailableReason(.editTask))
                 }
                 if TaskActions.canSetPriority(card) {
                     Button("Приоритет · \(card.priority)…") { store.editorError = nil; store.sheet = .priority(card) }
@@ -714,81 +714,238 @@ struct TaskDetailView: View {
     @Bindable var store: BoardStore
     let openSheet: (TaskSheetRoute) -> Void
     @Environment(\.colorScheme) private var scheme
-    @State private var tab = "Описание"
+        @State private var openingError: String?
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var tab: String { store.detailTab }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let detail = store.detail {
-                detailHeader(detail)
+            if let card = store.selectedID.flatMap({ store.projection?.tasks[$0] }) {
+                detailHeader(card)
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if !detail.suspiciousFiles.isEmpty { suspiciousBlock(detail) }
-                        if detail.task.state == .waitingHuman(.incident) {
-                            Label("Обнаружен инцидент", systemImage: "light.beacon.max").font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(theme.status("incident").2).padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(theme.status("incident").1, in: RoundedRectangle(cornerRadius: 10))
-                        }
-                        if tab == "Описание" {
-                            Text("Описание и критерии приёмки").font(.system(size: 12, weight: .semibold))
-                            if let body = detail.body {
-                                if body.isEmpty { Text("Описание пока пустое").font(.system(size: 12)).foregroundStyle(theme.faint) }
-                                else { TaskMarkdownView(source: body) }
-                            } else { Text("Описание недоступно").font(.system(size: 12)).foregroundStyle(theme.faint) }
-                        } else if tab == "Лента" {
-                            if detail.feed.isEmpty { Text("Событий пока нет").font(.system(size: 12)).foregroundStyle(theme.faint) }
-                            ForEach(detail.feed, id: \.id) { item in
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: "clock").foregroundStyle(theme.faint).frame(width: 24, height: 24).background(theme.control, in: RoundedRectangle(cornerRadius: 7))
-                                    Text(item.text).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
-                                    Text(item.at, style: .time).font(.system(size: 10)).foregroundStyle(theme.faint)
-                                }.padding(.vertical, 6)
-                                Divider()
+                    LazyVStack(alignment: .leading, spacing: 16) {
+                        readStatus
+                        if let openingError { Text(openingError).font(.caption).foregroundStyle(theme.secondary) }
+                        if let detail = store.detail {
+                            if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
+                            if detail.task.state == .waitingHuman(.incident) {
+                                Label("Обнаружен инцидент", systemImage: "light.beacon.max")
+                                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("incident").2)
                             }
-                        } else {
-                            if detail.runs.isEmpty { Text("Запусков пока нет").font(.system(size: 12)).foregroundStyle(theme.faint) }
-                            ForEach(detail.runs, id: \.id) { run in
-                                HStack { Text("Попытка \(run.number)"); Spacer(); Text(run.requestedModel.rawValue).font(.system(size: 11, design: .monospaced)) }.font(.system(size: 12))
+                            if detail.task.state == .waitingHuman(.question), let request = detail.humanRequests.last {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    Label("Вопрос агента", systemImage: "hand.raised").font(.system(size: 12, weight: .semibold))
+                                    Text(request.question).font(.system(size: 12)).textSelection(.enabled)
+                                    runLink(request.runId, detail: detail)
+                                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 10))
                             }
+                            if tab == "Описание" { description(detail) }
+                            else if tab == "Лента" { feed(detail) }
+                            else if tab == "Сводка" { summary(detail) }
                         }
+                        if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 }
-                detailActions(detail).padding(12).background(theme.window)
+                if let detail = store.detail { detailActions(detail).padding(12).background(theme.window) }
             } else {
                 HStack { Text("Задача").font(.headline); Spacer(); closeButton }.padding(16)
-                ProgressView("Загрузка…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text("Задача больше недоступна").foregroundStyle(theme.secondary).padding(16)
+                Spacer()
             }
         }.background(theme.dark ? Color(hex: 0x242429) : Color(hex: 0xfcfcfe))
-            .onChange(of: store.selectedID) { _, _ in tab = "Описание" }
+            .sheet(item: $store.materialTextRoute) { MaterialTextSheet(route: $0) }
+            .sheet(item: $store.logRunRoute) { run in TaskLogPageSheet(store: store, run: run) }
+            .onChange(of: store.selectedID) { _, _ in store.detailTab = "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil; openingError = nil }
+    }
+    private var availableRuns: [RunSummary]? {
+        if case .unavailable = store.session.detailReadState { return store.session.runHistory ?? store.detail?.runs }
+        return store.detail?.runs ?? store.session.runHistory
+    }
+    @ViewBuilder private var readStatus: some View {
+        switch store.session.detailReadState {
+        case .idle: Text("Выберите задачу").foregroundStyle(theme.secondary)
+        case .loading:
+            HStack(spacing: 8) { ProgressView().controlSize(.small); Text(store.detail == nil ? "Загрузка деталей…" : "Обновление деталей…").font(.system(size: 12)) }
+        case .loaded: EmptyView()
+        case .unavailable(let failure):
+            VStack(alignment: .leading, spacing: 8) {
+                Label(failure.code == CommandError.detailTooLargeCode ? "Детали слишком большие" : "Детали недоступны", systemImage: "info.circle")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(failure.message).font(.system(size: 12)).textSelection(.enabled)
+                if failure.code == CommandError.detailTooLargeCode {
+                    Text("Описание и материалы сохранены в службе целиком. Историю запусков и страницы логов можно читать отдельно.")
+                        .font(.system(size: 11)).foregroundStyle(theme.secondary)
+                    if let bytes = failure.params["bytes"], let limit = failure.params["limit"] {
+                        Text("\(bytes) байт · предел ответа \(limit) байт").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint)
+                    }
+                }
+                if store.detail != nil { Text("Ниже — последние загруженные данные.").font(.system(size: 11)).foregroundStyle(theme.secondary) }
+                HStack {
+                    Button("Повторить чтение") { Task { await store.session.retryDetail() } }.buttonStyle(KabanButtonStyle(compact: true))
+                    Button("История запусков") { store.detailTab = "Запуски"; Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true))
+                }
+            }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.control, in: RoundedRectangle(cornerRadius: 9))
+        }
     }
     private var closeButton: some View { KabanIconButton(symbol: "xmark", help: "Закрыть детали · Esc") { Task { await store.select(nil) } } }
-    private func detailHeader(_ detail: TaskDetail) -> some View {
-        let task = detail.task
+    private func detailHeader(_ task: TaskCard) -> some View {
         let presentation = CardPresentation(state: task.state)
-        return VStack(alignment: .leading, spacing: 10) {
+        let stages: [StageSummary] = (store.projection?.pipelines[task.projectId]?.stages ?? []).sorted { $0.display.order < $1.display.order }
+        return VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 7) {
                 Text(store.mascot(task.projectId).emoji)
-                Text(task.id.rawValue).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).lineLimit(1).truncationMode(.middle)
-                Text(store.projection?.projects[task.projectId]?.name ?? "").font(.system(size: 11)).foregroundStyle(theme.faint)
+                Text(task.id.rawValue).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).lineLimit(1).truncationMode(.middle).help(task.id.rawValue)
+                Text(store.projection?.projects[task.projectId]?.name ?? "").font(.system(size: 11)).foregroundStyle(theme.faint).lineLimit(1)
                 Spacer(); closeButton
             }
-            Text(task.title).font(.system(size: 18, weight: .bold)).lineLimit(3).help(task.title)
-            HStack {
-                Label(presentation.label, systemImage: presentation.symbol).font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(theme.status(presentation.tone.rawValue).2).padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(theme.status(presentation.tone.rawValue).1, in: RoundedRectangle(cornerRadius: 6))
-                if let model = task.model { ReferenceChip(title: model.rawValue, theme: theme, mono: true) }
-                Spacer(minLength: 0)
+            Text(task.title).font(.system(size: 18, weight: .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true).help(task.title)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 7) { status(presentation); attempt(task); if let model = task.model { ReferenceChip(title: model.rawValue, theme: theme, mono: true) } }
+                VStack(alignment: .leading, spacing: 5) { status(presentation); HStack { attempt(task); if let model = task.model { Text(model.rawValue).font(.system(size: 10, design: .monospaced)).lineLimit(1).help(model.rawValue) } } }
             }
-            if let branch = task.branch { Label(branch, systemImage: "arrow.triangle.branch").font(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.secondary).lineLimit(1).truncationMode(.middle).textSelection(.enabled) }
-            KabanSegments(selection: $tab, options: [("Описание", "Описание"), ("Лента", "Лента"), ("Запуски", "Запуски")])
+            if let branch = task.branch { Label(branch, systemImage: "arrow.triangle.branch").font(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.secondary).lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(branch) }
+            ScrollView(.horizontal) {
+                HStack(spacing: 5) {
+                    ForEach(stages, id: \.id) { stage in
+                        Text(stage.name).font(.system(size: 10, weight: stage.id == task.stageId ? .semibold : .regular))
+                            .foregroundStyle(stage.id == task.stageId ? theme.text : theme.faint)
+                            .padding(.horizontal, 7).padding(.vertical, 4)
+                            .background(stage.id == task.stageId ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 5))
+                    }
+                }
+            }.scrollIndicators(.hidden)
+            KabanSegments(selection: $store.detailTab, options: [("Описание", "Описание"), ("Лента", "Лента"), ("Сводка", "Сводка"), ("Запуски", "Запуски")])
         }.padding(16).overlay(alignment: .bottom) { theme.line.frame(height: 0.5) }
     }
-    private func suspiciousBlock(_ detail: TaskDetail) -> some View {
+    private func status(_ value: CardPresentation) -> some View {
+        Label(value.label, systemImage: value.symbol).font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(theme.status(value.tone.rawValue).2).padding(.horizontal, 8).padding(.vertical, 4)
+            .background(theme.status(value.tone.rawValue).1, in: RoundedRectangle(cornerRadius: 6))
+    }
+    @ViewBuilder private func attempt(_ task: TaskCard) -> some View {
+        if task.attempt > 0 || store.projection?.pipelines[task.projectId]?.stages.first(where: { $0.id == task.stageId })?.kind == .agent {
+            Text(task.maxAttempts.map { "попытка \(task.attempt) из \($0)" } ?? "попытка \(task.attempt) · лимит неизвестен")
+                .font(.system(size: 10)).foregroundStyle(theme.secondary)
+        }
+    }
+    @ViewBuilder private func description(_ detail: TaskDetail) -> some View {
+        Text("Описание и критерии приёмки").font(.system(size: 12, weight: .semibold))
+        if let body = detail.body {
+            if body.isEmpty { empty("Описание пока пустое") }
+            else if body.utf8.count > TaskDetailPresentation.largeTextBytes {
+                Text("Большое описание · полный исходный текст доступен отдельно.").font(.system(size: 11)).foregroundStyle(theme.secondary)
+                Button("Открыть описание целиком…") { store.materialTextRoute = .init(id: "body-" + detail.task.id.rawValue, title: "Описание и критерии приёмки", text: body) }.buttonStyle(KabanButtonStyle(compact: true))
+            } else { TaskMarkdownView(source: body) }
+        } else { empty("Служба не передала описание") }
+        if !detail.humanRequests.isEmpty {
+            Divider()
+            Text("Вопросы").font(.system(size: 12, weight: .semibold))
+            ForEach(detail.humanRequests, id: \.requestId) { request in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(request.question).font(.system(size: 12)).textSelection(.enabled)
+                    runLink(request.runId, detail: detail)
+                }
+            }
+            Text("Ответы сохранены в ленте задачи.").font(.system(size: 11)).foregroundStyle(theme.secondary)
+        }
+    }
+    @ViewBuilder private func feed(_ detail: TaskDetail) -> some View {
+        if detail.feed.isEmpty { empty("Событий пока нет") }
+        ForEach(detail.feed, id: \.id) { item in
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(TaskDetailPresentation.feedTitle(item.kind)).font(.system(size: 11, weight: .semibold))
+                    Spacer()
+                    Text(item.at.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 10)).foregroundStyle(theme.faint)
+                }
+                Text(item.text).font(.system(size: 12)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                runLink(item.runId, detail: detail)
+            }.padding(.vertical, 6)
+            Divider()
+        }
+    }
+    @ViewBuilder private func summary(_ detail: TaskDetail) -> some View {
+        if let path = detail.clonePath {
+            VStack(alignment: .leading, spacing: 7) {
+                Label("Клон задачи", systemImage: "folder").font(.system(size: 11, weight: .semibold))
+                Text(path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                Button("Открыть в Cursor") { openClone(path) }.buttonStyle(KabanButtonStyle(compact: true))
+            }
+        } else { empty("Клон задачи недоступен") }
+        Divider()
+        if detail.artifacts.isEmpty { empty("Материалов результата пока нет") }
+        ForEach(TaskDetailPresentation.summaryArtifacts(detail), id: \.id) { artifact in
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(TaskDetailPresentation.artifactTitle(artifact.kind)).font(.system(size: 12, weight: .semibold))
+                    Spacer()
+                    if let stage = artifact.stageId { Text(stageName(stage, detail: detail)).font(.system(size: 10)).foregroundStyle(theme.secondary) }
+                }
+                if artifact.text.utf8.count > TaskDetailPresentation.largeTextBytes {
+                    Text("Большой материал · \(ByteCountFormatter.string(fromByteCount: Int64(artifact.text.utf8.count), countStyle: .file)). Полный текст доступен отдельно.")
+                        .font(.system(size: 11)).foregroundStyle(theme.secondary)
+                } else if artifact.text.isEmpty { empty("Материал без текста") }
+                else { Text(artifact.text).font(.system(size: 11, design: artifact.kind == "summary" || artifact.kind == "issue" ? .default : .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                if let path = artifact.path { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                HStack {
+                    Button("Полный текст…") { store.materialTextRoute = .init(id: artifact.id.rawValue, title: TaskDetailPresentation.artifactTitle(artifact.kind), text: artifact.text) }.buttonStyle(KabanButtonStyle(compact: true))
+                    Spacer()
+                    runLink(artifact.runId, detail: detail)
+                }
+            }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 9))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(theme.line, lineWidth: 0.5))
+        }
+    }
+    @ViewBuilder private func runs(_ values: [RunSummary]?) -> some View {
+        HStack {
+            Text("История запусков").font(.system(size: 12, weight: .semibold)); Spacer()
+            Button("Обновить") { Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true))
+                .disabled(store.session.historyReadState == .loading)
+        }
+        if store.session.historyReadState == .loading { ProgressView("Читаем историю…").controlSize(.small) }
+        if case .unavailable(let failure) = store.session.historyReadState { Text(failure.message).font(.system(size: 12)).foregroundStyle(theme.secondary) }
+        if let values {
+            if values.isEmpty { empty("Запусков пока нет") }
+            ForEach(values, id: \.id) { run in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("\(stageName(run.stageId, detail: store.detail)) · попытка \(run.number)").font(.system(size: 12, weight: .semibold))
+                        Spacer(); Text(run.status.rawValue).font(.system(size: 10)).foregroundStyle(theme.secondary)
+                    }
+                    Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                    Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary)
+                    Text(run.startedAt.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 10)).foregroundStyle(theme.faint)
+                    if let reason = run.endReason { Text("Причина завершения: " + reason.rawValue).font(.system(size: 11)).foregroundStyle(theme.secondary) }
+                    if let path = run.logPath { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                    Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 9))
+            }
+        } else { empty("История ещё не загружена"); Button("Загрузить историю") { Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true)) }
+    }
+    @ViewBuilder private func runLink(_ id: RunID?, detail: TaskDetail) -> some View {
+        if let id {
+            if let run = detail.runs.first(where: { $0.id == id }) { Button("Лог · попытка \(run.number)") { store.logRunRoute = run }.font(.system(size: 11)).buttonStyle(.link) }
+            else { Text("Запуск: " + id.rawValue + " · сведения ещё недоступны").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled) }
+        }
+    }
+    private func stageName(_ id: StageID, detail: TaskDetail?) -> String {
+        let project = detail?.task.projectId ?? store.selectedID.flatMap { store.projection?.tasks[$0]?.projectId }
+        return project.flatMap { store.projection?.pipelines[$0]?.stages.first { $0.id == id }?.name } ?? id.rawValue
+    }
+    private func empty(_ text: String) -> some View { Text(text).font(.system(size: 12)).foregroundStyle(theme.faint) }
+    private func openClone(_ path: String) {
+        guard path.hasPrefix("/"), FileManager.default.fileExists(atPath: path) else { openingError = "Папка клона недоступна: " + path; return }
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.todesktop.230313mzl4w4u92") else { openingError = "Cursor не найден. Путь клона можно скопировать выше."; return }
+        NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: app, configuration: .init()) { _, failure in
+            if let failure { Task { @MainActor in openingError = failure.localizedDescription } }
+        }
+    }
+    private func suspiciousBlock(_ files: [SuspiciousFile]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Подозрительные файлы · \(detail.suspiciousFiles.count)", systemImage: "exclamationmark.shield")
+            Label("Подозрительные файлы · \(files.count)", systemImage: "exclamationmark.shield")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("waiting").2)
             Text("Проверьте файлы перед следующим действием.").font(.system(size: 11)).foregroundStyle(theme.secondary)
-            ForEach(detail.suspiciousFiles, id: \.path) { file in
+            ForEach(files, id: \.path) { file in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(file.path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     HStack {
@@ -811,7 +968,7 @@ struct TaskDetailView: View {
                 Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
             }
             if TaskActions.canEdit(detail.task) {
-                Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
+                Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask) || store.session.detailReadState != .loaded).help(store.unavailableReason(.editTask))
             }
             Spacer(minLength: 0)
             if TaskActions.canCancel(detail.task) {

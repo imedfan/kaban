@@ -37,11 +37,17 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var sheet: TaskSheetRoute?
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
+    var materialTextRoute: MaterialTextRoute?
+    var logRunRoute: RunSummary?
+    var detailTab = "Описание"
     var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
     var visibleIDs: [ProjectID] { session.visibleIDs }
     var selectedProjectID: ProjectID? { get { session.selectedProjectID } set { session.selectedProjectID = newValue } }
     var selectedID: TaskID? { session.selectedID }
-    var detail: TaskDetail? { session.detail }
+    var detail: TaskDetail? {
+        guard let detail = session.detail, detail.task.id == selectedID else { return nil }
+        return detail
+    }
     var error: String? { get { session.error } set { session.error = newValue } }
     var editorError: String? { get { session.editorError } set { session.editorError = newValue } }
     var creation: TaskCreationPending { session.creation }
