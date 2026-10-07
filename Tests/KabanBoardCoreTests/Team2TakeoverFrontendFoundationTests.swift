@@ -54,7 +54,9 @@ final class Team2TakeoverFrontendFoundationTests: XCTestCase {
     }
 
     @MainActor func testUnsupportedAndInvalidCommandsDoNotMutateSnapshot() async throws {
-        let client = MockKabanClient()
+        var fixture = MockKabanClient.fixture()
+        fixture.tasks[fixture.tasks.firstIndex { $0.id == "25" }!].state = .waitingHuman(.question)
+        let client = MockKabanClient(snapshot: fixture)
         let before = try await client.getSnapshot()
         let result = try await client.send(.approve(taskId: "25"), commandId: UUID())
         guard case .error(let error) = result else { return XCTFail("Expected explicit unsupported error") }
@@ -151,7 +153,7 @@ final class Team2TakeoverFrontendFoundationTests: XCTestCase {
         guard case .taskUpdated(let movedCard) = moved.event else { return XCTFail("card") }
         XCTAssertEqual(movedCard.stageId, "backlog")
         XCTAssertEqual(movedCard.state, .queued(nil))
-        XCTAssertEqual(movedCard.attempt, 1)
+        XCTAssertEqual(movedCard.attempt, 0, "A manual move starts a new stage visit, as TaskMachine.enter does")
         let cancelID = UUID()
         let actual10 = try await client.send(.cancelTask(taskId: "23", keepBranch: true), commandId: cancelID)
         XCTAssertEqual(actual10, .ok)

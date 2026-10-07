@@ -23,6 +23,7 @@ struct TaskActionSheet: View {
     @Bindable var store: BoardStore
     let route: TaskSheetRoute
     @Environment(\.dismiss) private var dismiss
+    @State private var controlRoute: TaskControlRoute?
     @State private var draft: DemoTaskDraft
     @State private var exactBody = ""
     @State private var preview = false
@@ -37,6 +38,11 @@ struct TaskActionSheet: View {
 
     init(store: BoardStore, route: TaskSheetRoute) {
         self.store = store; self.route = route
+        switch route {
+        case .move(let card): _controlRoute = State(initialValue: .init(store: store, card: card, action: .move(nil)))
+        case .cancel(let card): _controlRoute = State(initialValue: .init(store: store, card: card, action: .cancel))
+        default: _controlRoute = State(initialValue: nil)
+        }
         _preview = State(initialValue: BoardQA.argument("--qa-task-preview") == "yes")
         _compareCurrent = State(initialValue: BoardQA.argument("--qa-compare-current") == "yes")
         let key: TaskDraftKey?
@@ -81,6 +87,10 @@ struct TaskActionSheet: View {
         return true
     }
     var body: some View {
+        if let controlRoute { TaskControlSheet(store: store, route: controlRoute) }
+        else { editorBody }
+    }
+    private var editorBody: some View {
         VStack(alignment: .leading, spacing: 16) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {

@@ -94,8 +94,14 @@ public enum TaskClone {
     }
 
     public static func archiveTip(_ plan: Plan, taskId: TaskID, origin: String, identity: GitIdentity?) throws {
+        let reference = "refs/kaban/archive/\(try component(taskId.rawValue))"
         let tip = try text(["rev-parse", "--verify", plan.branch], in: plan.clonePath, identity: identity)
-        try run(["update-ref", "refs/kaban/archive/\(try component(taskId.rawValue))", tip], in: origin, identity: identity)
+        // --local cloning shares existing objects, not commits made afterwards.
+        // Import the exact tip before publishing the archive; leave user refs,
+        // FETCH_HEAD, index and worktree untouched. A retry imports the same DAG.
+        try run(["fetch", "--no-tags", "--no-write-fetch-head", "--no-recurse-submodules", "--", plan.clonePath, tip],
+                in: origin, identity: identity)
+        try run(["update-ref", reference, tip], in: origin, identity: identity)
     }
 
     public static func head(_ repository: String, identity: GitIdentity?) throws -> String {

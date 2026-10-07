@@ -72,6 +72,20 @@ jobs:
           assert result["result"] == "passed", result
           print(json.dumps(result, ensure_ascii=False))
           PY
+          control_result="$RUNNER_TEMP/kaban-native-task-controls.json"
+          control_log="$RUNNER_TEMP/kaban-native-task-controls.log"
+          rm -f "$control_result"
+          open -n -W --stdout "$control_log" --stderr "$control_log" \
+            "$derived_data/Build/Products/Debug/Kaban.app" --args \
+            -ApplePersistenceIgnoreState YES --control-smoke "$control_result"
+          cat "$control_log"
+          python3 - "$control_result" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as report:
+              result = json.load(report)
+          assert result["result"] == "passed", result
+          print(json.dumps(result, ensure_ascii=False))
+          PY
 
       - name: Test
         run: swift test

@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "actual WindowGroup uses a private bundled stdio daemon and SQLite",
+    "Mac\/project pauses resolve through correlated authoritative scheduler flag events",
+    "the shared native sheet Return routes pause\/resume\/cancel for the selected live task",
+    "three exact task commands have proof: correlated event, correlated event, original receipt covered by snapshot; keepBranch defaults to false",
+    "scheduler remains paused; no paid Cursor run or installed helper registration"
+  ],
+  "result" : "passed"
+}

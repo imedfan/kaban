@@ -21,6 +21,14 @@ public struct DemoTaskDraft: Codable, Equatable, Sendable {
 }
 
 public enum TaskActions {
+    public static func canPause(_ card: TaskCard) -> Bool {
+        [.queued, .running, .gating, .retryWait].contains(card.state.status) || card.state == .waitingHuman(.review)
+    }
+    public static func canResume(_ card: TaskCard) -> Bool { card.state == .paused }
+    public static func canRetry(_ card: TaskCard) -> Bool {
+        if case .waitingHuman(let reason) = card.state { return reason != .review }
+        return false
+    }
     public static func canEdit(_ card: TaskCard) -> Bool { [.queued, .waitingHuman, .paused].contains(card.state.status) }
     public static func canSetPriority(_ card: TaskCard) -> Bool { ![.done, .cancelled].contains(card.state.status) }
     public static func canCancel(_ card: TaskCard) -> Bool { card.state.status != .done && card.state.status != .cancelled }

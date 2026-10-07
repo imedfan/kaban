@@ -1,0 +1,11 @@
+{
+  "checks" : [
+    "Cmd-Shift-P and Return pause\/resume Human Review through the native menu and correlated task events",
+    "Mac\/project pause updates authoritative flags and clears its own pending without changing current task cards",
+    "Typed drop handler opens a confirmation without optimistic movement; stale and cross-project payloads send nothing",
+    "Cmd-Shift-R and Return submit a typed retry in an allowed waiting state",
+    "Move menu is a keyboard alternative to drag; Escape sends nothing; Down arrow selects an allowed target and Return sends it explicitly",
+    "Cmd-Shift-Delete uses the shared cancellation sheet with keepBranch=false by default"
+  ],
+  "result" : "passed"
+}

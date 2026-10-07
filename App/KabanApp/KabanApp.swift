@@ -1,5 +1,6 @@
 import SwiftUI
 import KabanBoardCore
+import KabanProtocol
 
 @main struct KabanApp: App {
     @NSApplicationDelegateAdaptor(KabanAppDelegate.self) private var delegate
@@ -22,6 +23,13 @@ import KabanBoardCore
             CommandGroup(after: .textEditing) {
                 Button("Поиск задач") { runtime.store?.screen = .board; if let store = runtime.store { store.searchRequest += 1 } }.keyboardShortcut("f")
                 Button("Закрыть детали") { Task { await runtime.store?.select(nil) } }.keyboardShortcut("w", modifiers: [.command, .shift])
+            }
+            CommandMenu("Задача") {
+                Button(TaskMenuAction.pauseOrResume.title) { runtime.store?.perform(.pauseOrResume) }.keyboardShortcut("p", modifiers: [.command, .shift])
+                Button(TaskMenuAction.move.title) { runtime.store?.perform(.move) }.keyboardShortcut("m", modifiers: [.command, .shift])
+                Button(TaskMenuAction.retry.title) { runtime.store?.perform(.retry) }.keyboardShortcut("r", modifiers: [.command, .shift])
+                Divider()
+                Button(TaskMenuAction.cancel.title) { runtime.store?.perform(.cancel) }.keyboardShortcut(.delete, modifiers: [.command, .shift])
             }
             CommandMenu("Служба Kaban") {
                 Button("Настройка Kaban…") { runtime.showSetup = true }
@@ -70,10 +78,23 @@ import KabanBoardCore
         guard let item = find(NSApp.mainMenu) else { return }
         item.target = self; item.action = #selector(createTask(_:))
         item.menu?.update()
+        func bindControls(_ menu: NSMenu?) {
+            for item in menu?.items ?? [] {
+                if let action = TaskMenuAction.allCases.first(where: { $0.title == item.title }) {
+                    item.tag = action.rawValue; item.target = self; item.action = #selector(controlTask(_:))
+                }
+                bindControls(item.submenu)
+            }
+        }
+        bindControls(NSApp.mainMenu)
     }
     @objc private func createTask(_ sender: NSMenuItem) { runtime?.store?.beginCreation() }
+    @objc private func controlTask(_ sender: NSMenuItem) {
+        if let action = TaskMenuAction(rawValue: sender.tag) { runtime?.store?.perform(action) }
+    }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true }
+        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil }
+        if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
     }
     func applicationDidFinishLaunching(_ notification: Notification) {

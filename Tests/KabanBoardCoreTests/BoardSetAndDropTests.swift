@@ -173,7 +173,7 @@ final class DropRulesTests: XCTestCase {
 
     func testBackwardAllowsAndRunningAsksToInterrupt() {
         let running = Fix.card("t-1", stage: "dev", state: .running)
-        let backlog = Fix.stage("backlog", .queue, order: 0)
+        let backlog = Fix.stage("backlog", .queue, order: 0, onSuccess: "dev")
         let decision = DropRules.evaluate(card: running, target: backlog, in: pipeline)
         XCTAssertEqual(decision, .allowed(interruptConfirmation: DropRules.interruptConfirmation))
 
@@ -211,7 +211,7 @@ final class DropRulesTests: XCTestCase {
         )
         XCTAssertEqual(
             DropRules.evaluate(card: dev, target: Fix.stage("done", .terminal, order: 4), in: pipeline),
-            .forbidden(.forwardMove)
+            .forbidden(.terminalColumn)
         )
     }
 
@@ -222,7 +222,7 @@ final class DropRulesTests: XCTestCase {
             .forbidden(.gateColumn)
         )
         let gateNext = Fix.pipeline([
-            Fix.stage("backlog", .queue, order: 0),
+            Fix.stage("backlog", .queue, order: 0, onSuccess: "dev"),
             Fix.stage("gate", .gate, order: 1),
             Fix.stage("dev", .agent, order: 2),
         ])
@@ -248,7 +248,7 @@ final class DropRulesTests: XCTestCase {
 
     func testAcceptanceCriteriaAndAgentGates() {
         let withGates = Fix.pipeline([
-            Fix.stage("backlog", .queue, order: 0),
+            Fix.stage("backlog", .queue, order: 0, onSuccess: "review"),
             Fix.stage("review", .agent, order: 1, gates: ["swift test"]),
             Fix.stage("dev", .agent, order: 2),
         ])
@@ -264,7 +264,7 @@ final class DropRulesTests: XCTestCase {
         )
         XCTAssertTrue(DropRules.crossesStagesWithGates(from: 0, to: 2, stages: withGates.stages))
         let bare = [
-            Fix.stage("backlog", .queue, order: 0),
+            Fix.stage("backlog", .queue, order: 0, onSuccess: "dev"),
             Fix.stage("review", .agent, order: 1),
             Fix.stage("dev", .agent, order: 2),
         ]
@@ -272,7 +272,7 @@ final class DropRulesTests: XCTestCase {
         XCTAssertTrue(DropRules.crossesStagesWithGates(
             from: 0, to: 2,
             stages: [
-                Fix.stage("backlog", .queue, order: 0),
+                Fix.stage("backlog", .queue, order: 0, onSuccess: "dev"),
                 Fix.stage("gate", .gate, order: 1),
                 Fix.stage("dev", .agent, order: 2),
             ]

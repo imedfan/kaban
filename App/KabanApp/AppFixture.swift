@@ -52,6 +52,9 @@ import KabanBoardCore
             card("KBN-14", "kaban", "Квота: свежесть данных перед стартом", "test", .queued(nil)),
             card("KBN-10", "kaban", "XPC: досылка событий по seq", "review", .waitingHuman(.review))
         ]
+        if CommandLine.arguments.contains("--qa-control-long"), let index = tasks.firstIndex(where: { $0.id == "SHOP-42" }) {
+            tasks[index].title = String(repeating: "Длинный заголовок задачи с причиной ожидания и подробностями результата · ", count: 4)
+        }
         if boardMatrix {
             projects[0].openIncidentCount = 1
             tasks[2].unusedGitGrants = 2; tasks[2].bounceByReason = ["test_dev": 2, "merge_conflict": 1]

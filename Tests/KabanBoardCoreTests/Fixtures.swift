@@ -8,12 +8,12 @@ enum Fix {
     static let other: ProjectID = "p-site"
     static let command = UUID(uuidString: "00000000-0000-4000-8000-000000000014")!
 
-    static func stage(_ id: String, _ kind: StageKind, order: Int, gates: [String] = []) -> StageSummary {
-        StageSummary(id: StageID(rawValue: id), name: id, kind: kind, display: StageDisplay(order: order), gates: gates)
+    static func stage(_ id: String, _ kind: StageKind, order: Int, gates: [String] = [], onSuccess: StageID? = nil) -> StageSummary {
+        StageSummary(id: StageID(rawValue: id), name: id, kind: kind, display: StageDisplay(order: order), onSuccess: onSuccess, gates: gates)
     }
 
     static let baseStages: [StageSummary] = [
-        stage("backlog", .queue, order: 0),
+        stage("backlog", .queue, order: 0, onSuccess: "dev"),
         stage("dev", .agent, order: 1),
         stage("gate", .gate, order: 2),
         stage("test", .agent, order: 3),

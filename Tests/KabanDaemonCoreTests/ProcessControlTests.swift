@@ -277,6 +277,15 @@ final class ProcessControlTests: XCTestCase {
         let childB = try waitForPid(leaderB.workingDirectory + "/child.pid")
         XCTAssertEqual(ProcessGroup.processGroup(of: childA), leaderA.processGroup)
         XCTAssertEqual(ProcessGroup.processGroup(of: childB), leaderB.processGroup)
+        let project = try f.store.getTaskDetail("one").task.projectId
+        _ = try f.store.execute(.init(command: .pauseAll), now: { at })
+        _ = try f.store.execute(.init(command: .pauseProject(projectId: project)), now: { at })
+        _ = try pass(f, at: at, runner: nil)
+        for pid in [leaderA.pid, childA, leaderB.pid, childB] {
+            XCTAssertTrue(isRunning(pid), "Mac/project pause must leave current processes alive")
+        }
+        _ = try f.store.execute(.init(command: .resumeProject(projectId: project)), now: { at })
+        _ = try f.store.execute(.init(command: .resumeAll), now: { at })
         _ = try f.store.execute(.init(command: .pauseTask(taskId: "one")), now: { at })
         var stored = try processRecord(f, first)
         let savedGroup = stored.processGroup

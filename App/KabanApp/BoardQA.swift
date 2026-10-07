@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil }
+    static var isActive: Bool { argument("--control-live-smoke") != nil || argument("--control-routing-smoke") != nil || argument("--control-smoke") != nil || argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,7 +27,15 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--task-smoke") ?? argument("--board-smoke") {
+            if let path = argument("--control-live-smoke") {
+                let checks = try await controlLiveSmoke(store)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--control-smoke") ?? argument("--control-routing-smoke") {
+                let checks = try await controlSmoke(store, requiresFocus: argument("--control-routing-smoke") == nil)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--task-smoke") ?? argument("--board-smoke") {
                 let checks: [String]
                 if argument("--task-smoke") != nil { checks = try await taskSmoke(store) }
                 else { checks = try await boardSmoke(store) }
@@ -53,6 +61,10 @@ import Darwin
             }
             Darwin.exit(EXIT_SUCCESS)
         } catch {
+            if let path = argument("--control-smoke") ?? argument("--control-routing-smoke") ?? argument("--control-live-smoke"),
+               let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: URL(fileURLWithPath: path))
+            }
             FileHandle.standardError.write(Data("UI QA failed: \(error)\n".utf8))
             Darwin.exit(EXIT_FAILURE)
         }
@@ -233,6 +245,7 @@ import Darwin
     }
     private static func prepare(_ store: BoardStore) async throws {
         if try await prepareTaskEditor(store) { return }
+        if let state = argument("--qa-state"), try await prepareTaskControl(store, state: state) { return }
         switch argument("--qa-state") {
         case "grouped": store.compactBoard = true
         case "hidden-stages": store.filter = .hiddenStages
