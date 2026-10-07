@@ -195,12 +195,26 @@ extension BoardQA {
         try await submit(.cancel)
         try await waitUntil("live correlated cancel") { store.projection?.tasks[id]?.state == .cancelled && store.session.pending(in: .task(id)) == nil && store.canSend }
         let commands: [ClientCommandJournal.Record] = (store.commandJournal?.records ?? []).filter { record in record.envelope.command.mutationScope == CommandScope.task(id) }
-        guard commands.count == 3, commands.allSatisfy({ $0.phase == .applied && $0.eventSeq != nil }),
-              commands.last?.envelope.command == .cancelTask(taskId: id, keepBranch: false) else { throw failure("Live task control journal proof missing or duplicate") }
+        let expected: [Command] = [.pauseTask(taskId: id), .resumeTask(taskId: id), .cancelTask(taskId: id, keepBranch: false)]
+        func proof(_ record: ClientCommandJournal.Record) -> String? {
+            guard record.phase == .applied, (record.confirmedSeq ?? 0) > 0 else { return nil }
+            if let event = record.eventSeq, event >= (record.confirmedSeq ?? 0) { return "correlated event" }
+            // FE-02 permits the original receipt covered by an authoritative
+            // snapshot when synchronization overtakes subscription delivery.
+            guard record.reply?.commandId == record.envelope.commandId,
+                  case .ok = record.reply?.result, let seq = record.reply?.seq, seq > 0,
+                  record.confirmedSeq == seq, let covered = record.coveredSnapshotSeq,
+                  covered >= seq, covered <= (store.projection?.stateSeq ?? -1) else { return nil }
+            return "original receipt covered by snapshot"
+        }
+        guard commands.map({ $0.envelope.command }) == expected, commands.allSatisfy({ proof($0) != nil }) else {
+            let details = commands.map { "command=\($0.envelope.command), phase=\($0.phase), reply=\(String(describing: $0.reply?.seq)), event=\(String(describing: $0.eventSeq)), confirmed=\(String(describing: $0.confirmedSeq)), covered=\(String(describing: $0.coveredSnapshotSeq))" }
+            throw failure("Live task control proof missing or duplicate: " + details.joined(separator: "; "))
+        }
         return ["actual WindowGroup uses a private bundled stdio daemon and SQLite",
                 "Mac/project pauses resolve through correlated authoritative scheduler flag events",
                 "the shared native sheet Return routes pause/resume/cancel for the selected live task",
-                "three exact task commands each have correlated journal event proof; keepBranch defaults to false",
+                "three exact task commands have proof: " + commands.compactMap(proof).joined(separator: ", ") + "; keepBranch defaults to false",
                 "scheduler remains paused; no paid Cursor run or installed helper registration"]
     }
 }
