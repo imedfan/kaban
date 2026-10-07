@@ -856,7 +856,7 @@ struct TaskDetailView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(TaskDetailPresentation.feedTitle(item.kind)).font(.system(size: 11, weight: .semibold))
                     Spacer()
-                    Text(item.at.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 10)).foregroundStyle(theme.faint)
+                    Text(detailDate(item.at)).font(.system(size: 10)).foregroundStyle(theme.faint)
                 }
                 Text(item.text).font(.system(size: 12)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 runLink(item.runId, detail: detail)
@@ -910,11 +910,11 @@ struct TaskDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("\(stageName(run.stageId, detail: store.detail)) · попытка \(run.number)").font(.system(size: 12, weight: .semibold))
-                        Spacer(); Text(run.status.rawValue).font(.system(size: 10)).foregroundStyle(theme.secondary)
+                        Spacer(); Text(runStatus(run.status)).font(.system(size: 10)).foregroundStyle(theme.secondary)
                     }
                     Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                     Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary)
-                    Text(run.startedAt.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 10)).foregroundStyle(theme.faint)
+                    Text(detailDate(run.startedAt)).font(.system(size: 10)).foregroundStyle(theme.faint)
                     if let reason = run.endReason { Text("Причина завершения: " + reason.rawValue).font(.system(size: 11)).foregroundStyle(theme.secondary) }
                     if let path = run.logPath { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
                     Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
@@ -926,6 +926,22 @@ struct TaskDetailView: View {
         if let id {
             if let run = detail.runs.first(where: { $0.id == id }) { Button("Лог · попытка \(run.number)") { store.logRunRoute = run }.font(.system(size: 11)).buttonStyle(.link) }
             else { Text("Запуск: " + id.rawValue + " · сведения ещё недоступны").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled) }
+        }
+    }
+    private func detailDate(_ date: Date) -> String {
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "ru_RU")
+        format.timeZone = TimeZone(identifier: "Europe/Kaliningrad")
+        format.dateFormat = "d MMM yyyy, HH:mm"
+        return format.string(from: date)
+    }
+    private func runStatus(_ status: RunStatus) -> String {
+        switch status {
+        case .starting: "Подготовка"
+        case .running: "Зарезервирован"
+        case .succeeded: "Завершён"
+        case .failed: "Ошибка"
+        case .killed: "Остановлен"
         }
     }
     private func stageName(_ id: StageID, detail: TaskDetail?) -> String {
