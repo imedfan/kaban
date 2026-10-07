@@ -35,3 +35,19 @@ UI не обещает атомарное создание с приоритет
 ради скрытого обхода. Для полного UC-02 нужен согласованный контракт
 initial priority в createTask с legacy decoding/default=0 и atomic card/journal
 в той же transaction. Это расхождение не закрыто native smoke или зелёным CI.
+
+## FE-08: полный текст при превышении wire-размера
+
+StoreProjection.getTaskDetail проверяет весь TaskDetail через ensureWireFit и
+возвращает detail_too_large без обрезки сохранённых полей. Command предлагает
+getRunHistory и transport readLog, но не отдельное/постраничное чтение body,
+feed и artifact.text. Поэтому новый клиент без cache не может получить эти
+материалы из слишком большого ответа. Path материала — metadata, не разрешение
+читать произвольный файл.
+
+FE-08 различает этот отказ и пустой результат, сохраняет последний полный текст,
+показывает bytes/limit при наличии и даёт отдельные history/log reads.
+Для полного доступа к неполученным body/artifacts нужен согласованный bounded
+read-контракт с task/run ownership, offset/version и legacy совместимостью.
+Это ограничение источника данных; frontend не восстанавливает материалы из
+retained journal и не подменяет текст fixtures.

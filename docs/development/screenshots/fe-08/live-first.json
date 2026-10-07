@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "bundled stdio daemon and private database after journal deletion",
+    "exact Markdown, persisted question and answer through getTaskDetail",
+    "getRunHistory and readLog independent of detail query",
+    "durable stage summary after reopening the daemon",
+    "Cursor not launched; run records seeded through store APIs"
+  ],
+  "result" : "passed"
+}
