@@ -100,3 +100,31 @@ import KabanBoardCore
         return .init(commandId: envelope.commandId, seq: nil, result: result)
     }
 }
+
+/// Opt-in refusal/pending replies for rendering the actual project sheet.
+/// Does not register projects or emulate git/pipeline work.
+@MainActor final class QAProjectClient: KabanClient {
+    let base: MockKabanClient
+    let state: String
+    init(base: MockKabanClient, state: String) { self.base = base; self.state = state }
+    func getSnapshot() async throws -> Snapshot { try await base.getSnapshot() }
+    func synchronize() async throws -> SnapshotReplacement { try await base.synchronize() }
+    func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> { base.updates() }
+    func events() -> AsyncStream<EventEnvelope> { base.events() }
+    func capabilities() async throws -> DaemonCapabilities {
+        var value = try await base.capabilities()
+        value.commands.removeAll { $0.name == CommandName.addProject.rawValue }
+        value.commands.append(.init(name: CommandName.addProject.rawValue, support: .supported))
+        return value
+    }
+    func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
+        guard case .addProject(_, _, let identity) = envelope.command else { return try await base.send(envelope) }
+        let result: CommandResult
+        if state == "pending" { result = .ok }
+        else if state == "non-git" { result = .error(.init(code: "not_git_repository", message: "Выбранная папка не является git-репозиторием. Выберите корень репозитория и повторите добавление.")) }
+        else if state == "invalid" { result = .error(.init(code: "identity_required", message: IdentityDraft.generalText, params: ["invalid": "name", "email": "developer@example.test"])) }
+        else if identity != nil { result = .error(.init(code: "identity_required", message: IdentityDraft.generalText, params: ["missing": "email"])) }
+        else { result = .error(.init(code: "identity_required", message: IdentityDraft.generalText, params: ["missing": "email", "name": "Автор проекта"])) }
+        return .init(commandId: envelope.commandId, seq: result == .ok ? 0 : nil, result: result)
+    }
+}

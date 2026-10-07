@@ -12,6 +12,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private let client: any KabanClient
     let session: BoardSession
     let environment: RunnerEnvironmentStore
+    let projects: ProjectLifecycleStore
+    let folderAccess: ProjectFolderAccess
     let usesFixture: Bool
     let dataSource: String
     let dataSourceDetail: String
@@ -24,6 +26,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var query = ""
     var searchRequest = 0
     var sheet: TaskSheetRoute?
+    var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
     var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
     var visibleIDs: [ProjectID] = []
@@ -45,8 +48,11 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         self.client = client; usesFixture = fixture || client is MockKabanClient
         self.dataSource = usesFixture ? "Демонстрация · данные в памяти" : dataSource
         self.dataSourceDetail = dataSourceDetail
-        let session = BoardSession(client: client, storage: storage, key: usesFixture ? "client.commands.fixture" : commandStorageKey)
+        let sourceKey = usesFixture ? "client.commands.fixture" : commandStorageKey
+        let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
+        projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
+        folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
         environment = RunnerEnvironmentStore(client: client, session: session)
     }
     isolated deinit { session.stop(); subscription?.cancel() }
@@ -134,6 +140,10 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         if projection?.tasks.values.contains(where: { $0.projectId == id && $0.state == .running }) == true { return "В работе" }
         let queued = projection?.tasks.values.filter { $0.projectId == id && $0.state.status == .queued }.count ?? 0
         return queued > 0 ? "В очереди · \(queued)" : "Очередь пуста"
+    }
+    func beginProjectFlow(_ route: ProjectSheetRoute) {
+        sheet = nil; error = nil; editorError = nil
+        projects.open(route.operation); projectSheet = route
     }
     func beginCreation(_ projectID: ProjectID? = nil) {
         guard can(.createTask), let id = projectID ?? selectedProjectID else { return }

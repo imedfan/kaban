@@ -317,8 +317,11 @@ import KabanProtocol
         }
     }
     @discardableResult public func send(_ command: Command, editor: Bool = false) async -> Bool {
+        await send(CommandEnvelope(command: command), editor: editor)
+    }
+    @discardableResult public func send(_ envelope: CommandEnvelope, editor: Bool = false) async -> Bool {
+        let command = envelope.command
         guard can(command), let journal else { return false }
-        let envelope = CommandEnvelope(command: command)
         let owner = lifecycle
         do { try journal.begin(envelope) }
         catch { self.error = error.localizedDescription; return false }

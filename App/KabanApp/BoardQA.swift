@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil }
+    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,7 +27,11 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--daemon-smoke") {
+            if let path = argument("--project-smoke") {
+                let checks = try await projectSmoke(store)
+                let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--daemon-smoke") {
                 let checks = try await daemonSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks, "seq": store.projection?.stateSeq ?? 0], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
@@ -130,6 +134,47 @@ import Darwin
         }
         return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
+    private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
+        guard !initial.usesFixture, let repository = argument("--project-smoke-repository"), let relocated = argument("--project-smoke-relink"), let runtime else { throw failure("Real project smoke configuration missing") }
+        guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Project WindowGroup missing") }
+        let before = initial.projection?.projects.count ?? 0
+        initial.beginProjectFlow(.add)
+        try await waitUntil("actual AddProject sheet") { window.attachedSheet != nil }
+        initial.projects.editPath(repository); initial.projects.setCreateTemplate(false)
+        _ = await initial.projects.submit()
+        try await waitUntil("correlated project registration") { initial.projects.observeOutcome(); return initial.projects.phase == .applied && initial.projects.connectedProjectID != nil && initial.canSend }
+        let id = initial.projects.connectedProjectID!
+        guard initial.projection?.projects.count == before + 1, let record = initial.projects.record, record.createdProjectID == id, record.confirmedSeq != nil,
+              record.envelope.command == .addProject(path: repository, createTemplate: false, identity: nil), initial.visibleIDs.contains(id) else { throw failure("Project registration proof missing") }
+        await initial.projects.refreshDiagnostics()
+        try await waitUntil("completed server project diagnostics") { !initial.projects.isReading && initial.projects.branches != nil && initial.projects.gates != nil && initial.projects.environmentError != nil }
+        guard initial.projects.branches?.contains("main") == true, initial.projects.gates != nil, initial.projects.environment == nil, initial.projects.environmentError != nil else { throw failure("Project diagnostics lost authoritative/unknown distinction") }
+        initial.projectSheet = nil; initial.selectedProjectID = id
+        try await waitUntil("closed AddProject sheet") { window.attachedSheet == nil }
+        initial.beginCreation(id)
+        try await waitUntil("Backlog creation sheet") { window.attachedSheet != nil }
+        await initial.create(.init(title: "Project lifecycle smoke task", body: "Backlog without valid pipeline"), in: id)
+        try await waitUntil("project Backlog creation") { initial.createdTaskID != nil && initial.canSend }
+        let taskID = initial.createdTaskID!
+        initial.sheet = nil
+        try await waitUntil("closed task sheet") { window.attachedSheet == nil }
+        await runtime.retry()
+        try await waitUntil("reopened project database") { runtime.store !== initial && runtime.store?.canSend == true }
+        guard let store = runtime.store, store.projection?.projects[id]?.path == repository, store.projection?.tasks[taskID]?.projectId == id else { throw failure("Project or task lost on reopen") }
+        store.beginProjectFlow(.relink(id))
+        try await waitUntil("actual relink sheet") { window.attachedSheet != nil }
+        store.projects.editPath(relocated); _ = await store.projects.submit()
+        try await waitUntil("correlated project relink") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id]?.path == relocated && store.canSend }
+        guard store.projection?.tasks[taskID]?.projectId == id else { throw failure("Relink changed task identity") }
+        store.projectSheet = nil; store.screen = .project(id)
+        try await waitUntil("closed relink sheet") { window.attachedSheet == nil }
+        store.beginProjectFlow(.remove(id))
+        try await waitUntil("actual removal confirmation") { window.attachedSheet != nil }
+        _ = await store.projects.submit()
+        try await waitUntil("correlated project removal") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id] == nil && store.canSend && store.screen == .board }
+        guard !store.visibleIDs.contains(id), FileManager.default.fileExists(atPath: repository + "/.git"), FileManager.default.fileExists(atPath: relocated + "/.git") else { throw failure("Removal changed user repository or left lane") }
+        return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears only after its typed event and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
+    }
     private static func prepare(_ store: BoardStore) async throws {
         switch argument("--qa-state") {
         case "details": await store.select("SHOP-52")
@@ -153,6 +198,19 @@ import Darwin
             try store.commandJournal?.begin(envelope); try store.commandJournal?.markUncertain(envelope.commandId)
             store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq); store.sheet = .create("shop")
         default: break
+        }
+        if let state = argument("--qa-project-form") {
+            if state == "remove" { store.beginProjectFlow(.remove("shop")) }
+            else if state == "relink" { store.beginProjectFlow(.relink("shop")) }
+            else {
+                store.beginProjectFlow(.add)
+                store.projects.editPath("/Users/local/Projects/Очень длинное название выбранного репозитория/shop-api")
+                if state != "add" { _ = await store.projects.submit(); store.projects.observeOutcome() }
+                if state == "repeat" {
+                    store.projects.editIdentity(.email, value: " ")
+                    _ = await store.projects.submit(); store.projects.observeOutcome()
+                }
+            }
         }
         // Remount the same WindowGroup subtree so view caching includes unchanged controls.
         // This is export-only; the normal application keeps its existing view identity.

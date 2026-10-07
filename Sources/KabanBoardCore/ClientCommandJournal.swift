@@ -15,6 +15,7 @@ import KabanProtocol
         public var confirmedSeq: Seq? = nil
         public var coveredSnapshotSeq: Seq? = nil
         public var createdTaskID: TaskID? = nil
+        public var createdProjectID: ProjectID? = nil
         public var effectError: CommandError? = nil
         public var effectSuperseded: Bool? = nil
         public var scope: CommandScope? { envelope.command.mutationScope }
@@ -69,6 +70,7 @@ import KabanProtocol
             next[index].confirmedSeq = max(next[index].confirmedSeq ?? 0, event.seq)
             next[index].deliveryUncertain = false
             if case .taskCreated(let card) = event.event { next[index].createdTaskID = card.id }
+            if case .projectAdded(let project) = event.event { next[index].createdProjectID = project.id }
         }
         try save(next)
     }
