@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`ff04e05` (FE-02, PR #93).
+`0dcfd91` (FE-03, PR #94).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,21 +17,21 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `ff04e05`; FE-01 принят в #92, FE-02 —
+Основной каталог обновлён до main `0dcfd91`; FE-01 принят в #92, FE-02 —
 в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
 CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
 WIP outcomes после retention теперь присутствуют в main; [отчёт FE-02](development/frontend-fe-02-2026-10-06.md).
-FE-03 подготовлен отдельно от этой базы: нативный онбординг, environment queries
+FE-03 принят в main через [#94](https://github.com/imedfan/kaban/pull/94): нативный онбординг, environment queries
 по capabilities, optional permissions и защита старого journal owner при shutdown.
 Проверки и незавершённая live-приёмка — [отчёт FE-03](development/frontend-fe-03-2026-10-07.md).
-До принятия PR FE-03 основной checkout не содержит его реализацию.
-FE-04 подготовлена в отдельной ветке с локальной зависимостью FE-03: формы
+Основной checkout содержит FE-03; все шесть jobs её финального кода `4307d13` прошли.
+FE-04 подготовлена в отдельной ветке от принятого FE-03: формы
 Add/Relink/Remove, durable project drafts, folder bookmarks и серверные reads.
 Native private DB сценарий проверил настоящие отказы, Backlog, reopening,
 сохранение ID при relink и authoritative remove. [Отчёт FE-04](development/frontend-fe-04-2026-10-07.md).
 Первые три критерия FE-04 отмечены; signed App/helper grants после restart
-не проверены. Её PR в main публикуется после принятия #94, по одной задаче в PR.
+не проверены. Её отдельный PR направляется в main, по одной задаче в PR.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -43,7 +43,7 @@ Native private DB сценарий проверил настоящие отка�
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts | Core зависит только от Protocol; FE-03 environment store находится в рабочей ветке |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts | Core зависит только от Protocol; FE-03 environment store принят в main |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, детали, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
@@ -86,7 +86,7 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять frontend-инкремент FE-03, затем отдельный FE-04 и завершить их
+1. Принять отдельный FE-04 и завершить его и FE-03
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.
