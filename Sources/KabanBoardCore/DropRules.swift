@@ -16,6 +16,10 @@ public enum DropDecision: Equatable, Sendable {
 public enum DropForbidReason: String, Equatable, Sendable {
     case sameColumn
     case crossProject
+    case unknownRoute
+    case unknownPipelineVersion
+    case terminalColumn
+    case staleTask
     case gateColumn
     case forwardMove
     case unknownStage
@@ -24,6 +28,10 @@ public enum DropForbidReason: String, Equatable, Sendable {
         switch self {
         case .sameColumn: "Задача уже в этом столбце"
         case .crossProject: "Нельзя переносить задачу в другой проект"
+        case .unknownPipelineVersion: "Служба не передала версию пайплайна. Используйте меню переноса"
+        case .unknownRoute: "Нет данных о переходе из Backlog. Обновите пайплайн"
+        case .terminalColumn: "Завершение подтверждается проверками и решением человека"
+        case .staleTask: "Задача или пайплайн изменились. Повторите перенос"
         case .gateColumn: "В столбец гейта нельзя перетащить задачу"
         case .forwardMove: "Перетаскивание вперёд запрещено"
         case .unknownStage: "Стадия не найдена в пайплайне"
@@ -53,6 +61,7 @@ public enum DropRules {
         if sourceIndex == targetIndex {
             return .forbidden(.sameColumn)
         }
+        if target.kind == .terminal { return .forbidden(.terminalColumn) }
         if target.kind == .gate {
             return .forbidden(.gateColumn)
         }
@@ -66,7 +75,8 @@ public enum DropRules {
                 return .forbidden(.forwardMove)
             }
             let source = stages[sourceIndex]
-            if source.kind == .queue && targetIndex == sourceIndex + 1 && card.hasAcceptanceCriteria {
+            if source.kind == .queue && source.onSuccess == nil { return .forbidden(.unknownRoute) }
+            if source.kind == .queue && source.onSuccess == target.id && target.kind == .agent && targetIndex == sourceIndex + 1 && card.hasAcceptanceCriteria {
                 return .allowed(interruptConfirmation: nil)
             }
             return .forbidden(.forwardMove)

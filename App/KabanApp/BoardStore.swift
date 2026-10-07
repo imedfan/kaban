@@ -32,6 +32,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var compactBoard = false
     var mascotProjectID: ProjectID?
     private var runFacts: [TaskID: (card: TaskCard, generation: UUID, run: RunSummary?)] = [:]
+    var taskDropNotice: String?
+    var controlSheet: TaskControlRoute?
     var sheet: TaskSheetRoute?
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
@@ -195,11 +197,12 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         return queued > 0 ? "В очереди · \(queued)" : "Очередь пуста"
     }
     func beginProjectFlow(_ route: ProjectSheetRoute) {
+        guard controlSheet == nil else { return }
         sheet = nil; error = nil; editorError = nil
         projects.open(route.operation); projectSheet = route
     }
     func beginCreation(_ projectID: ProjectID? = nil) {
-        guard can(.createTask), let id = projectID ?? selectedProjectID else { return }
+        guard controlSheet == nil, projectSheet == nil, can(.createTask), let id = projectID ?? selectedProjectID else { return }
         selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
     func hide(_ id: ProjectID) { session.hide(id) }

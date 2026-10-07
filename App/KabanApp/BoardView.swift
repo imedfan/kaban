@@ -28,6 +28,13 @@ struct BoardView: View {
                 VStack(spacing: 0) {
                     header(width: geometry.size.width - (sidebarVisible ? 233 : 0))
                     connectionBanner
+                    if let notice = store.taskDropNotice {
+                        HStack(spacing: 8) {
+                            Label(notice, systemImage: "info.circle").font(.callout)
+                            Spacer()
+                            KabanIconButton(symbol: "xmark", help: "Закрыть сообщение о переносе") { store.taskDropNotice = nil }
+                        }.foregroundStyle(theme.secondary).padding(.horizontal, 18).padding(.vertical, 8).background(theme.control)
+                    }
                     switch store.screen {
                     case .board:
                         board(width: max(geometry.size.width - (sidebarVisible ? 233 : 0), 0))
@@ -43,6 +50,7 @@ struct BoardView: View {
         .foregroundStyle(theme.text)
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
+        .sheet(item: $store.controlSheet) { TaskControlSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
         .popover(isPresented: Binding(get: { store.mascotProjectID != nil }, set: { if !$0 { store.mascotProjectID = nil } })) { if let id = store.mascotProjectID { MascotPickerView(store: store, projectID: id) } }
         .onChange(of: store.projection?.projectOrder) { _, ids in
@@ -297,6 +305,12 @@ struct BoardView: View {
             if lane.project.openIncidentCount > 0 {
                 Label("\(lane.project.openIncidentCount)", systemImage: "light.beacon.max").font(.system(size: 11)).foregroundStyle(theme.status("incident").2).help("Открытые инциденты")
             }
+            Button { Task { await store.toggleProjectPause(lane.project.id) } } label: {
+                Image(systemName: store.projectPaused(lane.project.id) ? "play.circle" : "pause.circle")
+            }.buttonStyle(.plain).frame(width: 24, height: 28)
+                .foregroundStyle(store.projectPaused(lane.project.id) ? theme.accent : theme.secondary)
+                .disabled(!store.can(store.projectPaused(lane.project.id) ? .resumeProject : .pauseProject) || store.session.pending(in: .project(lane.project.id)) != nil)
+                .help(store.projectPaused(lane.project.id) ? "Продолжить новые запуски проекта" : "Приостановить новые запуски проекта. Текущие продолжатся.")
             Button { store.beginCreation(lane.project.id) } label: { Image(systemName: "plus") }
                 .disabled(!store.can(.createTask)).buttonStyle(.plain).help("Новая задача в \(lane.project.name)").frame(width: 24, height: 28)
             Button { store.selectedProjectID = lane.project.id; store.screen = .project(lane.project.id) } label: { Image(systemName: "slider.horizontal.3") }
@@ -397,6 +411,7 @@ struct BoardView: View {
             }
         }.padding(6).frame(height: height, alignment: .topLeading)
             .background(theme.column, in: RoundedRectangle(cornerRadius: 10))
+            .modifier(TaskDropTarget(store: store, project: project.id, stage: column.stage.id))
     }
     @ViewBuilder private func stageLoadLabel(project: ProjectID, stage: StageID) -> some View {
         if let load = store.projection?.load(projectId: project, stageId: stage) {
@@ -411,6 +426,7 @@ struct BoardView: View {
         Button { Task { await store.select(card.id) } } label: {
             TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), actualModel: store.currentRun(for: card)?.actualModelName, stageChip: stageChip)
         }.buttonStyle(.plain)
+            .modifier(TaskDragSource(store: store, card: card))
             .task(id: BoardCardReadKey(card: card, generation: store.session.sessionGeneration)) { await store.readRunFacts(for: card) }
             .contextMenu {
                 Button("Открыть детали") { Task { await store.select(card.id) } }
@@ -427,10 +443,7 @@ struct BoardView: View {
                     Button("Приоритет · \(card.priority)…") { store.editorError = nil; store.sheet = .priority(card) }
                         .disabled(!store.can(.setPriority) || (store.projection?.isSent(card.id) ?? false))
                 }
-                if TaskActions.canCancel(card) {
-                    Button("Перенести…") { store.sheet = .move(card) }.disabled(!store.can(.moveTask)).help(store.unavailableReason(.moveTask))
-                    Button("Отменить…", role: .destructive) { store.sheet = .cancel(card) }.disabled(!store.can(.cancelTask)).help(store.unavailableReason(.cancelTask))
-                }
+                TaskControlMenu(store: store, card: card)
             }
     }
     private func stagesBoard(width: CGFloat) -> some View {
@@ -474,6 +487,13 @@ struct BoardView: View {
     private var macCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Label("Этот Мак", systemImage: "cpu").font(.system(size: 12, weight: .semibold)); Spacer(); KabanIconButton(symbol: "slider.horizontal.3", help: "Квота и агенты") { store.screen = .quota } }
+            Button { Task { await store.toggleMacPause() } } label: {
+                Label(store.macPaused ? "Продолжить новые запуски" : "Пауза новых запусков", systemImage: store.macPaused ? "play" : "pause")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(KabanButtonStyle())
+                .disabled(!store.can(store.macPaused ? .resumeAll : .pauseAll) || store.session.pending(in: .global) != nil)
+                .help("Текущие запуски продолжатся. Для остановки одной задачи используйте её паузу.")
+            if let label = store.pendingLabel(.global) { Text(label).font(.caption).foregroundStyle(theme.faint) }
             HStack { Text("Процессы агентов").fixedSize(horizontal: false, vertical: true); Spacer(); Text("Нет данных").foregroundStyle(theme.faint).fixedSize() }.font(.system(size: 11))
                 .help("Служба пока не сообщает подтверждённые процессы и их потолок.")
             HStack { Text("Резервирования"); Spacer(); Text("\(store.reservationCount)").monospacedDigit() }.font(.system(size: 10)).foregroundStyle(theme.secondary)
@@ -751,7 +771,7 @@ struct TaskDetailView: View {
                 Text(store.projection?.projects[task.projectId]?.name ?? "").font(.system(size: 11)).foregroundStyle(theme.faint)
                 Spacer(); closeButton
             }
-            Text(task.title).font(.system(size: 18, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+            Text(task.title).font(.system(size: 18, weight: .bold)).lineLimit(3).help(task.title)
             HStack {
                 Label(presentation.label, systemImage: presentation.symbol).font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.status(presentation.tone.rawValue).2).padding(.horizontal, 8).padding(.vertical, 4)
@@ -782,10 +802,10 @@ struct TaskDetailView: View {
     }
     private func detailActions(_ detail: TaskDetail) -> some View {
         HStack(spacing: 8) {
-            if detail.task.state == .running {
-                Button { Task { await store.send(.pauseTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.pauseTask)).help(store.unavailableReason(.pauseTask))
+            if TaskActions.canPause(detail.task) {
+                Button { store.beginControl(detail.task, action: .pause) } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.pauseTask)).help(store.unavailableReason(.pauseTask))
             } else if detail.task.state == .paused {
-                Button { Task { await store.send(.resumeTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
+                Button { store.beginControl(detail.task, action: .resume) } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
             }
             if !TaskActions.canEdit(detail.task), TaskActions.canCancel(detail.task) {
                 Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
@@ -798,8 +818,7 @@ struct TaskDetailView: View {
                 Menu {
                     Button("Приоритет · \(detail.task.priority)…") { store.editorError = nil; openSheet(.priority(detail.task)) }
                         .disabled(!store.can(.setPriority))
-                    Button("Перенести…") { openSheet(.move(detail.task)) }.disabled(!store.can(.moveTask))
-                    Button("Отменить задачу…", role: .destructive) { openSheet(.cancel(detail.task)) }.disabled(!store.can(.cancelTask))
+                    TaskControlMenu(store: store, card: detail.task)
                 } label: { Label("Действия", systemImage: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
             }
             if store.projection?.isSent(detail.task.id) == true { ProgressView().controlSize(.small) }

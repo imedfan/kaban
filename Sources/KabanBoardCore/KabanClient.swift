@@ -61,6 +61,7 @@ extension KabanClient {
     private var currentEvents: [EphemeralEvent] = []
     private var receipts: [CommandID: (CommandEnvelope, CommandReply)] = [:]
     private var notes: [TaskID: [FeedItem]] = [:]
+    private var pausedStates: [TaskID: TaskState] = [:]
 
 
     public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:],
@@ -84,7 +85,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .setMascot]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -164,11 +165,16 @@ extension KabanClient {
                   let pipeline = snapshot.pipelines.first(where: { $0.projectId == task.projectId }), pipeline.isValid,
                   let target = pipeline.stages.first(where: { $0.id == targetID }) else { return invalidState() }
             guard TaskActions.moveDecision(card: task, target: target, pipeline: pipeline).isAllowed else { return invalidState() }
+            pausedStates.removeValue(forKey: id)
+            snapshot.tasks[index].attempt = 0
+            snapshot.tasks[index].maxAttempts = target.maxAttempts
+            snapshot.tasks[index].model = target.model
             acceptDemoFiles(index, commandID: commandId)
             return update(index, state: .queued(nil), commandId: commandId, stageID: targetID)
         case .cancelTask(let id, let keepBranch):
             guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
             guard TaskActions.canCancel(snapshot.tasks[index]) else { return invalidState() }
+            pausedStates.removeValue(forKey: id)
             acceptDemoFiles(index, commandID: commandId)
             if keepBranch, snapshot.tasks[index].branch != nil {
                 notes[id, default: []].append(FeedItem(id: UUID().uuidString, at: Date(), kind: "summary", text: "Демо: выбрано сохранение ветки при отмене."))
@@ -176,12 +182,43 @@ extension KabanClient {
             return update(index, state: .cancelled, commandId: commandId)
         case .pauseTask(let id):
             guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
-            guard snapshot.tasks[index].state == .running else { return invalidState() }
+            guard TaskActions.canPause(snapshot.tasks[index]) else { return invalidState() }
+            pausedStates[id] = snapshot.tasks[index].state
             return update(index, state: .paused, commandId: commandId)
         case .resumeTask(let id):
             guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
             guard snapshot.tasks[index].state == .paused else { return invalidState() }
+            let restored: TaskState = pausedStates.removeValue(forKey: id) == .waitingHuman(.review) ? .waitingHuman(.review) : .queued(nil)
+            return update(index, state: restored, commandId: commandId)
+        case .retryStage(let id, let grant):
+            guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
+            guard TaskActions.canRetry(snapshot.tasks[index]), grant.map({ $0 >= 0 }) ?? true else { return invalidState() }
+            if let maximum = snapshot.tasks[index].maxAttempts {
+                let increased = maximum.addingReportingOverflow(grant ?? 0)
+                guard !increased.overflow else { return invalidState() }
+                let exhausted = snapshot.tasks[index].attempt >= increased.partialValue
+                guard !exhausted || increased.partialValue < Int.max else { return invalidState() }
+                snapshot.tasks[index].maxAttempts = increased.partialValue + (exhausted ? 1 : 0)
+            }
+            acceptDemoFiles(index, commandID: commandId)
             return update(index, state: .queued(nil), commandId: commandId)
+        case .pauseAll, .resumeAll, .pauseProject, .resumeProject:
+            let paused: Bool, project: ProjectID?
+            switch command {
+            case .pauseAll: paused = true; project = nil
+            case .resumeAll: paused = false; project = nil
+            case .pauseProject(let id): paused = true; project = id
+            case .resumeProject(let id): paused = false; project = id
+            default: return invalidState()
+            }
+            if let project, !snapshot.projects.contains(where: { $0.id == project }) { return invalidState() }
+            let flag: SchedulerFlag = project.map { .projectPaused($0) } ?? .macPaused
+            snapshot.schedulerFlags.removeAll { $0 == flag }
+            if paused { snapshot.schedulerFlags.append(flag) }
+            emit(.settingsChanged(.init(key: project == nil ? "mac.paused" : "project.paused",
+                                        value: paused ? "true" : "false", schedulerFlags: snapshot.schedulerFlags)),
+                 projectID: project, commandID: commandId)
+            return .ok
         default:
             return .error(CommandError(code: "unknown_command", message: "Это действие пока недоступно в демонстрационном клиенте."))
         }
@@ -191,6 +228,7 @@ extension KabanClient {
     private func update(_ index: Int, state: TaskState, commandId: CommandID, stageID: StageID? = nil) -> CommandResult {
         let previous = snapshot.tasks[index]
         snapshot.tasks[index].state = state
+        snapshot.tasks[index].runsSinceHuman = 0
         if let stageID { snapshot.tasks[index].stageId = stageID }
         snapshot.tasks[index].updatedAt = Date()
         let task = snapshot.tasks[index]
@@ -207,13 +245,13 @@ extension KabanClient {
         }
         return .ok
     }
-    private func emit(_ event: JournalEvent, projectID: ProjectID, commandID: CommandID) {
+    private func emit(_ event: JournalEvent, projectID: ProjectID?, commandID: CommandID) {
         snapshot.seq += 1
         publish(EventEnvelope(seq: snapshot.seq, at: Date(), projectId: projectID, commandId: commandID, event: event))
     }
     private func acceptDemoFiles(_ index: Int, commandID: CommandID) {
         let task = snapshot.tasks[index]
-        guard !task.suspiciousFiles.isEmpty else { return }
+        guard task.state == .waitingHuman(.suspiciousFiles), !task.suspiciousFiles.isEmpty else { return }
         accepted[task.id, default: []] += task.suspiciousFiles.map { AcceptedFile(path: $0.path, blob: $0.blob, at: Date(), commandId: commandID) }
         snapshot.tasks[index].suspiciousFiles = []
         emit(.suspiciousFilesAccepted(.init(taskId: task.id, files: task.suspiciousFiles, by: .human, commandId: commandID)), projectID: task.projectId, commandID: commandID)

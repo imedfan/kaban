@@ -4,4 +4,9 @@
 <key>CFBundleIconFile</key><string>Resources/Kaban.icns</string>
 <key>CFBundleDisplayName</key><string>Kaban</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+<key>UTExportedTypeDeclarations</key><array><dict>
+<key>UTTypeIdentifier</key><string>app.kaban.task-drag</string>
+<key>UTTypeDescription</key><string>Kaban Task</string>
+<key>UTTypeConformsTo</key><array><string>public.data</string></array>
+</dict></array>
 </dict></plist>

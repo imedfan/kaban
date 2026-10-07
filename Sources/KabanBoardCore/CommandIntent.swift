@@ -67,6 +67,10 @@ public extension Command {
         case (.revokeGitGrant(let id), .gitGrantRevoked(let value)): value.grantId == id
         case (.addDenialToPolicy(_, let scope), .gitPolicyUpdated(let value)): value.scope == scope
         case (.configureCursor, .cursorEnvironmentChanged): true
+        case (.pauseProject(let id), .settingsChanged(let change)):
+            change.schedulerFlags?.contains(.projectPaused(id)) == true
+        case (.resumeProject(let id), .settingsChanged(let change)):
+            change.schedulerFlags.map { !$0.contains(.projectPaused(id)) } ?? false
         case (_, .settingsChanged):
             mutationScope == .global || { if case .clearModelFlag = self { return true }; return false }()
         default: false

@@ -33,6 +33,7 @@ import KabanTransport
             let client: any KabanClient
             if let state = BoardQA.argument("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
             else if let state = BoardQA.argument("--qa-project-form") { client = QAProjectClient(base: base, state: state) }
+            else if BoardQA.argument("--qa-state") == "control-pending" { client = QADeferredControlClient(base: base) }
             else { client = base }
             let storage: any KeyValueStoring
             if let suite = BoardQA.argument("--qa-board-suite"), suite.hasPrefix("kaban.qa."), let defaults = UserDefaults(suiteName: suite) {
