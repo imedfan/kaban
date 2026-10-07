@@ -44,6 +44,28 @@ final class BoardSessionTests: XCTestCase {
         XCTAssertEqual(client.mutations.count, 1)
         XCTAssertFalse(session.projection!.isSent("t")); XCTAssertEqual(session.projection?.tasks["t"]?.title, "Edited")
     }
+    @MainActor func testCreationEventBeforeLostReplySelectsExactlyOnceAndClearsDraft() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        client.snapshot = Fix.snapshot(tasks: [])
+        client.mutationHandler = { envelope in
+            let card = Fix.card("created", stage: "backlog")
+            let event = Fix.envelope(11, .taskCreated(card), commandId: envelope.commandId)
+            client.snapshot = Fix.snapshot(seq: 11, tasks: [card])
+            client.continuation?.yield(.event(event)); client.continuation?.yield(.event(event))
+            for _ in 0..<10 { await Task.yield() }
+            throw CommandError(code: "connection_lost", message: "Reply lost after commit")
+        }
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }
+        try session.drafts?.save(.init(key: .create(Fix.project), draft: .init(title: "Exact"), exactBody: "Exact  \r\n"))
+        let applied = await session.send(.createTask(projectId: Fix.project, title: "Exact", body: "Exact  \r\n"))
+        XCTAssertTrue(applied)
+        try await wait { session.canSend && session.pendingRecords.isEmpty }
+        XCTAssertEqual(client.mutations.count, 1)
+        XCTAssertEqual(session.selectedID, "created"); XCTAssertEqual(session.createdTaskID, "created")
+        XCTAssertEqual(session.projection?.tasks.count, 1)
+        XCTAssertNil(session.drafts?.record(for: .create(Fix.project)))
+    }
     @MainActor func testGapAndOverflowRecreateOneStreamAndClearVolatileFlags() async throws {
         let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
         client.snapshot.schedulerFlags = [.macPaused]

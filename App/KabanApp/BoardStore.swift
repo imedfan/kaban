@@ -6,6 +6,7 @@ import KabanBoardCore
 final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    init(suiteName: String) { defaults = UserDefaults(suiteName: suiteName) ?? .standard }
     func data(forKey key: String) -> Data? { defaults.data(forKey: key) }
     func set(_ data: Data?, forKey key: String) { defaults.set(data, forKey: key) }
 }
@@ -76,12 +77,23 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     func select(_ id: TaskID?) async { await session.select(id) }
     func prepareCreation() { session.prepareCreation() }
     func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
-        let command = Command.createTask(projectId: projectID, title: draft.title, body: draft.body)
-        guard draft.canSubmit, projection?.projects[projectID] != nil, session.can(command) else { return }
-        do { try session.drafts?.save(.init(key: .create(projectID), draft: draft)) }
-        catch { editorError = "Не удалось сохранить черновик. \(error.localizedDescription)"; return }
-        _ = await session.send(command, editor: true)
+        _ = await create(draft, body: draft.body, in: projectID)
     }
+    @discardableResult func create(_ draft: DemoTaskDraft, body: String, in projectID: ProjectID) async -> Bool {
+        let command = Command.createTask(projectId: projectID, title: draft.title, body: body)
+        guard draft.canSubmit, projection?.projects[projectID] != nil, session.can(command) else { return false }
+        do { try session.drafts?.save(.init(key: .create(projectID), draft: draft, exactBody: body)) }
+        catch { editorError = "Не удалось сохранить черновик. \(error.localizedDescription)"; return false }
+        return await session.send(command, editor: true)
+    }
+    var visibleMatchCount: Int {
+        projection?.tasks.values.filter { card in
+            guard visibleIDs.contains(card.projectId), matches(card.id) else { return false }
+            let hidden = projection?.pipelines[card.projectId]?.stages.first { $0.id == card.stageId }?.display.hidden == true
+            return filter == .hiddenStages ? hidden : !hidden
+        }.count ?? 0
+    }
+    var hasTaskFilter: Bool { !query.isEmpty || filter == .waiting || filter == .incidents }
     @discardableResult func send(_ command: Command, taskID: TaskID, editor: Bool = false) async -> Bool {
         guard projection?.tasks[taskID] != nil else { return false }
         return await session.send(command, editor: editor)

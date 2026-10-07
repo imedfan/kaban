@@ -4,6 +4,7 @@ import KabanProtocol
 public enum TaskDraftKey: Codable, Hashable, Sendable {
     case create(ProjectID)
     case edit(TaskID)
+    case priority(TaskID)
 }
 
 /// User input has its own lifetime; reconnect never submits a draft.
@@ -14,10 +15,18 @@ public enum TaskDraftKey: Codable, Hashable, Sendable {
         public var exactBody: String?
         public var baseCard: TaskCard?
         public var submittedBy: CommandID?
-        public init(key: TaskDraftKey, draft: DemoTaskDraft, exactBody: String? = nil, baseCard: TaskCard? = nil, submittedBy: CommandID? = nil) {
+        public var priorityText: String?
+        public init(key: TaskDraftKey, draft: DemoTaskDraft, exactBody: String? = nil, baseCard: TaskCard? = nil, submittedBy: CommandID? = nil, priorityText: String? = nil) {
             self.key = key; self.draft = draft; self.exactBody = exactBody
-            self.baseCard = baseCard; self.submittedBy = submittedBy
+            self.baseCard = baseCard; self.submittedBy = submittedBy; self.priorityText = priorityText
         }
+    }
+    /// Uses the card the user reviewed. The receiver still validates any race after this check.
+    public func editCommand(for key: TaskDraftKey, current: TaskCard?, bodyIsKnown: Bool) -> Command? {
+        guard case .edit(let id) = key, let record = record(for: key), let current,
+              current.id == id, record.baseCard == current, TaskActions.canEdit(current),
+              record.draft.canSubmit else { return nil }
+        return .editTask(taskId: id, title: record.draft.title, body: bodyIsKnown ? record.exactBody : nil)
     }
     public private(set) var records: [Record]
     private let storage: any KeyValueStoring

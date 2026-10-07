@@ -117,14 +117,17 @@ struct TaskMarkdownView: View {
     }
     private var blocks: [Block] {
         var result: [Block] = []
-        var inCode = false
+        var fence: Character?
         var codeLines: [String] = []
-        for (index, line) in source.components(separatedBy: "\n").enumerated() {
-            if line.hasPrefix("```") {
-                if inCode { result.append(.init(id: index, text: codeLines.joined(separator: "\n"), heading: 0, code: true)); codeLines = [] }
-                inCode.toggle(); continue
+        for (index, sourceLine) in source.components(separatedBy: "\n").enumerated() {
+            let line = sourceLine.hasSuffix("\r") ? String(sourceLine.dropLast()) : sourceLine
+            let marker: Character? = line.hasPrefix("```") ? "`" : (line.hasPrefix("~~~") ? "~" : nil)
+            if let marker, fence == nil || (fence == marker && line.drop(while: { $0 == marker }).trimmingCharacters(in: .whitespaces).isEmpty) {
+                if fence != nil { result.append(.init(id: index, text: codeLines.joined(separator: "\n"), heading: 0, code: true)); codeLines = []; fence = nil }
+                else { fence = marker }
+                continue
             }
-            if inCode { codeLines.append(line); continue }
+            if fence != nil { codeLines.append(line); continue }
             let heading = line.prefix(while: { $0 == "#" }).count
             let isHeading = heading > 0 && heading <= 6 && line.dropFirst(heading).hasPrefix(" ")
             if !line.isEmpty { result.append(.init(id: index, text: isHeading ? String(line.dropFirst(heading + 1)) : line, heading: isHeading ? heading : 0, code: false)) }
@@ -140,12 +143,14 @@ struct TaskMarkdownView: View {
                     Text(block.text).font(.system(size: 11, design: .monospaced)).padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading).background(theme.control, in: RoundedRectangle(cornerRadius: 8))
                 } else if block.heading > 0 {
-                    Text(block.text).font(.system(size: block.heading == 1 ? 17 : 13, weight: .semibold)).padding(.top, 8)
+                    Text(inline(block.text)).font(.system(size: block.heading == 1 ? 17 : 13, weight: .semibold)).padding(.top, 8)
                 } else {
+                    let checkbox = block.text.hasPrefix("- [ ] ") || block.text.lowercased().hasPrefix("- [x] ")
                     let bullet = block.text.hasPrefix("- ") || block.text.hasPrefix("* ")
                     HStack(alignment: .top, spacing: 7) {
-                        if bullet { Text("•").foregroundStyle(theme.faint) }
-                        Text(inline(bullet ? String(block.text.dropFirst(2)) : block.text))
+                        if checkbox { Image(systemName: block.text.lowercased().hasPrefix("- [x] ") ? "checkmark.square" : "square").foregroundStyle(theme.faint).padding(.top, 2) }
+                        else if bullet { Text("•").foregroundStyle(theme.faint) }
+                        Text(inline(checkbox ? String(block.text.dropFirst(6)) : (bullet ? String(block.text.dropFirst(2)) : block.text)))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }.font(.system(size: 12)).lineSpacing(3)
                 }

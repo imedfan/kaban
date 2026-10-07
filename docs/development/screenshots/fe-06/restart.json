@@ -1,0 +1,7 @@
+{
+  "checks" : [
+    "real daemon restores one created task, exact edited Markdown and priority 42",
+    "separate UserDefaults suite restores unsent draft without sending it"
+  ],
+  "result" : "passed"
+}

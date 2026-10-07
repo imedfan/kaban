@@ -42,7 +42,7 @@ struct BoardView: View {
         }
         .foregroundStyle(theme.text)
         .id(store.qaLayoutRevision)
-        .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0) }
+        .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
         .popover(isPresented: Binding(get: { store.mascotProjectID != nil }, set: { if !$0 { store.mascotProjectID = nil } })) { if let id = store.mascotProjectID { MascotPickerView(store: store, projectID: id) } }
         .onChange(of: store.projection?.projectOrder) { _, ids in
@@ -216,6 +216,16 @@ struct BoardView: View {
                 LazyVStack(alignment: .leading, spacing: 8, pinnedViews: [.sectionHeaders]) {
                     if store.projection == nil { ProgressView("Загрузка доски…").frame(width: max(width - 24, 0), height: 280) }
                     else if lanes.isEmpty { emptyBoard.frame(width: max(width - 24, 0), height: 280) }
+                    else if store.hasTaskFilter && store.visibleMatchCount == 0 {
+                        VStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(.secondary)
+                            Text("Задачи не найдены").font(.headline)
+                            Text("В показанных стадиях нет совпадений по запросу и фильтру.")
+                                .font(.callout).foregroundStyle(.secondary)
+                            Button("Сбросить поиск и фильтр") { store.query = ""; store.filter = .all }
+                                .buttonStyle(KabanButtonStyle())
+                        }.frame(width: max(width - 24, 0), height: 280)
+                    }
                     else if store.compactBoard {
                         stagesBoard(width: max(width - 24, 0))
                     } else {
@@ -226,7 +236,7 @@ struct BoardView: View {
                                 .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: lane.project.id) } isTargeted: { active in dropTarget = active ? lane.project.id : dropTarget == lane.project.id ? nil : dropTarget }
                         }
                     }
-                    if !lanes.isEmpty {
+                    if !lanes.isEmpty && !(store.hasTaskFilter && store.visibleMatchCount == 0) {
                         Text("Перетащите проект сюда, чтобы поставить его последним")
                             .font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).padding(14)
                             .background(endDropTarget ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
@@ -412,6 +422,10 @@ struct BoardView: View {
                             if let detail = store.detail, detail.task.id == card.id, TaskActions.canEdit(detail.task) { store.sheet = .edit(detail.task, detail.body) }
                         }
                     }.disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
+                }
+                if TaskActions.canSetPriority(card) {
+                    Button("Приоритет · \(card.priority)…") { store.editorError = nil; store.sheet = .priority(card) }
+                        .disabled(!store.can(.setPriority) || (store.projection?.isSent(card.id) ?? false))
                 }
                 if TaskActions.canCancel(card) {
                     Button("Перенести…") { store.sheet = .move(card) }.disabled(!store.can(.moveTask)).help(store.unavailableReason(.moveTask))
@@ -773,12 +787,17 @@ struct TaskDetailView: View {
             } else if detail.task.state == .paused {
                 Button { Task { await store.send(.resumeTask(taskId: detail.task.id), taskID: detail.task.id) } } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
             }
+            if !TaskActions.canEdit(detail.task), TaskActions.canCancel(detail.task) {
+                Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
+            }
             if TaskActions.canEdit(detail.task) {
                 Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask)).help(store.unavailableReason(.editTask))
             }
             Spacer(minLength: 0)
             if TaskActions.canCancel(detail.task) {
                 Menu {
+                    Button("Приоритет · \(detail.task.priority)…") { store.editorError = nil; openSheet(.priority(detail.task)) }
+                        .disabled(!store.can(.setPriority))
                     Button("Перенести…") { openSheet(.move(detail.task)) }.disabled(!store.can(.moveTask))
                     Button("Отменить задачу…", role: .destructive) { openSheet(.cancel(detail.task)) }.disabled(!store.can(.cancelTask))
                 } label: { Label("Действия", systemImage: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
@@ -863,207 +882,6 @@ struct ProjectSettingsView: View {
         HStack(alignment: .top) {
             Text(title).font(.system(size: 12)).foregroundStyle(theme.secondary).frame(width: 180, alignment: .leading)
             Text(value).font(.system(size: 12)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-enum TaskSheetRoute: Identifiable {
-    case create(ProjectID)
-    case edit(TaskCard, String?)
-    case move(TaskCard)
-    case cancel(TaskCard)
-    var id: String {
-        switch self {
-        case .create(let id): "create-\(id.rawValue)"
-        case .edit(let card, _): "edit-\(card.id.rawValue)"
-        case .move(let card): "move-\(card.id.rawValue)"
-        case .cancel(let card): "cancel-\(card.id.rawValue)"
-        }
-    }
-}
-
-struct TaskActionSheet: View {
-    @Bindable var store: BoardStore
-    let route: TaskSheetRoute
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: DemoTaskDraft
-    @State private var exactBody = ""
-    @State private var baseCard: TaskCard?
-    @State private var keepBranch = false
-    @State private var targetID: StageID?
-    @FocusState private var titleFocused: Bool
-    @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
-
-    init(store: BoardStore, route: TaskSheetRoute) {
-        self.store = store; self.route = route
-        let key: TaskDraftKey?
-        switch route { case .create(let id): key = .create(id); case .edit(let card, _): key = .edit(card.id); default: key = nil }
-        let saved = key.flatMap { store.session.drafts?.record(for: $0) }
-        if case .edit(let task, let body) = route {
-            _draft = State(initialValue: saved?.draft ?? DemoTaskDraft(title: task.title))
-            _exactBody = State(initialValue: saved?.exactBody ?? body ?? "")
-            _baseCard = State(initialValue: saved?.baseCard ?? task)
-        } else {
-            _draft = State(initialValue: saved?.draft ?? DemoTaskDraft())
-            _baseCard = State(initialValue: nil)
-        }
-    }
-    private var draftKey: TaskDraftKey? {
-        switch route { case .create(let id): .create(id); case .edit(let task, _): .edit(task.id); default: nil }
-    }
-    private func saveDraft() {
-        guard let key = draftKey, !pending else { return }
-        do { try store.session.drafts?.save(.init(key: key, draft: draft, exactBody: bodyKnown || store.session.drafts?.record(for: key)?.exactBody != nil ? exactBody : nil, baseCard: baseCard)) }
-        catch { store.editorError = "Не удалось сохранить черновик. \(error.localizedDescription)" }
-    }
-    private var card: TaskCard? {
-        switch route { case .edit(let card, _), .move(let card), .cancel(let card): card; case .create: nil }
-    }
-    private var stale: Bool {
-        guard let card else { return false }
-        return store.projection?.tasks[card.id] != (baseCard ?? card)
-    }
-    private var pending: Bool {
-        if case .create(let id) = route { return store.session.pending(in: .project(id)) != nil }
-        return card.map { store.projection?.isSent($0.id) ?? false } ?? false
-    }
-    private var bodyKnown: Bool {
-        if case .edit(_, let body) = route { return body != nil }
-        return true
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    switch route {
-                    case .create(let projectID):
-                        Text("Новая задача · \(store.projection?.projects[projectID]?.name ?? "Проект")").font(.title3.bold())
-                        editor
-                    case .edit:
-                        Text("Изменить задачу").font(.title3.bold())
-                        editor
-                    case .move(let task):
-                        Text("Перенести задачу").font(.title3.bold())
-                        Text(task.title)
-                        if let pipeline = store.projection?.pipelines[task.projectId] {
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(pipeline.stages.sorted { $0.display.order < $1.display.order }, id: \.id) { stage in
-                                        let decision = TaskActions.moveDecision(card: task, target: stage, pipeline: pipeline)
-                                        HStack(alignment: .top) {
-                                            Button {
-                                                targetID = stage.id
-                                            } label: {
-                                                Label(stage.name, systemImage: targetID == stage.id ? "largecircle.fill.circle" : "circle")
-                                            }.buttonStyle(.plain).disabled(!decision.isAllowed || pending || stale)
-                                            Spacer()
-                                            if case .forbidden(let reason) = decision {
-                                                Text(reason.text).font(.caption).foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }.frame(maxHeight: 240)
-                            if let targetID, let stage = pipeline.stages.first(where: { $0.id == targetID }),
-                               case .allowed(let confirmation) = TaskActions.moveDecision(card: task, target: stage, pipeline: pipeline), let confirmation {
-                                Text(confirmation).font(.callout)
-                            }
-                        } else { Text("Пайплайн недоступен").foregroundStyle(.secondary) }
-                        suspiciousWarning(task)
-                    case .cancel(let task):
-                        Text("Отменить задачу?").font(.title3.bold())
-                        Text(task.title)
-                        Text("Текущий запуск будет остановлен. Задача получит статус «Отменено».").font(.callout)
-                        Toggle("Сохранить ветку", isOn: $keepBranch).disabled(task.branch == nil)
-                        if task.branch == nil { Text("У задачи нет ветки для сохранения").font(.caption).foregroundStyle(.secondary) }
-                        suspiciousWarning(task)
-                    }
-                    if stale {
-                        Text("Задача изменилась. Черновик сохранён; откройте действие снова, чтобы сверить изменения.").font(.callout).foregroundStyle(theme.secondary)
-                        if case .edit = route {
-                            Button("Удалить сохранённый черновик") {
-                                if let key = draftKey { try? store.session.drafts?.discard(key) }
-                                dismiss()
-                            }.buttonStyle(KabanButtonStyle())
-                        }
-                    }
-                    if let label = pendingText { Text(label + " Можно закрыть окно — отправка сохранена.").font(.callout).foregroundStyle(theme.secondary) }
-                    else if !store.canSend { Text("Черновик сохранён. Отправка будет доступна после синхронизации.").font(.callout).foregroundStyle(theme.secondary) }
-                    if let error = store.editorError { Text(error).font(.callout).foregroundStyle(.orange) }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.frame(height: formHeight)
-            HStack {
-                Spacer()
-                Button("Закрыть") { dismiss() }.buttonStyle(KabanButtonStyle()).keyboardShortcut(.cancelAction)
-                Button(pending ? "Ожидаем…" : actionLabel) { Task { await submit() } }
-                    .buttonStyle(KabanButtonStyle(primary: true)).keyboardShortcut(.defaultAction).disabled(pending || stale || !canSubmit || !store.can(actionCommand))
-            }
-        }.padding(24).frame(width: 560).background(theme.window)
-            .onAppear { titleFocused = true }
-            .onChange(of: draft) { _, _ in saveDraft() }
-            .onChange(of: exactBody) { _, _ in saveDraft() }
-    }
-    private var formHeight: CGFloat {
-        switch route { case .create, .edit: 420; case .move: 310; case .cancel: 180 }
-    }
-    private var pendingText: String? {
-        switch route { case .create(let id): store.pendingLabel(.project(id)); default: card.flatMap { store.pendingLabel(.task($0.id)) } }
-    }
-    private var actionCommand: CommandName {
-        switch route { case .create: .createTask; case .edit: .editTask; case .move: .moveTask; case .cancel: .cancelTask }
-    }
-    private var editor: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Заголовок", text: $draft.title).textFieldStyle(.roundedBorder).focused($titleFocused)
-            if case .edit = route {
-                Text("Описание и критерии приёмки · Markdown").font(.headline)
-                markdownEditor($exactBody, height: 220).disabled(!bodyKnown)
-            } else {
-                Text("Описание · Markdown").font(.headline)
-                markdownEditor($draft.description, height: 110)
-                Text("Критерии приёмки").font(.headline)
-                markdownEditor($draft.acceptanceCriteria, height: 110)
-            }
-            if !bodyKnown { Text("Описание недоступно. Можно изменить только заголовок.").font(.caption).foregroundStyle(.secondary) }
-            else if case .create = route, !draft.hasAcceptanceCriteria { Text("Без критериев приёмки задача останется в Backlog.").font(.caption).foregroundStyle(.secondary) }
-        }.disabled(pending || stale)
-    }
-    private func markdownEditor(_ text: Binding<String>, height: CGFloat) -> some View {
-        TextEditor(text: text).font(.system(size: 12)).scrollContentBackground(.hidden)
-            .padding(8).frame(height: height).background(theme.card, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.strongLine, lineWidth: 0.5))
-    }
-    private func suspiciousWarning(_ task: TaskCard) -> some View {
-        Group {
-            if !task.suspiciousFiles.isEmpty { Text("Текущий набор подозрительных файлов будет принят.").font(.caption).foregroundStyle(.secondary) }
-        }
-    }
-    private var actionLabel: String {
-        switch route { case .create: "Создать"; case .edit: "Сохранить"; case .move: "Перенести"; case .cancel: "Отменить задачу" }
-    }
-    private var canSubmit: Bool {
-        switch route {
-        case .create(let id): draft.canSubmit && store.projection?.projects[id] != nil
-        case .edit(let task, _): draft.canSubmit && TaskActions.canEdit(task)
-        case .move(let task):
-            if let pipeline = store.projection?.pipelines[task.projectId], let target = pipeline.stages.first(where: { $0.id == targetID }) {
-                TaskActions.moveDecision(card: task, target: target, pipeline: pipeline).isAllowed
-            } else { false }
-        case .cancel(let task): TaskActions.canCancel(task)
-        }
-    }
-    private func submit() async {
-        store.editorError = nil
-        saveDraft()
-        switch route {
-        case .create(let projectID): await store.create(draft, in: projectID)
-        case .edit(let task, _):
-            if await store.send(.editTask(taskId: task.id, title: draft.title, body: bodyKnown ? exactBody : nil), taskID: task.id, editor: true) { dismiss() }
-        case .move(let task):
-            guard let targetID else { return }
-            if await store.send(.moveTask(taskId: task.id, stage: targetID), taskID: task.id, editor: true) { dismiss() }
-        case .cancel(let task):
-            if await store.send(.cancelTask(taskId: task.id, keepBranch: keepBranch), taskID: task.id, editor: true) { dismiss() }
         }
     }
 }

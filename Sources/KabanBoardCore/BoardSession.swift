@@ -335,6 +335,7 @@ import KabanProtocol
             // Title-only submission must not discard a body draft that wasn't sent.
             try? drafts?.submitted(.edit(id), by: envelope.commandId)
         }
+        if case .setPriority(let id, _) = command { try? drafts?.submitted(.priority(id), by: envelope.commandId) }
         refreshPending()
         do {
             let reply = try await client.send(envelope)
