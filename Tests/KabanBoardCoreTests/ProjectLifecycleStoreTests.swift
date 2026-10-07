@@ -48,6 +48,27 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         XCTAssertEqual(session.visibleIDs, [project.id]); XCTAssertEqual(reopened.phase, .applied)
         XCTAssertEqual(try ClientCommandJournal(storage: storage, key: "commands").records.first?.createdProjectID, project.id)
     }
+    @MainActor func testCoveredOriginalReceiptSelectsProjectFromAuthoritativeSnapshot() async throws {
+        let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
+        let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
+        let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
+        model.open(.add); model.editPath("/chosen/repository"); model.setCreateTemplate(false)
+        var project = Fix.project(); project.path = "/chosen/repository"
+        // The committed event is already covered by a replacement. No individual
+        // projectAdded is delivered; the original nonzero receipt must be kept.
+        client.snapshot = Snapshot(seq: 4, projects: [project], pipelines: [], tasks: [])
+        client.mutationSeq = 4
+        _ = await model.submit()
+        try await wait { model.phase == .applied && session.canSend }
+        model.observeOutcome()
+        XCTAssertEqual(model.connectedProjectID, project.id)
+        XCTAssertNil(model.record?.createdProjectID)
+        XCTAssertEqual(model.record?.coveredSnapshotSeq, 4)
+        XCTAssertEqual(model.record?.reply?.seq, 4)
+        XCTAssertEqual(model.record?.envelope.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: nil))
+        XCTAssertEqual(Set(client.mutations.map(\.commandId)).count, 1)
+        XCTAssertEqual(session.visibleIDs, [project.id]); XCTAssertFalse(model.canSubmit)
+    }
     @MainActor func testProjectEventBeforeLostReplyStillCompletesExactlyOneIntent() async throws {
         let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
@@ -110,6 +131,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
     var snapshot = Snapshot(seq: 0, projects: [], pipelines: [], tasks: [])
     let cursor = EphemeralCursor(sessionId: UUID(), offset: 0)
     var result = CommandResult.ok
+    var mutationSeq: Seq? = 0
     var mutations: [CommandEnvelope] = []
     var mutationHandler: ((CommandEnvelope) async throws -> CommandReply)?
     var badCorrelation = false, holdBranches = false
@@ -134,6 +156,6 @@ final class ProjectLifecycleStoreTests: XCTestCase {
             if let mutationHandler { return try await mutationHandler(envelope) }
             value = result
         }
-        return .init(commandId: badCorrelation ? CommandID() : envelope.commandId, seq: envelope.command.mutationScope == nil ? nil : 0, result: value)
+        return .init(commandId: badCorrelation ? CommandID() : envelope.commandId, seq: envelope.command.mutationScope == nil ? nil : mutationSeq, result: value)
     }
 }

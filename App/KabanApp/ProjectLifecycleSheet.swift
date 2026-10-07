@@ -19,6 +19,7 @@ import KabanBoardCore
                 let url = try URL(resolvingBookmarkData: data, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale)
                 if stale { error = "Разрешение папки устарело. Выберите папку снова." }
                 else if url.startAccessingSecurityScopedResource() { active[path] = url }
+                else { error = "Не удалось восстановить разрешение папки. Выберите её снова." }
             }
         } catch { self.error = "Не удалось восстановить доступ к папке. Выберите её снова. " + error.localizedDescription }
     }
@@ -118,7 +119,8 @@ struct ProjectLifecycleSheet: View {
     }
     private var formHeight: CGFloat {
         if removing { return 220 }
-        if model.phase == .applied || model.draft.showsIdentity { return 390 }
+        if model.phase == .applied { return 410 }
+        if model.draft.showsIdentity { return 390 }
         if model.formError != nil || model.isPending { return 340 }
         return 270
     }

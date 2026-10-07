@@ -26,6 +26,12 @@ FE-03 подготовлен отдельно от этой базы: натив
 по capabilities, optional permissions и защита старого journal owner при shutdown.
 Проверки и незавершённая live-приёмка — [отчёт FE-03](development/frontend-fe-03-2026-10-07.md).
 До принятия PR FE-03 основной checkout не содержит его реализацию.
+FE-04 подготовлена в отдельной ветке с локальной зависимостью FE-03: формы
+Add/Relink/Remove, durable project drafts, folder bookmarks и серверные reads.
+Native private DB сценарий проверил настоящие отказы, Backlog, reopening,
+сохранение ID при relink и authoritative remove. [Отчёт FE-04](development/frontend-fe-04-2026-10-07.md).
+Первые три критерия FE-04 отмечены; signed App/helper grants после restart
+не проверены. Её PR в main публикуется после принятия #94, по одной задаче в PR.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -80,8 +86,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять frontend-инкремент FE-03 и завершить его live-зависимости; затем FE-04
-   live-проекты, по одной задаче в PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
+1. Принять frontend-инкремент FE-03, затем отдельный FE-04 и завершить их
+   штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.
 3. Завершить production Cursor/MCP, недостающие wire/producers и штатную

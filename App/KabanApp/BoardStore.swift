@@ -29,7 +29,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
     var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
-    var visibleIDs: [ProjectID] = []
+    var visibleIDs: [ProjectID] { session.visibleIDs }
     var selectedProjectID: ProjectID? { get { session.selectedProjectID } set { session.selectedProjectID = newValue } }
     var selectedID: TaskID? { session.selectedID }
     var detail: TaskDetail? { session.detail }
@@ -67,7 +67,6 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         previous?.cancel()
         subscription = Task { await previous?.value; await session.run() }
     }
-    func updateVisibleProjects() { visibleIDs = session.visibleIDs }
     func select(_ id: TaskID?) async { await session.select(id) }
     func prepareCreation() { session.prepareCreation() }
     func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
@@ -133,6 +132,10 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     func projectCaption(_ id: ProjectID) -> String {
         guard let project = projection?.projects[id] else { return "Нет данных" }
         if project.availability == .missing { return "Папка недоступна" }
+        let missingPipeline = projection?.ephemeral.schedulerFlags.contains { flag in
+            if case .projectUnavailable(let projectID, .noPipeline, _) = flag { return projectID == id }; return false
+        } == true || projection?.pipelines[id]?.issues.contains { $0.code == "pipeline_missing" } == true
+        if missingPipeline { return "Пайплайн не настроен" }
         if projection?.pipelines[id]?.isValid == false { return "Пайплайн некорректен" }
         if projection?.ephemeral.schedulerFlags.contains(.projectPaused(id)) == true { return "Новые запуски на паузе" }
         let waiting = projection?.tasks.values.filter { $0.projectId == id && $0.state.status == .waitingHuman }.count ?? 0
@@ -149,6 +152,6 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         guard can(.createTask), let id = projectID ?? selectedProjectID else { return }
         selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
-    func hide(_ id: ProjectID) { session.hide(id); updateVisibleProjects() }
-    func show(_ id: ProjectID) { session.show(id); updateVisibleProjects() }
+    func hide(_ id: ProjectID) { session.hide(id) }
+    func show(_ id: ProjectID) { session.show(id) }
 }

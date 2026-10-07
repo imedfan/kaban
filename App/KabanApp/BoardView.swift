@@ -48,7 +48,6 @@ struct BoardView: View {
                store.projection?.tasks[id]?.projectId == project,
                store.session.drafts?.record(for: .create(project)) == nil { store.sheet = nil }
         }
-        .onChange(of: store.session.visibleIDs, initial: true) { _, _ in store.updateVisibleProjects() }
         .onChange(of: store.projection == nil) { _, loading in
             if !loading {
                 collapsed = Set(lanes.filter { $0.columns.allSatisfy { $0.taskIds.isEmpty } }.map(\.project.id))
@@ -118,9 +117,11 @@ struct BoardView: View {
                     ForEach(store.projection?.projectOrder ?? [], id: \.self) { id in
                         if let project = store.projection?.projects[id] { projectRow(project) }
                     }
-                    Text("Покажите проект на доске через его меню.")
-                        .font(.system(size: 11)).foregroundStyle(theme.faint)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 8)
+                    if (store.projection?.projectOrder ?? []).contains(where: { !store.visibleIDs.contains($0) }) {
+                        Text("Покажите проект на доске через его меню.")
+                            .font(.system(size: 11)).foregroundStyle(theme.faint)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.top, 8)
+                    }
                 }.padding(.horizontal, 12)
             }
             macCard.padding(12)
