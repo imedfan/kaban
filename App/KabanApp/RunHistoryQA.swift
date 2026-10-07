@@ -38,7 +38,7 @@ import KabanBoardCore
         let at = Date(timeIntervalSince1970: 1_791_375_000)
         return [
             .init(id: "qa-log-live", taskId: task, stageId: "dev", number: 3, status: .running, requestedModel: "composer-1", actualModelName: nil, countsTowardLimits: true, startedAt: at, logPath: "/private/qa/logs/run-3.jsonl"),
-            .init(id: "qa-log-wip", taskId: task, stageId: "dev", number: 2, status: .killed, endReason: .pausedByHuman, requestedModel: "composer-1", actualModelName: "Composer", countsTowardLimits: false, startedAt: at.addingTimeInterval(-600), endedAt: at.addingTimeInterval(-500), exitCode: 130, logPath: "/private/qa/logs/run-2.jsonl", wipRef: "refs/kaban/wip/SHOP-31/qa-log-wip"),
+            .init(id: "qa-log-wip", taskId: task, stageId: "dev", number: 2, status: .killed, endReason: .pausedByHuman, requestedModel: "composer-1", actualModelName: "Composer", countsTowardLimits: false, startedAt: at.addingTimeInterval(-600), endedAt: at.addingTimeInterval(-500), exitCode: 130, logPath: "/private/qa/logs/run-2.jsonl", wipRef: mode == "wip-long" ? "refs/kaban/wip/" + String(repeating: "long-unicode-reference-", count: 80) : "refs/kaban/wip/SHOP-31/qa-log-wip"),
             .init(id: "qa-log-old", taskId: task, stageId: "test", number: 1, status: .failed, endReason: .gateFailed, requestedModel: "provider/model-with-a-long-name", countsTowardLimits: true, startedAt: at.addingTimeInterval(-1000), endedAt: at.addingTimeInterval(-900), exitCode: 1)
         ]
     }
@@ -129,7 +129,7 @@ extension BoardQA {
         await store.select("SHOP-31"); await store.session.readRunHistory(); store.detailTab = "Запуски"
         guard let run = store.session.runHistory?.first else { throw failure("QA run history missing") }
         if mode == "history" { return true }
-        if mode == "wip", let wip = store.session.runHistory?.first(where: { $0.wipRef != nil }) { store.beginWIPRestore(wip) }
+        if mode == "wip" || mode == "wip-long", let wip = store.session.runHistory?.first(where: { $0.wipRef != nil }) { store.beginWIPRestore(wip) }
         else { store.logRunRoute = run }
         return true
     }
