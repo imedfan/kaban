@@ -427,17 +427,8 @@ struct BoardView: View {
                         Text(group.title).font(.system(size: 13, weight: .semibold)).padding(.horizontal, 4)
                         ScrollView(.vertical) {
                             LazyVStack(spacing: 6) {
-                                ForEach(lanes, id: \.project.id) { lane in
-                                    ForEach(columns(lane), id: \.stage.id) { column in
-                                        ForEach(column.taskIds.filter { id in
-                                            guard let card = store.projection?.tasks[id] else { return false }
-                                            return store.matches(id) && BoardKindGroup.group(card: card, stage: column.stage) == group
-                                        }, id: \.self) { id in
-                                            if let card = store.projection?.tasks[id] {
-                                                taskButton(card, project: lane.project, stageChip: lane.project.name + " · " + column.stage.name)
-                                            }
-                                        }
-                                    }
+                                ForEach(compactCards(in: group)) { item in
+                                    taskButton(item.card, project: item.project, stageChip: item.stageName)
                                 }
                             }.padding(.bottom, 4)
                         }
@@ -446,6 +437,25 @@ struct BoardView: View {
                 }
             }.padding(.bottom, 4)
         }.frame(width: width)
+    }
+    private struct CompactCard: Identifiable {
+        let card: TaskCard
+        let project: ProjectSummary
+        let stageName: String
+        var id: TaskID { card.id }
+    }
+    private func compactCards(in group: BoardKindGroup) -> [CompactCard] {
+        var result: [CompactCard] = []
+        for lane in lanes {
+            for column in columns(lane) {
+                for id in column.taskIds {
+                    guard store.matches(id), let card = store.projection?.tasks[id] else { continue }
+                    guard BoardKindGroup.group(card: card, stage: column.stage) == group else { continue }
+                    result.append(.init(card: card, project: lane.project, stageName: lane.project.name + " · " + column.stage.name))
+                }
+            }
+        }
+        return result
     }
     private var macCard: some View {
         VStack(alignment: .leading, spacing: 10) {
