@@ -186,10 +186,10 @@ public struct RunLogEntry: Identifiable, Hashable, Sendable {
         return event
     }
     /// Export exactly the loaded normalized payloads; omitted records require a separate read.
-    public func exportLoadedRecords() throws -> Data {
+    public func exportLoadedRecords() async throws -> Data {
         struct Record: Encodable { let offset: Int64; let event: AgentEvent }
         let records = entries.compactMap { entry in entry.event.map { Record(offset: entry.offset, event: $0) } }
-        return try KabanCoding.makeEncoder().encode(records)
+        return try await Task.detached(priority: .userInitiated) { try KabanCoding.makeEncoder().encode(records) }.value
     }
     private func invalidate() {
         generation = UUID(); tail?.cancel(); tail = nil; isTailing = false
@@ -235,11 +235,13 @@ public struct RunLogEntry: Identifiable, Hashable, Sendable {
     /// Encoding/line counting of large output happens outside the UI actor.
     private func prepare(_ batch: LogBatch) async throws -> [RunLogEntry] {
         let limits = limits
-        return try await Task.detached(priority: .userInitiated) {
+        let worker = Task.detached(priority: .userInitiated) {
             try batch.events.enumerated().map { index, event in
-                try RunLogEntry(offset: batch.fromOffset + Int64(index), event: event, limits: limits)
+                try Task.checkCancellation()
+                return try RunLogEntry(offset: batch.fromOffset + Int64(index), event: event, limits: limits)
             }
-        }.value
+        }
+        return try await withTaskCancellationHandler(operation: { try await worker.value }, onCancel: { worker.cancel() })
     }
     private func append(_ prepared: [RunLogEntry], batch: LogBatch) throws {
         guard batch.fromOffset <= nextOffset else { throw invalid("В логе пропущены записи. Повторите чтение с последнего смещения.") }
@@ -274,6 +276,10 @@ public struct RunLogEntry: Identifiable, Hashable, Sendable {
     }
     private func beginTail(_ owner: UUID) {
         guard let id = runID, matches(owner), tail == nil else { return }
+        // Closed history is read sequentially with consumer backpressure.
+        // Streaming a backlog into a bounded transport queue can overflow while
+        // TextKit is laying out a batch; no records are skipped to compensate.
+        if isComplete == true { beginClosedHistoryRead(owner); return }
         let stream = client.tailLog(runId: id, fromOffset: nextOffset)
         isTailing = true
         tail = Task { [weak self] in
@@ -296,10 +302,28 @@ public struct RunLogEntry: Identifiable, Hashable, Sendable {
             } catch { self?.fail(error, owner: owner) }
         }
     }
+    private func beginClosedHistoryRead(_ owner: UUID) {
+        isTailing = true
+        tail = Task { [weak self] in
+            while let self, self.matches(owner) {
+                await self.fetch(from: self.nextOffset, placement: .append, owner: owner, startTail: false)
+                guard self.matches(owner), self.state == .ready else { return }
+                if self.isComplete != true || self.nextOffset == self.endOffset {
+                    self.tail = nil; self.isTailing = false
+                    if self.isComplete != true { self.beginTail(owner) }
+                    return
+                }
+                // Permit a native frame between backlog pages. Closing/switching
+                // invalidates this owner and cancels the wait immediately.
+                do { try await Task.sleep(for: .milliseconds(25)) }
+                catch { return }
+            }
+        }
+    }
     private func fail(_ error: Error, owner: UUID) {
         guard matches(owner) else { return }
         tail?.cancel(); tail = nil; isTailing = false
-        let failure = (error as? CommandError) ?? .init(code: "log_read_failed", message: error.localizedDescription)
+        let failure = (error as? CommandError) ?? .init(code: "log_read_failed", message: "Чтение прервано. Повторите чтение с записи \(nextOffset).")
         if failure.code == CommandError.logOffsetExpiredCode {
             let prefix = failure.params["availableFromOffset"].flatMap(Int64.init).flatMap { $0 >= 0 ? $0 : nil }
             availableFromOffset = prefix; state = .expired(availableFromOffset: prefix)

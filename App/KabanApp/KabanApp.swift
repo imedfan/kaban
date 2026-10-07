@@ -21,7 +21,7 @@ import KabanProtocol
                 Button("Новая задача") { runtime.store?.beginCreation() }.keyboardShortcut("n")
             }
             CommandGroup(after: .textEditing) {
-                Button("Поиск задач") { runtime.store?.screen = .board; if let store = runtime.store { store.searchRequest += 1 } }.keyboardShortcut("f")
+                Button("Найти") { runtime.store?.find() }.keyboardShortcut("f")
                 Button("Закрыть детали") { Task { await runtime.store?.select(nil) } }.keyboardShortcut("w", modifiers: [.command, .shift])
             }
             CommandMenu("Задача") {

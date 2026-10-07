@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import KabanProtocol
@@ -13,6 +14,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
 
 @MainActor @Observable final class BoardStore {
     private let client: any KabanClient
+    let runLog: RunLogStore
     let session: BoardSession
     let environment: RunnerEnvironmentStore
     let projects: ProjectLifecycleStore
@@ -38,6 +40,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var projectSheet: ProjectSheetRoute?
     var qaLayoutRevision = 0
     var materialTextRoute: MaterialTextRoute?
+    var logSearchRequest = 0
+    var wipRestoreRoute: WIPRestoreRoute?
     var logRunRoute: RunSummary?
     var detailTab = "Описание"
     var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
@@ -66,23 +70,62 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         let sourceKey = usesFixture ? "client.commands.fixture" : commandStorageKey
         let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
+        runLog = RunLogStore(client: client)
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
         environment = RunnerEnvironmentStore(client: client, session: session)
     }
-    isolated deinit { session.stop(); subscription?.cancel() }
+    isolated deinit { runLog.close(); session.stop(); subscription?.cancel() }
     func connect() async {
         guard subscription == nil else { return }
         let session = session
         subscription = Task { await session.run() }
     }
-    func stop() { session.stop(); subscription?.cancel(); subscription = nil }
+    func stop() { runLog.close(); session.stop(); subscription?.cancel(); subscription = nil }
     func retry() {
         let previous = subscription, session = session
         previous?.cancel()
         subscription = Task { await previous?.value; await session.run() }
     }
-    func select(_ id: TaskID?) async { await session.select(id) }
+    func select(_ id: TaskID?) async {
+        if selectedID != id { logRunRoute = nil; wipRestoreRoute = nil; runLog.close() }
+        await session.select(id)
+    }
+    func find() {
+        // The foremost native sheet owns text search, including a separately
+        // loaded source record. Do not steal focus into its covered log/board.
+        if var sheet = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.isVisible })?.attachedSheet {
+            while let next = sheet.attachedSheet { sheet = next }
+            func readers(_ view: NSView) -> [NSTextView] {
+                if let text = view as? NSTextView, !text.isFieldEditor, text.usesFindBar { return [text] }
+                return view.subviews.flatMap(readers)
+            }
+            if let text = sheet.contentView.flatMap({ readers($0).first }) {
+                sheet.makeFirstResponder(text)
+                let action = NSMenuItem(); action.tag = NSTextFinder.Action.showFindInterface.rawValue
+                text.performTextFinderAction(action); return
+            }
+        }
+        if logRunRoute != nil { logSearchRequest += 1 }
+        else { screen = .board; searchRequest += 1 }
+    }
+    func history(for id: TaskID) -> [RunSummary] {
+        guard selectedID == id else { return [] }
+        return session.runHistory ?? detail?.runs ?? []
+    }
+    func beginWIPRestore(_ run: RunSummary) {
+        guard let card = projection?.tasks[run.taskId], selectedID == card.id else { return }
+        let route = WIPRestoreRoute(store: self, card: card, run: run)
+        guard route.request.isAvailable else { return }
+        editorError = nil; wipRestoreRoute = route
+    }
+    func restoreRecord(for id: TaskID) -> ClientCommandJournal.Record? {
+        _ = session.pendingRecords
+        return commandJournal?.records.last {
+            if case .restoreWIP(let task, _, _) = $0.envelope.command { return task == id }
+            return false
+        }
+    }
     func prepareCreation() { session.prepareCreation() }
     func create(_ draft: DemoTaskDraft, in projectID: ProjectID) async {
         _ = await create(draft, body: draft.body, in: projectID)

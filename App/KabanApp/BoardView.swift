@@ -754,7 +754,8 @@ struct TaskDetailView: View {
             }
         }.background(theme.dark ? Color(hex: 0x242429) : Color(hex: 0xfcfcfe))
             .sheet(item: $store.materialTextRoute) { MaterialTextSheet(route: $0) }
-            .sheet(item: $store.logRunRoute) { run in TaskLogPageSheet(store: store, run: run) }
+            .sheet(item: $store.logRunRoute) { run in RunLogSheet(store: store, run: run) }
+            .sheet(item: $store.wipRestoreRoute) { route in WIPRestoreSheet(store: store, route: route) }
             .onChange(of: store.selectedID) { _, _ in store.detailTab = "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil; openingError = nil }
     }
     private var availableRuns: [RunSummary]? {
@@ -902,29 +903,69 @@ struct TaskDetailView: View {
             Button("Обновить") { Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true))
                 .disabled(store.session.historyReadState == .loading)
         }
+        if let id = store.selectedID, let record = store.restoreRecord(for: id) {
+            Text(restoreStatus(record.phase)).font(.system(size: 11)).foregroundStyle(theme.secondary)
+                .textSelection(.enabled)
+                .task(id: record.phase) {
+                    if record.phase == .applied { await store.session.retryDetail(); await store.session.readRunHistory() }
+                }
+        }
         if store.session.historyReadState == .loading { ProgressView("Читаем историю…").controlSize(.small) }
         if case .unavailable(let failure) = store.session.historyReadState { Text(failure.message).font(.system(size: 12)).foregroundStyle(theme.secondary) }
+        if let id = store.selectedID, let card = store.projection?.tasks[id] {
+            Text("Попытка в текущем заходе в стадию: \(card.attempt) / \(card.maxAttempts.map(String.init) ?? "лимит неизвестен")")
+                .font(.system(size: 11)).foregroundStyle(theme.secondary)
+        }
         if let values {
             if values.isEmpty { empty("Запусков пока нет") }
             ForEach(values, id: \.id) { run in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("\(stageName(run.stageId, detail: store.detail)) · попытка \(run.number)").font(.system(size: 12, weight: .semibold))
+                        Text("\(stageName(run.stageId, detail: store.detail)) · запуск №\(run.number)").font(.system(size: 12, weight: .semibold))
                         Spacer(); Text(runStatus(run.status)).font(.system(size: 10)).foregroundStyle(theme.secondary)
                     }
                     Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                     Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary)
-                    Text(detailDate(run.startedAt)).font(.system(size: 10)).foregroundStyle(theme.faint)
-                    if let reason = run.endReason { Text("Причина завершения: " + reason.rawValue).font(.system(size: 11)).foregroundStyle(theme.secondary) }
+                    Text("Начало: " + detailDate(run.startedAt)).font(.system(size: 10)).foregroundStyle(theme.faint)
+                    Text(run.endedAt.map { "Завершение: " + detailDate($0) } ?? "Завершение не подтверждено").font(.system(size: 10)).foregroundStyle(theme.faint)
+                    Text(run.countsTowardLimits ? "Учитывается в лимите попыток" : "Не учитывается в лимите попыток").font(.system(size: 10)).foregroundStyle(theme.secondary)
+                    Text(run.stageId == store.projection?.tasks[run.taskId]?.stageId ? "Стадия текущей задачи" : "Предыдущая стадия").font(.system(size: 10)).foregroundStyle(theme.faint)
+                    if let exit = run.exitCode { Text("Код завершения: \(exit)").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary) }
+                    if let ref = run.wipRef {
+                        Text("WIP: " + ref).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    } else { Text("WIP не передан").font(.system(size: 10)).foregroundStyle(theme.faint) }
+                    if let end = run.endedAt, end >= run.startedAt {
+                        Text("Длительность: \(Int(end.timeIntervalSince(run.startedAt))) с").font(.system(size: 10)).foregroundStyle(theme.faint)
+                    }
+                    Text("Номер попытки в заходе не передан").font(.system(size: 10)).foregroundStyle(theme.faint)
+                    if let reason = run.endReason { Text("Причина завершения: " + runEndReason(reason)).font(.system(size: 11)).foregroundStyle(theme.secondary) }
                     if let path = run.logPath { Text(path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
-                    Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
+                    HStack {
+                        Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
+                        if run.wipRef != nil, let card = store.projection?.tasks[run.taskId],
+                           WIPRestoreRequest(card: card, run: run, pipeline: store.projection?.pipelines[card.projectId]).isAvailable {
+                            Button("Восстановить WIP…") { store.beginWIPRestore(run) }.buttonStyle(KabanButtonStyle(compact: true))
+                                .disabled(!store.can(.restoreWIP) || store.session.pending(in: .task(card.id)) != nil)
+                                .help(store.unavailableReason(.restoreWIP))
+                        }
+                    }
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 9))
             }
         } else { empty("История ещё не загружена"); Button("Загрузить историю") { Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true)) }
     }
+    private func restoreStatus(_ phase: ClientCommandPhase) -> String {
+        switch phase {
+        case .sending: "Отправляем восстановление WIP…"
+        case .deliveryUncertain: "Проверяем исход отправки восстановления…"
+        case .awaitingEvent, .awaitingEffect: "Служба восстанавливает WIP. Ожидаем подтверждение."
+        case .applied: "Восстановление WIP подтверждено службой."
+        case .rejected(let error), .effectFailed(let error): "WIP не восстановлен: " + error.message
+        case .superseded: "Восстановление WIP отменено более поздним действием."
+        }
+    }
     @ViewBuilder private func runLink(_ id: RunID?, detail: TaskDetail) -> some View {
         if let id {
-            if let run = detail.runs.first(where: { $0.id == id }) { Button("Лог · попытка \(run.number)") { store.logRunRoute = run }.font(.system(size: 11)).buttonStyle(.link) }
+            if let run = detail.runs.first(where: { $0.id == id }) { Button("Лог · запуск №\(run.number)") { store.logRunRoute = run }.font(.system(size: 11)).buttonStyle(.link) }
             else { Text("Запуск: " + id.rawValue + " · сведения ещё недоступны").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).textSelection(.enabled) }
         }
     }
@@ -934,6 +975,26 @@ struct TaskDetailView: View {
         format.timeZone = .current
         format.dateFormat = "d MMM yyyy, HH:mm"
         return format.string(from: date)
+    }
+    private func runEndReason(_ reason: RunEndReason) -> String {
+        switch reason {
+        case .crash: "сбой процесса"
+        case .stallTimeout: "нет активности"
+        case .wallTimeout: "истекло время запуска"
+        case .noFinalCall: "нет завершающего вызова"
+        case .gateFailed: "проверка не пройдена"
+        case .rateLimit: "лимит запросов"
+        case .runnerAuth: "нужна авторизация"
+        case .daemonRestart: "служба перезапущена"
+        case .silentExit: "процесс завершился без результата"
+        case .modelSubstituted: "модель заменена"
+        case .readonlyViolation: "нарушен режим чтения"
+        case .completed: "стадия завершена"
+        case .returned: "возврат на стадию"
+        case .askedHuman: "вопрос человеку"
+        case .pausedByHuman: "пауза пользователем"
+        case .movedByHuman: "перенос пользователем"
+        }
     }
     private func runStatus(_ status: RunStatus) -> String {
         switch status {

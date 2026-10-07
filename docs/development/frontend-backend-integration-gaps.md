@@ -51,3 +51,17 @@ FE-08 различает этот отказ и пустой результат,
 read-контракт с task/run ownership, offset/version и legacy совместимостью.
 Это ограничение источника данных; frontend не восстанавливает материалы из
 retained journal и не подменяет текст fixtures.
+
+
+## FE-09: историческая попытка и заход в стадию
+
+Проверено по RunSummary и StoreDetail.swift на базе FE-08 0c579a9.
+StoreDetail присваивает RunSummary.number = d.runs.count + 1: это порядковый
+номер запуска задачи. Wire DTO не содержит номер попытки внутри исторического
+захода и идентификатор stage_entry; таблица stage_entry остаётся внутренней.
+Повторный вход в ту же стадию нельзя отличить по одному stageId.
+UI поэтому показывает «запуск №», текущий TaskCard.attempt/maxAttempts и
+явную неизвестность исторической попытки. Нужны backward-compatible optional
+поля attempt/stageEntry в history; legacy fixtures и новые producers должны
+проверяться отдельно. Требование FE-09 сохраняется, локальная реконструкция
+по неполному журналу его не заменяет.

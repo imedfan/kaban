@@ -122,6 +122,7 @@ struct RunLogTextView: NSViewRepresentable {
             guard let scroll, let text = scroll.documentView as? NSTextView, let storage = text.textStorage else { return }
             applying = true; defer { applying = false }
             let shouldFollow = parent.mode == .latest && (forceScroll || (parent.followsLatest && atBottom) || prepared.isEmpty)
+            text.textLayoutManager?.textViewportLayoutController.layoutViewport()
             let character = text.characterIndexForInsertion(at: .init(x: text.visibleRect.minX + 14, y: text.visibleRect.minY + 3))
             let anchor = ranges.last(where: { $0.range.location <= character })
             let withinAnchor = anchor.map { max(0, character - $0.range.location) } ?? 0
@@ -163,13 +164,16 @@ struct RunLogTextView: NSViewRepresentable {
                 if !parent.followsLatest { parent.followsLatest = true }
             } else if let anchor, let match = ranges.first(where: { $0.offset == anchor.offset }), let screenY {
                 let index = match.range.location + min(withinAnchor, max(0, match.range.length - 1))
+                // TextKit2 invalidates non-contiguous layout after prefix removal.
+                // Materialize the retained reading anchor before measuring it.
+                text.scrollRangeToVisible(NSRange(location: index, length: 0))
+                text.textLayoutManager?.textViewportLayoutController.layoutViewport()
                 let rect = text.firstRect(forCharacterRange: NSRange(location: index, length: 0), actualRange: nil)
-                let target = scroll.contentView.bounds.minY + rect.minY - screenY
                 // Text view coordinates are flipped; screen coordinates grow upwards.
                 let adjusted = scroll.contentView.bounds.minY - (rect.minY - screenY)
-                _ = target
                 let y = max(0, min(adjusted, max(0, text.bounds.height - scroll.contentView.bounds.height)))
                 scroll.contentView.scroll(to: .init(x: 0, y: y)); scroll.reflectScrolledClipView(scroll.contentView)
+                text.textLayoutManager?.textViewportLayoutController.layoutViewport()
             }
             // Preserve selections by record/character, including prefix eviction.
             // A removed selection must not silently select a different record.
@@ -256,8 +260,9 @@ private struct LogTextRecord: Equatable, Sendable {
             heading = "Крупная запись · \(entry.sourceBytes) байт · \(entry.sourceLines) строк"
             body = "Открыть запись целиком"; destination = .source
         }
-        text = heading + (body.isEmpty ? "" : "\n" + body) + "\n\n"
-        headingLength = heading.utf16.count
+        let numberedHeading = "#\(entry.offset) · " + heading
+        text = numberedHeading + (body.isEmpty ? "" : "\n" + body) + "\n\n"
+        headingLength = numberedHeading.utf16.count
         link = destination
         linkLocation = destination == .source ? headingLength + 1 : 0
         linkLength = destination == .source ? body.utf16.count : headingLength

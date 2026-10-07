@@ -127,6 +127,7 @@ extension BoardQA {
         store.materialTextRoute = .init(id: "complete", title: "Полный текст", text: exact)
         try await waitUntil("material text sheet") { window.attachedSheet != nil }
         func textViews(_ view: NSView) -> [NSTextView] { (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap(textViews) }
+        try await waitUntil("complete readonly source") { window.attachedSheet?.contentView.flatMap({ textViews($0).first })?.string == exact }
         guard let textView = window.attachedSheet?.contentView.flatMap({ textViews($0).first }), textView.string == exact, !textView.isEditable else { throw failure("Full material missing or editable") }
         guard let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.attachedSheet?.windowNumber ?? 0, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53),
               window.attachedSheet?.performKeyEquivalent(with: escape) == true else { throw failure("Material Escape missing") }

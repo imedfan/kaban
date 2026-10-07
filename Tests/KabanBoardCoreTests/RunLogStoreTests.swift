@@ -87,7 +87,8 @@ final class RunLogStoreTests: XCTestCase {
         XCTAssertNil(store.entries.last?.event, "On-demand read must not bypass resident memory limits")
         XCTAssertLessThanOrEqual(store.residentBytes, limits.maximumBytes)
         XCTAssertLessThanOrEqual(store.residentLines, limits.maximumLines)
-        let exported = try XCTUnwrap(JSONSerialization.jsonObject(with: store.exportLoadedRecords()) as? [[String: Any]])
+        let data = try await store.exportLoadedRecords()
+        let exported = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
         XCTAssertEqual(exported.compactMap { $0["offset"] as? Int }, [51, 52])
     }
     @MainActor func testExpiredMissingAndEmptyLogsRemainDistinct() async throws {
@@ -155,11 +156,9 @@ final class RunLogStoreTests: XCTestCase {
         let store = RunLogStore(client: client, limits: .init(maximumRecords: 5, maximumBytes: 4_096, maximumLines: 100, pageSize: 5))
         defer { store.close() }
         await store.select("run")
-        XCTAssertTrue(store.isTailing, "Completed logs may still have unread pages")
-        client.publish(batch("run", from: 5, count: 5))
-        try await wait { store.entries.first?.offset == 5 }
-        client.finish()
-        try await wait { !store.isTailing && store.state == .ready }
+        try await wait { store.nextOffset == 10 && !store.isTailing && store.state == .ready }
+        XCTAssertTrue(client.tailRequests.isEmpty, "Closed history must use sequential reads instead of overflowing a live stream")
+        XCTAssertEqual(client.requests.prefix(2).map(\.offset), [0, 5])
         XCTAssertEqual(store.entries.map(\.offset), [5, 6, 7, 8, 9])
         await store.loadEarlier()
         XCTAssertEqual(store.mode, .history); XCTAssertFalse(store.isTailing)
