@@ -1,0 +1,9 @@
+{
+  "checks" : [
+    "private daemon restarted after journal deletion",
+    "approve remains queued for merge; both returns remain queued at explicit dev",
+    "exact comment remains once in durable getTaskDetail feed",
+    "keepBranch archive retains actual result commit; deleted branch absent; main unchanged"
+  ],
+  "result" : "passed"
+}

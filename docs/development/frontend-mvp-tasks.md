@@ -502,8 +502,9 @@ retention/WIP/reopen/missing-log сценарии прошли. Историче
 
 ## FE-10. Реализовать ответы на вопросы и замечания агенту
 
-**Статус:** реализация подготовлена в `codex/fe-10-answer-flow` от принятого
-FE-09/main `05b60c5b`; [отчёт FE-10](frontend-fe-10-2026-10-07.md).
+**Статус:** принята в main через [PR #101](https://github.com/imedfan/kaban/pull/101),
+merge `6ae93e0`; все шесть CI jobs финального кода `9849a30` успешны.
+[Отчёт FE-10](frontend-fe-10-2026-10-07.md) фиксирует исходную базу FE-09 `05b60c5b`.
 604 tests, App build, native light/dark, durable ответы после daemon restart
 и удаления journal прошли. Продолжение проверено до серверной очереди той же
 agent-стадии; installed helper/живой Cursor и ручная системная приёмка остаются в FE-22.
@@ -547,6 +548,12 @@ Checkbox относятся к Core/native/private stdio сценариям. С�
 
 ## FE-11. Реализовать полноценный Human Review
 
+**Статус:** реализация подготовлена в `codex/fe-11-human-review` от принятого
+FE-10/main `6ae93e0`; код `7464467`, [отчёт FE-11](frontend-fe-11-2026-10-08.md).
+615 tests, App build, native light/dark и private daemon с настоящими git/gates,
+открытием клона в Cursor, отменой/архивом ветки и restart после удаления journal
+прошли. Installed helper, физическая клавиатура/указатель и живой Cursor CLI остаются в FE-22.
+
 **Приоритет:** P0
 
 **Зависимости:** FE-02, FE-07, FE-08; ссылки на лог/попытки — FE-09.
@@ -575,10 +582,18 @@ Checkbox относятся к Core/native/private stdio сценариям. С�
 
 ### Критерии приёмки
 
-- [ ] Review позволяет оценить реальный результат, открыть клон и отправить замечания без CLI-команд пользователя.
-- [ ] Approve ведёт в merge queue; UI не выставляет Done сразу после ответа команды.
-- [ ] Возврат/отклонение/keepBranch проверены; invalid_state сохраняет комментарий и обновляет детали.
-- [ ] Double click/shortcut и reconnect не отправляют второе решение; return target всегда явная и допустимая.
+- [x] Review позволяет оценить реальный результат, открыть клон и отправить замечания без CLI-команд пользователя.
+- [x] Approve ведёт в merge queue; UI не выставляет Done сразу после ответа команды.
+- [x] Возврат/отклонение/keepBranch проверены; invalid_state сохраняет комментарий и обновляет детали.
+- [x] Double click/shortcut и reconnect не отправляют второе решение; return target всегда явная и допустимая.
+
+Проверено 8 октября 2026 на коде `7464467`: [отчёт и кадры](frontend-fe-11-2026-10-08.md).
+Checkbox относятся к Core/native/private stdio сценариям. Возврат отправляет
+явную writable agent target из on_success; nil default не восстанавливается UI.
+Комментарии сохраняются в TaskDetail.feed атомарно, с redaction и без humanAnswered.
+Стоимость/usage, точные per-file +/− и отдельный diff разрешения конфликта
+[не переданы бэкендом](frontend-backend-integration-gaps.md#fe-11-материалы-ревью);
+неизвестные значения не подменяются. Merge после очереди проверяется отдельно в FE-12.
 
 ## FE-12. Показать очередь merge, конфликты и подтверждённое завершение
 

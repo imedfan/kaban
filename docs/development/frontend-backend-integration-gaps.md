@@ -5,6 +5,9 @@
 фиксирует расхождение предположения «BE-01–20 завершены» и фактического кода;
 UI не заменяет отсутствующие producers локальными догадками.
 
+Дополнение FE-11 проверено 8 октября 2026 на базе main `6ae93e0` и коде `7464467`;
+исходный срез FE-03/04 выше остаётся историей своих проверок.
+
 | Для frontend | Фактический контракт | Необходимое завершение |
 | --- | --- | --- |
 | FE-03: путь Cursor, готовность окружения | `Sources/KabanDaemonCore/DaemonService.swift`: checkEnvironment/getCursorEnvironment/configureCursor объявлены unsupported. `StoreCommands.swift` не реализует эти wire commands. | Typed reads и durable configureCursor с replay, journal cursorEnvironmentChanged; path из чтения после restart. Факты version/auth/git/sandbox получают реальные producers, без запуска модели. |
@@ -65,3 +68,25 @@ UI поэтому показывает «запуск №», текущий Task
 поля attempt/stageEntry в history; legacy fixtures и новые producers должны
 проверяться отдельно. Требование FE-09 сохраняется, локальная реконструкция
 по неполному журналу его не заменяет.
+
+## FE-11: материалы ревью
+
+`Sources/KabanKit/Git/TaskClone.swift` формирует diffstat через `git diff --stat`.
+Знаки +/− масштабируются; пути могут быть сокращены. Producer в StoreStages
+передаёт этот текст в TaskArtifact. FE-11 распознаёт формат, показывает переданный
+total changes и количество строк списка, но точные per-file additions/deletions
+оставляет неизвестными; исходник доступен целиком. Для точной таблицы нужен
+структурированный backward-compatible artifact либо полный `--numstat` с путями.
+Renderer поддерживает exact numstat, но текущий producer его не отправляет.
+
+TaskDetail/RunSummary/TaskArtifact не передают стоимость и token usage. Merge
+conflict виден через bounceByReason и issue materials; отдельный список правок
+при разрешении конфликта не поступает. UI показывает факт предыдущего конфликта
+и текущий результат, не реконструирует такой diff из неполного журнала.
+Нужны реальные producers и optional wire-поля; требования UC-07/08 сохраняются.
+
+Найденный пробел durable review comment исправлен в этом FE-11: requestChanges
+сохраняет redacted review_comment в TaskDetail.feed в одной транзакции с state,
+journal и outbox. Replay не дублирует запись; invalid_state не пишет её.
+Wire test и [настоящий daemon restart/retention](frontend-fe-11-2026-10-08.md)
+подтверждают сохранность. Новая запись не является humanAnswered и не принимает вопрос.

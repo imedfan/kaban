@@ -1,0 +1,535 @@
+{
+  "code_sha": "7464467c64a63a34bb6c417e22300eb7a01964b0",
+  "base": "6ae93e0436e37e5eb63b7bf4f231ef9f31a46bef",
+  "date": "2026-10-08",
+  "scale": 2,
+  "frames": [
+    {
+      "file": "changes-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "f0e292168e726de3c02dc0b82624943cf4a24b4ebfcdbb48fb0bc048c833ac06",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "changes"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "changes-light-large.png",
+      "width": 2880,
+      "height": 1800,
+      "window_points": [
+        1440,
+        900
+      ],
+      "sha256": "3dfeaa71b436ae27d7f029b420fe142301042fc87a214c244a4e26059676fdca",
+      "parameters": {
+        "theme": "light",
+        "size": "large",
+        "mode": "changes"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "changes-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "27641b3ba5bed3d8817389d6da09deea646f4795bd0dad349c27072f9a0f5e3e",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "changes"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "commits-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "e397a9beb2b2824ad0e86c53eb5cd71d35fa8ae7cb779b9b8f4f69cb22be5a01",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "commits",
+        "artifact": "review-commits"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "conflict-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "37ccbb3a29f539efad6e7bf9a65049146e5280c210177a2cba1d0311e1d05a37",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "conflict"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "empty-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "e0d35f3f835d5501564e3ce8201e00cd8181d8c6ea2596905cd21d16c9719c5a",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "empty"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "error-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "37f13aecba569c12d23670348e33daa6cf83f07762f4d32325a3d15e9ba8e56e",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "error"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "files-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "95349fd7fb57570f6d9ef68b149fdf0428fcb4549faf78c433b17e67e68ca940",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "files",
+        "artifact": "review-files"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "gates-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "744657bde6d41c2f677e12e9627e8267b49c0b1c136288a6a8af4d800693ed19",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "gates",
+        "artifact": "review-gates"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "initial-summary-light-large-overlap.png",
+      "width": 2880,
+      "height": 1800,
+      "window_points": [
+        1440,
+        900
+      ],
+      "sha256": "074afdf82629f940578746f9387080191187a97df611c57b24ca136a53315c30",
+      "parameters": {
+        "theme": "light",
+        "size": "large",
+        "mode": "summary",
+        "attempt": "first; board pinned header overlapped by cards"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "keep-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "a6d126aa627ed68a992b049b615e07ffe519643529df55aaa1fa27022964d1a8",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "keep"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "live-after-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "6af5310133580af123e94fa5a86a2a73dce26c61737781024b8dd0a3eb4f9645",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "smoke": "review-live-smoke",
+        "source": "bundled daemon/private stdio/new SQLite DB and actual git/gates",
+        "phase": "live-after-light"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "live-before-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "c0a9c1d0389392faf5ec32956137664241b1c5374c5a2a03e5c07c70ad9f564d",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "smoke": "review-live-smoke",
+        "source": "bundled daemon/private stdio/new SQLite DB and actual git/gates",
+        "phase": "live-before-light"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "live-reopen-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "fd837eda19db6ebb2113aecf6f70e644ca674f5ddc056a1d1a6f62c7c49c5e1b",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "smoke": "review-live-smoke",
+        "source": "bundled daemon/private stdio/new SQLite DB and actual git/gates",
+        "phase": "live-reopen-dark"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "long-comment-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "2e86eab88416244b3b44d93c303b08d5e83173b9437ef124a9977e1bb9b3ce30",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "long-comment"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "long-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "1e1e9170f9970923dff43917ec4b53eecec1ec563d21c3c681ecf454b16768aa",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "long"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "native-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "b194cde5521f25f6951d40bec5d244f225afd004bbbc79cf4cdf5829ff995cef",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "smoke": "review-smoke",
+        "mode": "summary; capture after exact lost return reconciliation"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "native-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "0c199fa3dff021ac8319587a81b3282550e68af4a6c7bbc607643aa656281f26",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "smoke": "review-smoke",
+        "mode": "summary; capture after exact lost return reconciliation"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "nil-default-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "980cab80998b111ff737d8dd3841d1c326bd89028c293b32339963dbe9f5d00a",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "nil-default"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "offline-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "0b7d0f0f9969f0b3cc42f07c1b1bde17f42a4e981e2fe20317ef3cbcf0ca5e01",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "offline"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "pending-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "ad0ce5a487de7dd1eccb574240a5c5b8dc13d59cc9c32905586b4bb037a167fa",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "pending"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "pipeline-issues-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "20165cb6e207015ff5fcbe1e7fb759eddfb9805022fc55cc195461e7d350a4fd",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "pipeline-issues"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "reject-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "c7f88620b08737fbe193fc37cbbb6fcf4012dd6c786e4320b33675a638372ce2",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "reject"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "reject-return-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "04e27fb554d6b61746cee384870dd4b13d53b84ab533e88046f91efba40a7f6c",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "reject-return"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "stale-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "ffa791711e4565111dd1456cdcbe4c5671a5dc825b340e5dca6cfc86dd302e96",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "stale"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "summary-dark-large.png",
+      "width": 2880,
+      "height": 1800,
+      "window_points": [
+        1440,
+        900
+      ],
+      "sha256": "8d2312c7d75e9f81f1da4158b01e6afab17d3a377007c5d35a4eb2ee0694441b",
+      "parameters": {
+        "theme": "dark",
+        "size": "large",
+        "mode": "summary"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "summary-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "7354e73765fa2c863888c7d023750d55ce7f9259919dbaa8ff07d00099a4bb0f",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "summary"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "summary-light-large.png",
+      "width": 2880,
+      "height": 1800,
+      "window_points": [
+        1440,
+        900
+      ],
+      "sha256": "a34822576ba585cde66300ee09389e2c75deef2faa5c1dbc915ac4ecc268239d",
+      "parameters": {
+        "theme": "light",
+        "size": "large",
+        "mode": "summary",
+        "attempt": "repeat; overlap not reproduced"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "summary-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "29856bdc0b5cc201ac4089de99d5d49c4c72683719c8ddd0b0d99878d5678ebc",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "summary"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "unknown-files-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "041499c6b152b73cce541002008064d1d23678f4d2734b230ff03f3125adc07b",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "unknown",
+        "artifact": "review-files"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "unknown-light.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "29856bdc0b5cc201ac4089de99d5d49c4c72683719c8ddd0b0d99878d5678ebc",
+      "parameters": {
+        "theme": "light",
+        "size": "minimum",
+        "mode": "unknown"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    },
+    {
+      "file": "unknown-material-dark.png",
+      "width": 2080,
+      "height": 1280,
+      "window_points": [
+        1040,
+        640
+      ],
+      "sha256": "9487ec8df602205fdd6e530db763cb75c750302477cc38a2deca0a4e838eab11",
+      "parameters": {
+        "theme": "dark",
+        "size": "minimum",
+        "mode": "unknown",
+        "artifact": "future"
+      },
+      "capture": "NSWindow/NSView of actual WindowGroup; AppKit layout capture, not compositor"
+    }
+  ]
+}
