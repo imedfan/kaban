@@ -1,0 +1,284 @@
+{
+  "codeSHA": "2b499d2e0db1ed8f76a0a5acedeceb274b558657",
+  "capture": "AppKit WindowGroup with attached native sheet",
+  "frames": [
+    {
+      "file": "move-light.png",
+      "state": "control-move",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-move",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "move-dark.png",
+      "state": "control-move",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-move",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "cancel-light.png",
+      "state": "control-cancel",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-cancel",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "cancel-dark.png",
+      "state": "control-cancel",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-cancel",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "retry-light.png",
+      "state": "control-retry",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-retry",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "retry-dark.png",
+      "state": "control-retry",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-retry",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "stale-dark.png",
+      "state": "control-stale",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-stale",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "error-light.png",
+      "state": "control-error",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-error",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "pending-dark.png",
+      "state": "control-pending",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-pending",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "review-light.png",
+      "state": "control-review",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-review",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "cancel-keep-light.png",
+      "state": "control-cancel-keep",
+      "theme": "light",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "light",
+        "--qa-state",
+        "control-cancel-keep",
+        "--qa-control-long",
+        "YES"
+      ]
+    },
+    {
+      "file": "retry-grant-dark.png",
+      "state": "control-retry",
+      "theme": "dark",
+      "windowPoints": [
+        1040,
+        640
+      ],
+      "pngPixels": [
+        2080,
+        1280
+      ],
+      "args": [
+        "--qa-size",
+        "minimum",
+        "--qa-theme",
+        "dark",
+        "--qa-state",
+        "control-retry",
+        "--qa-control-long",
+        "YES",
+        "--qa-control-grant",
+        "4"
+      ]
+    }
+  ]
+}

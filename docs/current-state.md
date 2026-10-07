@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`366f972` (FE-05, PR #96).
+`39a7361` (FE-06, PR #97).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,7 +17,7 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `366f972`; FE-01 принят в #92, FE-02 —
+Основной каталог обновлён до main `39a7361`; FE-01 принят в #92, FE-02 —
 в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
 CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
@@ -40,11 +40,18 @@ App build, native actions и два запуска App с persisted BoardSet п�
 непроверенную pointer/system приёмку и отсутствующие process/limit facts.
 Все шесть jobs финального FE-05 0dd7172 успешны. Для CI compact cards
 вычисляются вне ViewBuilder; композиция и правила группировки сохранены.
-FE-06 подготовлена отдельной веткой от принятого FE-05: единый exact Markdown
+FE-06 принята в main через [#97](https://github.com/imedfan/kaban/pull/97): единый exact Markdown
 editor/preview, project drafts, stale comparison, typed priority и empty search.
 120 BoardCore + 18 wire tests, native Return/lost-reply/restart и 11 layout
 кадров прошли. [Отчёт FE-06](development/frontend-fe-06-2026-10-07.md).
-Её кода в main пока нет; initial priority в createTask остаётся пробелом UC-02.
+Все шесть CI jobs финального FE-06 `af74cde` успешны. Initial priority
+в createTask остаётся пробелом UC-02.
+FE-07 подготовлена отдельной веткой от принятого FE-06: единые typed task
+controls, drag/keyboard alternative, Mac/project pause, correlated flags и
+сохранение новых clone commits при отмене. Полный Swift suite — 577 tests,
+App build, native control/keyboard smoke и private daemon прошли.
+[Отчёт FE-07](development/frontend-fe-07-2026-10-07.md) фиксирует 12 minimum
+кадров и незавершённую pointer/installed приёмку. В main кода FE-07 пока нет.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -82,8 +89,9 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Настройки проекта пока отображают известные значения из snapshot, включая
 стадии и preset; неизвестные quota/policy/identity не подменяются демочислами.
-Редактирование настроек, добавление реального проекта, Human Review решения,
-принятие файлов, глобальная/проектная пауза и менюбар ещё требуют интеграции.
+Lifecycle проектов и редактор задач приняты в FE-04/06. Редактирование
+настроек, Human Review решения, принятие файлов и менюбар ещё требуют
+интеграции; глобальная/проектная пауза подготовлена в отдельном FE-07.
 Отдельный строковый demo из прежней версии PR не считается реализацией этих функций.
 
 Сборка и проверенные состояния настоящего WindowGroup фиксируются в
@@ -99,7 +107,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельный FE-06; завершить pointer/system FE-05 и зависимости FE-03/04, включая
+1. Принять отдельный FE-07, затем FE-08 (детали/лента/материалы); завершить
+   pointer/system FE-05–07 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.
