@@ -724,20 +724,13 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
+                        HumanAnswerView(store: store, card: card)
                         if let openingError { Text(openingError).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
                                 Label("Обнаружен инцидент", systemImage: "light.beacon.max")
                                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("incident").2)
-                            }
-                            if detail.task.state == .waitingHuman(.question), let request = detail.humanRequests.last {
-                                VStack(alignment: .leading, spacing: 7) {
-                                    Label("Вопрос агента", systemImage: "hand.raised").font(.system(size: 12, weight: .semibold))
-                                    Text(request.question).font(.system(size: 12)).textSelection(.enabled)
-                                    runLink(request.runId, detail: detail)
-                                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 10))
                             }
                             if tab == "Описание" { description(detail) }
                             else if tab == "Лента" { feed(detail) }
@@ -1045,28 +1038,37 @@ struct TaskDetailView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.status("waiting").0.opacity(0.4), lineWidth: 0.5))
     }
     private func detailActions(_ detail: TaskDetail) -> some View {
-        HStack(spacing: 8) {
-            if TaskActions.canPause(detail.task) {
-                Button { store.beginControl(detail.task, action: .pause) } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.pauseTask)).help(store.unavailableReason(.pauseTask))
-            } else if detail.task.state == .paused {
-                Button { store.beginControl(detail.task, action: .resume) } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
+        VStack(alignment: .leading, spacing: 8) {
+            if store.humanAnswers.currentContext(for: detail.task.id)?.card.state == .waitingHuman(.suspiciousFiles) {
+                Text("Набор файлов не принимается · агент получит новый запуск")
+                    .font(.system(size: 11)).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if !TaskActions.canEdit(detail.task), TaskActions.canCancel(detail.task) {
-                Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
-            }
-            if TaskActions.canEdit(detail.task) {
-                Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask) || store.session.detailReadState != .loaded).help(store.unavailableReason(.editTask))
-            }
-            Spacer(minLength: 0)
-            if TaskActions.canCancel(detail.task) {
-                Menu {
-                    Button("Приоритет · \(detail.task.priority)…") { store.editorError = nil; openSheet(.priority(detail.task)) }
-                        .disabled(!store.can(.setPriority))
-                    TaskControlMenu(store: store, card: detail.task)
-                } label: { Label("Действия", systemImage: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
-            }
-            if store.projection?.isSent(detail.task.id) == true { ProgressView().controlSize(.small) }
-        }.disabled(store.projection?.isSent(detail.task.id) ?? false)
+            HStack(spacing: 8) {
+                if store.humanAnswers.draft(for: detail.task.id) != nil {
+                    HumanAnswerSubmitButton(store: store, taskID: detail.task.id)
+                }
+                if TaskActions.canPause(detail.task) {
+                    Button { store.beginControl(detail.task, action: .pause) } label: { Label("Пауза", systemImage: "pause") }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.pauseTask)).help(store.unavailableReason(.pauseTask))
+                } else if detail.task.state == .paused {
+                    Button { store.beginControl(detail.task, action: .resume) } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
+                }
+                if !TaskActions.canEdit(detail.task), TaskActions.canCancel(detail.task) {
+                    Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
+                }
+                if TaskActions.canEdit(detail.task) {
+                    Button("Изменить…") { store.editorError = nil; openSheet(.edit(detail.task, detail.body)) }.buttonStyle(KabanButtonStyle()).disabled(!store.can(.editTask) || store.session.detailReadState != .loaded).help(store.unavailableReason(.editTask))
+                }
+                Spacer(minLength: 0)
+                if TaskActions.canCancel(detail.task) {
+                    Menu {
+                        Button("Приоритет · \(detail.task.priority)…") { store.editorError = nil; openSheet(.priority(detail.task)) }
+                            .disabled(!store.can(.setPriority))
+                        TaskControlMenu(store: store, card: detail.task)
+                    } label: { Label("Действия", systemImage: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
+                }
+                if store.projection?.isSent(detail.task.id) == true, store.humanAnswers.receipt(for: detail.task.id)?.isPending != true { ProgressView().controlSize(.small) }
+            }.disabled(store.projection?.isSent(detail.task.id) ?? false)
+        }
     }
 }
 

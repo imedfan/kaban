@@ -62,11 +62,18 @@ extension KabanClient {
     private var receipts: [CommandID: (CommandEnvelope, CommandReply)] = [:]
     private var notes: [TaskID: [FeedItem]] = [:]
     private var pausedStates: [TaskID: TaskState] = [:]
+    private var questions: [TaskID: [HumanRequest]] = [:]
+    private var answeredQuestions: Set<HumanRequestID> = []
 
 
     public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:],
-                taskRuns: [TaskID: [RunSummary]] = [:], currentEvents: [EphemeralEvent] = []) {
+                taskRuns: [TaskID: [RunSummary]] = [:], currentEvents: [EphemeralEvent] = [],
+                humanRequests: [TaskID: [HumanRequest]] = [:]) {
         self.snapshot = snapshot; self.bodies = taskBodies; self.runs = taskRuns; self.currentEvents = currentEvents
+        self.questions = humanRequests
+        for (id, requests) in humanRequests {
+            notes[id] = requests.map { .init(id: $0.requestId.rawValue, at: Date(), kind: "question", text: $0.question, runId: $0.runId) }
+        }
     }
     public func getSnapshot() async throws -> Snapshot { snapshot }
     public func synchronize() async throws -> SnapshotReplacement {
@@ -85,7 +92,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -113,7 +120,26 @@ extension KabanClient {
             }
             feed += notes[id] ?? []
             feed.sort { $0.at < $1.at }
-            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: runs[id] ?? [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: runs[id] ?? [], humanRequests: questions[id] ?? [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+        case .answerHuman(let id, let text, let requestID):
+            guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
+            let card = snapshot.tasks[index]
+            guard case .waitingHuman = card.state,
+                  snapshot.pipelines.first(where: { $0.projectId == card.projectId })?.stages.first(where: { $0.id == card.stageId })?.kind == .agent else { return invalidState() }
+            let current = questions[id]?.last(where: { !answeredQuestions.contains($0.requestId) })
+            if let requestID, current?.requestId != requestID { return invalidState() }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !text.contains("\0") else {
+                return .error(.init(code: "invalid_request", message: "Напишите ответ или замечание агенту."))
+            }
+            if let maximum = card.maxAttempts, card.attempt >= maximum {
+                guard maximum < Int.max else { return invalidState() }
+                snapshot.tasks[index].maxAttempts = maximum + 1
+            }
+            if let current { answeredQuestions.insert(current.requestId) }
+            if card.state == .waitingHuman(.suspiciousFiles) { snapshot.tasks[index].suspiciousFiles = [] }
+            notes[id, default: []].append(.init(id: commandId.uuidString, at: Date(), kind: "answer", text: text, runId: current?.runId))
+            emit(.humanAnswered(.init(taskId: id, requestId: current?.requestId ?? requestID, text: text)), projectID: card.projectId, commandID: commandId)
+            return update(index, state: .queued(nil), commandId: commandId)
         case .setMascot(let projectID, let seed):
             guard let index = snapshot.projects.firstIndex(where: { $0.id == projectID }) else {
                 return .error(.init(code: "project_not_found", message: "Проект не найден."))

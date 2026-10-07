@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--log-live-smoke") != nil ||  argument("--log-volume-smoke") != nil ||  argument("--log-smoke") != nil ||  argument("--control-live-smoke") != nil || argument("--control-routing-smoke") != nil || argument("--control-smoke") != nil || argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil || argument("--detail-smoke") != nil || argument("--detail-live-smoke") != nil }
+    static var isActive: Bool { argument("--answer-smoke") != nil || argument("--answer-live-smoke") != nil ||  argument("--log-live-smoke") != nil ||  argument("--log-volume-smoke") != nil ||  argument("--log-smoke") != nil ||  argument("--control-live-smoke") != nil || argument("--control-routing-smoke") != nil || argument("--control-smoke") != nil || argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil || argument("--detail-smoke") != nil || argument("--detail-live-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,7 +27,13 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--control-live-smoke") {
+            if let path = argument("--answer-live-smoke") {
+                let checks = try await answerLiveSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--answer-smoke") {
+                let checks = try await answerSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--control-live-smoke") {
                 let checks = try await controlLiveSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
@@ -76,7 +82,7 @@ import Darwin
             }
             Darwin.exit(EXIT_SUCCESS)
         } catch {
-            if let path = argument("--log-live-smoke") ?? argument("--log-smoke") ?? argument("--log-volume-smoke") ?? argument("--control-smoke") ?? argument("--control-routing-smoke") ?? argument("--control-live-smoke"),
+            if let path = argument("--answer-smoke") ?? argument("--answer-live-smoke") ?? argument("--log-live-smoke") ?? argument("--log-smoke") ?? argument("--log-volume-smoke") ?? argument("--control-smoke") ?? argument("--control-routing-smoke") ?? argument("--control-live-smoke"),
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
@@ -259,6 +265,7 @@ import Darwin
         return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears after correlated event or covered receipt and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
     }
     private static func prepare(_ store: BoardStore) async throws {
+        if try await prepareAnswer(store) { return }
         if try await prepareRunHistory(store) { return }
         if try await prepareDetails(store) { return }
         if try await prepareTaskEditor(store) { return }
