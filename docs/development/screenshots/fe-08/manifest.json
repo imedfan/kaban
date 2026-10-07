@@ -1,0 +1,335 @@
+{
+  "sourceHead": "96d9069a575afe60bc67e31b7e9bffd7dff7e4f1",
+  "capture": "real WindowGroup via AppKit backing store; attached sheets composited by ReferenceExport",
+  "frames": [
+    {
+      "file": "summary-light.png",
+      "mode": "summary",
+      "tab": "Сводка",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/summary-light.png",
+        "--qa-detail",
+        "summary",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "3557d4873c3a40a1aa79451413e4bd6eb6564ba52cbe8dcdb9fbe88b2c48a504"
+    },
+    {
+      "file": "summary-dark.png",
+      "mode": "summary",
+      "tab": "Сводка",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/summary-dark.png",
+        "--qa-detail",
+        "summary",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "1d9cba03c8bad7ae1fb981958d1c585cfa7aab0a30a5518ba391bc8ae63f6905"
+    },
+    {
+      "file": "description-light.png",
+      "mode": "summary",
+      "tab": "Описание",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/description-light.png",
+        "--qa-detail",
+        "summary",
+        "--qa-detail-tab",
+        "Описание",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "1708f99c4f91e5b7a26759337d71e44c5648645ae9491481ef986b529c65a6f5"
+    },
+    {
+      "file": "feed-dark.png",
+      "mode": "summary",
+      "tab": "Лента",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/feed-dark.png",
+        "--qa-detail",
+        "summary",
+        "--qa-detail-tab",
+        "Лента",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "4cd1e1e99a97f7821777bfb171d7e668c225987b0b3dde4aa42522378a57cf26"
+    },
+    {
+      "file": "unknown-light.png",
+      "mode": "unknown",
+      "tab": "Сводка",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/unknown-light.png",
+        "--qa-detail",
+        "unknown",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "72253cd2c78d008ccfa1e6228194cb5210a9e38063b9c36c31dff4236089ef95"
+    },
+    {
+      "file": "large-artifact-dark.png",
+      "mode": "large-artifact",
+      "tab": "Сводка",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/large-artifact-dark.png",
+        "--qa-detail",
+        "large-artifact",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "9f62840bddd992e4fdb4ac237958a39fc96e0d885e99a56f6b35956dbcefde5e"
+    },
+    {
+      "file": "empty-light.png",
+      "mode": "empty",
+      "tab": "Сводка",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/empty-light.png",
+        "--qa-detail",
+        "empty",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "a1b98d271ca5217817558e9c2662a9c6fdb26c27c4dd8f37f4f432df5f617f34"
+    },
+    {
+      "file": "unavailable-dark.png",
+      "mode": "unavailable",
+      "tab": "Описание",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/unavailable-dark.png",
+        "--qa-detail",
+        "unavailable",
+        "--qa-detail-tab",
+        "Описание",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "81da7fc927c4d41014ed9c1ac84930986b46f68d324e81a51503e1631e5ce263"
+    },
+    {
+      "file": "too-large-light.png",
+      "mode": "too-large",
+      "tab": "Запуски",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/too-large-light.png",
+        "--qa-detail",
+        "too-large",
+        "--qa-detail-tab",
+        "Запуски",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "30ad396276517884b5cca6a5bf563395f868efdd69e5a48bb73599448fc0971c"
+    },
+    {
+      "file": "too-large-dark.png",
+      "mode": "too-large",
+      "tab": "Запуски",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/too-large-dark.png",
+        "--qa-detail",
+        "too-large",
+        "--qa-detail-tab",
+        "Запуски",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "200d08ab796d93638bd2796d95f798340615b2542739b5399ab3ccab35f9c931"
+    },
+    {
+      "file": "loading-light.png",
+      "mode": "loading",
+      "tab": "Описание",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/loading-light.png",
+        "--qa-detail",
+        "loading",
+        "--qa-detail-tab",
+        "Описание",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "45ef391468fd28ab7f0d5f1579d57ec59f8b15fdaae0f4ba2d1113ee31a3afc1"
+    },
+    {
+      "file": "material-light.png",
+      "mode": "material",
+      "tab": "Сводка",
+      "theme": "light",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/material-light.png",
+        "--qa-detail",
+        "material",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "e53f49a854859c101f507b826372b3b9bf3e7f31ff9968fcb44b373d65c23b81"
+    },
+    {
+      "file": "material-dark.png",
+      "mode": "material",
+      "tab": "Сводка",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/material-dark.png",
+        "--qa-detail",
+        "material",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "8a2129efd7acf07f7b3f655948ddee80e8fda824871f7ddd79eae770789ddba8"
+    },
+    {
+      "file": "log-dark.png",
+      "mode": "log",
+      "tab": "Запуски",
+      "theme": "dark",
+      "size": "minimum",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/log-dark.png",
+        "--qa-detail",
+        "log",
+        "--qa-detail-tab",
+        "Запуски",
+        "--qa-theme",
+        "dark",
+        "--qa-size",
+        "minimum"
+      ],
+      "sha256": "371f9d02bcd34e885782b7d7d4bb70cc0943e1c70b31dd4330bc5f444f53a15a"
+    },
+    {
+      "file": "summary-wide-light.png",
+      "mode": "summary",
+      "tab": "Сводка",
+      "theme": "light",
+      "size": "normal",
+      "args": [
+        "--export-live-window",
+        "/tmp/kaban-fe08-final/summary-wide-light.png",
+        "--qa-detail",
+        "summary",
+        "--qa-detail-tab",
+        "Сводка",
+        "--qa-theme",
+        "light",
+        "--qa-size",
+        "normal"
+      ],
+      "sha256": "6331e4284290e111228273c045234e2e4e63edb1d1b44482d9bafd4fad8ef9a0"
+    }
+  ],
+  "liveFrames": [
+    {
+      "file": "live-first.png",
+      "sha256": "20357aa1106c6475c26f6a1bbbf66718d0a397b4278e6ecbd5a20ce05f257d07"
+    },
+    {
+      "file": "live-reopen.png",
+      "sha256": "20357aa1106c6475c26f6a1bbbf66718d0a397b4278e6ecbd5a20ce05f257d07"
+    }
+  ],
+  "nativeChecks": [
+    {
+      "file": "native.json",
+      "result": "passed"
+    },
+    {
+      "file": "live-first.json",
+      "result": "passed"
+    },
+    {
+      "file": "live-reopen.json",
+      "result": "passed"
+    }
+  ],
+  "strictFocusChecks": {
+    "sourceHead": "96d9069a575afe60bc67e31b7e9bffd7dff7e4f1",
+    "keyboard": "failed before key dispatch; see keyboard.log",
+    "controls": "failed before key dispatch; see focus.json"
+  }
+}

@@ -75,6 +75,9 @@ import KabanBoardCore
                 if index == 0 { value.hasAcceptanceCriteria = false }; tasks.append(value)
             }
         }
+        if BoardQA.argument("--qa-detail") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+            tasks[index].title = "Платёжный шлюз: проверить возвраты, вебхуки и сохранность результата при повторной доставке"
+        }
         let state = BoardQA.argument("--qa-state")
         if state == "long" {
             tasks[2].title = "Очень длинное название задачи: пагинация, фильтрация и согласованная обработка заказов для нескольких международных магазинов"

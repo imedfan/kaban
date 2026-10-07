@@ -16,6 +16,11 @@ import KabanProtocol
     public var selectedProjectID: ProjectID?
     public var selectedID: TaskID?
     public var detail: TaskDetail?
+    public private(set) var detailReadState: TaskDetailReadState = .idle
+    public private(set) var runHistory: [RunSummary]?
+    public private(set) var historyReadState: TaskDetailReadState = .idle
+    private var historyGeneration = UUID()
+    private var detailEvents: [EventEnvelope] = []
     public var error: String?
     public var editorError: String?
     public private(set) var creation = TaskCreationPending()
@@ -125,7 +130,7 @@ import KabanProtocol
         // Invalidation is logical. Cancelling a private stdio RPC stops its
         // worker/child, so routine selection/resync must not cancel shared IO.
         epoch = UUID(); reconciliation = nil; requestedDetailID = nil
-        _ = selection.begin(selectedID)
+        _ = selection.begin(selectedID); historyGeneration = UUID()
     }
     /// Synchronous reduction keeps the bounded stream draining during reads/replay.
     func consume(_ update: KabanClientUpdate) throws {
@@ -166,7 +171,14 @@ import KabanProtocol
             if selectedProjectID.map({ board.projects[$0] == nil }) ?? true { selectedProjectID = board.projectOrder.first }
             if let id = selectedID, board.tasks[id] == nil { clearSelection() }
             refreshPending(); finishCreations(); try drainVolatile()
-            if let id = selectedID, floors[id] == value.seq { scheduleDetail(id) }
+            if let id = selectedID, affectsDetail(value.event, taskID: id) {
+                floors[id] = max(floors[id] ?? 0, value.seq)
+                // Keep bounded invalidations while RPC is suspended. Do not reconstruct
+                // durable feed IDs or artifacts from the retained journal.
+                detailEvents.append(value)
+                if detailEvents.count > DaemonWire.maxPageSize * 2 { detailEvents.removeFirst() }
+                scheduleDetail(id)
+            }
             if pendingRecords.contains(where: { $0.envelope.command.awaitsExternalCompletion }) { startReconciliation() }
         case .ephemeral(let value):
             guard let cursor = receivedEphemeralCursor, cursor.sessionId == value.cursor.sessionId else { throw resyncError() }
@@ -190,7 +202,7 @@ import KabanProtocol
         projection = board; ephemeralCursor = replacement.cursor; receivedEphemeralCursor = replacement.cursor
         volatileBuffer = []; schedulerFlagsSeq = replacement.snapshot.seq
         floors = Dictionary(uniqueKeysWithValues: replacement.snapshot.tasks.map { ($0.id, replacement.snapshot.seq) })
-        _ = selection.begin(selectedID); requestedDetailID = nil; detail = nil
+        _ = selection.begin(selectedID); requestedDetailID = nil; detailEvents = []; historyGeneration = UUID()
         boardSet.bootstrap(projects: board.projectOrder); visibleIDs = boardSet.visibleProjectIds
         if selectedProjectID.map({ board.projects[$0] == nil }) ?? true { selectedProjectID = board.projectOrder.first }
         if let id = selectedID, board.tasks[id] == nil { clearSelection() }
@@ -204,6 +216,10 @@ import KabanProtocol
             if case .schedulerFlagsChanged = first.event { stale = first.afterSeq < schedulerFlagsSeq }
             if !stale, projection?.apply(first.event) == .resyncRequired { throw resyncError() }
             ephemeralCursor = first.cursor
+            if case .runProgress(let progress) = first.event,
+               let id = selectedID, progress.taskId == id {
+                scheduleDetail(id)
+            }
         }
     }
     private func startReconciliation() {
@@ -285,11 +301,13 @@ import KabanProtocol
         }
     }
     public func select(_ id: TaskID?) async {
-        selectedID = id; detail = nil; _ = selection.begin(id)
+        selectedID = id; detail = nil; detailEvents = []; detailReadState = .idle
+        runHistory = nil; historyReadState = .idle; historyGeneration = UUID(); _ = selection.begin(id)
         if let id { await refreshDetail(id) }
     }
-    private func clearSelection() { selectedID = nil; detail = nil; _ = selection.begin(nil); requestedDetailID = nil }
+    private func clearSelection() { selectedID = nil; detail = nil; detailEvents = []; detailReadState = .idle; runHistory = nil; historyReadState = .idle; historyGeneration = UUID(); _ = selection.begin(nil); requestedDetailID = nil }
     private func scheduleDetail(_ id: TaskID) {
+        detailReadState = .loading
         requestedDetailID = id
         guard detailRefresh == nil else { return }
         detailRefresh = Task { [weak self] in
@@ -302,21 +320,83 @@ import KabanProtocol
         }
     }
     private func refreshDetail(_ id: TaskID) async {
-        guard !stopped, selectedID == id, capabilities?.supports(.getTaskDetail) == true else { return }
+        guard !stopped, selectedID == id else { return }
+        guard capabilities?.supports(.getTaskDetail) == true else {
+            detailReadState = .unavailable(.init(code: CommandError.unsupportedOperationCode, message: "Служба не поддерживает чтение деталей задачи."))
+            return
+        }
+        detailReadState = .loading
         let generation = selection.begin(id); let session = epoch
         do {
-            let reply = try await client.send(.init(command: .getTaskDetail(taskId: id)))
+            let envelope = CommandEnvelope(command: .getTaskDetail(taskId: id))
+            let reply = try await client.send(envelope)
             guard session == epoch, selection.accepts(generation, taskID: id), !Task.isCancelled else { return }
+            guard reply.commandId == envelope.commandId else { throw resyncError() }
             switch reply.result {
             case .taskDetail(let value):
-                guard selection.accepts(generation, detail: value, minimumSeq: max(floors[id] ?? 0, detail?.seq ?? 0)) else { return }
-                detail = value; try journal?.observeRestores(in: value); refreshPending()
-            case .error(let failure): error = failure.message
-            default: error = "Не удалось получить детали задачи."
+                guard selection.accepts(generation, detail: value, minimumSeq: max(max(floors[id] ?? 0, detail?.seq ?? 0), detailEvents.last?.seq ?? 0)) else {
+                    if requestedDetailID == nil {
+                        detailReadState = .unavailable(.init(code: "stale_detail", message: "Служба вернула устаревшие детали. Обновите их ещё раз."))
+                    }
+                    return
+                }
+                // Only a read covering all buffered invalidations can publish durable
+                // history. Anything after its seq is covered by the coalesced next read.
+                detailEvents.removeAll { $0.seq <= value.seq }
+                detail = TaskDetailPresentation.normalized(value); detailReadState = .loaded
+                try journal?.observeRestores(in: value); refreshPending()
+            case .error(let failure): detailReadState = .unavailable(failure)
+            default: detailReadState = .unavailable(.init(code: "invalid_reply", message: "Не удалось получить детали задачи."))
             }
         } catch {
             guard session == epoch, selection.accepts(generation, taskID: id), !Task.isCancelled else { return }
-            self.error = error.localizedDescription
+            detailReadState = .unavailable((error as? CommandError) ?? .init(code: "detail_read_failed", message: error.localizedDescription))
+        }
+    }
+    public func retryDetail() async {
+        guard let id = selectedID else { return }
+        await refreshDetail(id)
+    }
+    public func readRunHistory() async {
+        guard let id = selectedID, !stopped else { return }
+        guard capabilities?.supports(.getRunHistory) == true else {
+            historyReadState = .unavailable(.init(code: CommandError.unsupportedOperationCode, message: "Служба не поддерживает отдельную историю запусков."))
+            return
+        }
+        let owner = epoch, generation = UUID(); historyGeneration = generation; historyReadState = .loading
+        let envelope = CommandEnvelope(command: .getRunHistory(taskId: id))
+        do {
+            let reply = try await client.send(envelope)
+            guard !stopped, selectedID == id, owner == epoch, generation == historyGeneration else { return }
+            guard reply.commandId == envelope.commandId else { throw resyncError() }
+            switch reply.result {
+            case .runs(let runs):
+                guard runs.allSatisfy({ $0.taskId == id }) else { throw resyncError() }
+                runHistory = runs.sorted { ($0.startedAt, $0.id.rawValue) < ($1.startedAt, $1.id.rawValue) }
+                historyReadState = .loaded
+            case .error(let failure): historyReadState = .unavailable(failure)
+            default: throw resyncError()
+            }
+        } catch {
+            guard !stopped, selectedID == id, owner == epoch, generation == historyGeneration else { return }
+            historyReadState = .unavailable((error as? CommandError) ?? .init(code: "history_read_failed", message: error.localizedDescription))
+        }
+    }
+    private func affectsDetail(_ event: JournalEvent, taskID: TaskID) -> Bool {
+        switch event {
+        case .taskCreated(let card), .taskUpdated(let card), .taskEdited(let card): card.id == taskID
+        case .taskTransitioned(let value): value.taskId == taskID
+        case .humanRequested(let value): value.taskId == taskID
+        case .humanAnswered(let value): value.taskId == taskID
+        case .gitDenied(let value): value.taskId == taskID
+        case .incidentOpened(let value): value.taskId == taskID
+        case .suspiciousFilesFound(let value): value.taskId == taskID
+        case .suspiciousFilesAccepted(let value): value.taskId == taskID
+        case .wipRestored(let value): value.taskId == taskID
+        // These payloads omit taskId. A full selected-task read safely resolves
+        // ownership, including a grant/incident that arrived during the first read.
+        case .gitGrantCreated, .gitGrantDelivered, .gitGrantConsumed, .gitGrantRevoked, .gitGrantExpired, .incidentResolved, .unknown: true
+        default: false
         }
     }
     @discardableResult public func send(_ command: Command, editor: Bool = false) async -> Bool {

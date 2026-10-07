@@ -1,0 +1,4 @@
+{
+  "error" : "Timed out waiting for native control menu focus; projection=true, pendingCreate=nil, created=nil, sheet=nil, search=0; runtime=Подключение службы Kaban…, failure=nil, board=nil, connection=Optional(KabanProtocol.DaemonConnectionState.connected), active=false, windows=[\"AppKitWindow title=Kaban, visible=true, key=false, canKey=true, main=false, canMain=true, frame=(67.0, 409.0, 1040.0, 640.0)\"]",
+  "result" : "failed"
+}

@@ -237,6 +237,108 @@ final class BoardSessionTests: XCTestCase {
         try await wait { session.detail?.body == "latest" }
         XCTAssertEqual(client.detailCancellations, 0)
     }
+    @MainActor func testQuestionAndGrantWithoutCardUpdateRefreshDurableDetails() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "detail")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await session.select("a"); client.holdDetails = true
+        let request = HumanRequest(requestId: "question", taskId: "a", runId: nil, question: "Keep Unicode: Привет 👋?")
+        try session.consume(.event(Fix.envelope(11, .humanRequested(request))))
+        try await wait { client.details.count == 1 }
+        try session.consume(.event(Fix.envelope(12, .humanAnswered(.init(taskId: "a", requestId: request.requestId, text: "Yes")))))
+        try session.consume(.event(Fix.envelope(13, .gitGrantCreated(.init(grantId: "grant", denialId: "denial", argv: ["git", "status"], by: .human)))))
+        let old = TaskDetail(seq: 11, task: Fix.card("a"), feed: [], runs: [], humanRequests: [request], body: "old")
+        client.completeDetail(0, value: old)
+        try await wait { client.details.count == 2 }
+        XCTAssertNotEqual(session.detail?.body, "old")
+        var fresh = old; fresh.seq = 13; fresh.body = "saved"
+        fresh.feed = [.init(id: "q", at: Fix.t0, kind: "question", text: request.question), .init(id: "a", at: Fix.t0.addingTimeInterval(1), kind: "answer", text: "Yes")]
+        fresh.artifacts = [.init(id: "artifact", taskId: "a", kind: "future_output", text: "Exact\ntext\n", createdAt: Fix.t0)]
+        client.completeDetail(1, value: fresh)
+        try await wait { session.detail?.seq == 13 }
+        XCTAssertEqual(session.detail?.feed.count, 2); XCTAssertEqual(session.detail?.artifacts.first?.text, "Exact\ntext\n")
+        XCTAssertEqual(session.detailReadState, .loaded); XCTAssertNil(session.error)
+    }
+    @MainActor func testDetailFailurePreservesExactBodyAndReadsHistorySeparately() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "detail")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await session.select("a"); client.holdDetails = true
+        let retry = Task { await session.retryDetail() }; try await wait { client.details.count == 1 }
+        client.completeDetailError(0, failure: .init(code: CommandError.detailTooLargeCode, message: "Too large", params: ["bytes": "10000000"]))
+        await retry.value
+        XCTAssertEqual(session.detail?.body, "body")
+        guard case .unavailable(let failure) = session.detailReadState else { return XCTFail("Not an empty or loading state") }
+        XCTAssertEqual(failure.code, CommandError.detailTooLargeCode); XCTAssertNil(session.error)
+        await session.readRunHistory()
+        XCTAssertEqual(session.runHistory?.first?.taskId, "a"); XCTAssertEqual(session.historyReadState, .loaded)
+        let next = Task { await session.select("b") }; try await wait { client.details.count == 2 }
+        XCTAssertNil(session.detail); XCTAssertNil(session.runHistory)
+        client.completeDetail(1, task: "b", seq: 10, body: "new"); await next.value
+        XCTAssertEqual(session.detail?.body, "new")
+    }
+    @MainActor func testDurableMaterialsSurviveReplacementWithNoJournalAndDeduplicate() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "detail")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; client.holdDetails = true
+        let select = Task { await session.select("a") }; try await wait { client.details.count == 1 }
+        let exact = String(repeating: "Résumé 👋\n", count: 10_000)
+        let item = FeedItem(id: "durable", at: Fix.t0, kind: "future_kind", text: "persisted before retention")
+        let artifact = TaskArtifact(id: "output", taskId: "a", kind: "gate_output", text: exact, createdAt: Fix.t0, path: "/metadata/only")
+        client.completeDetail(0, value: .init(seq: 10, task: Fix.card("a"), feed: [item, item], runs: [], artifacts: [artifact, artifact], body: exact))
+        await select.value
+        XCTAssertEqual(session.detail?.feed.count, 1); XCTAssertEqual(session.detail?.artifacts.count, 1)
+        XCTAssertEqual(session.detail?.body, exact); XCTAssertNil(session.detail?.clonePath)
+        client.snapshot.seq = 20
+        try session.consume(.connection(.reconnecting(lastSeq: 10)))
+        try session.consume(.replacement(.init(snapshot: client.snapshot, cursor: client.cursor, current: [])))
+        try await wait { client.details.count == 2 }; XCTAssertEqual(session.detail?.body, exact)
+        client.completeDetail(1, value: .init(seq: 20, task: Fix.card("a"), feed: [item], runs: [], artifacts: [artifact], body: exact))
+        try await wait { session.detail?.seq == 20 }
+        XCTAssertEqual(session.detail?.artifacts.first?.text, exact)
+        XCTAssertEqual(TaskDetailPresentation.artifactTitle("future_kind"), "Материал · future_kind")
+        XCTAssertEqual(TaskDetailPresentation.feedTitle("future_kind"), "future_kind")
+    }
+    @MainActor func testLateHistoryAndUnknownEventsRespectSelection() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "detail")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a"), Fix.card("b")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await session.select("a"); client.holdHistory = true
+        let history = Task { await session.readRunHistory() }; try await wait { client.histories.count == 1 }
+        await session.select("b"); client.completeHistory(0, taskID: "a"); await history.value
+        XCTAssertNil(session.runHistory); XCTAssertEqual(session.historyReadState, .idle)
+        client.holdDetails = true
+        try session.consume(.event(Fix.envelope(11, .unknown(type: "task_artifact_added"))))
+        try await wait { client.details.count == 1 }
+        client.completeDetail(0, task: "b", seq: 11, body: "new artifact")
+        try await wait { session.detail?.body == "new artifact" }; XCTAssertEqual(session.detail?.task.id, "b")
+    }
+    @MainActor func testFileIncidentAndGrantLifecycleRefreshWithoutCardEvents() async throws {
+        let client = SessionFaultClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "detail")
+        client.snapshot = Fix.snapshot(tasks: [Fix.card("a")])
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await session.select("a"); client.holdDetails = true
+        let events: [JournalEvent] = [
+            .suspiciousFilesFound(.init(taskId: "a", runId: nil, stageId: "dev", files: [])),
+            .suspiciousFilesAccepted(.init(taskId: "a", files: [], by: .human, commandId: nil)),
+            .gitDenied(.init(denialId: "d", taskId: "a", runId: "r", argv: ["git", "fetch"], rule: "deny")),
+            .gitGrantDelivered(.init(grantId: "g", runId: "r", via: .nextPrompt)),
+            .gitGrantConsumed(.init(grantId: "g", runId: "r")),
+            .gitGrantRevoked(.init(grantId: "g", by: .human)),
+            .gitGrantExpired(.init(grantId: "g", reason: .taskDone)),
+            .incidentOpened(.init(id: "incident", projectId: "p", taskId: "a", runId: "r", kind: .refsMoved, rolledBack: [], openedAt: Fix.t0)),
+            .incidentResolved(.init(incidentId: "incident", by: .human, commandId: nil))
+        ]
+        for (offset, event) in events.enumerated() {
+            let seq = Seq(11 + offset)
+            try session.consume(.event(Fix.envelope(seq, event)))
+            try await wait { client.details.count == offset + 1 }
+            client.completeDetail(offset, task: "a", seq: seq, body: "durable-" + String(seq))
+            try await wait { session.detail?.seq == seq }
+        }
+        XCTAssertEqual(client.detailCancellations, 0)
+    }
     @MainActor func testTitleOnlyConfirmationDoesNotDiscardAnUnsentBodyDraft() async throws {
         let session = BoardSession(client: MockKabanClient(snapshot: Fix.snapshot(tasks: [Fix.card("a")])), storage: MemoryKeyValueStore(), key: "test")
         let task = Task { await session.run() }; defer { task.cancel() }
@@ -274,6 +376,8 @@ final class BoardSessionTests: XCTestCase {
     var unsupported: Set<CommandName> = []
     var detailCancellations = 0
     var holdDetails = false
+    var holdHistory = false
+    var histories: [(CommandEnvelope, CheckedContinuation<CommandReply, Error>)] = []
     var details: [(CommandEnvelope, CheckedContinuation<CommandReply, Error>)] = []
     func getSnapshot() async throws -> Snapshot { snapshot }
     func synchronize() async throws -> SnapshotReplacement {
@@ -300,9 +404,28 @@ final class BoardSessionTests: XCTestCase {
             }
             return .init(commandId: envelope.commandId, seq: nil, result: .taskDetail(.init(seq: snapshot.seq, task: snapshot.tasks.first { $0.id == id } ?? Fix.card(id.rawValue), feed: [], runs: [], suspiciousFiles: [], acceptedFiles: [], body: "body", wipRestoreOperations: [])))
         }
+        if case .getRunHistory(let id) = envelope.command {
+            if holdHistory { return try await withCheckedThrowingContinuation { histories.append((envelope, $0)) } }
+            return .init(commandId: envelope.commandId, seq: nil, result: .runs([historyRun(id)]))
+        }
         mutations.append(envelope)
         if let mutationHandler { return try await mutationHandler(envelope) }
         return receipt ?? .init(commandId: envelope.commandId, seq: snapshot.seq, result: .ok)
+    }
+    func completeDetail(_ index: Int, value: TaskDetail) {
+        let (envelope, continuation) = details[index]
+        continuation.resume(returning: .init(commandId: envelope.commandId, seq: nil, result: .taskDetail(value)))
+    }
+    func completeDetailError(_ index: Int, failure: CommandError) {
+        let (envelope, continuation) = details[index]
+        continuation.resume(returning: .init(commandId: envelope.commandId, seq: nil, result: .error(failure)))
+    }
+    func historyRun(_ id: TaskID) -> RunSummary {
+        .init(id: .init(rawValue: "run-" + id.rawValue), taskId: id, stageId: "dev", number: 1, status: .succeeded, requestedModel: "model", startedAt: Fix.t0)
+    }
+    func completeHistory(_ index: Int, taskID: TaskID) {
+        let (envelope, continuation) = histories[index]
+        continuation.resume(returning: .init(commandId: envelope.commandId, seq: nil, result: .runs([historyRun(taskID)])))
     }
     func completeDetail(_ index: Int, task: TaskID, seq: Seq, body: String) {
         let (envelope, continuation) = details[index]
