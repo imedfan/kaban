@@ -931,7 +931,7 @@ struct TaskDetailView: View {
     private func detailDate(_ date: Date) -> String {
         let format = DateFormatter()
         format.locale = Locale(identifier: "ru_RU")
-        format.timeZone = TimeZone(identifier: "Europe/Kaliningrad")
+        format.timeZone = .current
         format.dateFormat = "d MMM yyyy, HH:mm"
         return format.string(from: date)
     }
