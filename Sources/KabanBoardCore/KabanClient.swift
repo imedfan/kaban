@@ -76,7 +76,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -105,6 +105,14 @@ extension KabanClient {
             feed += notes[id] ?? []
             feed.sort { $0.at < $1.at }
             return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+        case .setMascot(let projectID, let seed):
+            guard let index = snapshot.projects.firstIndex(where: { $0.id == projectID }) else {
+                return .error(.init(code: "project_not_found", message: "Проект не найден."))
+            }
+            guard !seed.contains("\0") else { return .error(.init(code: "invalid_request", message: "Seed содержит NUL.")) }
+            snapshot.projects[index].mascotSeed = seed
+            emit(.projectUpdated(snapshot.projects[index]), projectID: projectID, commandID: commandId)
+            return .ok
         case .createTask(let projectID, let title, let body):
             guard snapshot.projects.contains(where: { $0.id == projectID }) else { return .error(CommandError(code: "project_not_found", message: "Проект не найден.")) }
             guard let pipeline = snapshot.pipelines.first(where: { $0.projectId == projectID }),

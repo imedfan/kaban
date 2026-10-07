@@ -6,7 +6,7 @@ import KabanBoardCore
 @MainActor enum AppFixture {
     static func client() -> MockKabanClient {
         let now = Date()
-        let stages: [StageSummary] = [
+        var stages: [StageSummary] = [
             .init(id: "backlog", name: "Backlog", kind: .queue, display: .init(order: 0), onSuccess: "dev"),
             .init(id: "dev", name: "Dev", kind: .agent, display: .init(order: 1), wip: 3, model: "composer-1", onSuccess: "test", maxAttempts: 3),
             .init(id: "test", name: "Test", kind: .agent, display: .init(icon: "flask", order: 2), wip: 2, model: "sonnet-4.5", readOnly: true, onSuccess: "ai-review", maxAttempts: 3),
@@ -15,8 +15,15 @@ import KabanBoardCore
             .init(id: "merge", name: "Merge", kind: .merge, display: .init(order: 5), onSuccess: "done", onConflict: .init(stage: "dev", limit: 2)),
             .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 6))
         ]
+        let boardMatrix = BoardQA.argument("--qa-board") == "matrix"
+        if boardMatrix {
+            for index in 2..<stages.count { stages[index].display.order += 1 }
+            stages.insert(.init(id: "checks", name: "Checks", kind: .gate, display: .init(order: 2), gates: ["swift test"], onFail: .init(stage: "dev", limit: 3)), at: 2)
+            stages.append(.init(id: "archive", name: "Архив", kind: .terminal, display: .init(order: 9, hidden: true)))
+            stages[stages.firstIndex(where: { $0.id == "done" })!].display.collapsed = true
+        }
         let specs: [(String, String, Int, EdgeTexture)] = [("shop", "shop-api", 0, .solidThin), ("kaban", "kaban", 1, .stripes), ("mobile", "mobile-app", 22, .dots), ("docs", "docs-site", 2, .grid)]
-        let projects = specs.map { id, name, index, texture in
+        var projects = specs.map { id, name, index, texture in
             ProjectSummary(id: .init(rawValue: id), name: name, path: "~/Projects/" + name, mascotSeed: MascotKit.seed(for: id, mascotIndex: index, texture: texture) ?? id)
         }
         func card(_ id: String, _ project: ProjectID, _ title: String, _ stage: StageID, _ state: TaskState, attempt: Int = 0, files: [SuspiciousFile] = []) -> TaskCard {
@@ -45,6 +52,26 @@ import KabanBoardCore
             card("KBN-14", "kaban", "Квота: свежесть данных перед стартом", "test", .queued(nil)),
             card("KBN-10", "kaban", "XPC: досылка событий по seq", "review", .waitingHuman(.review))
         ]
+        if boardMatrix {
+            projects[0].openIncidentCount = 1
+            tasks[2].unusedGitGrants = 2; tasks[2].bounceByReason = ["test_dev": 2, "merge_conflict": 1]
+            tasks[2].overlapsWith = ["SHOP-44", "KBN-15"]
+            tasks[3].retryAt = now.addingTimeInterval(90)
+            tasks.append(card("SHOP-GATE", "shop", "Проверки перед ревью", "checks", .gating))
+            tasks.append(card("SHOP-HIDDEN", "shop", "Задача из скрытого архива", "archive", .done))
+            tasks.append(card("DOCS-SAME-ID", "docs", "Тот же id, другая стадия", "test", .paused))
+            for (index, reason) in WaitingHumanReason.allCases.enumerated() {
+                tasks.append(card("WAIT-\(index)", "shop", "Причина ожидания: \(reason.rawValue)", "ai-review", .waitingHuman(reason)))
+            }
+            for (index, reason) in RetryWaitReason.allCases.enumerated() {
+                var value = card("RETRY-\(index)", "shop", "Причина повтора: \(reason.rawValue)", "dev", .retryWait(reason), attempt: 2)
+                value.retryAt = now.addingTimeInterval(120); tasks.append(value)
+            }
+            for index in 0..<40 {
+                var value = card("LONG-\(index)", "shop", "Длинная очередь: проверка композиции карточки и независимой прокрутки столбца \(index)", "backlog", .queued(nil))
+                if index == 0 { value.hasAcceptanceCriteria = false }; tasks.append(value)
+            }
+        }
         let state = BoardQA.argument("--qa-state")
         if state == "long" {
             tasks[2].title = "Очень длинное название задачи: пагинация, фильтрация и согласованная обработка заказов для нескольких международных магазинов"
@@ -52,19 +79,24 @@ import KabanBoardCore
         }
         if state == "empty" { tasks = [] }
         var kabanStages = stages
-        kabanStages[2].model = nil
+        kabanStages[kabanStages.firstIndex(where: { $0.id == "test" })!].model = nil
         let pipelines = projects.map { project in
-            PipelineSummary(projectId: project.id, versionHash: "local-fixture", stages: project.id == "kaban" ? kabanStages : stages,
+            var projectStages = project.id == "kaban" ? kabanStages : stages
+            if boardMatrix && project.id == "docs", let index = projectStages.firstIndex(where: { $0.id == "test" }) {
+                projectStages[index].kind = .human; projectStages[index].name = "Редактор"; projectStages[index].model = nil
+            }
+            return PipelineSummary(projectId: project.id, versionHash: "local-fixture", stages: projectStages,
                             issues: project.id == "kaban" ? [.init(path: "stages[2].model", stageId: "test", code: "model_missing", message: "не задана модель у Test", severity: .error)] : [], defaultReturnStage: "dev")
         }
         let loads = projects.flatMap { project in
             stages.compactMap { stage -> StageLoad? in
                 guard let limit = stage.wip else { return nil }
-                return .init(projectId: project.id, stageId: stage.id, wipUsed: tasks.filter { $0.projectId == project.id && $0.stageId == stage.id && $0.state.status.occupiesWIP(in: stage.kind) }.count, wipLimit: limit)
+                if boardMatrix && project.id == "shop" && stage.id == "test" { return nil }
+                return .init(projectId: project.id, stageId: stage.id, wipUsed: tasks.filter { $0.projectId == project.id && $0.stageId == stage.id && $0.state.status.occupiesWIP(in: stage.kind) }.count, wipLimit: boardMatrix && project.id == "shop" && stage.id == "dev" ? 1 : limit)
             }
         }
         let bodies = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, "## Описание\n\n\($0.title).\n\n## Критерии приёмки\n\n- Существующее поведение сохранено.\n- Граничные случаи проверены.\n- Изменения готовы к ревью.") })
-        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, stageLoad: loads), taskBodies: bodies)
+        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies)
     }
 }
 

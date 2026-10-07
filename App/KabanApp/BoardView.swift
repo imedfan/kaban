@@ -3,14 +3,16 @@ import KabanProtocol
 import KabanBoardCore
 
 enum BoardScreen: Equatable { case board, project(ProjectID), quota }
-enum BoardFilter: String, CaseIterable { case all = "Доска", waiting = "Ждут человека", incidents = "Инциденты" }
+enum BoardFilter: String, CaseIterable { case all = "Доска", waiting = "Ждут человека", incidents = "Инциденты", hiddenStages = "Скрытые стадии" }
 
 struct BoardView: View {
     @Bindable var store: BoardStore
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
     @State private var sidebarVisible = true
     @State private var collapsed: Set<ProjectID> = []
-    @State private var byStage = false
+    @State private var stageCollapsed: [BoardStageKey: Bool] = [:]
     @FocusState private var searchFocused: Bool
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     private var lanes: [BoardLane] { store.projection?.lanes(orderedBy: store.visibleIDs) ?? [] }
@@ -40,6 +42,7 @@ struct BoardView: View {
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
+        .popover(isPresented: Binding(get: { store.mascotProjectID != nil }, set: { if !$0 { store.mascotProjectID = nil } })) { if let id = store.mascotProjectID { MascotPickerView(store: store, projectID: id) } }
         .onChange(of: store.projection?.projectOrder) { _, ids in
             if case .project(let id) = store.screen, ids?.contains(id) != true { store.screen = .board }
         }
@@ -131,8 +134,7 @@ struct BoardView: View {
     private func projectRow(_ project: ProjectSummary) -> some View {
         let id = project.id
         return Button {
-            store.selectedProjectID = id; store.screen = .board; store.filter = .all
-            if !store.visibleIDs.contains(id) { store.show(id) }
+            store.filter = .all; store.focusProject(id)
         } label: {
             HStack(spacing: 10) {
                 ReferenceMascot(emoji: store.mascot(id).emoji, theme: theme, state: store.projectStatus(id), size: 28)
@@ -141,8 +143,10 @@ struct BoardView: View {
                     Text(store.projectCaption(id)).font(.system(size: 10.5)).foregroundStyle(theme.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if project.openIncidentCount > 0 { countBadge(project.openIncidentCount, attention: false) }
-                else if !store.visibleIDs.contains(id) { Image(systemName: "eye.slash").font(.system(size: 10)).foregroundStyle(theme.faint) }
+                let badges = store.projection?.badgeCounts(for: id)
+                if let count = badges?.waitingHuman, count > 0 { countBadge(count, attention: true).help("Ждут человека") }
+                if project.openIncidentCount > 0 { countBadge(project.openIncidentCount, attention: false).help("Открытые инциденты") }
+                if !store.visibleIDs.contains(id) { Image(systemName: "eye.slash").font(.system(size: 10)).foregroundStyle(theme.faint) }
             }.padding(.horizontal, 10).padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(store.selectedProjectID == id ? theme.control.opacity(0.65) : .clear, in: RoundedRectangle(cornerRadius: 8))
@@ -154,10 +158,16 @@ struct BoardView: View {
                 Button("Настройки проекта") { store.screen = .project(id) }
                 Button("Переподключить папку…") { store.beginProjectFlow(.relink(id)) }.disabled(!store.session.can(.relinkProject(projectId: id, path: project.path)))
                 Button("Удалить из Kaban…", role: .destructive) { store.beginProjectFlow(.remove(id)) }.disabled(!store.session.can(.removeProject(projectId: id)))
+                Button("Выбрать маскота…") { store.mascotProjectID = id }.disabled(!store.session.can(.setMascot(projectId: id, seed: project.mascotSeed)))
                 Divider()
+                if store.visibleIDs.contains(id) {
+                    Button("Дорожка выше") { store.moveProject(id, by: -1) }.disabled(store.visibleIDs.first == id)
+                    Button("Дорожка ниже") { store.moveProject(id, by: 1) }.disabled(store.visibleIDs.last == id)
+                }
                 if store.visibleIDs.contains(id) { Button("Скрыть с доски") { store.hide(id) } }
                 else { Button("Показать на доске") { store.show(id) } }
             }
+            .draggable("kaban-project:" + id.rawValue)
             .accessibilityLabel("\(project.name), \(store.projectCaption(id))")
     }
     private func countBadge(_ count: Int, attention: Bool) -> some View {
@@ -173,9 +183,9 @@ struct BoardView: View {
                 Text(title).font(.system(size: 18, weight: .bold))
                 Text(store.screen == .board ? "\(DesignSystem.projectCount(store.visibleIDs.count)) на доске" : "Kaban · \(store.selectedProjectID.flatMap { store.projection?.projects[$0]?.name } ?? "")")
                     .font(.system(size: 10.5)).foregroundStyle(theme.faint)
-            }.fixedSize(horizontal: true, vertical: false)
+            }.frame(maxWidth: 200, alignment: .leading)
             if store.screen == .board {
-                KabanSegments(selection: $byStage, options: [(false, "Дорожки"), (true, "По стадиям")])
+                KabanSegments(selection: $store.compactBoard, options: [(false, "Дорожки"), (true, "По типу")])
                     .frame(width: width < 900 ? 164 : 192)
             }
             Spacer(minLength: 8)
@@ -186,7 +196,7 @@ struct BoardView: View {
                         .font(.system(size: 11))
                     if !store.query.isEmpty { Button { store.query = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(theme.faint) }
                 }.padding(.horizontal, 9).frame(width: width < 900 ? 120 : 145, height: 30).background(theme.card.opacity(0.7), in: RoundedRectangle(cornerRadius: 8))
-                if width >= 900 { Label("\(store.runningCount)", systemImage: "cpu").font(.system(size: 11)).foregroundStyle(theme.secondary).help("Активные задачи") }
+                if width >= 900 { Label("\(store.reservationCount)", systemImage: "clock").font(.system(size: 11)).foregroundStyle(theme.secondary).help("Зарезервированные запуски. Наличие процесса не подтверждено.") }
                 Button { store.beginCreation() } label: { Label("Задача", systemImage: "plus") }
                     .buttonStyle(KabanButtonStyle(primary: true))
                     .disabled(!store.can(.createTask) || store.selectedProjectID == nil || store.creation.commandID != nil)
@@ -199,19 +209,32 @@ struct BoardView: View {
     }
     private func board(width: CGFloat) -> some View {
         ZStack(alignment: .topTrailing) {
-            ScrollView([.horizontal, .vertical]) {
-                LazyVStack(alignment: .leading, spacing: 8) {
+            ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 8, pinnedViews: [.sectionHeaders]) {
                     if store.projection == nil { ProgressView("Загрузка доски…").frame(width: max(width - 24, 0), height: 280) }
                     else if lanes.isEmpty { emptyBoard.frame(width: max(width - 24, 0), height: 280) }
-                    else if byStage {
-                        stagesBoard(width: max(width - 24, 1080))
+                    else if store.compactBoard {
+                        stagesBoard(width: max(width - 24, 0))
                     } else {
                         ForEach(lanes, id: \.project.id) { lane in
-                            laneView(lane, width: max(width - 24, CGFloat(lane.columns.count) * 154 + 20))
+                            Section {
+                                if !collapsed.contains(lane.project.id) { laneBody(lane, width: max(width - 24, 0)) }
+                            } header: { laneHeader(lane).id(lane.project.id) }
+                                .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: lane.project.id) }
                         }
+                    }
+                    if !lanes.isEmpty {
+                        Text("Перетащите проект сюда, чтобы поставить его последним")
+                            .font(.system(size: 11)).foregroundStyle(theme.faint).frame(maxWidth: .infinity).padding(14)
+                            .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: nil) }
                     }
                 }.padding(12)
             }.scrollIndicators(.automatic)
+            .onChange(of: store.focusRequest) { _, _ in
+                if let id = store.selectedProjectID { collapsed.remove(id); if reduceMotion { proxy.scrollTo(id, anchor: .top) } else { withAnimation { proxy.scrollTo(id, anchor: .top) } } }
+            }
+            }
             if store.selectedID != nil {
                 TaskDetailView(store: store, openSheet: { store.sheet = $0 })
                     .frame(width: min(500, max(width - 24, 0)))
@@ -231,87 +254,145 @@ struct BoardView: View {
                 Button("Добавить проект…") { store.beginProjectFlow(.add) }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.addProject))
             }
         }.frame(maxWidth: .infinity)
+            .dropDestination(for: String.self) { values, _ in store.dropProject(values, before: nil) }
     }
-    private func laneView(_ lane: BoardLane, width: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Button {
-                    if collapsed.contains(lane.project.id) { collapsed.remove(lane.project.id) } else { collapsed.insert(lane.project.id) }
-                } label: { Image(systemName: collapsed.contains(lane.project.id) ? "chevron.right" : "chevron.down").frame(width: 16, height: 28) }
-                    .buttonStyle(.plain).foregroundStyle(theme.faint).help("Свернуть или раскрыть проект")
+    private func columns(_ lane: BoardLane) -> [BoardColumn] {
+        lane.columns.filter { store.filter == .hiddenStages ? $0.stage.display.hidden : !$0.stage.display.hidden }
+    }
+    private func isCollapsed(_ stage: StageSummary, project: ProjectID) -> Bool {
+        stageCollapsed[.init(projectID: project, stageID: stage.id)] ?? (stage.display.collapsed || stage.kind == .gate)
+    }
+    private func laneHeader(_ lane: BoardLane) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal").foregroundStyle(theme.faint)
+                .draggable("kaban-project:" + lane.project.id.rawValue).help("Переставить дорожку")
+            Button {
+                if collapsed.contains(lane.project.id) { collapsed.remove(lane.project.id) } else { collapsed.insert(lane.project.id) }
+            } label: { Image(systemName: collapsed.contains(lane.project.id) ? "chevron.right" : "chevron.down").frame(width: 16, height: 28) }
+                .buttonStyle(.plain).foregroundStyle(theme.faint).help("Свернуть или раскрыть проект")
+            Button { store.mascotProjectID = lane.project.id } label: {
                 ReferenceMascot(emoji: store.mascot(lane.project.id).emoji, theme: theme, state: store.projectStatus(lane.project.id), size: 24)
-                Text(lane.project.name).font(.system(size: 13, weight: .semibold))
-                ReferenceChip(title: "⑂ " + lane.project.baseBranch, theme: theme, mono: true)
-                Text(store.projectCaption(lane.project.id)).font(.system(size: 11)).foregroundStyle(theme.faint).lineLimit(1)
-                Spacer()
-                if lane.project.openIncidentCount > 0 { Label("\(lane.project.openIncidentCount) инцидент", systemImage: "light.beacon.max").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.status("incident").2) }
-                Button { store.beginCreation(lane.project.id) } label: { Image(systemName: "plus") }
-                    .disabled(!store.can(.createTask))
-                    .buttonStyle(.plain).help(store.can(.createTask) ? "Новая задача в \(lane.project.name)" : store.unavailableReason(.createTask)).frame(width: 24, height: 28)
-                Button { store.selectedProjectID = lane.project.id; store.screen = .project(lane.project.id) } label: { Image(systemName: "slider.horizontal.3") }
-                    .buttonStyle(.plain).help("Настройки проекта").frame(width: 24, height: 28)
-                Button { store.hide(lane.project.id) } label: { Image(systemName: "xmark") }
-                    .buttonStyle(.plain).help("Убрать с доски").foregroundStyle(theme.faint).frame(width: 24, height: 28)
-            }.padding(.horizontal, 8).frame(height: 38)
-            if !collapsed.contains(lane.project.id) {
-                if let pipeline = store.projection?.pipelines[lane.project.id], !pipeline.isValid {
-                    Label("Пайплайн не запустится: \(pipeline.issues.first(where: { $0.severity == .error })?.message ?? "нужна настройка")", systemImage: "exclamationmark.triangle")
-                        .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.status("waiting").2)
-                        .padding(8).frame(maxWidth: .infinity, alignment: .leading).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 8)).padding(.horizontal, 8).padding(.bottom, 6)
-                }
-                HStack(alignment: .top, spacing: 6) {
-                    ForEach(lane.columns, id: \.stage.id) { column in
-                        columnView(column, project: lane.project)
-                            .frame(width: columnWidth(column.stage, all: lane.columns.map(\.stage), available: width - 16))
-                    }
-                }.padding(.horizontal, 8).padding(.bottom, 8)
-            }
-        }.frame(width: width)
-            .background(theme.lane, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.line, lineWidth: 0.5))
-    }
-    private func columnWidth(_ stage: StageSummary, all: [StageSummary], available: CGFloat) -> CGFloat {
-        let units = all.map { weight($0) }.reduce(0, +)
-        return (available - CGFloat(max(all.count - 1, 0)) * 6) * weight(stage) / max(units, 1)
-    }
-    private func weight(_ stage: StageSummary) -> CGFloat {
-        switch stage.kind { case .queue, .merge, .terminal: 0.76; default: 1.2 }
-    }
-    private func columnView(_ column: BoardColumn, project: ProjectSummary) -> some View {
-        let ids = column.taskIds.filter { store.matches($0) }
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: DesignSystem.symbol(column.stage)).foregroundStyle(theme.status(DesignSystem.tone(column.stage)).0)
-                Text(column.stage.name).fontWeight(.semibold).lineLimit(1)
-                Spacer(minLength: 0)
-                if let load = store.projection?.load(projectId: project.id, stageId: column.stage.id), let limit = load.wipLimit {
-                    Text("\(load.wipUsed)/\(limit)").monospacedDigit().padding(.horizontal, 5).background(theme.control, in: Capsule())
-                        .help("Занятые места и WIP-лимит")
-                } else { Text("\(column.taskIds.count)").foregroundStyle(theme.faint).monospacedDigit() }
-            }.font(.system(size: 11)).frame(height: 24).padding(.horizontal, 3)
-            if let model = column.stage.model {
-                HStack(spacing: 4) {
-                    Image(systemName: "cpu").font(.system(size: 9))
-                    Text(model.rawValue).font(.system(size: 10, design: .monospaced)).lineLimit(1)
-                    Spacer(minLength: 0)
-                }.foregroundStyle(theme.faint).padding(.horizontal, 3).frame(height: 14)
-            }
-            if ids.isEmpty {
-                Text(column.taskIds.isEmpty ? "Пусто" : "Нет совпадений").font(.system(size: 11)).foregroundStyle(theme.faint)
-                    .frame(maxWidth: .infinity).frame(height: 52)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.strongLine, style: StrokeStyle(lineWidth: 0.5, dash: [3, 3])))
-            }
-            ForEach(ids, id: \.self) { id in
-                if let card = store.projection?.tasks[id] { taskButton(card, project: project) }
-            }
+            }.buttonStyle(.plain).disabled(!store.can(.setMascot)).help("Выбрать маскота")
+            Text(lane.project.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            ReferenceChip(title: "⑂ " + lane.project.baseBranch, theme: theme, mono: true)
+            Text(store.projectCaption(lane.project.id)).font(.system(size: 11)).foregroundStyle(theme.faint).lineLimit(1)
             Spacer(minLength: 0)
-        }.padding(.horizontal, 5).padding(.bottom, 6).frame(minHeight: 180, alignment: .topLeading)
+            if lane.project.openIncidentCount > 0 {
+                Label("\(lane.project.openIncidentCount)", systemImage: "light.beacon.max").font(.system(size: 11)).foregroundStyle(theme.status("incident").2).help("Открытые инциденты")
+            }
+            Button { store.beginCreation(lane.project.id) } label: { Image(systemName: "plus") }
+                .disabled(!store.can(.createTask)).buttonStyle(.plain).help("Новая задача в \(lane.project.name)").frame(width: 24, height: 28)
+            Button { store.selectedProjectID = lane.project.id; store.screen = .project(lane.project.id) } label: { Image(systemName: "slider.horizontal.3") }
+                .buttonStyle(.plain).help("Настройки проекта").frame(width: 24, height: 28)
+            Button { store.hide(lane.project.id) } label: { Image(systemName: "xmark") }
+                .buttonStyle(.plain).help("Убрать с доски").foregroundStyle(theme.faint).frame(width: 24, height: 28)
+        }.padding(.horizontal, 10).frame(height: 40)
+            .background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(store.selectedProjectID == lane.project.id ? theme.accent.opacity(0.5) : theme.line, lineWidth: 0.5))
+    }
+    private func laneBody(_ lane: BoardLane, width: CGFloat) -> some View {
+        let displayed = columns(lane)
+        return VStack(alignment: .leading, spacing: 6) {
+            if let pipeline = store.projection?.pipelines[lane.project.id], !pipeline.isValid {
+                Label("Пайплайн не запустится: \(pipeline.issues.first(where: { $0.severity == .error })?.message ?? "нужна настройка")", systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.status("waiting").2)
+                    .padding(8).frame(maxWidth: .infinity, alignment: .leading).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 8))
+            }
+            if displayed.isEmpty {
+                Text(store.filter == .hiddenStages ? "Скрытых стадий нет" : "Стадии пока не настроены").font(.system(size: 12)).foregroundStyle(theme.faint).padding(16)
+            } else {
+                ScrollView(.horizontal) {
+                    GlassEffectContainer(spacing: 6) {
+                    HStack(alignment: .top, spacing: 6) {
+                        ForEach(displayed, id: \.stage.id) { column in
+                            columnView(column, project: lane.project, height: laneHeight(lane))
+                                .frame(width: columnWidth(column.stage, project: lane.project.id, all: displayed, available: width - 16))
+                        }
+                    }.padding(.bottom, 4)
+                    }
+                }.scrollIndicators(.automatic)
+            }
+        }.padding(8).frame(width: width, alignment: .leading)
+            .background(theme.lane, in: RoundedRectangle(cornerRadius: 14))
+    }
+    private func minimumColumnWidth(_ stage: StageSummary, project: ProjectID) -> CGFloat {
+        if isCollapsed(stage, project: project) { return stage.kind == .gate ? 64 : 88 }
+        switch stage.kind { case .queue, .terminal: return 136; case .merge: return 148; default: return 178 }
+    }
+    private func columnWidth(_ stage: StageSummary, project: ProjectID, all: [BoardColumn], available: CGFloat) -> CGFloat {
+        let minimums = all.map { minimumColumnWidth($0.stage, project: project) }
+        let extra = max(available - minimums.reduce(0, +) - CGFloat(max(all.count - 1, 0)) * 6, 0)
+        return minimumColumnWidth(stage, project: project) + extra / CGFloat(max(all.count, 1))
+    }
+    private func laneHeight(_ lane: BoardLane) -> CGFloat {
+        let count = columns(lane).map { $0.taskIds.filter { store.matches($0) }.count }.max() ?? 0
+        return min(330, max(180, 60 + CGFloat(count) * 150))
+    }
+    private func columnView(_ column: BoardColumn, project: ProjectSummary, height: CGFloat) -> some View {
+        let ids = column.taskIds.filter { store.matches($0) }
+        let folded = isCollapsed(column.stage, project: project.id)
+        return VStack(alignment: .leading, spacing: 6) {
+            Button {
+                stageCollapsed[.init(projectID: project.id, stageID: column.stage.id)] = !folded
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    if folded {
+                        HStack {
+                            Image(systemName: DesignSystem.symbol(column.stage)).foregroundStyle(DesignSystem.stageColor(column.stage, theme: theme))
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.system(size: 8))
+                        }
+                        Text(column.stage.name).fontWeight(.semibold).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                        stageLoadLabel(project: project.id, stage: column.stage.id)
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: DesignSystem.symbol(column.stage)).foregroundStyle(DesignSystem.stageColor(column.stage, theme: theme))
+                            Text(column.stage.name).fontWeight(.semibold).lineLimit(1)
+                            Spacer(minLength: 0)
+                            stageLoadLabel(project: project.id, stage: column.stage.id)
+                            Image(systemName: "chevron.down").font(.system(size: 8))
+                        }
+                    }
+                }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading).padding(4).frame(minHeight: 28)
+            }.buttonStyle(.plain).help((folded ? "Раскрыть: " : "Свернуть: ") + column.stage.name)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 8))
+            if folded {
+                Text("Задач · \(column.taskIds.count)").font(.system(size: 10)).foregroundStyle(theme.faint).padding(.horizontal, 3)
+                Spacer(minLength: 0)
+            } else {
+                if let model = column.stage.model {
+                    Label(model.rawValue, systemImage: "cpu").font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).lineLimit(1).padding(.horizontal, 3)
+                }
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 6) {
+                        if ids.isEmpty {
+                            Text(column.taskIds.isEmpty ? "Пусто" : "Нет совпадений").font(.system(size: 11)).foregroundStyle(theme.faint)
+                                .frame(maxWidth: .infinity).frame(height: 52)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.strongLine, style: StrokeStyle(lineWidth: 0.5, dash: [3, 3])))
+                        }
+                        ForEach(ids, id: \.self) { id in
+                            if let card = store.projection?.tasks[id] { taskButton(card, project: project) }
+                        }
+                    }.padding(.bottom, 4)
+                }.scrollIndicators(.automatic)
+            }
+        }.padding(6).frame(height: height, alignment: .topLeading)
             .background(theme.column, in: RoundedRectangle(cornerRadius: 10))
     }
-    private func taskButton(_ card: TaskCard, project: ProjectSummary) -> some View {
+    @ViewBuilder private func stageLoadLabel(project: ProjectID, stage: StageID) -> some View {
+        if let load = store.projection?.load(projectId: project, stageId: stage) {
+            let presentation = StageLoadPresentation(load: load)
+            Text(presentation.label).monospacedDigit().padding(.horizontal, 4)
+                .foregroundStyle(presentation.exceeded ? theme.status("waiting").2 : theme.secondary)
+                .background(presentation.exceeded ? theme.status("waiting").1 : theme.control, in: Capsule())
+                .help(presentation.exceeded ? "WIP превышен. Текущие задачи продолжаются." : "Загрузка WIP из службы Kaban")
+        }
+    }
+    private func taskButton(_ card: TaskCard, project: ProjectSummary, stageChip: String? = nil) -> some View {
         Button { Task { await store.select(card.id) } } label: {
-            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)))
+            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), stageChip: stageChip)
         }.buttonStyle(.plain)
+            .task(id: card) { await store.readRunFacts(for: card) }
             .contextMenu {
                 Button("Открыть детали") { Task { await store.select(card.id) } }
                 if TaskActions.canEdit(card) {
@@ -330,26 +411,39 @@ struct BoardView: View {
             }
     }
     private func stagesBoard(width: CGFloat) -> some View {
-        let stages = lanes.flatMap(\.columns).map(\.stage).reduce(into: [StageSummary]()) { stages, stage in if !stages.contains(where: { $0.id == stage.id }) { stages.append(stage) } }
-        return HStack(alignment: .top, spacing: 8) {
-            ForEach(stages, id: \.id) { stage in
-                VStack(alignment: .leading, spacing: 12) {
-                    Label(stage.name, systemImage: DesignSystem.symbol(stage)).font(.system(size: 13, weight: .semibold))
-                    ForEach(lanes, id: \.project.id) { lane in
-                        if let column = lane.columns.first(where: { $0.stage.id == stage.id }) {
-                            Text(lane.project.name).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.faint)
-                            columnView(column, project: lane.project)
+        ScrollView(.horizontal) {
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(BoardKindGroup.allCases, id: \.self) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(group.title).font(.system(size: 13, weight: .semibold)).padding(.horizontal, 4)
+                        ScrollView(.vertical) {
+                            LazyVStack(spacing: 6) {
+                                ForEach(lanes, id: \.project.id) { lane in
+                                    ForEach(columns(lane), id: \.stage.id) { column in
+                                        ForEach(column.taskIds.filter { id in
+                                            guard let card = store.projection?.tasks[id] else { return false }
+                                            return store.matches(id) && BoardKindGroup.group(card: card, stage: column.stage) == group
+                                        }, id: \.self) { id in
+                                            if let card = store.projection?.tasks[id] {
+                                                taskButton(card, project: lane.project, stageChip: lane.project.name + " · " + column.stage.name)
+                                            }
+                                        }
+                                    }
+                                }
+                            }.padding(.bottom, 4)
                         }
-                    }
-                }.padding(10).frame(width: max((width - CGFloat(stages.count - 1) * 8) / CGFloat(max(stages.count, 1)), 140))
-                    .background(theme.lane, in: RoundedRectangle(cornerRadius: 14))
-            }
-        }
+                    }.padding(8).frame(width: 232, height: 560, alignment: .topLeading)
+                        .background(theme.lane, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }.padding(.bottom, 4)
+        }.frame(width: width)
     }
     private var macCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Label("Этот Мак", systemImage: "cpu").font(.system(size: 12, weight: .semibold)); Spacer(); KabanIconButton(symbol: "slider.horizontal.3", help: "Квота и агенты") { store.screen = .quota } }
-            HStack { Text("Активные задачи"); Spacer(); Text("\(store.runningCount)").fontWeight(.semibold).monospacedDigit() }.font(.system(size: 11))
+            HStack { Text("Агентские процессы"); Spacer(); Text("Нет данных").foregroundStyle(theme.faint) }.font(.system(size: 11))
+                .help("Служба пока не сообщает подтверждённые процессы и их потолок.")
+            HStack { Text("Резервирования"); Spacer(); Text("\(store.reservationCount)").monospacedDigit() }.font(.system(size: 10)).foregroundStyle(theme.secondary)
             theme.line.frame(height: 0.5)
             quotaRows
             Text(store.dataSource).font(.system(size: 10)).foregroundStyle(theme.faint)
@@ -387,9 +481,18 @@ struct TaskCardView: View {
     var mascot: MascotPick = MascotKit.pick(seed: "kaban")
     let selected: Bool
     let pendingLabel: String?
+    var pipeline: PipelineSummary? = nil
+    var progress: RunProgress? = nil
+    var stageChip: String? = nil
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
+    @State private var visible = false
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
-    private var presentation: CardPresentation { .init(state: card.state) }
+    private var presentation: CardPresentation {
+        .init(card: card, stage: pipeline?.stages.first { $0.id == card.stageId }, hasCurrentProgress: progress != nil)
+    }
+    private var badges: [CardBadge] { CardPresentation.badges(card: card, pipeline: pipeline) }
     var body: some View {
         let colors = theme.status(presentation.tone.rawValue)
         VStack(alignment: .leading, spacing: 0) {
@@ -398,24 +501,55 @@ struct TaskCardView: View {
                     Text(mascot.emoji).font(.system(size: 11))
                     Text(card.id.rawValue).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.faint).lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 0)
-                    if card.priority > 0 { Image(systemName: "arrow.up").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.faint) }
+                    if card.priority > 0 { Image(systemName: "arrow.up").font(.system(size: 9, weight: .bold)).foregroundStyle(theme.faint).help("Повышенный приоритет") }
                 }
-                Text(card.title).font(.system(size: 12, weight: .medium)).lineSpacing(1).lineLimit(3)
+                Text(card.title).font(.system(size: 12, weight: .medium)).lineSpacing(1).lineLimit(2)
                     .strikethrough(card.state == .cancelled).frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(card.state == .done || card.state == .cancelled ? theme.secondary : theme.text)
+                    .help(card.title)
+                if let stageChip {
+                    Text(stageChip).font(.system(size: 10)).foregroundStyle(theme.secondary).lineLimit(1).help(stageChip)
+                }
+                if !badges.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(Array(badges.prefix(2).enumerated()), id: \.offset) { _, badge in
+                            Label(badge.label, systemImage: badge.symbol).font(.system(size: 9.5)).lineLimit(1)
+                                .padding(.horizontal, 4).padding(.vertical, 2).background(theme.control, in: RoundedRectangle(cornerRadius: 4)).help(badge.help)
+                        }
+                        if badges.count > 2 {
+                            Text("+\(badges.count - 2)").font(.system(size: 9.5)).foregroundStyle(theme.secondary)
+                                .help(badges.dropFirst(2).map(\.help).joined(separator: "\n"))
+                        }
+                    }
+                }
                 ForEach(Array(card.suspiciousFiles.prefix(2)), id: \.path) { file in
-                    Text(file.path).font(.system(size: 10, design: .monospaced)).foregroundStyle(colors.2).lineLimit(1).truncationMode(.middle)
+                    Text(file.path).font(.system(size: 10, design: .monospaced)).foregroundStyle(colors.2).lineLimit(1).truncationMode(.middle).help(file.path)
                 }
                 if card.suspiciousFiles.count > 2 { Text("+\(card.suspiciousFiles.count - 2) файла").font(.system(size: 10)).foregroundStyle(colors.2) }
-                if let reason = card.bounceByReason.keys.sorted().first, let count = card.bounceByReason[reason], count > 0 {
-                    ReferenceChip(title: "↩ \(count) возврата", theme: theme, tone: "running")
+                if let message = progress?.message, !message.isEmpty {
+                    Text(message).font(.system(size: 10)).foregroundStyle(theme.secondary).lineLimit(2).help(message)
+                }
+                if CardPresentation.retryCountdown(card: card, now: .now) != nil {
+                    if visible && !reduceMotion {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(CardPresentation.retryCountdown(card: card, now: context.date) ?? "")
+                                .font(.system(size: 10)).foregroundStyle(theme.status("retry").2).monospacedDigit()
+                        }
+                    } else {
+                        Text(CardPresentation.retryCountdown(card: card, now: .now) ?? "")
+                            .font(.system(size: 10)).foregroundStyle(theme.status("retry").2).monospacedDigit()
+                    }
                 }
             }.padding(.init(top: 8, leading: 11, bottom: 8, trailing: 8))
-            HStack(spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Image(systemName: pendingLabel != nil ? "paperplane" : presentation.symbol).font(.system(size: 10))
                 Text(pendingLabel ?? presentation.label).font(.system(size: 10.5, weight: .semibold)).lineLimit(2)
                 Spacer(minLength: 0)
-                if card.attempt > 0, let limit = card.maxAttempts { Text("\(card.attempt)/\(limit)").font(.system(size: 10)).monospacedDigit().foregroundStyle(theme.faint).fixedSize() }
+                if case .waitingHuman(.runLimit) = card.state, let pipeline {
+                    Text("\(card.runsSinceHuman)/\(pipeline.maxRunsPerTask)").font(.system(size: 10)).monospacedDigit().fixedSize()
+                } else if card.attempt > 0 {
+                    Text(card.maxAttempts.map { "\(card.attempt)/\($0)" } ?? "\(card.attempt)").font(.system(size: 10)).monospacedDigit().foregroundStyle(theme.faint).fixedSize().help("Попытки в текущей стадии")
+                }
             }.padding(.horizontal, 11).padding(.vertical, 5)
                 .foregroundStyle(presentation.tone == .incident ? Color.white : colors.2)
                 .background(presentation.tone == .incident ? colors.0 : colors.1.opacity(presentation.tone == .queued ? 0.25 : 1))
@@ -428,8 +562,51 @@ struct TaskCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? theme.accent : [.waiting, .review, .incident].contains(presentation.tone) ? colors.0.opacity(0.35) : theme.line, lineWidth: selected ? 2 : 0.5))
         .shadow(color: .black.opacity(theme.dark ? 0.22 : 0.06), radius: 2, y: 1)
         .contentShape(RoundedRectangle(cornerRadius: 10))
+        .onScrollVisibilityChange(threshold: 0.01) { visible = $0 }.onDisappear { visible = false }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(card.id.rawValue), \(card.title), \(presentation.label)\(pendingLabel.map { ", " + $0 } ?? "")")
+        .accessibilityLabel("\(card.id.rawValue), \(card.title), \(stageChip.map { $0 + ", " } ?? "")\(presentation.label), \(badges.map(\.help).joined(separator: ", "))\(pendingLabel.map { ", " + $0 } ?? "")")
+    }
+}
+
+struct MascotPickerView: View {
+    @Bindable var store: BoardStore
+    let projectID: ProjectID
+    @State private var selection: Int?
+    @State private var texture: EdgeTexture?
+    @Environment(\.colorScheme) private var scheme
+    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var current: MascotPick { store.mascot(projectID) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Маскот проекта").font(.system(size: 16, weight: .semibold))
+            Text(store.projection?.projects[projectID]?.name ?? "").font(.system(size: 12)).foregroundStyle(theme.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(38)), count: 6), spacing: 8) {
+                ForEach(MascotKit.mascots.indices, id: \.self) { index in
+                    Button { selection = index } label: {
+                        Text(MascotKit.mascots[index]).font(.system(size: 24)).frame(width: 38, height: 38)
+                            .background((selection ?? current.mascotIndex) == index ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke((selection ?? current.mascotIndex) == index ? theme.accent : .clear))
+                    }.buttonStyle(.plain).accessibilityLabel("Маскот \(MascotKit.mascots[index])")
+                }
+            }
+            Text("Фактура края").font(.system(size: 12, weight: .semibold))
+            HStack(spacing: 6) {
+                ForEach(EdgeTexture.allCases, id: \.self) { value in
+                    Button { texture = value } label: {
+                        ProjectEdgeTexture(texture: value, color: theme.text).frame(width: 12, height: 28).padding(7)
+                            .background((texture ?? current.texture) == value ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 5))
+                    }.buttonStyle(.plain).help(value.key).accessibilityLabel(value.key)
+                }
+            }
+            if let pending = store.pendingLabel(.project(projectID)) { Text(pending).font(.system(size: 11)).foregroundStyle(theme.secondary) }
+            HStack {
+                Button("Закрыть") { store.mascotProjectID = nil }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("Сохранить") { Task { await store.setMascot(projectID, index: selection ?? current.mascotIndex, texture: texture ?? current.texture) } }
+                    .buttonStyle(KabanButtonStyle(primary: true))
+                    .disabled(!store.session.can(.setMascot(projectId: projectID, seed: "")))
+            }
+        }.padding(18).frame(width: 320).background(theme.window).foregroundStyle(theme.text)
     }
 }
 
@@ -438,15 +615,30 @@ struct ProjectEdgeTexture: View {
     let color: Color
     var body: some View {
         Canvas { context, size in
-            for y in stride(from: 0.0, to: size.height + 5, by: 5) {
+            for y in stride(from: 0.0, to: size.height + 8, by: 8) {
+                var path = Path()
                 switch texture {
-                case .dots: context.fill(Path(ellipseIn: .init(x: 0.5, y: y, width: 2, height: 2)), with: .color(color))
-                case .solidThin: context.fill(Path(CGRect(x: 0, y: y, width: 2, height: 5)), with: .color(color.opacity(0.65)))
-                case .grid, .crosshatch: context.fill(Path(CGRect(x: 0, y: y, width: 3, height: 2)), with: .color(color))
-                default:
-                    var path = Path(); path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: 3, y: y + 3))
-                    context.stroke(path, with: .color(color), lineWidth: 1)
+                case .dots:
+                    context.fill(Path(ellipseIn: .init(x: max((size.width - 2) / 2, 0), y: y, width: 2, height: 2)), with: .color(color))
+                case .solidThin:
+                    context.fill(Path(CGRect(x: 0, y: y, width: min(size.width, 2), height: 8)), with: .color(color.opacity(0.65)))
+                case .grid:
+                    path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width, y: y))
+                    path.move(to: .init(x: size.width / 2, y: y)); path.addLine(to: .init(x: size.width / 2, y: y + 8))
+                case .crosshatch:
+                    path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width, y: y + 8))
+                    path.move(to: .init(x: size.width, y: y)); path.addLine(to: .init(x: 0, y: y + 8))
+                case .waves:
+                    path.move(to: .init(x: 0, y: y)); path.addQuadCurve(to: .init(x: size.width, y: y + 4), control: .init(x: 0, y: y + 4))
+                    path.addQuadCurve(to: .init(x: 0, y: y + 8), control: .init(x: size.width, y: y + 8))
+                case .zigzag:
+                    path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width, y: y + 4)); path.addLine(to: .init(x: 0, y: y + 8))
+                case .chevrons:
+                    path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width / 2, y: y + 4)); path.addLine(to: .init(x: size.width, y: y))
+                case .stripes:
+                    path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width, y: y + 4))
                 }
+                context.stroke(path, with: .color(color.opacity(0.7)), lineWidth: 0.8)
             }
         }.accessibilityHidden(true)
     }
