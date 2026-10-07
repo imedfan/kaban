@@ -924,6 +924,15 @@ struct TaskDetailView: View {
                         Text("\(stageName(run.stageId, detail: store.detail)) · запуск №\(run.number)").font(.system(size: 12, weight: .semibold))
                         Spacer(); Text(runStatus(run.status)).font(.system(size: 10)).foregroundStyle(theme.secondary)
                     }
+                    HStack {
+                        Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
+                        if run.wipRef != nil, let card = store.projection?.tasks[run.taskId],
+                           WIPRestoreRequest(card: card, run: run, pipeline: store.projection?.pipelines[card.projectId]).isAvailable {
+                            Button("Восстановить WIP…") { store.beginWIPRestore(run) }.buttonStyle(KabanButtonStyle(compact: true))
+                                .disabled(!store.can(.restoreWIP) || store.session.pending(in: .task(card.id)) != nil)
+                                .help(store.unavailableReason(.restoreWIP))
+                        }
+                    }
                     Text("Запрошена: \(run.requestedModel.rawValue)").font(.system(size: 11, design: .monospaced)).textSelection(.enabled).lineLimit(2).help(run.requestedModel.rawValue)
                     Text(run.actualModelName.map { "Фактическая модель: " + $0 } ?? "Фактическая модель не подтверждена").font(.system(size: 11)).foregroundStyle(theme.secondary).lineLimit(2).help(run.actualModelName ?? "Фактическая модель не подтверждена")
                     Text(run.countsTowardLimits ? "Учитывается в лимите попыток" : "Не учитывается в лимите попыток").font(.system(size: 10)).foregroundStyle(theme.secondary)
@@ -950,15 +959,6 @@ struct TaskDetailView: View {
                             }.buttonStyle(.link)
                         }.font(.system(size: 10)).foregroundStyle(theme.faint).padding(.top, 5)
                     }.font(.system(size: 11)).foregroundStyle(theme.secondary)
-                    HStack {
-                        Button("Читать лог…") { store.logRunRoute = run }.buttonStyle(KabanButtonStyle(compact: true))
-                        if run.wipRef != nil, let card = store.projection?.tasks[run.taskId],
-                           WIPRestoreRequest(card: card, run: run, pipeline: store.projection?.pipelines[card.projectId]).isAvailable {
-                            Button("Восстановить WIP…") { store.beginWIPRestore(run) }.buttonStyle(KabanButtonStyle(compact: true))
-                                .disabled(!store.can(.restoreWIP) || store.session.pending(in: .task(card.id)) != nil)
-                                .help(store.unavailableReason(.restoreWIP))
-                        }
-                    }
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 9))
             }
         } else { empty("История ещё не загружена"); Button("Загрузить историю") { Task { await store.session.readRunHistory() } }.buttonStyle(KabanButtonStyle(compact: true)) }
