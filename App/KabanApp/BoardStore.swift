@@ -11,6 +11,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
 @MainActor @Observable final class BoardStore {
     private let client: any KabanClient
     let session: BoardSession
+    let environment: RunnerEnvironmentStore
     let usesFixture: Bool
     let dataSource: String
     let dataSourceDetail: String
@@ -40,19 +41,21 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         if can(name) { return "" }
         return canSend ? "Подключённая служба не поддерживает это действие. Обновите службу Kaban." : "Действие будет доступно после подключения и синхронизации."
     }
-    init(client: any KabanClient, storage: any KeyValueStoring = DefaultsStorage(), dataSource: String = "Служба Kaban · на этом Маке", dataSourceDetail: String = "", commandStorageKey: String = "client.commands.installed") {
-        self.client = client; usesFixture = client is MockKabanClient
+    init(client: any KabanClient, storage: any KeyValueStoring = DefaultsStorage(), dataSource: String = "Служба Kaban · на этом Маке", dataSourceDetail: String = "", commandStorageKey: String = "client.commands.installed", fixture: Bool = false) {
+        self.client = client; usesFixture = fixture || client is MockKabanClient
         self.dataSource = usesFixture ? "Демонстрация · данные в памяти" : dataSource
         self.dataSourceDetail = dataSourceDetail
-        session = BoardSession(client: client, storage: storage, key: usesFixture ? "client.commands.fixture" : commandStorageKey)
+        let session = BoardSession(client: client, storage: storage, key: usesFixture ? "client.commands.fixture" : commandStorageKey)
+        self.session = session
+        environment = RunnerEnvironmentStore(client: client, session: session)
     }
-    isolated deinit { subscription?.cancel() }
+    isolated deinit { session.stop(); subscription?.cancel() }
     func connect() async {
         guard subscription == nil else { return }
         let session = session
         subscription = Task { await session.run() }
     }
-    func stop() { subscription?.cancel(); subscription = nil }
+    func stop() { session.stop(); subscription?.cancel(); subscription = nil }
     func retry() {
         let previous = subscription, session = session
         previous?.cancel()

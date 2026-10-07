@@ -28,7 +28,9 @@ import KabanProtocol
     private var schedulerFlagsSeq: Seq = 0
     private var volatileBuffer: [EphemeralEnvelope] = []
     private var epoch = UUID()
+    private var lifecycle = UUID()
     private var running = false
+    private var stopped = false
     private var sourceConnected = false
     private var reconciliation: Task<Void, Never>?
     private var detailRefresh: Task<Void, Never>?
@@ -51,7 +53,8 @@ import KabanProtocol
             self.error = message; connectionState = .disconnected(.init(code: "client_storage_invalid", message: message))
         }
     }
-    public var canSend: Bool { connectionState == .connected && capabilities != nil && journal != nil && drafts != nil }
+    public var sessionGeneration: UUID { epoch }
+    public var canSend: Bool { !stopped && connectionState == .connected && capabilities != nil && journal != nil && drafts != nil }
     public func can(_ name: CommandName) -> Bool { canSend && capabilities?.supports(name) == true }
     public func pending(in scope: CommandScope) -> ClientCommandJournal.Record? { journal?.records.first { $0.isPending && $0.scope == scope } }
     public func can(_ command: Command) -> Bool { can(command.name) && command.mutationScope.map { pending(in: $0) == nil } == true }
@@ -59,25 +62,41 @@ import KabanProtocol
     public func show(_ id: ProjectID) { boardSet.show(id); visibleIDs = boardSet.visibleProjectIds }
     public func hide(_ id: ProjectID) { boardSet.hide(id); visibleIDs = boardSet.visibleProjectIds }
 
+    /// Quiesce storage writes before a runtime replaces this session/transport.
+    /// Late RPC responses may finish, but cannot overwrite the next journal owner.
+    public func stop() {
+        stopped = true; lifecycle = UUID(); invalidate(); sourceConnected = false
+        connectionState = .disconnected(.init(code: "session_stopped", message: "Соединение со службой остановлено."))
+        for record in journal?.records ?? [] where record.phase == .sending {
+            try? journal?.markUncertain(record.envelope.commandId)
+        }
+        refreshPending()
+    }
+
     /// Cancellation is owned by BoardStore/runtime, not a SwiftUI .task lifetime.
     public func run() async {
         guard !running, journal != nil, drafts != nil else { return }
-        running = true
+        stopped = false; running = true
+        let owner = lifecycle
         defer {
             running = false; invalidate(); sourceConnected = false
         }
         var failures = 0
-        while !Task.isCancelled {
+        while !Task.isCancelled && !stopped && owner == lifecycle {
             invalidate(); sourceConnected = false
             connectionState = projection == nil ? .connecting : .reconnecting(lastSeq: projection?.stateSeq)
             do {
-                capabilities = try await client.capabilities()
+                let receivedCapabilities = try await client.capabilities()
+                guard !stopped, owner == lifecycle, !Task.isCancelled else { return }
+                capabilities = receivedCapabilities
                 guard capabilities?.supportsOperation("synchronize") == true else {
                     throw CommandError(code: CommandError.unsupportedOperationCode, message: "Служба не поддерживает восстановление сессии. Обновите Kaban.")
                 }
                 let stream = client.updates()
                 connectionState = .synchronizing
-                try replace(try await client.synchronize())
+                let replacement = try await client.synchronize()
+                guard !stopped, owner == lifecycle, !Task.isCancelled else { return }
+                try replace(replacement)
                 for try await update in stream {
                     try Task.checkCancellation()
                     try consume(update)
@@ -87,6 +106,7 @@ import KabanProtocol
                 throw CommandError(code: "stream_closed", message: "Поток обновлений завершился.")
             } catch is CancellationError { return }
             catch {
+                guard !stopped, owner == lifecycle, !Task.isCancelled else { return }
                 invalidate(); sourceConnected = false; recoveryCount += 1; failures += 1
                 let failure = (error as? CommandError) ?? .init(code: "transport_failure", message: "Соединение с Kaban прервано: \(error.localizedDescription)")
                 if [CommandError.protocolMismatchCode, CommandError.unsupportedOperationCode, "invalid_reply"].contains(failure.code) || failures >= 5 {
@@ -106,6 +126,7 @@ import KabanProtocol
     }
     /// Synchronous reduction keeps the bounded stream draining during reads/replay.
     func consume(_ update: KabanClientUpdate) throws {
+        guard !stopped else { return }
         switch update {
         case .capabilities(let value): capabilities = value
         case .connection(let state):
@@ -278,7 +299,7 @@ import KabanProtocol
         }
     }
     private func refreshDetail(_ id: TaskID) async {
-        guard selectedID == id, capabilities?.supports(.getTaskDetail) == true else { return }
+        guard !stopped, selectedID == id, capabilities?.supports(.getTaskDetail) == true else { return }
         let generation = selection.begin(id); let session = epoch
         do {
             let reply = try await client.send(.init(command: .getTaskDetail(taskId: id)))
@@ -298,6 +319,7 @@ import KabanProtocol
     @discardableResult public func send(_ command: Command, editor: Bool = false) async -> Bool {
         guard can(command), let journal else { return false }
         let envelope = CommandEnvelope(command: command)
+        let owner = lifecycle
         do { try journal.begin(envelope) }
         catch { self.error = error.localizedDescription; return false }
         if case .createTask(let project, _, _) = command {
@@ -310,6 +332,7 @@ import KabanProtocol
         refreshPending()
         do {
             let reply = try await client.send(envelope)
+            guard owner == lifecycle else { return false }
             guard reply.commandId == envelope.commandId else { throw resyncError() }
             try journal.receive(reply); refreshPending(); finishCreations()
             if case .error(let failure) = reply.result {
@@ -318,6 +341,7 @@ import KabanProtocol
             if journal.records.first(where: { $0.envelope.commandId == envelope.commandId })?.isPending == true { startReconciliation() }
             return true
         } catch {
+            guard owner == lifecycle else { return false }
             if let record = journal.records.first(where: { $0.envelope.commandId == envelope.commandId }), !record.isPending {
                 refreshPending(); finishCreations()
                 return record.phase == .applied

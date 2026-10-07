@@ -11,22 +11,42 @@ import KabanTransport
     var status = "Подключение службы Kaban…"
     var failure: String?
     var busy = false
+    var showSetup = true
+    let onboardingSystem = OnboardingSystemState()
+    private var initialization: Task<Void, Never>?
     private var closeTransport: (() async -> Void)?
     private var started = false
     private var connectingInstalled = false
     private let service = SMAppService.agent(plistName: DaemonInstallation.plistName)
     var developer: Bool { CommandLine.arguments.contains("--developer") || BoardQA.argument("--daemon-smoke") != nil }
     var fixture: Bool { BoardQA.isActive && BoardQA.argument("--qa-runtime-state") == nil && BoardQA.argument("--daemon-smoke") == nil && !developer }
+    private var setupKey: String { "onboarding.completed." + (developer ? "developer" : "installed") }
+    func finishSetup() {
+        guard store?.canSend == true else { return }
+        showSetup = false
+        if !fixture && !BoardQA.isActive { UserDefaults.standard.set(true, forKey: setupKey) }
+    }
     init() {
-        if fixture { store = BoardStore(client: AppFixture.client(), storage: MemoryKeyValueStore()) }
+        showSetup = BoardQA.argument("--qa-onboarding") != nil || (!BoardQA.isActive && !UserDefaults.standard.bool(forKey: setupKey))
+        if fixture {
+            let base = AppFixture.client()
+            let client: any KabanClient
+            if let state = BoardQA.argument("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
+            else { client = base }
+            store = BoardStore(client: client, storage: MemoryKeyValueStore(), fixture: true)
+        }
         if let state = BoardQA.argument("--qa-runtime-state"), !CommandLine.arguments.contains("--qa-incompatible-daemon") {
             status = state == "protocol-error" ? "Служба Kaban требует обновления" : "Не удалось подключиться к службе Kaban"
-            failure = state == "protocol-error" ? "Несовместимая версия протокола. Обновите службу Kaban и проверьте подключение снова." : "macOS не смогла включить локальную службу. Откройте «Объекты входа и расширения», проверьте разрешение для Kaban и повторите подключение. Сохранённые задачи останутся в локальной базе."
+            if state == "approval" { status = "Разрешите Kaban в настройках «Объекты входа и расширения»" }
+            failure = state == "approval" ? nil : state == "protocol-error" ? "Несовместимая версия протокола. Обновите службу Kaban и проверьте подключение снова." : "macOS не смогла включить локальную службу. Откройте «Объекты входа и расширения», проверьте разрешение для Kaban и повторите подключение. Сохранённые задачи останутся в локальной базе."
         }
     }
-    func start() async {
+    func start() {
         guard !started else { return }; started = true
         BoardQA.runtime = self
+        initialization = Task { await initializeRuntime(); initialization = nil }
+    }
+    private func initializeRuntime() async {
         if BoardQA.argument("--qa-runtime-state") != nil, !CommandLine.arguments.contains("--qa-incompatible-daemon") { return }
         if fixture { return }
         if let report = BoardQA.argument("--service-smoke") { await serviceSmoke(report); return }
@@ -67,7 +87,12 @@ import KabanTransport
     }
     func refresh() async {
         guard started, !fixture, !developer, !busy, BoardQA.argument("--qa-runtime-state") == nil else { return }
+        busy = true; defer { busy = false }
         observeStatus()
+        if service.status != .enabled, store != nil {
+            store?.stop(); store = nil
+            await closeTransport?(); closeTransport = nil
+        }
         if service.status == .enabled, store == nil { await connectInstalled() }
     }
     private func serviceStatusName(_ status: SMAppService.Status) -> String {
@@ -114,6 +139,7 @@ import KabanTransport
         } catch { failure = error.localizedDescription; observeStatus() }
     }
     func retry() async {
+        if let store, !store.canSend { store.retry(); return }
         if developer { await connectDeveloper() } else { await registerIfNeeded() }
     }
     func restart() async {
@@ -181,53 +207,19 @@ import KabanTransport
 struct DaemonRuntimeView: View {
     @Bindable var runtime: DaemonRuntime
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     var body: some View {
         Group {
-            if let store = runtime.store {
-                VStack(spacing: 0) {
-                    BoardView(store: store).onAppear { BoardQA.store = store }
-                }
+            if let store = runtime.store, !runtime.showSetup {
+                BoardView(store: store).onAppear { BoardQA.store = store }
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        ReferenceWordmark().fill(theme.text).frame(width: 110, height: 30)
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("Подключение к Kaban", systemImage: "externaldrive.badge.wifi")
-                                .font(.system(size: 22, weight: .semibold))
-                            Text("Задачи и настройки хранятся в локальной службе. Подключите её, чтобы открыть доску.")
-                                .font(.system(size: 13)).foregroundStyle(theme.secondary).lineSpacing(4)
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .top, spacing: 10) {
-                                if runtime.busy { ProgressView().controlSize(.small) }
-                                else { Image(systemName: runtime.failure == nil ? "info.circle" : "exclamationmark.triangle").foregroundStyle(theme.status("waiting").2) }
-                                Text(runtime.status).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                            }
-                            if let failure = runtime.failure {
-                                Text(failure).font(.system(size: 12)).foregroundStyle(theme.secondary)
-                                    .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-                            }
-                        }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(theme.control, in: RoundedRectangle(cornerRadius: 10))
-                        HStack(spacing: 10) {
-                            if !runtime.developer {
-                                Button("Объекты входа…") { runtime.openSettings() }.buttonStyle(KabanButtonStyle())
-                            }
-                            Button("Проверить снова") { Task { await runtime.retry() } }
-                                .buttonStyle(KabanButtonStyle(primary: true)).disabled(runtime.busy).keyboardShortcut(.defaultAction)
-                        }
-                        Text(runtime.developer ? "Режим разработки · отдельная БД" : "Локальная служба · на этом Маке")
-                            .font(.system(size: 11)).foregroundStyle(theme.faint)
-                    }.padding(32).frame(maxWidth: 560, alignment: .leading)
-                        .background(theme.card, in: RoundedRectangle(cornerRadius: DesignSystem.panelRadius))
-                        .overlay(RoundedRectangle(cornerRadius: DesignSystem.panelRadius).stroke(theme.line, lineWidth: 0.5))
-                        .padding(.horizontal, 32).padding(.vertical, 64).frame(maxWidth: .infinity)
-                }.background(ReferenceBackdrop(theme: theme)).foregroundStyle(theme.text)
+                OnboardingView(runtime: runtime).onAppear { BoardQA.store = runtime.store }
             }
         }
-        .task { await runtime.start() }
+        .task { runtime.start() }
+        .onChange(of: runtime.store.map { ObjectIdentifier($0) }, initial: true) { _, _ in
+            BoardQA.store = runtime.store
+            if let store = runtime.store { Task { await store.connect() } }
+        }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await runtime.refresh() } } }
     }
 }

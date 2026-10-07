@@ -56,6 +56,16 @@ import Darwin
         if argument("--qa-window-id") != nil {
             try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
         }
+        if argument("--qa-onboarding-scroll") == "bottom", let root = window.contentView {
+            func scrollViews(_ view: NSView) -> [NSScrollView] {
+                (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews($0) }
+            }
+            guard let scroll = scrollViews(root).first(where: { ($0.documentView?.bounds.height ?? 0) > $0.contentView.bounds.height }),
+                  let document = scroll.documentView else { throw failure("Onboarding scroll view missing") }
+            let y = document.isFlipped ? document.bounds.height - scroll.contentView.bounds.height : 0
+            scroll.contentView.scroll(to: .init(x: 0, y: max(y, 0))); scroll.reflectScrolledClipView(scroll.contentView)
+            try await Task.sleep(for: .milliseconds(300))
+        }
         let bitmap = try await ReferenceExport.captureLiveWindow()
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
         let url = URL(fileURLWithPath: path)
@@ -76,10 +86,24 @@ import Darwin
         await store.create(.init(title: "Durable UI task", body: "Durable body"), in: project)
         try await waitUntil("correlated task creation") { store.createdTaskID != nil && store.creation.commandID == nil && store.canSend }
         guard let id = store.createdTaskID else { throw failure("Correlated creation missing") }
-        guard store.projection?.tasks.count == before + 1,
-              let record = store.commandJournal?.records.first(where: { if case .createTask = $0.envelope.command { return true }; return false }),
-              record.reply?.commandId == record.envelope.commandId, record.reply?.seq != nil,
-              record.eventSeq != nil else { throw failure("Command metadata or exactly one creation missing") }
+        let records = store.commandJournal?.records.filter { if case .createTask = $0.envelope.command { return true }; return false } ?? []
+        guard records.count == 1, let record = records.first else { throw failure("Exactly one create intent was not retained") }
+        let eventProof = record.createdTaskID == id && (record.confirmedSeq ?? 0) > 0 && record.eventSeq != nil
+        let receiptTaskID: TaskID?
+        if case .taskCreated(let value) = record.reply?.result { receiptTaskID = value } else { receiptTaskID = nil }
+        let snapshotProof = receiptTaskID == id && record.reply?.commandId == record.envelope.commandId &&
+            (record.reply?.seq ?? 0) > 0 && (record.coveredSnapshotSeq ?? -1) >= (record.reply?.seq ?? 0) &&
+            (record.coveredSnapshotSeq ?? -1) <= (store.projection?.stateSeq ?? -1)
+        // A lost reply may be proven by the typed event alone. Retention may
+        // instead require the original typed receipt plus applied snapshot.
+        // Acceptance alone never satisfies either proof.
+        guard store.projection?.tasks.count == before + 1, record.phase == .applied,
+              record.envelope.command == .createTask(projectId: project, title: "Durable UI task", body: "Durable body"),
+              store.projection?.tasks[id]?.projectId == project,
+              record.reply == nil || record.reply?.commandId == record.envelope.commandId,
+              eventProof || snapshotProof else {
+            throw failure("Creation proof missing: before=\(before), after=\(store.projection?.tasks.count ?? -1), phase=\(record.phase), receiptSeq=\(String(describing: record.reply?.seq)), eventSeq=\(String(describing: record.eventSeq)), confirmedSeq=\(String(describing: record.confirmedSeq)), coveredSnapshotSeq=\(String(describing: record.coveredSnapshotSeq)), eventProof=\(eventProof), snapshotProof=\(snapshotProof)")
+        }
         guard store.capabilities?.supportsOperation("readLog") == true else { throw failure("Log capability missing") }
         do { _ = try await store.readLog(runId: "missing-qa-run", fromOffset: 0); throw failure("Missing log became empty success") }
         catch let error as CommandError { guard error.code != CommandError.unsupportedOperationCode else { throw failure("Log API was not forwarded") } }

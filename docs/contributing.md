@@ -40,7 +40,7 @@ team2 на production и существующие тесты не применя
 - Wire/store: совместимость legacy DTO, повтор команд, journal/projection и транзакционные границы.
 - Не пропускай новый failing test ради зелёного CI. Старое предписание team2 о skip со ссылкой на issue отменено.
 - Пропущенные проверки и проблемы среды указывай явно; не ослабляй assertions ради обхода среды.
-- macOS job сейчас optional: общий green workflow не доказывает успешную сборку приложения.
+- macOS job обязателен: проверяй App build и native smoke на финальном SHA. Успех fixture CI не закрывает installed helper / live Cursor приёмку.
 
 Mock/fake должен соблюдать продуктовые правила. Он не подтверждает работу
 Cursor, процессов, durable настроек и XPC. Подпись, регистрация LaunchAgent

@@ -25,3 +25,20 @@
 3. `requestAuthorization` для уведомлений, шаг можно пропустить.
 4. `checkEnvironment`: путь и версия `cursor-agent`, `authOK`, git, `sandboxOK`; путь можно указать вручную; логин — инструкция «`cursor-agent login` в Терминале» и «Проверить снова» (`recheck(.runner)`).
 5. Первый проект.
+
+
+## Инкремент FE-03
+
+Нативный OnboardingView использует один DaemonRuntime/BoardSession, включая
+повторное открытие настройки через меню. Reads среды — RunnerEnvironmentStore;
+mutations — тот же durable journal. Подтверждение configureCursor не заменяется
+ответом .ok; после restart pending сохраняет исходный path/envelope. Старый
+ответ среды помечается устаревшим, unsupported остаётся unknown.
+
+UNUserNotificationCenter разрешение App и SMAppService.mainApp автозапуск
+необязательны. Открыть Backlog можно при недоступном Cursor, после настоящего
+handshake и catch-up. Возврат из macOS Settings перепроверяет helper; отозванное
+разрешение закрывает прежнее соединение. Папку первого проекта подключает FE-04.
+
+Проверки и границы текущей ветки — [отчёт FE-03](../development/frontend-fe-03-2026-10-07.md);
+полные требования 3.10–3.11 сохраняются.

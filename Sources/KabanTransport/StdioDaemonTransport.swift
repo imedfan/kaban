@@ -34,21 +34,22 @@ public final class StdioDaemonTransport: DaemonTransport, Sendable {
         catch { throw DaemonTransportError.invalidReply }
     }
     public func close() async {
-        worker.stop()
+        worker.shutdown()
         await withCheckedContinuation { continuation in
             worker.queue.async { self.worker.close(); continuation.resume() }
         }
     }
-    deinit { worker.stop() }
+    deinit { worker.shutdown() }
 }
 
-/// IO state belongs to queue; only the child-process cancellation handle uses lock.
+/// IO state belongs to queue; process cancellation and terminal shutdown use lock.
 private final class StdioWorker: @unchecked Sendable {
     let queue = DispatchQueue(label: "app.kaban.stdio")
     private let executable: URL
     private let database: String
     private let additionalArguments: [String]
     private let lock = NSLock()
+    private var closed = false
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?
@@ -58,8 +59,10 @@ private final class StdioWorker: @unchecked Sendable {
     func exchange(_ data: Data, completion: RPCCompletion) {
         guard !completion.isFinished else { return }
         do {
+            guard !lock.withLock({ closed }) else { throw DaemonTransportError.connectionLost }
             if lock.withLock({ process?.isRunning != true }) { try start() }
             guard !completion.isFinished else { stop(); close(); return }
+            guard !lock.withLock({ closed }) else { throw DaemonTransportError.connectionLost }
             try input!.write(contentsOf: data + Data([10]))
             while true {
                 if let newline = buffer.firstIndex(of: 10) {
@@ -83,12 +86,19 @@ private final class StdioWorker: @unchecked Sendable {
         child.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": FileManager.default.homeDirectoryForCurrentUser.path, "TMPDIR": FileManager.default.temporaryDirectory.path]
         child.standardInput = requests; child.standardOutput = replies
         child.standardError = FileHandle.standardError
-        try child.run()
-        lock.withLock { process = child }
+        try lock.withLock {
+            guard !closed else { throw DaemonTransportError.connectionLost }
+            try child.run()
+            process = child
+        }
         input = requests.fileHandleForWriting; output = replies.fileHandleForReading
         #if os(macOS)
         _ = fcntl(input!.fileDescriptor, F_SETNOSIGPIPE, 1)
         #endif
+    }
+    func shutdown() {
+        lock.withLock { closed = true }
+        stop()
     }
     func stop() {
         lock.withLock {

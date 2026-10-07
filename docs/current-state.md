@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 6 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 7 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`db9f73a` (FE-01, PR #92).
+`ff04e05` (FE-02, PR #93).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,15 +17,15 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `db9f73a`; FE-01 принят в #92, все Linux,
-native и context CI jobs его финального HEAD `81c73f3` завершились успешно.
-FE-02 реализован в отдельной `codex/fe-02-session-recovery` от этой базы:
+Основной каталог обновлён до main `ff04e05`; FE-01 принят в #92, FE-02 —
+в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
+CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
-WIP outcomes после retention. Проверки и честные ограничения native live smoke —
-[отчёт FE-02](development/frontend-fe-02-2026-10-06.md).
-До принятия PR FE-02 основной checkout не содержит его реализацию; имя ветки
-или отчёт не заменяют проверку refs/diff. Проверки FE-01 —
-[отчёт](development/frontend-fe-01-2026-10-06.md).
+WIP outcomes после retention теперь присутствуют в main; [отчёт FE-02](development/frontend-fe-02-2026-10-06.md).
+FE-03 подготовлен отдельно от этой базы: нативный онбординг, environment queries
+по capabilities, optional permissions и защита старого journal owner при shutdown.
+Проверки и незавершённая live-приёмка — [отчёт FE-03](development/frontend-fe-03-2026-10-07.md).
+До принятия PR FE-03 основной checkout не содержит его реализацию.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -37,7 +37,7 @@ WIP outcomes после retention. Проверки и честные огран
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; в FE-02 BoardSession/reconciliation/drafts | FE-02 находится в рабочей ветке до принятия PR; Core зависит только от Protocol |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts | Core зависит только от Protocol; FE-03 environment store находится в рабочей ветке |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, детали, pause/resume, lifecycle UI | В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
@@ -80,8 +80,8 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять FE-02 после native checks; затем FE-03 окружение/онбординг и FE-04
-   live-проекты, по одной задаче в PR.
+1. Принять frontend-инкремент FE-03 и завершить его live-зависимости; затем FE-04
+   live-проекты, по одной задаче в PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
    разрешить ожидание по полному frontend-списку.
 3. Завершить production Cursor/MCP, недостающие wire/producers и штатную
@@ -148,7 +148,7 @@ pending создания как доказанный отказ. Mock возвр
 Developer retry сначала закрывает прежний транспорт; обычный запуск не переходит
 на fixtures. Источник данных показан в сайдбаре. Панель службы/ошибки использует
 общие токены; пробелы исходников — [список дизайнеру](development/frontend-design-gaps.md).
-FE-02 остаётся отдельной задачей: полный replay/reconciliation сохранённых
+FE-02 принят в main через #93: полный replay/reconciliation сохранённых
 отправок после reopen, retention и замены snapshot, восстановление draft и деталей.
 
 ## Исторические итоги backend-инкрементов
