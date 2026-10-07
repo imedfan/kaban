@@ -22,6 +22,7 @@ public struct DemoTaskDraft: Codable, Equatable, Sendable {
 
 public enum TaskActions {
     public static func canEdit(_ card: TaskCard) -> Bool { [.queued, .waitingHuman, .paused].contains(card.state.status) }
+    public static func canSetPriority(_ card: TaskCard) -> Bool { ![.done, .cancelled].contains(card.state.status) }
     public static func canCancel(_ card: TaskCard) -> Bool { card.state.status != .done && card.state.status != .cancelled }
     /// Advisory UI affordance from the existing pipeline/card contract. The command receiver revalidates.
     public static func moveDecision(card: TaskCard, target: StageSummary, pipeline: PipelineSummary) -> DropDecision {

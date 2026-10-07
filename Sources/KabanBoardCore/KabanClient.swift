@@ -84,7 +84,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .moveTask, .cancelTask, .pauseTask, .resumeTask, .setMascot]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -129,7 +129,7 @@ extension KabanClient {
             guard draft.canSubmit, !body.contains("\0") else { return .error(CommandError(code: "invalid_request", message: "Укажите заголовок задачи; поля не должны содержать NUL.")) }
             let id = TaskID(rawValue: UUID().uuidString)
             let task = TaskCard(id: id, projectId: projectID, title: title.trimmingCharacters(in: .whitespacesAndNewlines), stageId: queue.id,
-                                state: .queued(nil), hasAcceptanceCriteria: draft.hasAcceptanceCriteria, updatedAt: Date())
+                                state: .queued(nil), hasAcceptanceCriteria: TaskMarkdown.hasAcceptanceCriteria(in: body), updatedAt: Date())
             snapshot.tasks.append(task)
             bodies[id] = body
             emit(.taskCreated(task), projectID: projectID, commandID: commandId)
@@ -139,20 +139,22 @@ extension KabanClient {
             guard TaskActions.canEdit(snapshot.tasks[index]) else { return invalidState() }
             guard title != nil || body != nil else { return .error(CommandError(code: "invalid_request", message: "Нет изменений.")) }
             if let body, body.contains("\0") { return .error(CommandError(code: "invalid_request", message: "Описание содержит NUL.")) }
-            var draft = DemoTaskDraft(title: snapshot.tasks[index].title, body: bodies[id] ?? "")
-            if let title {
-                draft.title = title
-                guard draft.canSubmit else { return .error(CommandError(code: "invalid_request", message: "Укажите заголовок задачи.")) }
-                snapshot.tasks[index].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            if let title, !DemoTaskDraft(title: title).canSubmit { return .error(CommandError(code: "invalid_request", message: "Укажите заголовок задачи.")) }
+            if body != nil, bodies[id] == nil { return .error(CommandError(code: "incomplete_projection", message: "Описание задачи неизвестно.")) }
+            if let title { snapshot.tasks[index].title = title.trimmingCharacters(in: .whitespacesAndNewlines) }
             if let body {
-                guard !body.contains("\0") else { return .error(CommandError(code: "invalid_request", message: "Описание содержит NUL.")) }
-                draft = DemoTaskDraft(title: snapshot.tasks[index].title, body: body)
-                snapshot.tasks[index].hasAcceptanceCriteria = draft.hasAcceptanceCriteria
+                snapshot.tasks[index].hasAcceptanceCriteria = TaskMarkdown.hasAcceptanceCriteria(in: body)
                 bodies[id] = body
             }
             snapshot.tasks[index].updatedAt = Date()
             emit(.taskEdited(snapshot.tasks[index]), projectID: snapshot.tasks[index].projectId, commandID: commandId)
+            emit(.taskUpdated(snapshot.tasks[index]), projectID: snapshot.tasks[index].projectId, commandID: commandId)
+            return .ok
+        case .setPriority(let id, let priority):
+            guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
+            guard TaskActions.canSetPriority(snapshot.tasks[index]) else { return invalidState() }
+            snapshot.tasks[index].priority = priority
+            snapshot.tasks[index].updatedAt = Date()
             emit(.taskUpdated(snapshot.tasks[index]), projectID: snapshot.tasks[index].projectId, commandID: commandId)
             return .ok
         case .moveTask(let id, let targetID):

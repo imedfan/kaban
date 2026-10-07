@@ -9,7 +9,7 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--board-smoke") != nil }
+    static var isActive: Bool { argument("--export-live-window") != nil || argument("--ui-smoke") != nil || argument("--qa-window-id") != nil || argument("--daemon-smoke") != nil || argument("--project-smoke") != nil || argument("--task-smoke") != nil || argument("--board-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -27,8 +27,10 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--board-smoke") {
-                let checks = try await boardSmoke(store)
+            if let path = argument("--task-smoke") ?? argument("--board-smoke") {
+                let checks: [String]
+                if argument("--task-smoke") != nil { checks = try await taskSmoke(store) }
+                else { checks = try await boardSmoke(store) }
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--project-smoke") {
@@ -230,6 +232,7 @@ import Darwin
         return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears after correlated event or covered receipt and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
     }
     private static func prepare(_ store: BoardStore) async throws {
+        if try await prepareTaskEditor(store) { return }
         switch argument("--qa-state") {
         case "grouped": store.compactBoard = true
         case "hidden-stages": store.filter = .hiddenStages
@@ -403,7 +406,7 @@ import Darwin
         store.projectSheet = nil
         try await waitUntil("project keyboard sheet cleanup") { window.attachedSheet == nil }
     }
-    private static func waitUntil(_ state: String, _ condition: () -> Bool) async throws {
+    static func waitUntil(_ state: String, _ condition: () -> Bool) async throws {
         for _ in 0..<400 {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(50))
@@ -411,7 +414,7 @@ import Darwin
         let windows = NSApp.windows.map { "\(type(of: $0)) title=\($0.title), visible=\($0.isVisible), key=\($0.isKeyWindow), canKey=\($0.canBecomeKey), main=\($0.isMainWindow), canMain=\($0.canBecomeMain), frame=\($0.frame)" }
         throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), active=\(NSApp.isActive), windows=\(windows)")
     }
-    private static func failure(_ message: String) -> NSError {
+    static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }

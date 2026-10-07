@@ -195,7 +195,11 @@ import KabanTransport
                 if case .error(let error) = result { throw error }
                 _ = try await client.send(.pauseAll, commandId: UUID())
             }
-            store = BoardStore(client: client, storage: BoardQA.isActive ? MemoryKeyValueStore() : DefaultsStorage(),
+            let taskStorage: any KeyValueStoring
+            if let suite = BoardQA.argument("--qa-task-suite"), suite.hasPrefix("kaban.qa.") { taskStorage = DefaultsStorage(suiteName: suite) }
+            else if BoardQA.isActive { taskStorage = MemoryKeyValueStore() }
+            else { taskStorage = DefaultsStorage() }
+            store = BoardStore(client: client, storage: taskStorage,
                                dataSource: "Режим разработки · отдельная БД", dataSourceDetail: path,
                                commandStorageKey: "client.commands.developer.\(URL(fileURLWithPath: path).standardizedFileURL.path)")
             status = "Developer mode · private stdio"
