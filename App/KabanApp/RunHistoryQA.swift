@@ -216,8 +216,10 @@ extension BoardQA {
         }
         guard let sourceSheet = window.attachedSheet?.attachedSheet, let sourceText = sourceSheet.contentView.flatMap({ textViews($0).first }),
               sourceText.textLayoutManager != nil, !sourceText.isEditable, !store.runLog.isVisible else { throw failure("Source reader/lifecycle missing") }
+        NSPasteboard(name: .find).clearContents()
         store.find()
         try await waitUntil("source find bar") { sourceText.enclosingScrollView?.isFindBarVisible == true }
+        try await Task.sleep(for: .milliseconds(150))
         if let path = argument("--log-source-capture"), let view = sourceSheet.contentView?.superview ?? sourceSheet.contentView {
             sourceSheet.layoutIfNeeded(); view.layoutSubtreeIfNeeded(); view.displayIfNeeded()
             guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Native source capture unavailable") }
