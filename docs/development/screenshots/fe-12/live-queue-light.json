@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "actual private stdio daemon and WindowGroup",
+    "production git\/gates scenario: queue",
+    "durable merge facts after journal retention",
+    "source states, no UI merge automaton",
+    "local main verified"
+  ],
+  "result" : "passed"
+}
