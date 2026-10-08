@@ -492,12 +492,15 @@ public enum TaskClone {
     }
 
     private static func diffFiles(clone: String, spec: String, worktree: Bool, identity: GitIdentity?) throws -> [BranchFile] {
-        let names = try output(["diff", "--name-status", "--find-renames", spec], in: clone, identity: identity, ok: [0, 1]).text
+        let names = try output(["diff", "--name-status", "--no-renames", "-z", spec], in: clone, identity: identity, ok: [0, 1], trim: false).text
         let stats = try numstat(spec, in: clone, identity: identity)
         var out: [BranchFile] = []
-        for line in names.split(separator: "\n") where !line.isEmpty {
-            let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            guard let status = parts.first, let path = parts.last else { continue }
+        // A rename is a deletion and an addition for the scanner. NUL separates
+        // names without Git quoting Unicode, tabs or newlines in the path.
+        let parts = names.split(separator: "\0")
+        guard parts.count.isMultiple(of: 2) else { throw Failure.gitFailed }
+        for index in stride(from: 0, to: parts.count, by: 2) {
+            let status = parts[index], path = String(parts[index + 1])
             if status.hasPrefix("D") {
                 out.append(BranchFile(file: ChangedFile(path: path, sizeBytes: 0, blob: "", deleted: true), isText: false))
                 continue
@@ -509,7 +512,7 @@ public enum TaskClone {
     }
 
     private static func untrackedFiles(clone: String, identity: GitIdentity?) throws -> [BranchFile] {
-        let raw = try text(["ls-files", "--others", "--exclude-standard", "-z"], in: clone, identity: identity)
+        let raw = try output(["ls-files", "--others", "--exclude-standard", "-z"], in: clone, identity: identity, ok: [0], trim: false).text
         var out: [BranchFile] = []
         for path in raw.split(separator: "\0") where !path.isEmpty {
             let relative = String(path)
@@ -521,12 +524,12 @@ public enum TaskClone {
     }
 
     private static func numstat(_ spec: String, in clone: String, identity: GitIdentity?) throws -> [String: Bool] {
-        let raw = try output(["diff", "--numstat", "--find-renames", spec], in: clone, identity: identity, ok: [0, 1]).text
+        let raw = try output(["diff", "--numstat", "--no-renames", "-z", spec], in: clone, identity: identity, ok: [0, 1], trim: false).text
         var out: [String: Bool] = [:]
-        for line in raw.split(separator: "\n") where !line.isEmpty {
-            let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            guard parts.count >= 3, let path = parts.last else { continue }
-            out[path] = !(parts[0] == "-" && parts[1] == "-")
+        for record in raw.split(separator: "\0") {
+            let parts = record.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+            guard parts.count == 3 else { throw Failure.gitFailed }
+            out[String(parts[2])] = !(parts[0] == "-" && parts[1] == "-")
         }
         return out
     }

@@ -55,6 +55,8 @@ public extension Command {
         case (.restoreWIP(let id, let run, let ref), .wipRestored(let value)):
             value.taskId == id && value.runId == run && value.wipRef == ref
         case (.restoreWIP, _), (.createTask, _), (.editTask, _): false
+        case (.acceptSuspiciousFiles(let id, _), .taskUpdated(let card)):
+            card.id == id && card.suspiciousFiles.isEmpty && card.state != .waitingHuman(.suspiciousFiles)
         case (_, .taskUpdated(let card)):
             mutationScope == .task(card.id)
         case (.addProject, .projectAdded): true

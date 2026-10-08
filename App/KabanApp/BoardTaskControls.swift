@@ -50,13 +50,13 @@ extension BoardStore {
         }
     }
     func beginControl(_ card: TaskCard, action: TaskControlRequest.Action) {
-        guard modelOverrideRoute == nil, sheet == nil, projectSheet == nil, controlSheet == nil, reviewRoute == nil, overlapRoute == nil,
+        guard modelOverrideRoute == nil, sheet == nil, projectSheet == nil, controlSheet == nil, reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil,
               logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, canControl(card, action: action) else { return }
         editorError = nil
         controlSheet = .init(store: self, card: card, action: action)
     }
     func canPerform(_ menuAction: TaskMenuAction) -> Bool {
-        guard modelOverrideRoute == nil, sheet == nil, controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil,
+        guard modelOverrideRoute == nil, sheet == nil, controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil,
               logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, let card = selectedCard else { return false }
         return canControl(card, action: menuAction.request(for: card))
     }

@@ -51,6 +51,7 @@ struct BoardView: View {
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
         .sheet(item: $store.reviewRoute) { HumanReviewSheet(store: store, route: $0) }
+        .sheet(item: $store.suspiciousReturnRoute) { SuspiciousReturnSheet(store: store, route: $0) }
         .sheet(item: $store.overlapRoute) { OverlapSheet(store: store, route: $0) }
         .sheet(item: $store.controlSheet) { TaskControlSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
@@ -759,16 +760,20 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        if card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
-                           store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .merge {
+                        if let detail = store.detail, detail.task.state == .waitingHuman(.suspiciousFiles) || !detail.acceptedFiles.isEmpty {
+                            SuspiciousFilesView(store: store, detail: detail, theme: theme)
+                        }
+                        let kind = store.detail?.fileCheck?.returnPipeline?.stages.first(where: { $0.id == card.stageId })?.kind
+                            ?? store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind
+                        if card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || kind != .human), kind != .merge {
                             HumanAnswerView(store: store, card: card)
+                                .id(TaskDetailAnchor.humanAnswer)
                         }
                         HumanReviewNotice(store: store, taskID: card.id)
                         if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
                             MergeProgressView(store: store, detail: detail)
                             TaskModelView(store: store, detail: detail, theme: theme)
-                            if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
                                 Label("Обнаружен инцидент", systemImage: "light.beacon.max")
                                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("incident").2)
@@ -779,6 +784,8 @@ struct TaskDetailView: View {
                         }
                         if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                }.onChange(of: store.detailScrollTarget) { _, target in
+                    if let target { proxy.scrollTo(target, anchor: .top); store.detailScrollTarget = nil }
                 }.task(id: store.detail?.task.id) {
                     if let source = BoardQA.argument("--qa-review-artifact") {
                         try? await Task.sleep(for: .milliseconds(350))
@@ -1032,23 +1039,6 @@ struct TaskDetailView: View {
         return project.flatMap { store.projection?.pipelines[$0]?.stages.first { $0.id == id }?.name } ?? id.rawValue
     }
     private func empty(_ text: String) -> some View { Text(text).font(.system(size: 12)).foregroundStyle(theme.faint) }
-    private func suspiciousBlock(_ files: [SuspiciousFile]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Подозрительные файлы · \(files.count)", systemImage: "exclamationmark.shield")
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("waiting").2)
-            Text("Проверьте файлы перед следующим действием.").font(.system(size: 11)).foregroundStyle(theme.secondary)
-            ForEach(files, id: \.path) { file in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(file.path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Text(file.rule == .pattern ? "по шаблону \(file.pattern ?? "—")" : "превышен лимит размера")
-                        Spacer(); Text(ByteCountFormatter.string(fromByteCount: file.sizeBytes, countStyle: .file))
-                    }.font(.system(size: 10)).foregroundStyle(theme.secondary)
-                }.padding(9).background(theme.card, in: RoundedRectangle(cornerRadius: 7))
-            }
-        }.padding(12).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.status("waiting").0.opacity(0.4), lineWidth: 0.5))
-    }
     @ViewBuilder private func detailActions(_ detail: TaskDetail) -> some View {
         if detail.task.state == .waitingHuman(.review), store.projection?.pipelines[detail.task.projectId]?.stages.first(where: { $0.id == detail.task.stageId })?.kind == .human {
             HumanReviewFooter(store: store, detail: detail,
