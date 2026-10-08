@@ -73,10 +73,9 @@ struct SuspiciousFilesView: View {
                         HStack {
                             Text(String(file.blob.prefix(10))).font(.system(size: 10, design: .monospaced)).help(file.blob)
                             Text(file.by == .human ? "вы" : file.by.rawValue)
-                            Text(file.at, format: .dateTime.day().month().hour().minute().timeZone(.identifier(.short)))
-                                .environment(\.timeZone, TimeZone(identifier: "Europe/Kaliningrad")!)
+                            Text(acceptedDate(file.at))
                         }.font(.system(size: 10)).foregroundStyle(theme.secondary)
-                    }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }
             }.font(.system(size: 12))
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
@@ -89,6 +88,13 @@ struct SuspiciousFilesView: View {
         guard let check = detail.fileCheck else { return "Проверка diff ветки; база, порог размера и Strict неизвестны службе." }
         return "Весь diff ветки от базы " + (check.baseCommit.map { String($0.prefix(10)) } ?? "неизвестна")
             + (check.includesUncommitted ? "; Strict включает незакоммиченные файлы." : ".")
+    }
+    private func acceptedDate(_ date: Date) -> String {
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "ru_RU")
+        format.timeZone = TimeZone(identifier: "Europe/Kaliningrad")
+        format.dateFormat = "d MMM yyyy, HH:mm"
+        return format.string(from: date) + " · Калининград"
     }
     private func fileRow(_ file: SuspiciousFile) -> some View {
         VStack(alignment: .leading, spacing: 6) {
