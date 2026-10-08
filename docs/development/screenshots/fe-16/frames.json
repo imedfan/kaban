@@ -1,0 +1,71 @@
+{
+  "source": "8a06d992ac859dc710cb35ba7f0a692d98e50f59",
+  "frames": [
+    {
+      "file": "applied-settings-dark.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "fa231f8f1513c0c24c15d177214c7e84e389d2252c1762b1a0ec73fb0fd436f8"
+    },
+    {
+      "file": "apply-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "a00b164d202a45442357073d83f6409257eb191de21d251dbdf3264e70382ee4"
+    },
+    {
+      "file": "disconnected-stage-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "cf016af2aa1476d231d20643376dfff75db71e2bbef9e41be1a9468f2c86dc73"
+    },
+    {
+      "file": "permissions-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "d6bbc942038304f45d7d2afe2354ac5b00137ba6c8240a85d67d9fa017ed22d6"
+    },
+    {
+      "file": "read-error-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c1e2b9140f93e089da4cc44a042f6a08086779709e735ff9f0348ada663067b6"
+    },
+    {
+      "file": "restart-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "e18450b432611e72371ec78e57ea673175bc64c6ab4d9445ed1b00e91d62b1a2"
+    },
+    {
+      "file": "settings-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "273eb550fb52aeecb9c798fee0d469685edab348c87964c266c4ea22988a8e12"
+    },
+    {
+      "file": "stage-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "51a1ff81658365c6a25fa52b34469456e0b4668b66226fc9a27755ed8cfe9139"
+    },
+    {
+      "file": "stage-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "e75cf09b4eb5211e7124c9e4633486f101a22cafdacb138e09ced88ed1584587"
+    },
+    {
+      "file": "unexpected-board-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "592aa3afa369c290c2eac5ef42c300bf27d16f38bd6d7ce62bc711c95313d990"
+    },
+    {
+      "file": "unexpected-settings-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "d481378429b839dbb4dd36cf5f909c35e7c1d48713d57ffbf9385579500190be"
+    }
+  ]
+}
