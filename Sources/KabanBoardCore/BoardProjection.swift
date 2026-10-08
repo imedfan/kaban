@@ -314,7 +314,8 @@ public struct BoardProjection: Equatable, Sendable {
     private func columns(for projectId: ProjectID) -> [BoardColumn] {
         guard let pipeline = pipelines[projectId] else { return [] }
         return DropRules.orderedStages(pipeline).map { stage in
-            let ids = taskOrder.filter { tasks[$0]?.projectId == projectId && tasks[$0]?.stageId == stage.id }
+            var ids = taskOrder.filter { tasks[$0]?.projectId == projectId && tasks[$0]?.stageId == stage.id }
+            if stage.kind == .merge { ids.sort { MergePresentation.precedes(tasks[$0]!, tasks[$1]!) } }
             return BoardColumn(stage: stage, taskIds: ids)
         }
     }

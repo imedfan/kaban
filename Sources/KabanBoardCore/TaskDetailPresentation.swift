@@ -44,6 +44,9 @@ public enum TaskDetailPresentation {
         case "gate_output": "Вывод проверки"
         case "hook": "Вывод hook"
         case "issue": "Замечание"
+        case "merge_result": "Результат локального слияния"
+        case "merge_conflict": "Конфликт rebase"
+        case "merge_gate_output": "Проверка после rebase"
         default: "Материал · " + kind
         }
     }
@@ -53,6 +56,9 @@ public enum TaskDetailPresentation {
         case "question": "Вопрос"
         case "answer": "Ответ"
         case "review_comment": "Замечание ревью"
+        case "merge_conflict": "Конфликт rebase"
+        case "merge_gates": "Проверка слияния"
+        case "merged": "Локальное слияние завершено"
         case "progress": "Прогресс"
         case "summary": "Резюме"
         case "incident": "Инцидент"

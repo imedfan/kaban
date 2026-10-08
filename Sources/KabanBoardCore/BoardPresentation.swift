@@ -102,7 +102,7 @@ public struct LimitReasonText: Equatable, Sendable {
     public let title: String
     public let qualifier: String?
     public init(card: TaskCard, pipeline: PipelineSummary?) {
-        title = CardPresentation(state: card.state).label
+        title = card.state == .waitingHuman(.conflictLimit) ? "Лимит возвратов" : CardPresentation(state: card.state).label
         let stage = pipeline?.stages.first { $0.id == card.stageId }
         if card.state == .waitingHuman(.conflictLimit), stage?.kind == .merge,
            let limit = stage?.onConflict?.limit, let count = card.bounceByReason["merge_conflict"] {

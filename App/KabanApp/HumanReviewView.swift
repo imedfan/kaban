@@ -111,6 +111,10 @@ struct HumanReviewSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HumanReviewNotice(store: store, taskID: route.taskID)
                     if let draft {
+                        if draft.context.card.state == .waitingHuman(.conflictLimit) {
+                            Text(LimitReasonText(card: draft.context.card, pipeline: draft.context.pipeline).qualifier ?? "Лимит возвратов при конфликте")
+                                .font(.system(size: 11)).foregroundStyle(theme.status("waiting").2)
+                        }
                         if !changes {
                             Picker("Решение", selection: Binding(get: { draft.cancel }, set: { review.edit(route.taskID, cancel: $0) })) {
                                 Text("Отменить задачу").tag(true)

@@ -5,6 +5,17 @@ import XCTest
 final class RoundTripTests: XCTestCase {
     let encoder = KabanCoding.makeEncoder(pretty: true)
     let decoder = KabanCoding.makeDecoder()
+    func testMergeQueueAndMaterialsRemainBackwardCompatible() throws {
+        var card = Samples.tasks[0]
+        card.mergeQueueSequence = 42; try roundTrip(card)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(card)) as? [String: Any])
+        object.removeValue(forKey: "mergeQueueSequence")
+        XCTAssertNil(try decoder.decode(TaskCard.self, from: JSONSerialization.data(withJSONObject: object)).mergeQueueSequence)
+        object.removeValue(forKey: "title")
+        XCTAssertThrowsError(try decoder.decode(TaskCard.self, from: JSONSerialization.data(withJSONObject: object)))
+        try roundTrip(LocalMergeResult(baseCommit: "base", commit: "tip", ref: "refs/heads/main"))
+        try roundTrip(MergeConflictMaterial(files: ["Path with space.swift", "Длинный путь/👋.swift"]))
+    }
 
     func roundTrip<T: Codable & Equatable>(_ value: T, file: StaticString = #filePath, line: UInt = #line) throws {
         let data = try encoder.encode(value)

@@ -90,3 +90,22 @@ conflict виден через bounceByReason и issue materials; отдельн
 journal и outbox. Replay не дублирует запись; invalid_state не пишет её.
 Wire test и [настоящий daemon restart/retention](frontend-fe-11-2026-10-08.md)
 подтверждают сохранность. Новая запись не является humanAnswered и не принимает вопрос.
+
+## FE-12: очередь и материалы слияния
+
+На коде `5760bea` исправлены merge FIFO независимо от priority, передача
+optional mergeQueueSequence из task_admission и атомарные durable материалы
+merge_conflict/merge_gate_output/merge_result. Последний содержит фактические
+baseCommit, commit и refs/heads/main из merge_intent после confirmed merged,
+включая startup recovery. [Приёмка](frontend-fe-12-2026-10-08.md) проверила
+настоящие Git, daemon, native UI и retention; прошлое отсутствие этих фактов
+не является текущим ограничением FE-12.
+
+Остаются отдельные wire-фазы rebase/gates/fast-forward: TaskCard.gating не
+передаёт phase и внешний progress. Нет списка пересекающихся с dirty main
+путей в blocked/event/detail. TaskCard.overlapsWith есть в контракте, но
+production producer вычисления пересечений в DaemonCore отсутствует; UI
+работает с переданными IDs и не вычисляет их самостоятельно. Связанные
+недавние задачи для конкретного конфликта также не передаются отдельным
+материалом. Отдельный diff исправления конфликта, точные numstat и usage/cost
+из FE-11 остаются открыты. Это технические зависимости, не недоработки дизайнера.

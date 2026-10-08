@@ -43,6 +43,11 @@ extension KabanStore {
                     .sorted { a, b in
                         let ai = distances[a.machine.stageId] ?? Int.max, bi = distances[b.machine.stageId] ?? Int.max
                         if ai != bi { return ai < bi } // Follow the success graph, not YAML/display order.
+                        if project.pipeline.stage(a.machine.stageId)?.kind == .merge,
+                           project.pipeline.stage(b.machine.stageId)?.kind == .merge {
+                            let aq = context.queue[a.card.id.rawValue] ?? 0, bq = context.queue[b.card.id.rawValue] ?? 0
+                            return aq == bq ? a.card.id.rawValue < b.card.id.rawValue : aq < bq
+                        }
                         func rank(_ task: DurableTask) -> Int {
                             let order = project.pipeline.stage(task.machine.stageId)?.priority ?? StageConfig.defaultPriority
                             let rule: PriorityRule = task.machine.priority == .returned ? .returned : task.machine.priority == .answered ? .answered : .fifo

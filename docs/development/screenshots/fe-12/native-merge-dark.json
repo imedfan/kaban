@@ -1,0 +1,10 @@
+{
+  "checks" : [
+    "actual minimum WindowGroup and native TextEditor",
+    "merge conflict limit cannot approve",
+    "one exact explicit decision; any reconciliation replays use the same commandId",
+    "correlated dev queue",
+    "native overlap sheet and link reveals hidden project"
+  ],
+  "result" : "passed"
+}

@@ -53,7 +53,7 @@ extension KabanStore {
     }
     static func taskDetail(_ taskId: TaskID, db: Database) throws -> TaskDetail {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
-        let detail = TaskDetail(seq: try Self.seq(db), task: task.card, feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
+        let detail = TaskDetail(seq: try Self.seq(db), task: try Self.projectedCard(task, db: db), feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
                                 suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
                                 artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
@@ -80,7 +80,7 @@ extension KabanStore {
             let flags = try Self.schedulerFlags(db)
             let inputs = try Self.schedulerInputs(db)
             let snapshot = Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
-                                    tasks: tasks.map(\.card), schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
+                                    tasks: try tasks.map { try Self.projectedCard($0, db: db) }, schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
                                     openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
                                     stageLoad: try Self.stageLoads(db), settings: settings)
             try Self.ensureWireFit(snapshot, code: CommandError.snapshotTooLargeCode, message: "Снимок доски не помещается в сообщение.")
@@ -89,6 +89,12 @@ extension KabanStore {
     }
     static func projects(_ db: Database) throws -> [ProjectRecord] {
         try Data.fetchAll(db, sql: "SELECT payload FROM project WHERE id NOT IN (SELECT project_id FROM removed_project) ORDER BY id").map { try decode(ProjectRecord.self, $0) }
+    }
+    static func projectedCard(_ task: DurableTask, db: Database) throws -> TaskCard {
+        var card = task.card
+        card.mergeQueueSequence = task.pipeline.stage(task.machine.stageId)?.kind == .merge
+            ? try Int64.fetchOne(db, sql: "SELECT queue_seq FROM task_admission WHERE task_id = ?", arguments: [card.id.rawValue]) : nil
+        return card
     }
     static func journal(_ event: JournalEvent, projectId: ProjectID?, commandId: CommandID, at: Date, db: Database) throws -> Seq {
         try db.execute(sql: "INSERT INTO event(payload) VALUES (?)", arguments: [Data()])
