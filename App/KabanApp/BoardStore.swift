@@ -20,6 +20,11 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let humanReview: HumanReviewStore
     let environment: RunnerEnvironmentStore
     let models: ModelSettingsStore
+    let macSettings: MacSettingsStore
+    var activeMacSettings: MacSettingsStore? {
+        screen == .quota && sheet == nil && controlSheet == nil && projectSheet == nil && logRunRoute == nil
+            && reviewRoute == nil && modelOverrideRoute == nil ? macSettings : nil
+    }
     var modelOverrideRoute: TaskModelOverrideStore?
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
@@ -182,6 +187,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
         environment = RunnerEnvironmentStore(client: client, session: session)
         models = ModelSettingsStore(client: client, session: session)
+        macSettings = MacSettingsStore(session: session, storage: storage, key: sourceKey + ".macSettings")
     }
     isolated deinit { runLog.close(); session.stop(); subscription?.cancel() }
     func connect() async {

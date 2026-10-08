@@ -30,6 +30,7 @@ import KabanProtocol
                     if !runtime.showSetup, let store = runtime.store {
                         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
                         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
+                        else if let settings = store.activeMacSettings, let section = settings.section { Task { await settings.submit(section) } }
                         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
                     }
                 }.keyboardShortcut(.return, modifiers: [.command])
@@ -77,7 +78,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--mcp-live-smoke") != nil || BoardQA.argument("--settings-live-smoke") != nil || BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
+            if BoardQA.needsExplicitWindow {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }
@@ -118,6 +119,7 @@ private struct ReviewQAWindowCommands: Commands {
         guard runtime?.showSetup == false, let store = runtime?.store else { return }
         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
+        else if let settings = store.activeMacSettings, let section = settings.section { Task { await settings.submit(section) } }
         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
     }
     @objc private func controlTask(_ sender: NSMenuItem) {
@@ -125,6 +127,10 @@ private struct ReviewQAWindowCommands: Commands {
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(primaryTask(_:)) {
+            if let settings = runtime?.store?.activeMacSettings {
+                menuItem.title = settings.section == .ceiling ? "Сохранить потолок" : "Применить квоту"
+                return runtime?.showSetup == false && settings.section.map(settings.canSubmit) == true
+            }
             if let editor = runtime?.store?.activePipelineEditor {
                 menuItem.title = "Применить пайплайн"
                 return runtime?.showSetup == false && editor.canApply
