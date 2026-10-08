@@ -161,7 +161,18 @@ import KabanProtocol
         }
     }
     public func apply() async {
+        await apply(gitDenial: nil)
+    }
+    public func applyGitDenial(_ denialId: DenialID, scope: PolicyScope) async {
+        await apply(gitDenial: (denialId, scope))
+    }
+    private func apply(gitDenial: (id: DenialID, scope: PolicyScope)?) async {
         guard canApply, let source, var draft else { return }
+        let command: (PipelineDraft) -> Command = { value in
+            if let gitDenial { return .addDenialToPolicy(denialId: gitDenial.id, scope: gitDenial.scope, draft: value) }
+            return .updatePipeline(projectId: self.projectID, contentHash: value.contentHash, draft: value)
+        }
+        guard session.can(command(draft)), session.pending(in: .pipeline(projectID)) == nil else { return }
         writing = true; defer { writing = false }
         let token = generation
         do {
@@ -171,11 +182,11 @@ import KabanProtocol
                 changedSource = fresh
                 throw CommandError(code: "pipeline_worktree_conflict", message: "Файл или версия .kaban/ изменились. Ваш ввод сохранён; сравните новую версию.")
             }
-            guard session.can(.updatePipeline(projectId: projectID, contentHash: draft.contentHash)), !baseChanged else { throw invalidReply() }
+            guard session.can(command(draft)), !baseChanged else { throw invalidReply() }
             let text = draft.content
             try await Task.detached { try PipelineFileWriter.write(text, source: source) }.value
             draft.requiresExactWorkingContent = true
-            let envelope = CommandEnvelope(command: .updatePipeline(projectId: projectID, contentHash: draft.contentHash, draft: draft))
+            let envelope = CommandEnvelope(command: command(draft))
             submission = .init(commandID: envelope.commandId, draft: draft)
             let sent = await session.send(envelope)
             if case .validationIssues(let issues) = receipt?.reply?.result, self.draft?.contentHash == draft.contentHash {

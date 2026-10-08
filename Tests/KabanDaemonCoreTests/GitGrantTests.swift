@@ -27,6 +27,8 @@ final class GitGrantTests: XCTestCase {
         XCTAssertEqual(granted.gitGrants.count, 1)
         XCTAssertEqual(granted.gitGrants[0].grant.argv, ["git", "rebase", "feature"])
         XCTAssertNil(granted.gitGrants[0].consumption)
+        XCTAssertEqual(granted.task.unusedGitGrants, 1)
+        XCTAssertEqual(try f.store.getSnapshot().tasks.first { $0.id == "once" }?.unusedGitGrants, 1)
         let narrower = try check(server, token, ["rebase"])
         XCTAssertFalse(narrower.allow)
         XCTAssertEqual(try f.store.getTaskDetail("once").gitGrants[0].grant.argv, ["git", "rebase", "feature"])
@@ -36,6 +38,10 @@ final class GitGrantTests: XCTestCase {
         let again = try check(server, token, ["git", "rebase", "feature"])
         XCTAssertFalse(again.allow)
         XCTAssertEqual(try f.store.getTaskDetail("once").gitGrants.filter { $0.consumption != nil }.count, 1)
+        XCTAssertEqual(try f.store.getTaskDetail("once").task.unusedGitGrants, 0)
+        XCTAssertTrue(try f.store.events(after: 0).contains {
+            if case .taskUpdated(let card) = $0.event { return card.id == "once" && card.unusedGitGrants == 1 }; return false
+        })
         let foreign = try check(server, token, ["git", "fetch", "origin", "main"])
         XCTAssertFalse(foreign.allow)
         XCTAssertEqual(foreign.rule, "foreign_refs")
@@ -64,6 +70,75 @@ final class GitGrantTests: XCTestCase {
         XCTAssertEqual(kaban.rule, "kaban_dir")
         XCTAssertEqual(try task(f, "hard").machine.state, .running)
         XCTAssertEqual(try task(f, "hard").machine.attemptsUsed, 0)
+    }
+
+    func testCompletedTaskDenialCannotCreateANewGrant() throws {
+        let f = try fixture(pipeline(preset: "standard"))
+        _ = try launch(f, "closed")
+        let server = try MCPBoardServer(store: f.store, now: { self.at })
+        defer { server.stop() }
+        let token = try f.store.issueRunToken(taskId: "closed", at: at)
+        _ = try check(server, token, ["git", "rebase", "feature"])
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("closed").gitDenials.first)
+        XCTAssertEqual(try f.store.execute(.init(command: .cancelTask(taskId: "closed", keepBranch: false)), now: { self.at }).result, .ok)
+        let reply = try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)), now: { self.at })
+        XCTAssertEqual(code(reply), "stale_git_denial")
+        XCTAssertTrue(try f.store.getTaskDetail("closed").gitGrants.isEmpty)
+    }
+
+    func testDenialFromPreviousStageCannotAuthorizeCurrentStage() throws {
+        let f = try fixture(pipeline(preset: "standard"))
+        _ = try launch(f, "moved")
+        let server = try MCPBoardServer(store: f.store, now: { self.at })
+        defer { server.stop() }
+        let token = try f.store.issueRunToken(taskId: "moved", at: at)
+        _ = try check(server, token, ["git", "rebase", "feature"])
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("moved").gitDenials.first)
+        _ = try prepare(f, "moved")
+        _ = try apply(f, "moved", .completeStage(try runId(f, "moved"), summary: "dev"))
+        _ = try f.store.runStagePass(owner: "test", at: at)
+        XCTAssertEqual(try task(f, "moved").machine.stageId, "test")
+        let reply = try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)), now: { self.at })
+        XCTAssertEqual(code(reply), "stale_git_denial")
+        XCTAssertTrue(try f.store.getTaskDetail("moved").gitGrants.isEmpty)
+    }
+
+    func testConsumedGrantCannotBeRevoked() throws {
+        let f = try fixture(pipeline(preset: "standard"))
+        _ = try launch(f, "spent")
+        let server = try MCPBoardServer(store: f.store, now: { self.at })
+        defer { server.stop() }
+        let token = try f.store.issueRunToken(taskId: "spent", at: at)
+        _ = try check(server, token, ["git", "rebase", "feature"])
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("spent").gitDenials.first)
+        _ = try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)), now: { self.at })
+        XCTAssertTrue(try check(server, token, ["git", "rebase", "feature"]).allow)
+        let grant = try XCTUnwrap(try f.store.getTaskDetail("spent").gitGrants.first)
+        let reply = try f.store.execute(.init(command: .revokeGitGrant(grantId: grant.grant.grantId)), now: { self.at })
+        XCTAssertEqual(code(reply), "git_grant_inactive")
+        XCTAssertNil(try f.store.getTaskDetail("spent").gitGrants.first?.revocation)
+    }
+
+    func testConsumedAndRevokedGrantsKeepTheirTerminalOutcomeOnCancellation() throws {
+        let f = try fixture(pipeline(preset: "standard"))
+        let server = try MCPBoardServer(store: f.store, now: { self.at })
+        defer { server.stop() }
+        let ids: [TaskID] = ["spent", "revoked"]
+        for id in ids {
+            _ = try launch(f, id)
+            let token = try f.store.issueRunToken(taskId: id, at: at)
+            _ = try check(server, token, ["git", "rebase", "feature"])
+            let denial = try XCTUnwrap(try f.store.getTaskDetail(id).gitDenials.first)
+            _ = try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)), now: { self.at })
+            let grant = try XCTUnwrap(try f.store.getTaskDetail(id).gitGrants.first)
+            if id == "spent" { XCTAssertTrue(try check(server, token, ["git", "rebase", "feature"]).allow) }
+            else { _ = try f.store.execute(.init(command: .revokeGitGrant(grantId: grant.grant.grantId)), now: { self.at }) }
+            _ = try f.store.execute(.init(command: .cancelTask(taskId: id, keepBranch: false)), now: { self.at })
+            let ended = try XCTUnwrap(try f.store.getTaskDetail(id).gitGrants.first)
+            XCTAssertNil(ended.expiry)
+            XCTAssertEqual(ended.consumption != nil, id == "spent")
+            XCTAssertEqual(ended.revocation != nil, id == "revoked")
+        }
     }
 
     func testConditionalOverrideIsCheckedByTheServer() throws {
@@ -96,7 +171,7 @@ final class GitGrantTests: XCTestCase {
         XCTAssertTrue(still.conditional.contains { $0.returnReason == "returned" && $0.allowed.contains { $0.rule == "commit" } })
     }
 
-    func testDeliveryDoesNotConsumeAndUnknownPayloadSurvivesExpiry() throws {
+    func testDeliveryAndConsumptionRemainDistinctAfterCancellation() throws {
         let f = try fixture(pipeline(preset: "standard"))
         _ = try launch(f, "note")
         let server = try MCPBoardServer(store: f.store, now: { self.at })
@@ -125,11 +200,12 @@ final class GitGrantTests: XCTestCase {
         XCTAssertNotNil(grant.delivery)
         XCTAssertNotNil(grant.consumption)
         let revoked = try f.store.execute(.init(command: .revokeGitGrant(grantId: grant.grant.grantId)), now: { self.at })
-        XCTAssertEqual(revoked.result, .ok)
-        XCTAssertNotNil(try f.store.getTaskDetail("note").gitGrants.first?.revocation)
+        XCTAssertEqual(code(revoked), "git_grant_inactive")
+        XCTAssertNil(try f.store.getTaskDetail("note").gitGrants.first?.revocation)
         XCTAssertEqual(try f.store.execute(.init(command: .cancelTask(taskId: "note", keepBranch: true)), now: { self.at }).result, .ok)
         let expired = try XCTUnwrap(try f.store.getTaskDetail("note").gitGrants.first)
-        XCTAssertEqual(expired.expiry?.reason, .taskCancelled)
+        XCTAssertNil(expired.expiry)
+        XCTAssertNotNil(expired.consumption)
         XCTAssertEqual(expired.grant.argv, ["git", "rebase", "feature"])
         XCTAssertEqual(try f.store.getTaskDetail("note").gitDenials.map(\.denial.argv).first, ["git", "frobnicate", "--weird", "keep-me"])
         XCTAssertEqual(try task(f, "note").machine.state, .cancelled)
@@ -159,36 +235,104 @@ final class GitGrantTests: XCTestCase {
         XCTAssertEqual(detail.runs.first?.status, .killed)
     }
 
-    func testExtraDenyAppliesOnlyToRunsThatStartAfterIt() throws {
-        let f = try fixture(pipeline(preset: "standard"))
-        _ = try launch(f, "flight")
-        _ = try launch(f, "later")
-        let server = try MCPBoardServer(store: f.store, now: { self.at })
-        defer { server.stop() }
-        let flightToken = try f.store.issueRunToken(taskId: "flight", at: at)
-        let laterToken = try f.store.issueRunToken(taskId: "later", at: at)
-        _ = try check(server, flightToken, ["git", "rebase", "feature"])
-        _ = try check(server, laterToken, ["git", "rebase", "feature"])
-        let flightDenial = try XCTUnwrap(try f.store.getTaskDetail("flight").gitDenials.first)
-        let laterDenial = try XCTUnwrap(try f.store.getTaskDetail("later").gitDenials.first)
-        XCTAssertEqual(try f.store.execute(.init(command: .allowGitOnce(denialId: flightDenial.denial.denialId)), now: { self.at }).result, .ok)
-        XCTAssertEqual(try f.store.execute(.init(command: .allowGitOnce(denialId: laterDenial.denial.denialId)), now: { self.at }).result, .ok)
-        let when = at.addingTimeInterval(1)
-        XCTAssertEqual(try f.store.execute(.init(command: .addDenialToPolicy(denialId: flightDenial.denial.denialId, scope: .project)), now: { when }).result, .ok)
-        XCTAssertEqual(try f.store.execute(.init(command: .addDenialToPolicy(denialId: laterDenial.denial.denialId, scope: .project)), now: { when }).result, .ok)
-        let inflight = try check(server, flightToken, ["git", "rebase", "feature"])
-        XCTAssertTrue(inflight.allow)
-        XCTAssertNotNil(try f.store.getTaskDetail("flight").gitGrants.first?.consumption)
-        _ = try apply(f, "later", .requestHuman(try runId(f, "later"), question: "pause"))
-        _ = try apply(f, "later", .answer(text: "go", requestId: nil))
-        _ = try apply(f, "later", .start(RunID(rawValue: "later-2")), at: at.addingTimeInterval(2))
-        let next = try f.store.issueRunToken(taskId: "later", at: at.addingTimeInterval(2))
-        let blocked = try check(server, next, ["git", "rebase", "feature"])
-        XCTAssertFalse(blocked.allow)
-        XCTAssertEqual(blocked.rule, "rebase feature")
-        let grant = try XCTUnwrap(try f.store.getTaskDetail("later").gitGrants.first)
-        XCTAssertNil(grant.consumption)
-        XCTAssertEqual(grant.grant.argv, ["git", "rebase", "feature"])
+    func testPermanentRuleCommitsExactDraftAndOnlyChangesFutureRuns() throws {
+        for scope in [PolicyScope.project, .stage("dev")] {
+            let yaml = pipeline(preset: "standard")
+            let f = try fixture(yaml)
+            _ = try launch(f, "flight")
+            let server = try MCPBoardServer(store: f.store, now: { self.at })
+            defer { server.stop() }
+            let token = try f.store.issueRunToken(taskId: "flight", at: at)
+            _ = try check(server, token, ["git", "rebase", "feature"])
+            let denial = try XCTUnwrap(try f.store.getTaskDetail("flight").gitDenials.first)
+            let project = try XCTUnwrap(f.store.getSnapshot().projects.first)
+            XCTAssertEqual(try f.store.execute(.init(command: .setProjectIdentity(projectId: project.id,
+                identity: .init(name: "Human", email: "human@example.test")))).result, .ok)
+            guard case .pipelineSource(let source) = try f.store.execute(.init(command: .getPipelineSource(projectId: project.id))).result else { return XCTFail() }
+            let edited: String
+            switch scope {
+            case .project: edited = yaml.replacingOccurrences(of: "git: {preset: standard}", with: "git: {preset: standard, allow: [\"rebase feature\"]}")
+            case .stage: edited = yaml.replacingOccurrences(of: "  - id: dev\n", with: "  - id: dev\n    git: {extend: [\"rebase feature\"]}\n")
+            }
+            XCTAssertNotEqual(edited, yaml)
+            let draft = PipelineDraft(projectId: project.id, baseVersionHash: source.baseVersionHash,
+                content: edited + "\n# preserved 👋\n", baseSourceHash: source.baseSourceHash)
+            let command = CommandEnvelope(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: scope, draft: draft))
+            let reply = try f.store.execute(command, now: { self.at.addingTimeInterval(1) })
+            guard case .pipelineVersion(let version) = reply.result else { return XCTFail("\(reply.result)") }
+            XCTAssertNotEqual(version, source.baseVersionHash)
+            XCTAssertEqual(try f.store.execute(command), reply)
+            guard case .pipelineSource(let accepted) = try f.store.execute(.init(command: .getPipelineSource(projectId: project.id))).result else { return XCTFail() }
+            XCTAssertEqual(accepted.committedContent, draft.content)
+            XCTAssertEqual(accepted.baseVersionHash, version)
+            XCTAssertFalse(try check(server, token, ["git", "rebase", "feature"]).allow)
+            _ = try apply(f, "flight", .requestHuman(try runId(f, "flight"), question: "pause"))
+            _ = try apply(f, "flight", .answer(text: "go", requestId: nil))
+            _ = try apply(f, "flight", .start("next-run"), at: at.addingTimeInterval(2))
+            let next = try f.store.issueRunToken(taskId: "flight", at: at.addingTimeInterval(2))
+            XCTAssertTrue(try check(server, next, ["git", "rebase", "feature"]).allow)
+            let reopened = try KabanStore(path: f.path).getTaskDetail("flight")
+            let update = try XCTUnwrap(reopened.gitDenials.first?.policyUpdates?.first)
+            XCTAssertEqual(update.scope, scope); XCTAssertEqual(update.pipelineVersion, version)
+            XCTAssertTrue(update.policy.allows("rebase feature"))
+            XCTAssertTrue(reopened.gitGrants.isEmpty)
+        }
+    }
+
+    func testPermanentRuleNeedsDraftAndCannotBypassHardRulesOrProjectDeny() throws {
+        let yaml = pipeline(preset: "standard").replacingOccurrences(of: "git: {preset: standard}", with: "git: {preset: standard, deny: [rebase]}")
+        let f = try fixture(yaml)
+        _ = try launch(f, "policy")
+        let server = try MCPBoardServer(store: f.store, now: { self.at }); defer { server.stop() }
+        let token = try f.store.issueRunToken(taskId: "policy", at: at)
+        _ = try check(server, token, ["git", "rebase", "feature"])
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("policy").gitDenials.last)
+        XCTAssertEqual(code(try f.store.execute(.init(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .project)))), "pipeline_draft_required")
+        let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
+        guard case .pipelineSource(let source) = try f.store.execute(.init(command: .getPipelineSource(projectId: project))).result else { return XCTFail() }
+        let text = yaml.replacingOccurrences(of: "  - id: dev\n", with: "  - id: dev\n    git: {extend: [\"rebase feature\"]}\n")
+        let draft = PipelineDraft(projectId: project, baseVersionHash: source.baseVersionHash, content: text, baseSourceHash: source.baseSourceHash)
+        let refused = try f.store.execute(.init(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .stage("dev"), draft: draft)))
+        guard case .validationIssues(let issues) = refused.result else { return XCTFail("\(refused.result)") }
+        XCTAssertTrue(issues.contains { $0.code == "git_policy_rule_not_allowed" })
+        XCTAssertEqual(code(try f.store.execute(.init(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .stage("test"), draft: draft)))), "git_policy_scope")
+        _ = try check(server, token, ["git", "push", "origin", "main"])
+        let hard = try XCTUnwrap(try f.store.getTaskDetail("policy").gitDenials.last)
+        XCTAssertEqual(code(try f.store.execute(.init(command: .addDenialToPolicy(denialId: hard.denial.denialId, scope: .project, draft: draft)))), "git_hard_invariant")
+        guard case .pipelineSource(let unchanged) = try f.store.execute(.init(command: .getPipelineSource(projectId: project))).result else { return XCTFail() }
+        XCTAssertEqual(unchanged, source)
+    }
+
+    func testPermanentRuleRecoveryReplaysOriginalDenialIntentOnce() throws {
+        let yaml = pipeline(preset: "standard"), f = try fixture(pipeline(preset: "standard"))
+        _ = try launch(f, "recover-policy")
+        let server = try MCPBoardServer(store: f.store, now: { self.at }); defer { server.stop() }
+        let token = try f.store.issueRunToken(taskId: "recover-policy", at: at)
+        _ = try check(server, token, ["git", "rebase", "feature"])
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("recover-policy").gitDenials.first)
+        let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
+        _ = try f.store.execute(.init(command: .setProjectIdentity(projectId: project, identity: .init(name: "Human", email: "human@example.test"))))
+        guard case .pipelineSource(let source) = try f.store.execute(.init(command: .getPipelineSource(projectId: project))).result else { return XCTFail() }
+        let text = yaml.replacingOccurrences(of: "git: {preset: standard}", with: "git: {preset: standard, allow: [\"rebase feature\"]}")
+        let draft = PipelineDraft(projectId: project, baseVersionHash: source.baseVersionHash, content: text, baseSourceHash: source.baseSourceHash)
+        let command = CommandEnvelope(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .project, draft: draft))
+        try f.store.database.write { try $0.execute(sql: "CREATE TRIGGER fail_git_policy_receipt BEFORE INSERT ON wire_command BEGIN SELECT RAISE(ABORT, 'injected'); END") }
+        XCTAssertThrowsError(try f.store.execute(command))
+        XCTAssertNil(try f.store.getTaskDetail("recover-policy").gitDenials.first?.policyUpdates)
+        XCTAssertEqual(try f.store.getSnapshot().pipelines.first?.versionHash, source.baseVersionHash)
+        try f.store.database.write { try $0.execute(sql: "DROP TRIGGER fail_git_policy_receipt") }
+        let reopened = try KabanStore(path: f.path)
+        try reopened.recoverPipelineOperations()
+        let reply = try reopened.execute(command, now: { XCTFail("Replay must not read clock"); return self.at })
+        guard case .pipelineVersion(let version) = reply.result else { return XCTFail("\(reply.result)") }
+        XCTAssertNotEqual(version, source.baseVersionHash)
+        try reopened.recoverPipelineOperations()
+        XCTAssertEqual(try reopened.execute(command), reply)
+        let updates = try XCTUnwrap(reopened.getTaskDetail("recover-policy").gitDenials.first?.policyUpdates)
+        XCTAssertEqual(updates.count, 1); XCTAssertEqual(updates.first?.pipelineVersion, version)
+        XCTAssertEqual(try reopened.events(after: 0).filter {
+            if case .gitPolicyUpdated = $0.event { return $0.commandId == command.commandId }; return false
+        }.count, 1)
     }
 
     func testGrantsExpireWhenTheTaskReachesDone() throws {
