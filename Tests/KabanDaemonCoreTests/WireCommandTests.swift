@@ -228,6 +228,31 @@ final class WireCommandTests: XCTestCase {
         XCTAssertEqual(try store.snapshot().tasks.first?.machine.pendingPrompt, [.humanComments("Fix")])
     }
 
+    func testReviewCommentIsAtomicIdempotentRedactedAndDurableAfterRetention() throws {
+        let (root, store) = try fixture()
+        _ = try create("review-note", in: store); try review("review-note", in: store)
+        let text = "Check status first  \r\n👋"
+        let envelope = CommandEnvelope(command: .requestChanges(taskId: "review-note", comments: text, target: "agent"))
+        let first = try store.execute(envelope, now: { at })
+        XCTAssertEqual(first.result, .ok)
+        let detail = try store.getTaskDetail("review-note")
+        XCTAssertEqual(detail.task.stageId, "agent"); XCTAssertEqual(detail.task.state, .queued(nil))
+        XCTAssertEqual(detail.feed.filter { $0.kind == "review_comment" }.map(\.text), [text])
+        XCTAssertTrue(detail.humanRequests.isEmpty)
+        XCTAssertFalse(try store.events(after: 0).contains { if case .humanAnswered = $0.event { true } else { false } })
+        XCTAssertEqual(try store.execute(envelope), first)
+        XCTAssertEqual(errorCode(try send(.requestChanges(taskId: "review-note", comments: "Refused", target: "agent"), to: store)), CommandError.invalidStateCode)
+        XCTAssertEqual(try store.getTaskDetail("review-note"), detail)
+        try store.discardJournal()
+        let reopened = try KabanStore(path: root.appendingPathComponent("store.sqlite").path)
+        XCTAssertEqual(try reopened.getTaskDetail("review-note").feed.filter { $0.kind == "review_comment" }.map(\.text), [text])
+        XCTAssertEqual(try reopened.execute(envelope), first)
+        _ = try create("redacted-note", in: reopened); try review("redacted-note", in: reopened)
+        _ = try send(.requestChanges(taskId: "redacted-note", comments: "Check sk-abcdefgh1234 safely", target: "agent"), to: reopened)
+        let redacted = try XCTUnwrap(reopened.getTaskDetail("redacted-note").feed.first { $0.kind == "review_comment" })
+        XCTAssertEqual(redacted.text, "Check <redacted> safely")
+    }
+
     func testApproveRejectAndRetryCommandsUseReducer() throws {
         let (_, store) = try fixture()
         _ = try create("approve", in: store); try review("approve", in: store)

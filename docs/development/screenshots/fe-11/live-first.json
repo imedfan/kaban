@@ -1,0 +1,11 @@
+{
+  "checks" : [
+    "real bundled daemon over private stdio and real git\/gates\/materials",
+    "actual clone opened with NSWorkspace when requested; no Cursor CLI run",
+    "approve queues merge after correlated event",
+    "explicit requestChanges and reject-stage queue dev without bounce increment",
+    "reject cancel cleans clones; keepBranch archives actual result commit and file; no-keep leaves no archive; main unchanged",
+    "real invalid_state refresh preserves comment and adds no refused decision to durable feed"
+  ],
+  "result" : "passed"
+}

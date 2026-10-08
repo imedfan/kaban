@@ -92,7 +92,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
+        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -140,6 +140,41 @@ extension KabanClient {
             notes[id, default: []].append(.init(id: commandId.uuidString, at: Date(), kind: "answer", text: text, runId: current?.runId))
             emit(.humanAnswered(.init(taskId: id, requestId: current?.requestId ?? requestID, text: text)), projectID: card.projectId, commandID: commandId)
             return update(index, state: .queued(nil), commandId: commandId)
+        case .approve(let id), .requestChanges(let id, _, _), .reject(let id, _, _):
+            guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }),
+                  let pipeline = snapshot.pipelines.first(where: { $0.projectId == snapshot.tasks[index].projectId }) else { return missingTask() }
+            let card = snapshot.tasks[index]
+            guard case .waitingHuman = card.state,
+                  let source = pipeline.stages.first(where: { $0.id == card.stageId }) else { return invalidState() }
+            let target: StageID
+            switch command {
+            case .approve:
+                guard source.kind == .human, card.state == .waitingHuman(.review), let next = source.onSuccess,
+                      pipeline.stages.contains(where: { $0.id == next }) else { return invalidState() }
+                target = next
+            case .requestChanges(_, let comments, let requested):
+                guard [.human, .gate, .merge].contains(source.kind), !comments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      !comments.contains("\0"), let requested = requested ?? pipeline.defaultReturnStage,
+                      HumanReviewContext.returnTargets(card: card, pipeline: pipeline).contains(where: { $0.id == requested }) else { return invalidState() }
+                target = requested
+                notes[id, default: []].append(.init(id: commandId.uuidString, at: Date(), kind: "review_comment", text: comments))
+            case .reject(_, .cancel, let keep):
+                guard source.kind == .human, card.state == .waitingHuman(.review) else { return invalidState() }
+                acceptDemoFiles(index, commandID: commandId)
+                snapshot.tasks[index].branch = keep && card.branch != nil ? "refs/kaban/archive/" + id.rawValue : nil
+                return update(index, state: .cancelled, commandId: commandId)
+            case .reject(_, .stage(let requested), _):
+                guard source.kind == .human, card.state == .waitingHuman(.review),
+                      HumanReviewContext.returnTargets(card: card, pipeline: pipeline).contains(where: { $0.id == requested }) else { return invalidState() }
+                target = requested; acceptDemoFiles(index, commandID: commandId)
+            default: return invalidState()
+            }
+            if case .requestChanges = command { snapshot.tasks[index].suspiciousFiles = [] }
+            if let stage = pipeline.stages.first(where: { $0.id == target }) {
+                snapshot.tasks[index].attempt = 0; snapshot.tasks[index].maxAttempts = stage.maxAttempts
+                snapshot.tasks[index].model = stage.model
+            }
+            return update(index, state: .queued(nil), commandId: commandId, stageID: target)
         case .setMascot(let projectID, let seed):
             guard let index = snapshot.projects.firstIndex(where: { $0.id == projectID }) else {
                 return .error(.init(code: "project_not_found", message: "Проект не найден."))

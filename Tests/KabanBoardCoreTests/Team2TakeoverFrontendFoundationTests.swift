@@ -58,7 +58,7 @@ final class Team2TakeoverFrontendFoundationTests: XCTestCase {
         fixture.tasks[fixture.tasks.firstIndex { $0.id == "25" }!].state = .waitingHuman(.question)
         let client = MockKabanClient(snapshot: fixture)
         let before = try await client.getSnapshot()
-        let result = try await client.send(.approve(taskId: "25"), commandId: UUID())
+        let result = try await client.send(.recheck(scope: .runner), commandId: UUID())
         guard case .error(let error) = result else { return XCTFail("Expected explicit unsupported error") }
         XCTAssertEqual(error.code, "unknown_command")
         let invalid = try await client.send(.pauseTask(taskId: "25"), commandId: UUID())

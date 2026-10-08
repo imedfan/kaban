@@ -1,0 +1,12 @@
+{
+  "checks" : [
+    "real WindowGroup native comment editor retains exact CRLF\/Unicode",
+    "stale refusal refreshes result and retains comment inline",
+    "coding target follows on_success and excludes read-only stages",
+    "Cmd-Return unavailable behind decision sheet; current review uses approve",
+    "OK remains pending; double decision does not send a new envelope",
+    "correlated update enters merge queue, never local Done",
+    "lost return receipt reconciles exact commandId\/comment\/explicit target once; reopen retains feed"
+  ],
+  "result" : "passed"
+}

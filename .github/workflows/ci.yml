@@ -132,6 +132,21 @@ jobs:
           print(json.dumps(result, ensure_ascii=False))
           PYQA
 
+          review_result="$RUNNER_TEMP/kaban-review-smoke.json"
+          review_output="$RUNNER_TEMP/kaban-review-smoke.log"
+          rm -f "$review_result"
+          open -n -W -F --stdout "$review_output" --stderr "$review_output" \
+            "$derived_data/Build/Products/Debug/Kaban.app" --args \
+            -ApplePersistenceIgnoreState YES --review-smoke "$review_result" --qa-review summary
+          cat "$review_output"
+          python3 - "$review_result" <<'PYQA'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as report:
+              result = json.load(report)
+          assert result["result"] == "passed", result
+          print(json.dumps(result, ensure_ascii=False))
+          PYQA
+
       - name: Test
         run: swift test
         env:

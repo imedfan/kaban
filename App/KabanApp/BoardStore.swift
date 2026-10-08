@@ -17,6 +17,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let runLog: RunLogStore
     let session: BoardSession
     let humanAnswers: HumanAnswerStore
+    let humanReview: HumanReviewStore
     let environment: RunnerEnvironmentStore
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
@@ -44,6 +45,10 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var logSearchRequest = 0
     var wipRestoreRoute: WIPRestoreRoute?
     var logRunRoute: RunSummary?
+    var reviewRoute: HumanReviewRoute?
+    var cloneOpeningError: String?
+    var openingClone = false
+    var showPipelineIssues = false
     var detailTab = "Описание"
     var projection: BoardProjection? { get { session.projection } set { session.projection = newValue } }
     var visibleIDs: [ProjectID] { session.visibleIDs }
@@ -61,10 +66,42 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var canSend: Bool { session.canSend }
     var canAnswerSelected: Bool {
         guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil,
-              projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil else { return false }
+              projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil else { return false }
         return humanAnswers.canSubmit(id)
     }
     func answerSelected() { if canAnswerSelected, let id = selectedID { Task { await humanAnswers.submit(id) } } }
+    var canApproveSelected: Bool {
+        guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil, projectSheet == nil,
+              logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil else { return false }
+        return humanReview.canSubmit(.approve, for: id)
+    }
+    func approveSelected() { if canApproveSelected, let id = selectedID { Task { await humanReview.submit(.approve, for: id) } } }
+    func beginReview(_ decision: HumanReviewDecision, task id: TaskID) {
+        guard humanReview.draft(for: id) != nil, selectedID == id else { return }
+        reviewRoute = .init(taskID: id, decision: decision)
+    }
+    func openPipelineIssues(_ project: ProjectID) { reviewRoute = nil; showPipelineIssues = true; screen = .project(project) }
+    @discardableResult func openClone(_ path: String?) async -> Bool {
+        let task = selectedID
+        guard !openingClone else { return false }
+        cloneOpeningError = nil
+        var directory: ObjCBool = false
+        guard let path, path.hasPrefix("/"), FileManager.default.fileExists(atPath: path, isDirectory: &directory), directory.boolValue else {
+            cloneOpeningError = "Папка клона недоступна. Обновите детали и проверьте путь."; return false
+        }
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.todesktop.230313mzl4w4u92") else {
+            cloneOpeningError = "Cursor не найден. Установите редактор или скопируйте путь клона."; return false
+        }
+        openingClone = true
+        let error: String? = await withCheckedContinuation { continuation in
+            NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: app, configuration: .init()) { _, failure in
+                continuation.resume(returning: failure?.localizedDescription)
+            }
+        }
+        openingClone = false
+        if selectedID == task { cloneOpeningError = error }
+        return error == nil
+    }
     func can(_ name: CommandName) -> Bool { session.can(name) }
     func unavailableReason(_ name: CommandName) -> String {
         if can(name) { return "" }
@@ -78,6 +115,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
         humanAnswers = HumanAnswerStore(session: session, storage: storage, key: sourceKey + ".humanAnswers")
+        humanReview = HumanReviewStore(session: session, storage: storage, key: sourceKey + ".humanReview")
         runLog = RunLogStore(client: client)
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
@@ -96,7 +134,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         subscription = Task { await previous?.value; await session.run() }
     }
     func select(_ id: TaskID?) async {
-        if selectedID != id { logRunRoute = nil; wipRestoreRoute = nil; runLog.close() }
+        if selectedID != id { logRunRoute = nil; wipRestoreRoute = nil; reviewRoute = nil; cloneOpeningError = nil; runLog.close() }
         await session.select(id)
     }
     func find() {
@@ -259,7 +297,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         projects.open(route.operation); projectSheet = route
     }
     func beginCreation(_ projectID: ProjectID? = nil) {
-        guard controlSheet == nil, projectSheet == nil, can(.createTask), let id = projectID ?? selectedProjectID else { return }
+        guard controlSheet == nil, projectSheet == nil, reviewRoute == nil, can(.createTask), let id = projectID ?? selectedProjectID else { return }
         selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
     func hide(_ id: ProjectID) { session.hide(id) }

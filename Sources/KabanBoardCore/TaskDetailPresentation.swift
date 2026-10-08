@@ -52,6 +52,7 @@ public enum TaskDetailPresentation {
         case "transition": "Переход"
         case "question": "Вопрос"
         case "answer": "Ответ"
+        case "review_comment": "Замечание ревью"
         case "progress": "Прогресс"
         case "summary": "Резюме"
         case "incident": "Инцидент"

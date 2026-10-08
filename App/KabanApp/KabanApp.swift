@@ -16,6 +16,7 @@ import KabanProtocol
         .defaultLaunchBehavior(.presented)
         .defaultSize(width: 1440, height: 900)
         .windowStyle(.hiddenTitleBar)
+        .commands { ReviewQAWindowCommands() }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Новая задача") { runtime.store?.beginCreation() }.keyboardShortcut("n")
@@ -25,7 +26,11 @@ import KabanProtocol
                 Button("Закрыть детали") { Task { await runtime.store?.select(nil) } }.keyboardShortcut("w", modifiers: [.command, .shift])
             }
             CommandMenu("Задача") {
-                Button("Отправить ответ агенту") { if !runtime.showSetup { runtime.store?.answerSelected() } }.keyboardShortcut(.return, modifiers: [.command])
+                Button("Ответить или одобрить результат") {
+                    if !runtime.showSetup, let store = runtime.store {
+                        if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
+                    }
+                }.keyboardShortcut(.return, modifiers: [.command])
                 Divider()
                 Button(TaskMenuAction.pauseOrResume.title) { runtime.store?.perform(.pauseOrResume) }.keyboardShortcut("p", modifiers: [.command, .shift])
                 Button(TaskMenuAction.move.title) { runtime.store?.perform(.move) }.keyboardShortcut("m", modifiers: [.command, .shift])
@@ -64,6 +69,19 @@ import KabanProtocol
     }
 }
 
+/// Explicitly presents the actual WindowGroup when LaunchServices suppresses
+/// the automatic window during isolated live acceptance. Absent in normal use.
+private struct ReviewQAWindowCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+    var body: some Commands {
+        CommandGroup(after: .windowArrangement) {
+            if BoardQA.argument("--review-live-smoke") != nil {
+                Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
+            }
+        }
+    }
+}
+
 @MainActor final class KabanAppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private weak var runtime: DaemonRuntime?
     /// Native validation queries the live session at menu/shortcut time, rather than
@@ -82,7 +100,9 @@ import KabanProtocol
         item.menu?.update()
         func bindControls(_ menu: NSMenu?) {
             for item in menu?.items ?? [] {
-                if item.title == "Отправить ответ агенту" { item.target = self; item.action = #selector(answerTask(_:)) }
+                if item.keyEquivalent == "\r", item.keyEquivalentModifierMask == .command {
+                    item.target = self; item.action = #selector(primaryTask(_:))
+                }
                 if let action = TaskMenuAction.allCases.first(where: { $0.title == item.title }) {
                     item.tag = action.rawValue; item.target = self; item.action = #selector(controlTask(_:))
                 }
@@ -92,13 +112,20 @@ import KabanProtocol
         bindControls(NSApp.mainMenu)
     }
     @objc private func createTask(_ sender: NSMenuItem) { runtime?.store?.beginCreation() }
-    @objc private func answerTask(_ sender: NSMenuItem) { if runtime?.showSetup == false { runtime?.store?.answerSelected() } }
+    @objc private func primaryTask(_ sender: NSMenuItem) {
+        guard runtime?.showSetup == false, let store = runtime?.store else { return }
+        if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
+    }
     @objc private func controlTask(_ sender: NSMenuItem) {
         if let action = TaskMenuAction(rawValue: sender.tag) { runtime?.store?.perform(action) }
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(answerTask(_:)) { return runtime?.showSetup == false && runtime?.store?.canAnswerSelected == true }
-        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil }
+        if menuItem.action == #selector(primaryTask(_:)) {
+            let approve = runtime?.store?.canApproveSelected == true
+            menuItem.title = approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
+            return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true)
+        }
+        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil }
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
     }
