@@ -27,6 +27,27 @@ extension KabanStore {
         guard db.changesCount == 1 else { throw StoreError.incompleteProjection }
     }
 
+    static func visibleModelCatalog(_ db: Database) throws -> [ModelInfo] {
+        try catalogRecord(db).rows.filter { !$0.forbidden }.sorted { $0.id.rawValue < $1.id.rawValue }
+    }
+
+    static func taskModelStages(_ task: DurableTask, db: Database) throws -> [TaskModelStage] {
+        let overrides = Dictionary(uniqueKeysWithValues: try Row.fetchAll(db,
+            sql: "SELECT stage_id, model FROM model_override WHERE task_id = ?", arguments: [task.card.id.rawValue]).map { row in
+                (row["stage_id"] as String, ModelID(rawValue: row["model"] as String))
+            })
+        return task.pipeline.stages.compactMap { stage in
+            guard let model = stage.agent?.model else { return nil }
+            return .init(stageId: stage.id, name: stage.name, stageModel: model, overrideModel: overrides[stage.id.rawValue])
+        }
+    }
+
+    static func modelSettingsChange(key: String, value: String, db: Database) throws -> SettingsChange {
+        let inputs = try schedulerInputs(db)
+        return .init(key: key, value: value, modelCatalog: try visibleModelCatalog(db),
+                     modelPoolRules: inputs.modelPoolRules, modelFlags: inputs.modelFlags)
+    }
+
     public func modelCatalog() throws -> [ModelInfo] {
         try database.read { try Self.catalogRecord($0).rows }
     }
@@ -209,7 +230,7 @@ extension KabanStore {
             inputs.modelPoolRules.append(ModelPoolRule(pattern: trimmed, pool: pool, source: .user))
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
             try Self.recomputeCatalogPools(db: db)
-            return try Self.journal(.settingsChanged(.init(key: "model_pool", value: "updated")), projectId: nil, commandId: envelope.commandId, at: at, db: db)
+            return try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_pool", value: "updated", db: db)), projectId: nil, commandId: envelope.commandId, at: at, db: db)
         }
     }
 
@@ -219,7 +240,7 @@ extension KabanStore {
             inputs.modelPoolRules.removeAll { $0.source == .user && $0.pattern == pattern }
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
             try Self.recomputeCatalogPools(db: db)
-            return try Self.journal(.settingsChanged(.init(key: "model_pool", value: "updated")), projectId: nil, commandId: envelope.commandId, at: at, db: db)
+            return try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_pool", value: "updated", db: db)), projectId: nil, commandId: envelope.commandId, at: at, db: db)
         }
     }
 
@@ -228,7 +249,7 @@ extension KabanStore {
             var inputs = try Self.schedulerInputs(db)
             inputs.modelFlags.removeAll { $0.modelId == modelId }
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
-            return try Self.journal(.settingsChanged(.init(key: "model_flag", value: "cleared")), projectId: nil, commandId: envelope.commandId, at: at, db: db)
+            return try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_flag", value: "cleared", db: db)), projectId: nil, commandId: envelope.commandId, at: at, db: db)
         }
     }
 
@@ -274,28 +295,20 @@ extension KabanStore {
     func refreshModelCatalog(_ envelope: CommandEnvelope, at: Date) throws -> CommandReply {
         let request = try Self.encode(envelope)
         if let reply = try database.read({ try Self.wireReplay(envelope.commandId, request: request, db: $0) }) { return reply }
+        // A mismatched protocol cannot launch an external catalog probe.
+        guard envelope.protocolVersion == KabanCoding.protocolVersion else {
+            return try commitModelCommand(envelope, at: at) { _ in throw StoreError.incompleteProjection }
+        }
         let executable = try database.read { try Self.runnerState($0).executable }
         let text = CursorRunner.listModelsText(executable: executable, environment: ProcessInfo.processInfo.environment) ?? ""
-        return try database.write { db in
-            if let reply = try Self.wireReplay(envelope.commandId, request: request, db: db) { return reply }
-            guard envelope.protocolVersion == KabanCoding.protocolVersion else {
-                let reply = CommandReply(commandId: envelope.commandId, seq: nil, result: .error(CommandError(code: CommandError.protocolMismatchCode, message: "Несовместимая версия протокола.")))
-                try db.execute(sql: "INSERT INTO wire_command(id, request, reply) VALUES (?, ?, ?)", arguments: [envelope.commandId.uuidString, request, try Self.encode(reply)])
-                return reply
+        return try commitModelCommand(envelope, at: at) { db in
+            guard let parsed = ModelCatalogMatcher.parseListModels(text) else {
+                throw StoreError.rejected(.init(code: "model_catalog_refresh_failed",
+                    message: "Cursor CLI не вернул распознаваемый каталог. Сохранённые модели и правила не изменены. Проверьте подключение и авторизацию."))
             }
-            if let parsed = ModelCatalogMatcher.parseListModels(text) {
-                try Self.mergeCatalog(parsed, at: at, db: db)
-            } else {
-                var record = try Self.catalogRecord(db)
-                record.nextRefreshAt = at.addingTimeInterval(Self.modelCatalogRefreshInterval)
-                try Self.saveCatalog(record, db)
-            }
-            let seq = try Self.seq(db)
-            let reply = CommandReply(commandId: envelope.commandId, seq: seq, result: .ok)
-            try db.execute(sql: "INSERT INTO wire_command(id, request, reply) VALUES (?, ?, ?)", arguments: [envelope.commandId.uuidString, request, try Self.encode(reply)])
-            return reply
+            try Self.mergeCatalog(parsed, at: at, db: db)
+            return try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_catalog", value: "refreshed", db: db)),
+                                    projectId: nil, commandId: envelope.commandId, at: at, db: db)
         }
     }
 }
-
-

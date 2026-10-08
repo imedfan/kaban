@@ -55,7 +55,7 @@ extension KabanStore {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
         let detail = TaskDetail(seq: try Self.seq(db), task: try Self.projectedCard(task, db: db), feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
                                 suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
-                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db))
+                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db), modelStages: try Self.taskModelStages(task, db: db))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
         return detail
     }
@@ -82,7 +82,7 @@ extension KabanStore {
             let snapshot = Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
                                     tasks: try tasks.map { try Self.projectedCard($0, db: db) }, schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
                                     openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
-                                    stageLoad: try Self.stageLoads(db), settings: settings)
+                                    stageLoad: try Self.stageLoads(db), settings: settings, modelCatalog: try Self.visibleModelCatalog(db), modelPoolRules: inputs.modelPoolRules)
             try Self.ensureWireFit(snapshot, code: CommandError.snapshotTooLargeCode, message: "Снимок доски не помещается в сообщение.")
             return snapshot
         }

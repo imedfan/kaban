@@ -1,0 +1,96 @@
+{
+  "code": "8913aeb",
+  "frames": [
+    {
+      "path": "commands-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "6fcf5ca300ebf3642924a81eed7c0aacbcff17cdef7094b0d688e713018fb824",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "empty-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "4c32775917a52a4ace479ca31e2747f2655423242c639aea697a736dbaba78dd",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "override-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "96cb6cf525d1c908614159c4a3b98bdde34555f277413ad675d88a37bc87a7e5",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "picker-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "c737ea891c268900288822aa9ded6ca9073b3a50945ed34e5f7b8a7b9337f8e4",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "picker-light.popover.png",
+      "width": 952,
+      "height": 792,
+      "sha256": "d755e661f2b10f764747e85bc5c30d01a7b3a1812d1bc31d286b7805fb3b19a3",
+      "kind": "native popover"
+    },
+    {
+      "path": "picker-unavailable-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "fc3f33afef620ea0d4d05f5b27ec02eba778d964ecf9aabcd772694c3be28f49",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "picker-unavailable-dark-minimum.popover.png",
+      "width": 952,
+      "height": 480,
+      "sha256": "4ac1b796de823a7933113c2fe6fcc4477dcb243e26e849e5ddb9ee6dc7fd924d",
+      "kind": "native popover"
+    },
+    {
+      "path": "refresh-error-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "96299fda21afdcfd69567718b25253dd804323fb201397ec9e752352920b73d4",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "settings-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "a10b9d9b30436557af892508651097e3af798a54debadade2b62d6746fa43120",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "settings-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "2482618859a748670df70a2682736a552514d0239982799f4e2fcee573a2f840",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "substitution-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "dc289de6d7d8c309b6ebb1f23ef06ad112e123d79e8d22cb7cedfff4b0a29921",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "unconfirmed-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c6d8321c9b74b2e8a64599de1a0f6e6e682cc30053c1471bbe6ede8214deb717",
+      "kind": "native WindowGroup"
+    },
+    {
+      "path": "unknown-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "2d2e50a81239125ec14e733bf3127ae18870a3eb9fd8e1107b4c9918262c164b",
+      "kind": "native WindowGroup"
+    }
+  ]
+}

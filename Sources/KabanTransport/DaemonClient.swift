@@ -119,6 +119,8 @@ public struct DaemonClient: Sendable {
                 var liveCursor: EphemeralCursor?
                 var connected = false
                 var schedulerFlagsSeq: Seq = 0
+                var modelFlagsSeq: Seq = 0
+                var modelCatalogSeq: Seq = 0
                 var backoff: UInt64 = 200_000_000
                 func publish(_ update: DaemonUpdate) throws { try Self.publish(update, to: continuation) }
                 func drainJournal(through barrier: Seq? = nil) async throws {
@@ -127,7 +129,11 @@ public struct DaemonClient: Sendable {
                         if page.resyncRequired { throw SessionResync.required }
                         for event in page.events {
                             try publish(.event(event)); seq = event.seq
-                            if case .settingsChanged(let value) = event.event, value.schedulerFlags != nil { schedulerFlagsSeq = event.seq }
+                            if case .settingsChanged(let value) = event.event {
+                                if value.schedulerFlags != nil { schedulerFlagsSeq = event.seq }
+                                if value.modelFlags != nil { modelFlagsSeq = event.seq }
+                                if value.modelCatalog != nil { modelCatalogSeq = event.seq }
+                            }
                         }
                         if let barrier, seq! >= barrier { return }
                         if seq == page.latestSeq {
@@ -147,6 +153,8 @@ public struct DaemonClient: Sendable {
                                 try publish(.replacement(replacement))
                                 seq = replacement.snapshot.seq; liveCursor = replacement.cursor
                                 schedulerFlagsSeq = replacement.snapshot.seq
+                                modelFlagsSeq = replacement.snapshot.seq
+                                modelCatalogSeq = replacement.snapshot.modelCatalog == nil ? 0 : replacement.snapshot.seq
                             }
                             try await drainJournal()
                             let page = try await ephemeral(after: liveCursor!)
@@ -156,6 +164,8 @@ public struct DaemonClient: Sendable {
                                 if event.event == .resyncRequired { throw SessionResync.required }
                                 var staleFlags = false
                                 if case .schedulerFlagsChanged = event.event { staleFlags = event.afterSeq < schedulerFlagsSeq }
+                                if case .modelFlagsChanged = event.event { staleFlags = event.afterSeq < modelFlagsSeq }
+                                if case .modelCatalogChanged = event.event { staleFlags = event.afterSeq < modelCatalogSeq }
                                 if !staleFlags { try publish(.ephemeral(event)) }
                                 liveCursor = event.cursor
                             }

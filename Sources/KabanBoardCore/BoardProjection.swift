@@ -107,6 +107,7 @@ public struct EphemeralBoardState: Equatable, Sendable {
     public var modelFlags: [ModelFlag]
     public var quota: QuotaState?
     public var modelCatalog: [ModelInfo]
+    public var modelCatalogKnown: Bool
     public var runnerCheck: RunnerCheck?
     public var pipelineDrafts: [ProjectID: PipelineDraftValidation]
     public var runProgress: [RunID: RunProgress]
@@ -116,6 +117,7 @@ public struct EphemeralBoardState: Equatable, Sendable {
         modelFlags: [ModelFlag] = [],
         quota: QuotaState? = nil,
         modelCatalog: [ModelInfo] = [],
+        modelCatalogKnown: Bool = false,
         runnerCheck: RunnerCheck? = nil,
         pipelineDrafts: [ProjectID: PipelineDraftValidation] = [:],
         runProgress: [RunID: RunProgress] = [:]
@@ -123,7 +125,7 @@ public struct EphemeralBoardState: Equatable, Sendable {
         self.schedulerFlags = schedulerFlags
         self.modelFlags = modelFlags
         self.quota = quota
-        self.modelCatalog = modelCatalog
+        self.modelCatalog = modelCatalog; self.modelCatalogKnown = modelCatalogKnown
         self.runnerCheck = runnerCheck
         self.pipelineDrafts = pipelineDrafts
         self.runProgress = runProgress
@@ -159,6 +161,7 @@ public struct BoardProjection: Equatable, Sendable {
     /// Загрузка стадий из снимка; между снимками её двигает `stageLoadChanged`. Клиент WIP не считает.
     public private(set) var stageLoad: [StageLoad]
     public private(set) var settings: GlobalSettings?
+    public private(set) var modelPoolRules: [ModelPoolRule]?
     public private(set) var pending: PendingCommands
     private var appliedSeqs: Set<Seq>
     private var resolvedIncidentIds: Set<IncidentID>
@@ -177,12 +180,13 @@ public struct BoardProjection: Equatable, Sendable {
         ephemeral = EphemeralBoardState(
             schedulerFlags: snapshot.schedulerFlags,
             modelFlags: snapshot.modelFlags,
-            quota: snapshot.quota
+            quota: snapshot.quota, modelCatalog: snapshot.modelCatalog ?? [], modelCatalogKnown: snapshot.modelCatalog != nil
         )
         openIncidentCount = snapshot.projects.reduce(0) { $0 + $1.openIncidentCount }
         incidents = [:]
         stageLoad = snapshot.stageLoad
         settings = snapshot.settings
+        modelPoolRules = snapshot.modelPoolRules
         pending = PendingCommands()
         appliedSeqs = []
         resolvedIncidentIds = []
@@ -268,7 +272,7 @@ public struct BoardProjection: Equatable, Sendable {
         case .quotaUpdated(let quota):
             ephemeral.quota = quota
         case .modelCatalogChanged(let models):
-            ephemeral.modelCatalog = models
+            ephemeral.modelCatalog = models; ephemeral.modelCatalogKnown = true
         case .runnerChecked(let check):
             ephemeral.runnerCheck = check
         case .pipelineDraftValidated(let draft):
@@ -305,6 +309,10 @@ public struct BoardProjection: Equatable, Sendable {
         let waiting = tasks.values.filter { $0.projectId == projectId && $0.state.status == .waitingHuman }.count
         let open = projects[projectId]?.openIncidentCount ?? 0
         return ProjectBadgeCounts(waitingHuman: waiting, openIncidents: open)
+    }
+
+    public mutating func acceptModelCatalog(_ models: [ModelInfo]) {
+        ephemeral.modelCatalog = models; ephemeral.modelCatalogKnown = true
     }
 
     public func load(projectId: ProjectID, stageId: StageID) -> StageLoad? {
@@ -360,6 +368,9 @@ public struct BoardProjection: Equatable, Sendable {
         case .settingsChanged(let change):
             if let settings = change.settings { self.settings = settings }
             if let flags = change.schedulerFlags { ephemeral.schedulerFlags = flags }
+            if let models = change.modelCatalog { ephemeral.modelCatalog = models; ephemeral.modelCatalogKnown = true }
+            if let rules = change.modelPoolRules { modelPoolRules = rules }
+            if let flags = change.modelFlags { ephemeral.modelFlags = flags }
             if let commandId = envelope.commandId { pending.clear(commandId: commandId) }
             appendFeed(envelope)
             return .applied

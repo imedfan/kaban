@@ -109,3 +109,25 @@ confirmed merged, сохраняется после journal retention и startup
 Неизвестный/слишком крупный формат показывается как исходный текст; artifact
 сам по себе не переводит карточку в Done. Проверки: RoundTripTests,
 MergeQueueTests, MergePresentationTests и [настоящие окна](../development/frontend-fe-12-2026-10-08.md).
+
+## Сохранённая конфигурация моделей (FE-14)
+
+`Snapshot.modelCatalog?` и `modelPoolRules?` читаются из production store.
+`nil` означает старый источник без этих фактов; `[]` — подтверждённое отсутствие.
+`SettingsChange` после `model_pool`, `model_catalog` или `model_flag` содержит
+полные `modelCatalog/modelPoolRules/modelFlags`. Ответ `.ok` не меняет их в UI:
+проекция принимает correlated journal event или авторитетный snapshot.
+Нераспознаваемый CLI-каталог возвращает `model_catalog_refresh_failed`, прежние
+rows/rules/flags сохраняются. Повтор того же commandId возвращает тот же отказ
+или успех без второго CLI probe.
+
+`TaskDetail.modelStages?` содержит `[TaskModelStage { stageId, name, stageModel,
+overrideModel? }]` из frozen pipeline конкретной задачи и сохранённой таблицы
+override. `resolvedModel` — вычисляемое свойство DTO, в wire не записывается.
+Legacy detail без поля остаётся неизвестным; обязательные старые поля сохранены.
+Снятие override возвращает модель frozen стадии, а не текущего project pipeline.
+
+Для нового snapshot с `modelCatalog` сохранённые volatile model facts не входят
+в replacement: полный snapshot новее этого retained cache. Live events с afterSeq
+раньше последнего model settings journal event отбрасываются в transport/session.
+[Проверки и native evidence FE-14](../development/frontend-fe-14-2026-10-08.md).

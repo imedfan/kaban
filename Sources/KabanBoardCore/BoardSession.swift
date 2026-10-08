@@ -31,6 +31,8 @@ import KabanProtocol
     private var selection = TaskDetailSelection()
     private var floors: [TaskID: Seq] = [:]
     private var schedulerFlagsSeq: Seq = 0
+    private var modelFlagsSeq: Seq = 0
+    private var modelCatalogSeq: Seq = 0
     private var volatileBuffer: [EphemeralEnvelope] = []
     private var epoch = UUID()
     private var lifecycle = UUID()
@@ -164,7 +166,10 @@ import KabanProtocol
             guard result == .applied || result == .ignored else { refreshPending(); return }
             switch value.event {
             case .taskCreated(let card), .taskEdited(let card), .taskUpdated(let card): floors[card.id] = value.seq
-            case .settingsChanged(let change) where change.schedulerFlags != nil: schedulerFlagsSeq = value.seq
+            case .settingsChanged(let change):
+                if change.schedulerFlags != nil { schedulerFlagsSeq = value.seq }
+                if change.modelFlags != nil { modelFlagsSeq = value.seq }
+                if change.modelCatalog != nil { modelCatalogSeq = value.seq }
             default: break
             }
             boardSet.apply(value.event); visibleIDs = boardSet.visibleProjectIds
@@ -197,10 +202,15 @@ import KabanProtocol
         // Full replacement clears every old volatile value as well as durable cards.
         var board = BoardProjection(snapshot: replacement.snapshot)
         for current in replacement.current.sorted(by: { $0.cursor.offset < $1.cursor.offset }) {
+            if replacement.snapshot.modelCatalog != nil {
+                if case .modelFlagsChanged = current.event { continue }
+                if case .modelCatalogChanged = current.event { continue }
+            }
             if board.apply(current.event) == .resyncRequired { throw resyncError() }
         }
         projection = board; ephemeralCursor = replacement.cursor; receivedEphemeralCursor = replacement.cursor
         volatileBuffer = []; schedulerFlagsSeq = replacement.snapshot.seq
+        modelFlagsSeq = replacement.snapshot.seq; modelCatalogSeq = replacement.snapshot.modelCatalog == nil ? 0 : replacement.snapshot.seq
         floors = Dictionary(uniqueKeysWithValues: replacement.snapshot.tasks.map { ($0.id, replacement.snapshot.seq) })
         _ = selection.begin(selectedID); requestedDetailID = nil; detailEvents = []; historyGeneration = UUID()
         boardSet.bootstrap(projects: board.projectOrder); visibleIDs = boardSet.visibleProjectIds
@@ -214,6 +224,8 @@ import KabanProtocol
             volatileBuffer.removeFirst()
             var stale = false
             if case .schedulerFlagsChanged = first.event { stale = first.afterSeq < schedulerFlagsSeq }
+            if case .modelFlagsChanged = first.event { stale = first.afterSeq < modelFlagsSeq }
+            if case .modelCatalogChanged = first.event { stale = first.afterSeq < modelCatalogSeq }
             if !stale, projection?.apply(first.event) == .resyncRequired { throw resyncError() }
             ephemeralCursor = first.cursor
             if case .runProgress(let progress) = first.event,

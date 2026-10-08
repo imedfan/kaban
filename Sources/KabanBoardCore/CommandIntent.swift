@@ -71,6 +71,12 @@ public extension Command {
             change.schedulerFlags?.contains(.projectPaused(id)) == true
         case (.resumeProject(let id), .settingsChanged(let change)):
             change.schedulerFlags.map { !$0.contains(.projectPaused(id)) } ?? false
+        case (.setModelPoolRule, .settingsChanged(let change)), (.removeModelPoolRule, .settingsChanged(let change)):
+            change.key == "model_pool"
+        case (.refreshModelCatalog, .settingsChanged(let change)):
+            change.key == "model_catalog"
+        case (.clearModelFlag, .settingsChanged(let change)):
+            change.key == "model_flag"
         case (_, .settingsChanged):
             mutationScope == .global || { if case .clearModelFlag = self { return true }; return false }()
         default: false

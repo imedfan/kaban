@@ -236,18 +236,20 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var body: String?
     /// nil: legacy source cannot report outcomes; []: no restore intents.
     public var wipRestoreOperations: [WIPRestoreOperation]?
+    /// Agent stages from this task’s frozen pipeline; nil means an older source cannot report overrides.
+    public var modelStages: [TaskModelStage]?
     public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
                 suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil,
                 artifacts: [TaskArtifact] = [], gitGrants: [GitGrantSnapshot] = [], gitDenials: [GitDenialSnapshot] = [],
-                body: String? = nil, wipRestoreOperations: [WIPRestoreOperation]? = nil) {
+                body: String? = nil, wipRestoreOperations: [WIPRestoreOperation]? = nil, modelStages: [TaskModelStage]? = nil) {
         self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
         self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles; self.clonePath = clonePath
         self.artifacts = artifacts; self.gitGrants = gitGrants; self.gitDenials = gitDenials
-        self.body = body; self.wipRestoreOperations = wipRestoreOperations
+        self.body = body; self.wipRestoreOperations = wipRestoreOperations; self.modelStages = modelStages
     }
 
     enum CodingKeys: String, CodingKey {
-        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials, body, wipRestoreOperations
+        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials, body, wipRestoreOperations, modelStages
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -258,6 +260,7 @@ public struct TaskDetail: Codable, Hashable, Sendable {
         try c.encodeIfPresent(clonePath, forKey: .clonePath)
         try c.encodeIfPresent(body, forKey: .body)
         try c.encodeIfPresent(wipRestoreOperations, forKey: .wipRestoreOperations)
+        try c.encodeIfPresent(modelStages, forKey: .modelStages)
         if !artifacts.isEmpty { try c.encode(artifacts, forKey: .artifacts) }
         if !gitGrants.isEmpty { try c.encode(gitGrants, forKey: .gitGrants) }
         if !gitDenials.isEmpty { try c.encode(gitDenials, forKey: .gitDenials) }
@@ -274,7 +277,8 @@ public struct TaskDetail: Codable, Hashable, Sendable {
                   gitGrants: try c.decodeIfPresent([GitGrantSnapshot].self, forKey: .gitGrants) ?? [],
                   gitDenials: try c.decodeIfPresent([GitDenialSnapshot].self, forKey: .gitDenials) ?? [],
                   body: try c.decodeIfPresent(String.self, forKey: .body),
-                  wipRestoreOperations: try c.decodeIfPresent([WIPRestoreOperation].self, forKey: .wipRestoreOperations))
+                  wipRestoreOperations: try c.decodeIfPresent([WIPRestoreOperation].self, forKey: .wipRestoreOperations),
+                  modelStages: try c.decodeIfPresent([TaskModelStage].self, forKey: .modelStages))
     }
 }
 

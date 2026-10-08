@@ -115,6 +115,108 @@ final class ModelCatalogStoreTests: XCTestCase {
         XCTAssertTrue(try store.database.read { try KabanStore.canStart(cm, at: self.at, db: $0) })
     }
 
+    func testRulesAndOverridesAreAuthoritativeAfterReopenAndEventsCarrySavedCatalog() throws {
+        let fixture = try store()
+        _ = try fixture.store.replaceCatalog(text: "fake\tFake Model\ngpt-5\tGPT-5\n", at: at)
+        _ = try fixture.store.execute(.init(command: .createTask(projectId: "p", title: "A", body: body)), now: { at }, makeTaskID: { "a" })
+        let override = CommandEnvelope(command: .setModelOverride(taskId: "a", stageId: "agent", model: "gpt-5"))
+        XCTAssertEqual(try fixture.store.execute(override, now: { at }).result, .ok)
+        let detail = try fixture.store.getTaskDetail("a")
+        let stage = try XCTUnwrap(detail.modelStages?.first)
+        XCTAssertEqual(stage.stageModel.rawValue, "fake")
+        XCTAssertEqual(stage.overrideModel?.rawValue, "gpt-5")
+        let command = CommandEnvelope(command: .setModelPoolRule(pattern: "gpt-*", pool: .cm))
+        let reply = try fixture.store.execute(command, now: { at })
+        XCTAssertEqual(reply.result, .ok)
+        let event = try XCTUnwrap(fixture.store.events(after: (reply.seq ?? 1) - 1).first)
+        guard case .settingsChanged(let change) = event.event else { return XCTFail("Expected saved model settings") }
+        XCTAssertEqual(event.commandId, command.commandId)
+        XCTAssertEqual(change.modelPoolRules?.last, .init(pattern: "gpt-*", pool: .cm, source: .user))
+        XCTAssertEqual(change.modelCatalog?.first { $0.id.rawValue == "gpt-5" }?.pool, .cm)
+        XCTAssertEqual(change.modelCatalog?.first { $0.id.rawValue == "gpt-5" }?.needsReview, false)
+        let reopened = try KabanStore(path: fixture.path)
+        XCTAssertEqual(try reopened.getSnapshot().modelPoolRules, change.modelPoolRules)
+        XCTAssertEqual(try reopened.getSnapshot().modelCatalog, change.modelCatalog)
+        XCTAssertEqual(try reopened.getTaskDetail("a").modelStages, detail.modelStages)
+        let removed = try reopened.execute(.init(command: .setModelOverride(taskId: "a", stageId: "agent", model: nil)), now: { at })
+        XCTAssertEqual(removed.result, .ok)
+        XCTAssertNil(try reopened.getTaskDetail("a").modelStages?.first?.overrideModel)
+        XCTAssertEqual(try reopened.getTaskDetail("a").modelStages?.first?.resolvedModel.rawValue, "fake")
+    }
+
+    func testFailedRefreshPreservesCatalogRulesAndFlagAndReplaysRefusal() throws {
+        let fixture = try store()
+        _ = try fixture.store.replaceCatalog(text: "fake\tFake Model\ngpt-5\tGPT-5\n", at: at)
+        _ = try fixture.store.replaceCatalog(text: "gpt-5\tGPT-5\n", at: at)
+        let before = try fixture.store.getSnapshot()
+        let command = CommandEnvelope(command: .refreshModelCatalog)
+        let reply = try fixture.store.execute(command, now: { at })
+        guard case .error(let error) = reply.result else { return XCTFail("Unconfigured CLI must refuse refresh") }
+        XCTAssertEqual(error.code, "model_catalog_refresh_failed")
+        XCTAssertEqual(try fixture.store.execute(command, now: { at }), reply)
+        let after = try fixture.store.getSnapshot()
+        XCTAssertEqual(after.modelCatalog, before.modelCatalog)
+        XCTAssertEqual(after.modelPoolRules, before.modelPoolRules)
+        XCTAssertEqual(after.modelFlags, before.modelFlags)
+        XCTAssertEqual(after.seq, before.seq)
+    }
+
+    func testSuccessfulRefreshPublishesCorrelatedCatalogAndDoesNotProbeAgainOnReplay() throws {
+        let fixture = try store()
+        let runner = URL(fileURLWithPath: fixture.path).deletingLastPathComponent().appendingPathComponent("cursor-fixture")
+        let calls = runner.deletingLastPathComponent().appendingPathComponent("calls")
+        let script = "#!/bin/sh\nprintf 'probe\n' >> '\(calls.path)'\nprintf 'gpt-qa\tGPT QA\n'\n"
+        try script.write(to: runner, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: runner.path)
+        try fixture.store.setRunnerExecutable(runner.path)
+        let command = CommandEnvelope(command: .refreshModelCatalog)
+        let before = try fixture.store.getSnapshot().seq
+        let reply = try fixture.store.execute(command, now: { at })
+        XCTAssertEqual(reply.result, .ok); XCTAssertGreaterThan(reply.seq ?? 0, before)
+        let event = try XCTUnwrap(fixture.store.events(after: before).last)
+        XCTAssertEqual(event.commandId, command.commandId)
+        guard case .settingsChanged(let change) = event.event else { return XCTFail("Expected catalog event") }
+        XCTAssertEqual(change.key, "model_catalog")
+        XCTAssertEqual(change.modelCatalog?.first?.id.rawValue, "gpt-qa")
+        XCTAssertEqual(try fixture.store.execute(command, now: { at }), reply)
+        XCTAssertEqual(try String(contentsOf: calls, encoding: .utf8), "probe\n")
+    }
+
+    func testOverrideDoesNotRewriteCurrentRunAndResetsOnlyHumanParticipationCounter() throws {
+        let fixture = try store()
+        _ = try fixture.store.execute(.init(command: .createTask(projectId: "p", title: "A", body: body)), now: { at }, makeTaskID: { "a" })
+        _ = try fixture.store.apply(.start("intake-a"), taskId: "a", commandId: UUID(), at: at)
+        _ = try fixture.store.apply(.start("run-a"), taskId: "a", commandId: UUID(), at: at)
+        let before = try task("a", fixture.store)
+        let runs = try fixture.store.getTaskDetail("a").runs
+        XCTAssertEqual(before.machine.currentRunId?.rawValue, "run-a")
+        XCTAssertGreaterThan(before.machine.runsSinceHuman, 0)
+        XCTAssertEqual(try fixture.store.execute(.init(command: .setModelOverride(taskId: "a", stageId: "agent", model: "gpt-5")), now: { at }).result, .ok)
+        let after = try task("a", fixture.store)
+        XCTAssertEqual(after.machine.currentRunId, before.machine.currentRunId)
+        XCTAssertEqual(after.machine.state, .running)
+        XCTAssertEqual(after.machine.attemptsUsed, before.machine.attemptsUsed)
+        XCTAssertEqual(after.machine.runsSinceHuman, 0)
+        XCTAssertEqual(try fixture.store.getTaskDetail("a").runs, runs)
+        XCTAssertEqual(try fixture.store.resolvedModel(taskId: "a", stageId: "agent")?.rawValue, "gpt-5")
+        XCTAssertEqual(after.pipeline.stage("agent")?.agent?.model?.rawValue, "fake")
+    }
+
+    func testReconnectCannotRestoreRetainedFlagsOverAuthoritativeModelSnapshot() throws {
+        let fixture = try store()
+        _ = try fixture.store.replaceCatalog(text: "fake\tFake Model\ngpt-5\tGPT-5\n", at: at)
+        _ = try fixture.store.replaceCatalog(text: "gpt-5\tGPT-5\n", at: at)
+        let service = DaemonService(store: fixture.store)
+        let before = try fixture.store.getSnapshot()
+        try service.publishEphemeral(.modelFlagsChanged(before.modelFlags), at: at)
+        try service.publishEphemeral(.modelCatalogChanged(before.modelCatalog ?? []), at: at)
+        XCTAssertEqual(try fixture.store.execute(.init(command: .clearModelFlag(modelId: "fake")), now: { at }).result, .ok)
+        let replacement = try service.liveEvents.synchronize { try fixture.store.getSnapshot() }
+        XCTAssertEqual(replacement.snapshot.modelFlags, [])
+        XCTAssertFalse(replacement.current.contains { if case .modelFlagsChanged = $0.event { return true }; return false })
+        XCTAssertFalse(replacement.current.contains { if case .modelCatalogChanged = $0.event { return true }; return false })
+    }
+
     private let body = "Task\n\n## Критерии приёмки\n- [ ] Ready\n"
 
     private func store() throws -> (path: String, store: KabanStore) {

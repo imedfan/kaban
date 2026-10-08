@@ -65,7 +65,7 @@ extension KabanStore {
                 catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .listModels:
                 do {
-                    let rows = try Self.catalogRecord(db).rows.filter { !$0.forbidden }.sorted { $0.id.rawValue < $1.id.rawValue }
+                    let rows = try Self.visibleModelCatalog(db)
                     return CommandReply(commandId: envelope.commandId, seq: nil, result: .models(rows))
                 } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             case .validatePipeline(let projectId, let content):
