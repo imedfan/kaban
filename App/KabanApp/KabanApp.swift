@@ -29,6 +29,7 @@ import KabanProtocol
                 Button("Ответить или одобрить результат") {
                     if !runtime.showSetup, let store = runtime.store {
                         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
+                        else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
                         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
                     }
                 }.keyboardShortcut(.return, modifiers: [.command])
@@ -76,7 +77,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
+            if BoardQA.argument("--settings-live-smoke") != nil || BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }
@@ -116,6 +117,7 @@ private struct ReviewQAWindowCommands: Commands {
     @objc private func primaryTask(_ sender: NSMenuItem) {
         guard runtime?.showSetup == false, let store = runtime?.store else { return }
         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
+        else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
     }
     @objc private func controlTask(_ sender: NSMenuItem) {
@@ -126,6 +128,10 @@ private struct ReviewQAWindowCommands: Commands {
             if let editor = runtime?.store?.activePipelineEditor {
                 menuItem.title = "Применить пайплайн"
                 return runtime?.showSetup == false && editor.canApply
+            }
+            if let settings = runtime?.store?.activeProjectSettings {
+                menuItem.title = "Сохранить настройки проекта"
+                return runtime?.showSetup == false && settings.canSubmit
             }
             let approve = runtime?.store?.canApproveSelected == true
             menuItem.title = approve ? "Одобрить результат ревью" : "Отправить ответ агенту"

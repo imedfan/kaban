@@ -24,6 +24,18 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
     private var pipelineEditors: [ProjectID: PipelineEditorStore] = [:]
+    private var projectSettings: [ProjectID: ProjectSettingsStore] = [:]
+    var activeProjectSettings: ProjectSettingsStore? {
+        guard case .project(let id) = screen, editingPipelineProject == nil, mascotProjectID == nil, projectSheet == nil,
+              let settings = projectSettings[id], settings.section != nil else { return nil }
+        return settings
+    }
+    func settings(for id: ProjectID) -> ProjectSettingsStore {
+        if let settings = projectSettings[id] { return settings }
+        let settings = ProjectSettingsStore(projectID: id, session: session)
+        projectSettings[id] = settings
+        return settings
+    }
     var editingPipelineProject: ProjectID?
     var activePipelineEditor: PipelineEditorStore? {
         guard case .project(let id) = screen, editingPipelineProject == id else { return nil }

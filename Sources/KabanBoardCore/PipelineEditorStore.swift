@@ -3,6 +3,7 @@ import Observation
 import KabanProtocol
 
 @MainActor @Observable public final class PipelineEditorStore {
+    public enum GitRuleEdit: String, Sendable { case inherit, allow, deny }
     public enum ValidationState: Equatable {
         case idle, checking
         case checked(PipelineDraftValidation)
@@ -73,6 +74,15 @@ import KabanProtocol
     public func patch(_ path: String, value: String, quoted: Bool = false) {
         do { edit(try document.replacing(path, with: value, quoted: quoted)) }
         catch { self.error = error.localizedDescription }
+    }
+    public func setGitRule(_ rule: String, allowPath: String, denyPath: String, decision: GitRuleEdit) {
+        guard !isPending, var allowed = document.stringList(allowPath), var denied = document.stringList(denyPath) else { return }
+        allowed.removeAll { $0 == rule }; denied.removeAll { $0 == rule }
+        if decision == .allow { allowed.append(rule) }; if decision == .deny { denied.append(rule) }
+        do {
+            let text = try document.replacing(allowPath, with: "[" + allowed.map(PipelineTextDocument.quote).joined(separator: ", ") + "]")
+            edit(try PipelineTextDocument(text).replacing(denyPath, with: "[" + denied.map(PipelineTextDocument.quote).joined(separator: ", ") + "]"))
+        } catch { self.error = error.localizedDescription }
     }
     public func addStage(id: String, kind: String) {
         do { edit(try document.addingStage(id: id, kind: kind)) }

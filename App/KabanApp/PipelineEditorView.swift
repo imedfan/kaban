@@ -8,12 +8,14 @@ struct PipelineEditorView: View {
     let projectName: String
     let theme: ReferenceTheme
     let close: () -> Void
+    var initialSection: String? = nil
     @State private var selectedStage: String?
     @State private var section = "Основное"
     @State private var yaml = false
     @State private var newID = ""
     @State private var newKind = "agent"
     @State private var reloadConfirmation = false
+    @State private var formWidth: CGFloat = 0
     private let sections = ["Основное", "Исполнитель", "Переходы", "Надёжность", "Хуки", "Git"]
     private var stage: PipelineTextDocument.Stage? {
         editor.document.stages.first { $0.id == selectedStage } ?? editor.document.stages.first
@@ -40,19 +42,28 @@ struct PipelineEditorView: View {
                                 .padding(10).background(theme.card, in: RoundedRectangle(cornerRadius: 10))
                                 .accessibilityIdentifier("pipeline-yaml").accessibilityLabel("Исходный YAML пайплайна")
                         } else {
+                            ScrollViewReader { scroll in
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 14) {
                                     if !editor.document.supportsForms {
                                         Text("Этот YAML использует сложные конструкции. Для сохранения исходного текста откройте YAML.").font(.callout).foregroundStyle(theme.secondary)
                                     }
-                                    if selectedStage == "__board" { projectForm }
+                                    if selectedStage?.hasPrefix("__") == true { projectForm }
                                     else if let stage { stageForm(stage) }
                                     else { Text("Стадий пока нет. Добавьте стадию или откройте YAML.").foregroundStyle(theme.secondary) }
                                     validationIssues
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .task {
+                                if BoardQA.isActive, BoardQA.argument("--qa-policy-preview") == "yes" {
+                                    try? await Task.sleep(for: .milliseconds(500))
+                                    scroll.scrollTo("git-effective", anchor: .top)
+                                }
+                            }
+                            }
                         }
                     }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { formWidth = $0 }
                 }
             }
             Divider()
@@ -64,8 +75,9 @@ struct PipelineEditorView: View {
         }.foregroundStyle(theme.text).background(theme.window)
             .task {
                 await editor.loadIfNeeded()
+                selectedStage = initialSection
                 if BoardQA.isActive {
-                    selectedStage = BoardQA.argument("--qa-pipeline-stage")
+                    selectedStage = BoardQA.argument("--qa-pipeline-stage") ?? initialSection
                     section = BoardQA.argument("--qa-pipeline-section") ?? "Основное"
                     yaml = BoardQA.argument("--qa-pipeline-yaml") == "yes"
                 }
@@ -86,8 +98,8 @@ struct PipelineEditorView: View {
         HStack(spacing: 10) {
             Button(action: close) { Image(systemName: "chevron.left") }.help("Настройки проекта")
             VStack(alignment: .leading, spacing: 3) {
-                Text("\(stage?.name ?? "Пайплайн") · настройки").font(.system(size: 17, weight: .semibold))
-                    .lineLimit(2).help(stage?.name ?? "Пайплайн")
+                Text("\(projectSectionTitle ?? stage?.name ?? "Пайплайн") · настройки").font(.system(size: 17, weight: .semibold))
+                    .lineLimit(2).help(projectSectionTitle ?? stage?.name ?? "Пайплайн")
                 Text(projectName + " · .kaban/pipeline.yaml").font(.system(size: 11)).foregroundStyle(theme.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
@@ -114,11 +126,14 @@ struct PipelineEditorView: View {
                                 Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                             }
                         }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(stage?.id == item.id && selectedStage != "__board" ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 7))
+                            .background(stage?.id == item.id && selectedStage?.hasPrefix("__") != true ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 7))
                     }.buttonStyle(.plain)
                 }
                 Divider().padding(.vertical, 6)
                 Button("Лимиты и проект") { selectedStage = "__board" }.buttonStyle(KabanButtonStyle(compact: true))
+                Button("Права и git") { selectedStage = "__git" }.buttonStyle(KabanButtonStyle(primary: selectedStage == "__git", compact: true))
+                Button("Рабочая копия") { selectedStage = "__workspace" }.buttonStyle(KabanButtonStyle(primary: selectedStage == "__workspace", compact: true))
+                Button("Подозрительные файлы") { selectedStage = "__files" }.buttonStyle(KabanButtonStyle(primary: selectedStage == "__files", compact: true))
                 TextField("ID новой стадии", text: $newID).textFieldStyle(.roundedBorder).accessibilityLabel("ID новой стадии")
                 Picker("Тип", selection: $newKind) { ForEach(StageKind.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) } }.labelsHidden()
                 Button("Добавить стадию") { editor.addStage(id: newID, kind: newKind); selectedStage = newID; newID = "" }
@@ -168,6 +183,7 @@ struct PipelineEditorView: View {
             }.scrollIndicators(.hidden)
             let p = "stages[\(item.index)]"
             if section == "Основное" { generalCards(item, path: p) }
+            else if section == "Git" { stageGit(item, path: p) }
             else { card(section) {
                 switch section {
                 case "Исполнитель":
@@ -211,12 +227,7 @@ struct PipelineEditorView: View {
                     field("На выходе", p + ".hooks.on_exit", quoted: true)
                     field("Уведомления (YAML)", p + ".notify")
                 default:
-                    if item.kind == "agent" {
-                        field("Разрешить дополнительно (YAML)", p + ".git.extend")
-                        field("Запретить (YAML)", p + ".git.deny")
-                        field("Условие разрешений", p + ".git.when", quoted: true)
-                        policy(editor.lastResolved?.stages.first { $0.id.rawValue == item.id }?.gitPolicy)
-                    } else { Text("У этой стадии нет переопределений git агента.") }
+                    Text("Выберите раздел настроек стадии.")
                 }
             } }
             let occupied = editor.activeTaskCount(stage: item.id)
@@ -226,6 +237,30 @@ struct PipelineEditorView: View {
                 if occupied > 0 { Text("Сначала перенесите \(occupied) задач").font(.caption).foregroundStyle(theme.secondary) }
             }
         }
+    }
+    @ViewBuilder private func stageGit(_ item: PipelineTextDocument.Stage, path: String) -> some View {
+        if item.kind == "agent" {
+            let resolved = editor.lastResolved?.stages.first { $0.id.rawValue == item.id }
+            let access = card("Доступ агента") {
+                choice("Права", path + ".agent.permissions", ["write", "read-only"])
+                Text("Только чтение сужает любой пресет до чтения. Собственного пресета у стадии нет.").font(.caption).foregroundStyle(theme.secondary)
+                Button("Изменить политику проекта") { selectedStage = "__git" }.buttonStyle(KabanButtonStyle(compact: true))
+            }
+            let overrides = card("Git · переопределения стадии") {
+                field("Разрешить дополнительно (YAML)", path + ".git.extend")
+                field("Запретить (YAML)", path + ".git.deny")
+                field("Условие разрешений", path + ".git.when", quoted: true)
+                GitRuleEditor(editor: editor, path: path + ".git", projectPolicy: editor.lastResolved?.projectGitPolicy,
+                    catalog: editor.lastResolved?.gitCommandCatalog ?? [], theme: theme, readOnly: resolved?.readOnly ?? false)
+            }
+            let preview = card("Итоговая политика · " + item.name) { policy(resolved?.gitPolicy) }
+            if formWidth >= 780 {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(spacing: 14) { access; overrides }.frame(maxWidth: .infinity)
+                    preview.frame(width: min(350, formWidth * 0.38)).id("git-effective")
+                }
+            } else { VStack(spacing: 14) { access; preview.id("git-effective"); overrides } }
+        } else { card("Git") { Text("У этой стадии нет переопределений git агента.") } }
     }
     private func generalCards(_ item: PipelineTextDocument.Stage, path p: String) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 290), alignment: .top)], alignment: .leading, spacing: 14) {
@@ -250,28 +285,91 @@ struct PipelineEditorView: View {
         }
     }
     private var projectForm: some View {
-        VStack(spacing: 14) {
-            card("Лимиты пайплайна") {
-                field("Версия формата", "version")
-                field("Общий лимит возвратов", "board.bounce_limit_total")
-                field("Лимит задач в ожидании человека", "board.max_waiting_human")
-                field("Лимит запусков на задачу", "board.max_runs_per_task")
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Проект · .kaban/ в репозитории").font(.system(size: 11)).foregroundStyle(theme.secondary)
+            if selectedStage == "__board" {
+                card("Лимиты пайплайна") {
+                    field("Версия формата", "version")
+                    field("Общий лимит возвратов", "board.bounce_limit_total")
+                    field("Лимит задач в ожидании человека", "board.max_waiting_human")
+                    field("Лимит запусков на задачу", "board.max_runs_per_task")
+                }
             }
-            card("Рабочая копия и git проекта") {
-                field("Подготовленные пути (YAML)", "workspace.warm_paths")
-                field("При создании клона", "workspace.on_create", quoted: true)
-                choice("Git-пресет", "git.preset", GitPreset.allCases.map(\.rawValue))
-                field("Разрешено (YAML)", "git.allow")
-                field("Запрещено (YAML)", "git.deny")
-                policy(editor.lastResolved?.projectGitPolicy)
+            if selectedStage == "__workspace" || selectedStage == "__board" {
+                card("Рабочая копия задачи") {
+                    field("Подготовленные пути (YAML)", "workspace.warm_paths")
+                    field("При создании клона", "workspace.on_create", quoted: true)
+                    Text("Пути копируются из основной копии; команда выполняется при создании нового клона.").font(.caption).foregroundStyle(theme.secondary)
+                }
+            }
+            if selectedStage == "__files" {
+                card("Подозрительные файлы") {
+                    field("Шаблоны путей (YAML)", "suspicious_files.patterns")
+                    field("Максимальный размер файла, МБ", "suspicious_files.max_file_mb")
+                    field("Исключения (YAML)", "suspicious_files.allow")
+                    Text("Проверяется весь diff ветки задачи после гейтов и перед слиянием.").font(.caption).foregroundStyle(theme.secondary)
+                }
+            }
+            if selectedStage == "__git" || selectedStage == "__board" {
+                if formWidth >= 780 {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(spacing: 14) { gitPreset; gitRules }.frame(maxWidth: .infinity)
+                        gitPreview.frame(width: min(350, formWidth * 0.38)).id("git-effective")
+                    }
+                } else { VStack(spacing: 14) { gitPreset; gitPreview.id("git-effective"); gitRules } }
             }
         }
+    }
+    private var gitPreset: some View {
+        card("Пресет проекта") {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160))], spacing: 10) {
+                ForEach(GitPreset.allCases, id: \.self) { preset in presetCard(preset) }
+            }
+        }
+    }
+    private var gitRules: some View {
+        card("Команды проекта") {
+            field("Разрешено (YAML)", "git.allow")
+            field("Запрещено (YAML)", "git.deny")
+            GitRuleEditor(editor: editor, path: "git", projectPolicy: editor.lastResolved?.projectGitPolicy,
+                catalog: editor.lastResolved?.gitCommandCatalog ?? [], theme: theme)
+        }
+    }
+    private var gitPreview: some View {
+        VStack(spacing: 14) {
+            card("Политика проекта по проверке службы") {
+                policy(editor.lastResolved?.projectGitPolicy)
+            }
+            ForEach(editor.lastResolved?.stages.filter { $0.gitPolicy != nil } ?? [], id: \.id) { item in
+                card(item.name) {
+                    policy(item.gitPolicy)
+                    Button("Настроить стадию") { selectedStage = item.id.rawValue; section = "Git" }.buttonStyle(KabanButtonStyle(compact: true))
+                }
+            }
+        }
+    }
+    private var projectSectionTitle: String? {
+        switch selectedStage { case "__git": "Права и git"; case "__workspace": "Рабочая копия"; case "__files": "Подозрительные файлы"; case "__board": "Лимиты пайплайна"; default: nil }
+    }
+    private func presetCard(_ preset: GitPreset) -> some View {
+        let title = preset == .strict ? "Строгий" : preset == .standard ? "Стандартный" : "Свободный"
+        let selected = editor.document.value("git.preset") == preset.rawValue
+        return Button { editor.patch("git.preset", value: preset.rawValue) } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: selected ? "largecircle.fill.circle" : "circle").font(.system(size: 12, weight: .semibold))
+                Text(preset == .strict ? "status · diff · log · show" : preset == .standard ? "Чтение + add · commit · restore --staged" : "Стандартный + stash · rebase · reset в своей ветке")
+                Text(preset == .strict ? "Коммитит демон после гейтов из summary; пустое резюме → kaban: <стадия> <задача>" : "Агент + страховочный коммит демона")
+                if preset == .permissive { Text("Песочница и проверка результата работают всегда") }
+            }.font(.system(size: 10)).frame(maxWidth: .infinity, minHeight: 125, alignment: .topLeading).padding(12)
+                .background(selected ? Color.blue.opacity(0.05) : theme.control, in: RoundedRectangle(cornerRadius: 9))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? .blue : theme.line, lineWidth: selected ? 2 : 0.5))
+        }.buttonStyle(.plain).disabled(!editor.document.canEdit("git.preset") || editor.isPending)
     }
     private func field(_ label: String, _ path: String, quoted: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(label).frame(width: 140, alignment: .leading)
-                TextField("Не задано", text: .init(get: { editor.document.value(path) ?? "" }, set: { editor.patch(path, value: $0, quoted: quoted) }))
+                TextField("Не задано", text: .init(get: { editor.document.formValue(path) ?? "" }, set: { editor.patch(path, value: $0, quoted: quoted) }))
                     .textFieldStyle(.roundedBorder).disabled(!editor.document.canEdit(path))
                     .accessibilityIdentifier("pipeline-" + path).accessibilityLabel(label)
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(fieldIssues(path).contains { $0.severity == .error } ? .orange : fieldIssues(path).isEmpty ? .clear : .yellow, lineWidth: 1))
@@ -309,8 +407,7 @@ struct PipelineEditorView: View {
     @ViewBuilder private func policy(_ policy: EffectiveGitPolicy?) -> some View {
         if let policy {
             Text("Итоговая политика по последней проверке службы").font(.caption).foregroundStyle(theme.secondary)
-            Text("Разрешено: " + policy.allowed.map(\.rule).joined(separator: ", ")).font(.caption)
-            Text("Запрещено: " + policy.denied.map(\.rule).joined(separator: ", ")).font(.caption)
+            GitPolicyView(policy: policy, catalog: editor.lastResolved?.gitCommandCatalog ?? [], theme: theme)
         } else { Text("Превью итоговой политики пока недоступно").font(.caption).foregroundStyle(theme.secondary) }
     }
     private func notice(_ text: String) -> some View {

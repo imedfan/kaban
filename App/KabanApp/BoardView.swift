@@ -1088,20 +1088,27 @@ struct ProjectSettingsView: View {
     @State private var selectedStage: StageID?
     @State private var editingPipeline = false
     @State private var pipelineEditor: PipelineEditorStore?
+    @State private var metadata: ProjectSettingsStore?
+    @State private var editorSection: String?
     var body: some View {
         Group {
             if editingPipeline, let editor = pipelineEditor {
-                PipelineEditorView(editor: editor, models: store.models, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme) { editingPipeline = false }
+                PipelineEditorView(editor: editor, models: store.models, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme,
+                    close: { editingPipeline = false }, initialSection: editorSection)
                     .onAppear { store.editingPipelineProject = editor.projectID }
                     .onDisappear { if store.editingPipelineProject == editor.projectID { store.editingPipelineProject = nil } }
                     .id(editor.projectID)
             } else { projectSettings }
         }.task(id: projectID) {
             pipelineEditor = store.pipelineEditor(for: projectID)
+            metadata = store.settings(for: projectID)
             if store.showPipelineIssues { editingPipeline = true }
+        }.onChange(of: store.showPipelineIssues) { _, show in
+            if show { editorSection = nil; editingPipeline = true }
         }
     }
     private var projectSettings: some View {
+        ScrollViewReader { scroll in
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if let project = store.projection?.projects[projectID] {
@@ -1109,8 +1116,16 @@ struct ProjectSettingsView: View {
                         ReferenceMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
                         VStack(alignment: .leading, spacing: 4) { Text(project.name).font(.system(size: 22, weight: .bold)); Text(project.path).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled) }
                     }
-                    Button("Редактировать пайплайн", systemImage: "slider.horizontal.3") { editingPipeline = true }
-                        .buttonStyle(KabanButtonStyle(primary: true))
+                    HStack {
+                        Button("Редактировать пайплайн", systemImage: "slider.horizontal.3") { editorSection = nil; editingPipeline = true }
+                            .buttonStyle(KabanButtonStyle(primary: true))
+                        Menu(".kaban/ в репозитории") {
+                            Button("Права и git") { editorSection = "__git"; editingPipeline = true }
+                            Button("Рабочая копия") { editorSection = "__workspace"; editingPipeline = true }
+                            Button("Подозрительные файлы") { editorSection = "__files"; editingPipeline = true }
+                            Button("Лимиты пайплайна") { editorSection = "__board"; editingPipeline = true }
+                        }.menuStyle(.borderlessButton).fixedSize()
+                    }
                     if store.showPipelineIssues {
                         settingsSection("Ошибки пайплайна") {
                             if let pipeline = store.projection?.pipelines[projectID] {
@@ -1135,12 +1150,7 @@ struct ProjectSettingsView: View {
                         }
                         if let pending = store.pendingLabel(.project(projectID)) { Text(pending).font(.system(size: 12)).foregroundStyle(theme.secondary) }
                     }
-                    settingsSection("Проект") {
-                        settingsRow("Основная ветка", project.baseBranch)
-                        settingsRow("Вес проекта", "\(project.weight)")
-                        settingsRow("Процессов одновременно", project.maxRuns.map(String.init) ?? "Нет данных")
-                        settingsRow("Автор коммитов", project.identity.map { "\($0.name) <\($0.email)>" } ?? "Нет данных")
-                    }
+                    if let metadata { ProjectMetadataView(settings: metadata, board: store, theme: theme).id("project-metadata") }
                     if let pipeline = store.projection?.pipelines[projectID] {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Пайплайн").font(.system(size: 13, weight: .semibold))
@@ -1166,13 +1176,19 @@ struct ProjectSettingsView: View {
                         settingsSection("Git-политика") {
                             settingsRow("Пресет", pipeline.gitPreset == .strict ? "Строгий" : pipeline.gitPreset == .standard ? "Стандартный" : "Свободный")
                             if let policy = pipeline.projectGitPolicy {
-                                settingsRow("Разрешено", policy.allowed.map(\.rule).joined(separator: ", "))
-                                settingsRow("Запрещено", policy.denied.map(\.rule).joined(separator: ", "))
+                                GitPolicyView(policy: policy, catalog: pipeline.gitCommandCatalog, theme: theme)
                             } else { settingsRow("Эффективная политика", "Нет данных") }
+                        }
+                        if let stage = pipeline.stages.first(where: { $0.id == (selectedStage ?? pipeline.stages.first?.id) }), let policy = stage.gitPolicy {
+                            settingsSection("Политика стадии · " + stage.name) { GitPolicyView(policy: policy, catalog: pipeline.gitCommandCatalog, theme: theme) }
                         }
                     }
                 }
             }.frame(maxWidth: 760, alignment: .leading).padding(32).frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .onChange(of: metadata?.section) { _, section in
+            if section != nil { withAnimation { scroll.scrollTo("project-metadata", anchor: .top) } }
+        }
         }
     }
     private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
