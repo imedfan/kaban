@@ -12,7 +12,7 @@ extension BoardQA {
         try await waitUntil("Mac pause before configuration QA") { store.macPaused && store.canSend }
         if store.projection?.projects.values.contains(where: { $0.path == path }) != true {
             _ = await store.session.send(.addProject(path: path, createTemplate: false, identity: .init(name: "Settings QA", email: "settings@example.test")))
-            try await waitUntil("real settings project") { store.projection?.projects.values.contains { $0.path == path } == true }
+            try await waitUntil("real settings project and reconciliation") { store.projection?.projects.values.contains { $0.path == path } == true && store.canSend }
         }
         guard let project = store.projection?.projects.values.first(where: { $0.path == path }) else { throw failure("Project missing") }
         store.selectedProjectID = project.id; store.screen = .project(project.id); store.showPipelineIssues = false
@@ -28,8 +28,8 @@ extension BoardQA {
             checks.append("real identity_required keeps input and authoritative author")
             if mode == "flow" {
                 settings.editIdentity(.email, value: "typed@example.test")
-                _ = await settings.submit()
-                try await waitUntil("correlated identity projectUpdated") { settings.record?.phase == .applied }
+                guard await settings.submit() else { throw failure("Identity command send refused") }
+                try await waitUntil("correlated identity projectUpdated and reconciliation") { settings.record?.phase == .applied && store.canSend }
                 settings.observeOutcome()
                 settings.begin(.resources); settings.editWeight("0"); settings.editMaxRuns("2")
                 _ = await settings.submit()
@@ -53,9 +53,14 @@ extension BoardQA {
                 guard let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
                     windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36),
                       NSApp.mainMenu?.performKeyEquivalent(with: key) == true else { throw failure("Metadata Cmd-Return route missing") }
-                try await waitUntil("correlated weight projectUpdated") { settings.record?.phase == .applied }; settings.observeOutcome()
+                try await waitUntil("correlated weight projectUpdated and reconciliation") { settings.record?.phase == .applied && store.canSend }; settings.observeOutcome()
                 await store.setMascot(project.id, index: 5, texture: .waves)
-                try await waitUntil("authoritative mascot") { store.mascot(project.id).mascotIndex == 5 && store.mascot(project.id).texture == .waves }
+                guard let mascotCommand = store.commandJournal?.records.last,
+                      case .setMascot(let id, _) = mascotCommand.envelope.command, id == project.id else { throw failure("Mascot command send refused") }
+                try await waitUntil("correlated authoritative mascot and reconciliation") {
+                    store.commandJournal?.records.first { $0.envelope.commandId == mascotCommand.envelope.commandId }?.phase == .applied && store.canSend &&
+                    store.mascot(project.id).mascotIndex == 5 && store.mascot(project.id).texture == .waves
+                }
                 checks.append("real author/weight/maxRuns/mascot writes confirmed by projectUpdated")
                 checks.append("native weight field and Cmd-Return save route")
             }
