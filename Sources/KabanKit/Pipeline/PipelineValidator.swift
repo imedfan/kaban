@@ -37,9 +37,9 @@ public struct PipelineValidation: Hashable, Sendable {
     /// Payload for the ephemeral `pipelineDraftValidated` event / `validatePipeline` reply. `resolved` is the draft run through
     /// the same resolver as `main` (returns, `gitPolicy`, `defaultReturnStage`) whenever it parsed, even with errors;
     /// `nil` only when it did not parse (arch. v0.11.6 §2). A draft has no `versionHash`.
-    public func draftValidation(projectId: ProjectID, contentHash: String) -> PipelineDraftValidation {
+    public func draftValidation(projectId: ProjectID, contentHash: String, mcpAllowlist: Set<String>? = nil) -> PipelineDraftValidation {
         PipelineDraftValidation(projectId: projectId, contentHash: contentHash, issues: issues,
-                                resolved: config?.summary(projectId: projectId, versionHash: nil, issues: issues))
+                                resolved: config?.summary(projectId: projectId, versionHash: nil, issues: issues, mcpAllowlist: mcpAllowlist))
     }
 
     /// Reply of `updatePipeline` / `validatePipeline`.

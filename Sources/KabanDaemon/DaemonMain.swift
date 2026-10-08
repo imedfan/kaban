@@ -62,6 +62,7 @@ struct DaemonMain {
             var runner: String?
             var runnerArguments: [String] = []
             var cursorAgent: String?
+            var qaPersonalMCP: String?
             var cursor = 0
             var kept: [String] = []
             while cursor < positional.count {
@@ -75,12 +76,16 @@ struct DaemonMain {
                 else if item == "--runner" { runner = try take() }
                 else if item == "--runner-arg" { runnerArguments.append(try take()) }
                 else if item == "--cursor-agent" { cursorAgent = try take() }
+                else if item == "--qa-personal-mcp-config" { qaPersonalMCP = try take() }
                 else { kept.append(item) }
                 cursor += 1
             }
             positional = kept
             guard positional.count == 2, positional[0] == "--database", !positional[1].hasPrefix("--") else { throw HostError.arguments }
             let path = URL(fileURLWithPath: positional[1]).standardizedFileURL.path
+            if let qaPersonalMCP {
+                guard stdio, path.hasPrefix("/tmp/kaban-fe16-"), URL(fileURLWithPath: qaPersonalMCP).standardizedFileURL.path.hasPrefix("/tmp/kaban-fe16-") else { throw HostError.arguments }
+            }
             if !stdio {
                 #if os(macOS)
                 guard #available(macOS 26.0, *) else { throw HostError.platform }
@@ -89,7 +94,7 @@ struct DaemonMain {
                 #endif
             }
             let lease = try WriterLease(path: path + ".daemon.lock")
-            let store = try KabanStore(path: path)
+            let store = try KabanStore(path: path, personalMCPConfig: qaPersonalMCP.map { URL(fileURLWithPath: $0) })
             if initialize, try store.getSnapshot().settings == nil {
                 _ = try store.setSettings(.init(maxConcurrentRuns: 4, quotaOptions: .init(enabled: false, consent: false)), commandId: UUID(), at: Date())
             }

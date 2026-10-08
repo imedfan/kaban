@@ -8,8 +8,10 @@ import KabanProtocol
 public final class KabanStore: Sendable {
     let database: DatabaseQueue
     let projectOperations = NSRecursiveLock()
+    let personalMCPConfig: URL
 
-    public init(path: String) throws {
+    public init(path: String, personalMCPConfig: URL? = nil) throws {
+        self.personalMCPConfig = personalMCPConfig ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cursor/mcp.json")
         var configuration = Configuration()
         configuration.foreignKeysEnabled = true
         configuration.busyMode = .timeout(5)
@@ -44,6 +46,9 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("run_log_v18", migrate: Self.migrateRunLogs)
         migrator.registerMigration("merge_intent_v19", migrate: Self.migrateMergeIntent)
         migrator.registerMigration("recovery_stage_process_v20", migrate: Self.migrateStageProcesses)
+        migrator.registerMigration("mcp_diagnostic_v21") { db in
+            try db.execute(sql: "ALTER TABLE mcp_preflight ADD COLUMN kind TEXT NOT NULL DEFAULT 'unresolvable'")
+        }
         try migrator.migrate(database)
     }
 

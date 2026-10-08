@@ -126,6 +126,13 @@ final class PipelineEditorTests: XCTestCase {
         var summary = client.pipeline; summary.versionHash = "v2"; summary.sourceHash = "s2"
         try session.consume(.event(Fix.envelope(11, .pipelineApplied(summary), commandId: sent.commandId)))
         client.source.baseVersionHash = "v2"; client.source.baseSourceHash = "s2"; client.source.committedContent = draft?.content
+        try session.consume(.connection(.synchronizing))
+        await editor.confirmApplied()
+        XCTAssertNil(editor.error)
+        XCTAssertEqual(editor.source?.baseVersionHash, "v1")
+        XCTAssertEqual(editor.content, yaml + "# later\n")
+        try session.consume(.connection(.connected))
+        try await wait { session.canSend }
         await editor.confirmApplied()
         XCTAssertTrue(editor.isApplied); XCTAssertTrue(editor.hasDraftChanges)
         XCTAssertEqual(editor.content, yaml + "# later\n")

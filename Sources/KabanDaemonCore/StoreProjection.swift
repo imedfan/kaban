@@ -16,10 +16,13 @@ extension KabanStore {
             guard Self.isBoundedPipeline(pipeline), summary.weight > 0, summary.maxRuns.map({ $0 > 0 }) ?? true else { throw StoreError.invalidPipeline }
             let existing = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ?", arguments: [summary.id.rawValue]).map { try Self.decode(ProjectRecord.self, $0) }
             if let existing, existing.production != nil || existing.pipeline != pipeline { throw StoreError.invalidPipeline }
-            let record = ProjectRecord(summary: summary, pipeline: pipeline, version: existing?.version ?? commandId.uuidString.lowercased())
+            let projected = try Self.mcpProjectSummary(summary, db: db)
+            let record = ProjectRecord(summary: projected, pipeline: pipeline, version: existing?.version ?? commandId.uuidString.lowercased())
             try db.execute(sql: "INSERT INTO project(id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload", arguments: [summary.id.rawValue, try Self.encode(record)])
-            _ = try Self.journal(existing == nil ? .projectAdded(summary) : .projectUpdated(summary), projectId: summary.id, commandId: commandId, at: at, db: db)
-            let seq = try Self.journal(.pipelineApplied(pipeline.summary(projectId: summary.id, versionHash: record.version, issues: PipelineValidator.validate(config: pipeline).issues)), projectId: summary.id, commandId: commandId, at: at, db: db)
+            _ = try Self.journal(existing == nil ? .projectAdded(projected) : .projectUpdated(projected), projectId: summary.id, commandId: commandId, at: at, db: db)
+            let context = try Self.pipelineContext(summary.id, db: db)
+            let seq = try Self.journal(.pipelineApplied(pipeline.summary(projectId: summary.id, versionHash: record.version,
+                issues: PipelineValidator.validate(config: pipeline, context: context).issues, mcpAllowlist: context.mcpAllowlist)), projectId: summary.id, commandId: commandId, at: at, db: db)
             return try Self.configurationReceipt(commandId, request: request, seq: seq, db: db)
         }
     }
@@ -79,7 +82,8 @@ extension KabanStore {
             let settings = try Data.fetchOne(db, sql: "SELECT payload FROM global_settings WHERE id = 1").map { try Self.decode(GlobalSettings.self, $0) }
             let flags = try Self.schedulerFlags(db)
             let inputs = try Self.schedulerInputs(db)
-            let snapshot = Snapshot(seq: try Self.seq(db), projects: projects.map(\.summary), pipelines: projects.map(\.projectedPipeline),
+            let snapshot = Snapshot(seq: try Self.seq(db), projects: try projects.map { try Self.mcpProjectSummary($0.summary, db: db) },
+                                    pipelines: try projects.map { try Self.mcpPipelineSummary($0.projectedPipeline, db: db) },
                                     tasks: try tasks.map { try Self.projectedCard($0, db: db) }, schedulerFlags: flags, modelFlags: inputs.modelFlags, quota: inputs.quota,
                                     openIncidentCount: projects.reduce(0) { $0 + $1.summary.openIncidentCount },
                                     stageLoad: try Self.stageLoads(db), settings: settings, modelCatalog: try Self.visibleModelCatalog(db), modelPoolRules: inputs.modelPoolRules)

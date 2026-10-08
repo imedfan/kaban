@@ -10,6 +10,10 @@ extension KabanStore {
     public func execute(_ envelope: CommandEnvelope, now: () -> Date = { Date() },
                         makeTaskID: () -> TaskID = { TaskID(rawValue: UUID().uuidString.lowercased()) }) throws -> CommandReply {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        switch envelope.command {
+        case .listProjectMcpServers, .setProjectMcpAllowlist: return try executeMCPCommand(envelope, at: now())
+        default: break
+        }
         if case .getPipelineSource(let id) = envelope.command { return try readPipelineSource(envelope, projectId: id) }
         if case .restoreWIP = envelope.command { return try executeWIPRestore(envelope, at: now()) }
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
@@ -81,7 +85,8 @@ extension KabanStore {
                         try draft.checkSourceBinding(currentSourceHash: project.projectedPipeline.sourceHash, emptySourceHash: project.production?.source?.files.isEmpty == true ? project.projectedPipeline.sourceHash : nil)
                     }
                     let validation = try Self.validateDraftContent(projectId: draft.projectId, content: draft.content, db: db)
-                    var result = validation.draftValidation(projectId: draft.projectId, contentHash: draft.contentHash)
+                    var result = validation.draftValidation(projectId: draft.projectId, contentHash: draft.contentHash,
+                                                          mcpAllowlist: try Self.mcpAllowlist(draft.projectId, db: db))
                     result.baseVersionHash = project.projectedPipeline.versionHash
                     result.baseSourceHash = project.projectedPipeline.sourceHash
                     return .init(commandId: envelope.commandId, seq: nil, result: .pipelineDraft(result))
@@ -265,6 +270,8 @@ extension KabanStore {
         return try journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
     }
     static func saveUpdatedProject(_ project: ProjectRecord, commandId: CommandID, at: Date, db: Database) throws -> Seq {
+        var project = project
+        project.summary = try mcpProjectSummary(project.summary, db: db)
         try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try encode(project), project.summary.id.rawValue])
         return try journal(.projectUpdated(project.summary), projectId: project.summary.id, commandId: commandId, at: at, db: db)
     }

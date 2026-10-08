@@ -25,16 +25,20 @@ public struct MCPPreflightDecision: Equatable, Sendable {
 
 public enum MCPPreflight {
     public static let tokenReference = "${env:KABAN_RUN_TOKEN}"
+    public static func allowedNames(stageServers: [String], allowlist: Set<String>) -> [String] {
+        stageServers.reduce(into: [AgentConfig.boardMcpServer]) { names, name in
+            if allowlist.contains(name), !names.contains(name) { names.append(name) }
+        }
+    }
 
     /// Builds the run config from the stage selection and the allowlist. A bad `mcp list` blocks the run.
     /// The result never contains `--approve-mcps` and never copies a raw token.
     public static func decide(stageServers: [String], allowlist: Set<String>, definitions: [MCPServerDefinition], boardURL: String, listOutput: String, listExit: Int32) -> MCPPreflightDecision {
-        var names = [AgentConfig.boardMcpServer]
+        let names = allowedNames(stageServers: stageServers, allowlist: allowlist)
         var warnings: [String] = []
         var block: MCPPreflightBlock?
-        for server in stageServers where server != AgentConfig.boardMcpServer && !names.contains(server) {
-            if allowlist.contains(server) { names.append(server) }
-            else { warnings.append("mcp_not_allowlisted:\(server)") }
+        for server in stageServers where server != AgentConfig.boardMcpServer && !allowlist.contains(server) {
+            warnings.append("mcp_not_allowlisted:\(server)")
         }
         var servers: [String: [String: Any]] = [
             AgentConfig.boardMcpServer: [

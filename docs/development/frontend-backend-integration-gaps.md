@@ -109,3 +109,18 @@ production producer вычисления пересечений в DaemonCore о
 недавние задачи для конкретного конфликта также не передаются отдельным
 материалом. Отдельный diff исправления конфликта, точные numstat и usage/cost
 из FE-11 остаются открыты. Это технические зависимости, не недоработки дизайнера.
+
+## FE-16: живая повторная проверка MCP
+
+В рабочей `codex/fe-16-project-mcp` подключены wire-команды каталога и allowlist,
+авторитетные snapshot/journal facts, validation context и безопасная диагностика.
+Каталог читает конфиги в production store, разрешения сохраняются отдельно по
+проекту. Это закрывает прежний `.unsupported` этих двух команд в BE-10.
+
+Обычный production loop по-прежнему не получает свежий `cursor-agent mcp list`
+для `recheck(project)`. Ранее pipeline refresh мог снять `.mcpUnexpected` без
+такого факта; FE-16 сохраняет блок до успешного `applyMCPPreflight` и публикует его
+имя/тип через `projectUpdated`. Нужен настоящий producer с run/stage ownership,
+собранным конфигом, изоляцией личного профиля и authenticated CLI. Критерий FE-16
+про устранение unexpected через настройки/перепроверку остаётся открытым;
+успех UI, unit preflight seam или private stdio не заменяет живой CLI результат.

@@ -77,7 +77,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--settings-live-smoke") != nil || BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
+            if BoardQA.argument("--mcp-live-smoke") != nil || BoardQA.argument("--settings-live-smoke") != nil || BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }

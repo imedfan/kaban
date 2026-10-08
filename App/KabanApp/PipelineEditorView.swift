@@ -5,12 +5,14 @@ import KabanBoardCore
 struct PipelineEditorView: View {
     @Bindable var editor: PipelineEditorStore
     @Bindable var models: ModelSettingsStore
+    @Bindable var mcp: ProjectMCPStore
+    let openMCP: () -> Void
     let projectName: String
     let theme: ReferenceTheme
     let close: () -> Void
     var initialSection: String? = nil
-    @State private var selectedStage: String?
-    @State private var section = "Основное"
+    private var selectedStage: String? { get { editor.selectedStageID } nonmutating set { editor.selectedStageID = newValue } }
+    private var section: String { get { editor.section } nonmutating set { editor.section = newValue } }
     @State private var yaml = false
     @State private var newID = ""
     @State private var newKind = "agent"
@@ -58,6 +60,9 @@ struct PipelineEditorView: View {
                                 if BoardQA.isActive, BoardQA.argument("--qa-policy-preview") == "yes" {
                                     try? await Task.sleep(for: .milliseconds(500))
                                     scroll.scrollTo("git-effective", anchor: .top)
+                                } else if BoardQA.isActive, BoardQA.argument("--qa-mcp-mode") != nil {
+                                    try? await Task.sleep(for: .milliseconds(500))
+                                    scroll.scrollTo("stage-mcp-selection", anchor: .center)
                                 }
                             }
                             }
@@ -75,7 +80,7 @@ struct PipelineEditorView: View {
         }.foregroundStyle(theme.text).background(theme.window)
             .task {
                 await editor.loadIfNeeded()
-                selectedStage = initialSection
+                if let initialSection { selectedStage = initialSection }
                 if BoardQA.isActive {
                     selectedStage = BoardQA.argument("--qa-pipeline-stage") ?? initialSection
                     section = BoardQA.argument("--qa-pipeline-section") ?? "Основное"
@@ -89,6 +94,7 @@ struct PipelineEditorView: View {
                     else { await editor.validate() }
                 }
             }
+            .onChange(of: editor.mcpPermissions) { _, _ in Task { await editor.validate() } }
             .onChange(of: editor.isApplied) { _, applied in if applied { Task { await editor.confirmApplied() } } }
             .confirmationDialog("Заменить черновик текущим файлом?", isPresented: $reloadConfirmation) {
                 Button("Перезагрузить файл", role: .destructive) { Task { await editor.readSource(replaceDraft: true) } }
@@ -196,7 +202,8 @@ struct PipelineEditorView: View {
                         field("Скилл (путь)", p + ".agent.skill", quoted: true)
                         choice("Права", p + ".agent.permissions", ["write", "read-only"])
                         choice("Рабочая копия", p + ".agent.workspace", ["task", "fresh-readonly"])
-                        field("MCP (YAML)", p + ".agent.mcp")
+                        StageMCPPicker(settings: mcp, editor: editor, stageID: item.id, path: p + ".agent.mcp", theme: theme, openMCP: openMCP)
+                            .id("stage-mcp-selection")
                         Text("Окружение agent.env доступно в исходном YAML. Секреты не вставляйте в файл.").font(.caption).foregroundStyle(theme.secondary)
                     } else { Text("У этой стадии нет агента.") }
                     if ["agent", "human"].contains(item.kind) { field("Вход (YAML)", p + ".inputs") }
