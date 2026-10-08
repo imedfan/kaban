@@ -744,8 +744,8 @@ WindowGroup через private stdio: 632 tests, App build, восемь native 
 - [x] Подмена и отсутствие actual различимы; «Повторить»/«Другая модель»/«В Backlog» используют реальные команды.
 - [x] Refresh error/reconnect не затирают draft и не подставляют демокаталог.
 
-FE-14 реализована в `codex/fe-14-model-catalog` поверх FE-13 `37f9feb`
-([PR #104](https://github.com/imedfan/kaban/pull/104), пока не принят в main).
+FE-14 принята в main через [PR #105](https://github.com/imedfan/kaban/pull/105),
+merge `cda9b4f`. Исходная реализация построена поверх FE-13 `37f9feb`.
 644 tests, 78 tests Linux Swift 6.1, App build и 11 native private-daemon
 сценариев прошли. [Отчёт и кадры](frontend-fe-14-2026-10-08.md) отделяют реальные
 модельные команды от DTO fixtures состояний подмены/unknown actual. Installed
@@ -788,8 +788,9 @@ design `03-project-git-presets`, `04-stage-git-overrides`.
 - [x] Изменение workspace/files/policy идёт через validated draft и не задевает чужие YAML-поля.
 - [x] Отказ в любом разделе оставляет прежнее authoritative значение и сохраняет draft/ввод.
 
-FE-15 реализована в `codex/fe-15-project-settings`, код `f7c3791`, поверх открытых
-PR #104 и #105. Полный прогон 648 tests, финальные 186 BoardCore, 43 Linux
+FE-15 принята в main через [PR #106](https://github.com/imedfan/kaban/pull/106),
+merge `5f1f733`, исходный код `f7c3791`. Полный прогон 648 tests,
+финальные 186 BoardCore, 43 Linux
 Swift 6.1, App build и 17 native private-daemon сценариев прошли.
 [Отчёт и кадры](frontend-fe-15-2026-10-08.md) фиксируют restart, exact draft,
 backend preview, отказы, ⌘↩ и границы installed/pointer/VoiceOver приёмки FE-22.
@@ -827,8 +828,9 @@ backend preview, отказы, ⌘↩ и границы installed/pointer/VoiceO
 - [ ] Unexpected server виден и устраняется через явные настройки/повторную проверку.
 - [x] Ошибка чтения списка не показывается как «серверов нет», source collisions различимы.
 
-FE-16 подготовлена в `codex/fe-16-project-mcp`, код `8a06d99`, поверх разрешённых
-конфликтов PR #105/#106 и принятой FE-13 `83f223b`. Каталог и атомарная команда
+FE-16 подготовлена в `codex/fe-16-project-mcp`, исходный код `8a06d99`.
+В ветку перенесён актуальный main `5f1f733` после принятия PR #105/#106,
+включая исправление последовательных native QA команд FE-15. Каталог и атомарная команда
 allowlist подключены к daemon; stage picker использует общий validated YAML draft.
 653 tests, 308 Linux Swift 6.1 tests (один ожидаемый macOS skip), App build
 и 11 сценариев настоящего окна прошли.
