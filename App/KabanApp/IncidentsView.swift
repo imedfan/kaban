@@ -47,7 +47,7 @@ struct IncidentsView: View {
                                 IncidentDetailBlock(store: store, incident: incident)
                                 Text("Задача недоступна. Запись инцидента сохранена.").foregroundStyle(theme.secondary)
                             }.padding(16)
-                        }
+                        }.sheet(item: $store.logRunRoute) { run in RunLogSheet(store: store, run: run) }
                     }
                 }.frame(width: 400)
             }

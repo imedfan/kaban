@@ -17,9 +17,9 @@ extension BoardQA {
         guard let database = argument("--developer-database") else { throw failure("Private database missing") }
         let root = URL(fileURLWithPath: database).deletingLastPathComponent()
         let metadata = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: root.appendingPathComponent("seed.json")))
-        let name = ["hidden", "model", "return", "reopen", "missing-log", "retention", "disconnected", "policy"].contains(mode) ? "refs" : mode
+        let name = mode == "deleted-log" ? "deleted" : ["hidden", "model", "return", "reopen", "missing-log", "retention", "disconnected", "policy"].contains(mode) ? "refs" : mode
         guard let raw = metadata[name], let incident = store.incidents.records.first(where: { $0.id.rawValue == raw }) else { throw failure("Seed incident missing: " + name) }
-        store.incidents.filter = mode == "deleted" || mode == "reopen" ? .all : .open
+        store.incidents.filter = ["deleted", "deleted-log", "reopen"].contains(mode) ? .all : .open
         store.incidents.selectedID = incident.id
         if mode == "hidden" {
             store.session.hide(incident.projectId)
@@ -27,10 +27,16 @@ extension BoardQA {
             checks["hiddenProjectVisible"] = true
         }
         await store.select(incident.taskId)
-        if mode == "deleted" {
+        if ["deleted", "deleted-log"].contains(mode) {
             guard store.projection?.projects[incident.projectId] == nil, store.projection?.tasks[incident.taskId] == nil,
                   incident.resolvedAt != nil, incident.resolution?.command == "cancelTask" else { throw failure("Deleted project history lost") }
             checks["deletedHistoryReadable"] = true
+            if mode == "deleted-log" {
+                guard let run = store.detail?.runs.first else { throw failure("Deleted run source missing") }
+                store.logRunRoute = run
+                try await waitUntil("deleted task log sheet diagnosis") { if case .unavailable = store.runLog.state { return true }; return false }
+                checks["deletedTaskLogSheetReadable"] = true
+            }
         } else {
             try await waitUntil("incident task detail") { store.session.detailReadState == .loaded && store.detail?.task.id == incident.taskId }
             try await waitUntil("incident list after detail selection") { store.incidents.isCurrent }

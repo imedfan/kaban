@@ -62,6 +62,7 @@ def main():
     run("foreign-light", "foreign")
     run("unknown-dark-minimum", "unknown", "dark", True)
     run("deleted-light", "deleted")
+    run("deleted-log-light", "deleted-log")
     run("hidden-dark-minimum", "hidden", "dark", True)
     run("missing-log-light", "missing-log")
     run("disconnected-cache-dark-minimum", "disconnected", "dark", True)
