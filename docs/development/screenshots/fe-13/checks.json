@@ -1,0 +1,63 @@
+{
+  "absent-light-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  },
+  "apply-light": {
+    "checks": [
+      "real private stdio daemon and actual WindowGroup",
+      "project switch preserves separate unsent drafts and native command owner",
+      "native field edit preserves exact source and unknown fields/comments",
+      "broken YAML and Auto blocked; warnings allow apply",
+      "external write retains draft and requires explicit new base",
+      "native Cmd-Return applies exact text via correlated pipelineApplied",
+      "WIP and version agree with snapshot; daemon commits .kaban/"
+    ],
+    "result": "passed"
+  },
+  "executor-dark": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  },
+  "forms-light-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  },
+  "invalid-light-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  },
+  "long-dark-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  },
+  "reopen-dark-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "restart restores exact committed text and authoritative version"
+    ],
+    "result": "passed"
+  },
+  "yaml-dark-minimum": {
+    "checks": [
+      "real WindowGroup and daemon source",
+      "native forms and server validation"
+    ],
+    "result": "passed"
+  }
+}

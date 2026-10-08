@@ -34,6 +34,17 @@ compatibility tests; старые golden fixtures сохранены, malformed 
 отклоняются. Старые validate/update декодируются. Для restoreWIP и Cursor configuration
 есть типы, но действия недоступны до соответствующих BE-задач; сервер явно отказывает.
 
+FE-13 добавляет capability `getPipelineSource(projectId)` → `pipelineSource`:
+`PipelineSourceContent` переносит path, committed/working UTF-8, nullable valid
+baseVersionHash, baseSourceHash и worktreeSourceHash. Nil content означает
+отсутствующий файл, пустая строка — существующий пустой. Query читает текущий Git
+заново даже при повторном commandId, не создаёт journal/receipt.
+Optional `PipelineDraft.requiresExactWorkingContent` у native apply равен true:
+backend требует уже записанные байты перед подготовкой Git commit. Старый draft
+без флага сохраняет BE-03 поведение; required nullable baseVersionHash не ослаблен.
+PipelineSourceContractTests проверяют roundtrip/legacy, PipelineEditorContractTests —
+свежесть read, отказ гонки и совпадение applied version с snapshot.
+
 ## 8. Протокол и фикстуры (дельта v0.5–v0.5.5)
 
 Что добавить в `KabanProtocol` и в фикстуры `MockKabanClient` (`KabanKit` приложение не импортирует, арх. §2). Решения — из журнала, имена — из арх. v0.11.1.

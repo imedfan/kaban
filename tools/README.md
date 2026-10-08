@@ -56,3 +56,19 @@ FORMAT M1-BOUNCE-01.json: missing final newline
 Временная venv была только в /private/tmp; project/system settings не менялись.
 Проверены good input, missing directory, malformed YAML/JSON, duplicate JSON id
 и ключ, missing mandatory shape, strict-format exit; hash source до/после совпал.
+
+## Нативный редактор pipeline
+
+После сборки Kaban.app:
+
+```sh
+python3 tools/check-pipeline-editor.py --app /tmp/kaban-context-app/Build/Products/Debug/Kaban.app
+```
+
+macOS/Xcode и настоящий WindowGroup, private stdio daemon, восемь запусков.
+Script создаёт отдельные Git-репозитории/БД в `/tmp/kaban-fe13-*`; JSON, logs,
+PNG и файл после применения остаются там для проверки. Проверяет native field,
+⌘↩, отдельные drafts проектов, malformed YAML/Auto/warnings, внешний edit,
+apply/version/WIP и restart; снимает light/dark/minimum/long/absent окна.
+Capture success не заменяет просмотра PNG. Signed helper registration, system
+permissions, VoiceOver и живой Cursor не проверяются; платные CLI не запускаются.

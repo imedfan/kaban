@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`11e81d7` (FE-11, PR #102).
+`6aac109` (FE-12, PR #103).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -17,7 +17,7 @@ Packaging/live adapter присутствуют в checkout; незавершё�
 приёмка описана в [отчёте BE-20](development/backend-launch-agent-2026-10-06.md).
 Наличие кода BE-01–20 не закрывает все критерии backend MVP.
 
-Основной каталог обновлён до main `11e81d7`; FE-01 принят в #92, FE-02 —
+Основной каталог обновлён до main `6aac109`; FE-01 принят в #92, FE-02 —
 в [#93](https://github.com/imedfan/kaban/pull/93). Все шесть context/Linux/native
 CI jobs финального кода FE-02 `f1c0b3b` успешны, включая native keyboard smoke.
 BoardSession, exact replay/pending scopes, drafts, seq/cursor barriers и typed
@@ -82,8 +82,8 @@ FE-11 принята в main через [#102](https://github.com/imedfan/kaban/
 финального FE-11 `e51033d` прошли; merge/main — `11e81d7`.
 [Отчёт FE-11](development/frontend-fe-11-2026-10-08.md) сохраняет проверки кода
 `7464467` и границы системной приёмки.
-FE-12 открыта отдельным [PR #103](https://github.com/imedfan/kaban/pull/103)
-в `codex/fe-12-merge-progress` от этого main: фактический порядок
+FE-12 принята в main через [PR #103](https://github.com/imedfan/kaban/pull/103), merge —
+`6aac109`: фактический порядок
 merge queue, dirty main/project recheck, durable conflict/gate материалы,
 ручной return на лимите и подтверждённый локальный ref/commit. Исправлен priority
 в merge scheduler. 620 tests полного прогона и 167 final BoardCore tests прошли;
@@ -91,7 +91,14 @@ merge queue, dirty main/project recheck, durable conflict/gate материал�
 два approve/merge, неизменность dirty main, повторный Human Review, recovery
 без второго fast-forward и красные gates. [Отчёт FE-12](development/frontend-fe-12-2026-10-08.md)
 фиксирует код `5760bea`, настоящие окна и остающиеся producer/system пробелы.
-Следующая задача — FE-13; полный M1/MVP не принят.
+FE-13 подготовлена в `codex/fe-13-pipeline-editor` от `6aac109`: нативные формы
+стадий/лимитов и точный YAML, серверная проверка, отдельные черновики проектов,
+сравнение внешних изменений и атомарная запись перед authoritative apply.
+632 tests полного прогона, 272 tests затронутых клиентских suites, App build
+и восемь запусков настоящего WindowGroup с private daemon прошли.
+[Отчёт FE-13](development/frontend-fe-13-2026-10-08.md) сохраняет доказательства
+и границы. Каталог моделей FE-14, полный settings UI FE-15 и MCP picker FE-16
+остаются следующими задачами; полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -103,12 +110,13 @@ merge queue, dirty main/project recheck, durable conflict/gate материал�
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore | Core зависит только от Protocol; FE-11 в main, merge presentation FE-12 подготовлена отдельным PR |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, pause/resume, lifecycle UI | FE-11 в main; очередь/merge FE-12 подготовлены отдельным PR. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore и безопасная запись FE-13 в ветке | Core зависит только от Protocol; FE-01–12 в main; query source и strict apply FE-13 проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; редактор pipeline FE-13 в ветке | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
-в UserDefaults. Настройки, квота и фактические агентские процессы пока не подключены к приложению.
+в UserDefaults. Pipeline settings подключены в ветке FE-13; остальные настройки,
+числовая квота и фактические агентские процессы требуют дальнейшей интеграции.
 Полный M1/MVP не принят; ограничения fake engine описаны в
 [headless contract](development/m1-headless-contract.md).
 
@@ -129,8 +137,9 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 
 Настройки проекта пока отображают известные значения из snapshot, включая
 стадии и preset; неизвестные quota/policy/identity не подменяются демочислами.
-Lifecycle проектов и редактор задач приняты в FE-04/06. Редактирование
-настроек, принятие файлов и менюбар ещё требуют интеграции; Human Review решения
+Lifecycle проектов и редактор задач приняты в FE-04/06. Редактор pipeline FE-13
+использует точный source и общий draft/apply для форм и YAML. Остальные настройки,
+принятие файлов и менюбар ещё требуют интеграции; Human Review решения
 приняты в FE-11, глобальная/проектная пауза принята в FE-07.
 Отдельный строковый demo из прежней версии PR не считается реализацией этих функций.
 
@@ -147,7 +156,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельный FE-12 (merge/conflicts), затем реализовать FE-13 (pipeline editor); завершить
+1. Принять отдельный FE-13 (pipeline editor), продолжить FE-14–17; завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
@@ -181,9 +190,10 @@ Lifecycle проектов и редактор задач приняты в FE-0
 - `overlapsWith` есть в DTO, но producer пересечений UC-08 в DaemonCore не найден.
   Summary/diffstat/commits/gate outputs передаются текстовыми TaskArtifact;
   структурированный diffstat и цена не должны выдумываться UI.
-- Для полного списка model pool rules и точного YAML source нет отдельного
-  wire-чтения; editor использует разрешённый файловый доступ и точный draft.
-  Эти read-поверхности и права App/helper нужно согласовать при интеграции.
+- В ветке FE-13 `getPipelineSource` читает точный committed/working YAML и hashes
+  без journal/receipt; перед update App координирует запись точных байтов.
+  Strict draft требует уже записанный working content. Полный model pool read
+  и signed App/helper права остаются дальнейшей интеграцией.
 - Main daemon на чистой БД не инициализирует GlobalSettings: snapshot.settings
   может быть nil, изменение ceiling требует сохранённых settings. В принятом #91 добавлена
   инициализация для `--launch-agent`/`--initialize`. Обычный запуск без этих
