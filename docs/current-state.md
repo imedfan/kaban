@@ -105,8 +105,15 @@ FE-14 подготовлена поверх этого SHA в `codex/fe-14-model
 flags/catalog не возвращаются поверх нового состояния при reconnect.
 644 tests полного прогона, 78 Linux Swift 6.1 tests, App build и 11 native
 сценариев прошли. [Отчёт FE-14](development/frontend-fe-14-2026-10-08.md)
-содержит 13 кадров и границы developer/DTO приёмки. Полный settings UI FE-15
-и MCP picker FE-16 остаются следующими задачами; полный M1/MVP не принят.
+содержит 13 кадров и границы developer/DTO приёмки. Все шесть CI jobs финального
+FE-14 `3b25121` в [PR #105](https://github.com/imedfan/kaban/pull/105) прошли.
+FE-15 подготовлена поверх него в `codex/fe-15-project-settings`, код `f7c3791`:
+author/resources metadata, общий YAML draft для git/workspace/files, server
+resolved preview с readOnly/conditional/source и locked invariants.
+Полный прогон 648 tests, финальные 186 BoardCore, 43 Linux Swift 6.1, App build
+и 17 native private-daemon сценариев прошли. [Отчёт FE-15](development/frontend-fe-15-2026-10-08.md)
+содержит 17 кадров, restart, отказы, сохранённый offline draft и native ⌘↩.
+MCP picker FE-16 остаётся следующей задачей; полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -118,12 +125,13 @@ flags/catalog не возвращаются поверх нового состо
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore и безопасная запись FE-13, ModelSettingsStore/task override FE-14 в ветках | Core зависит только от Protocol; FE-01–12 в main; query source и strict apply FE-13 проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; редактор pipeline FE-13 и model picker/settings/override FE-14 в ветках | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в ветках | Core зависит только от Protocol; FE-01–12 в main; source/apply и настройки проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14, metadata/git/workspace/files FE-15 в ветках | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
-в UserDefaults. Pipeline settings подключены в FE-13, модели/пулы/override — в FE-14; остальные настройки,
+в UserDefaults. Pipeline settings подключены в FE-13, модели/пулы/override — в FE-14,
+author/resources/git/workspace/files — в FE-15; MCP и остальные настройки,
 числовая квота и фактические агентские процессы требуют дальнейшей интеграции.
 Полный M1/MVP не принят; ограничения fake engine описаны в
 [headless contract](development/m1-headless-contract.md).
@@ -143,10 +151,12 @@ PR #67 принят в main; правка `13941e9` интегрирует ти�
 Описание отображается нативно с заголовками, списками и inline Markdown;
 редактор сохраняет исходный текст. Cmd-N и Cmd-F направляются к тому же store.
 
-Настройки проекта пока отображают известные значения из snapshot, включая
+Настройки проекта отображают известные значения из snapshot, включая
 стадии и preset; неизвестные quota/policy/identity не подменяются демочислами.
 Lifecycle проектов и редактор задач приняты в FE-04/06. Редактор pipeline FE-13
-использует точный source и общий draft/apply для форм и YAML. Остальные настройки,
+использует точный source и общий draft/apply для форм и YAML. В ветке FE-15 автор,
+ресурсы и mascot меняются по projectUpdated; git/workspace/files используют этот
+общий draft. Остальные настройки,
 принятие файлов и менюбар ещё требуют интеграции; Human Review решения
 приняты в FE-11, глобальная/проектная пауза принята в FE-07.
 Отдельный строковый demo из прежней версии PR не считается реализацией этих функций.
@@ -164,7 +174,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельный FE-13 (pipeline editor), продолжить FE-14–17; завершить
+1. Принять отдельные FE-13–15, продолжить FE-16–17; завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы

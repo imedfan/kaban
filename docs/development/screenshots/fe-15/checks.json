@@ -1,0 +1,135 @@
+{
+  "source": "f7c37912f39d8e6f0a2fc47e692369e54168f3aa",
+  "result": "passed",
+  "scenarios": [
+    {
+      "frame": "absent-files-light-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "commands-light.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "real identity_required keeps input and authoritative author",
+        "real author/weight/maxRuns/mascot writes confirmed by projectUpdated",
+        "native weight field and Cmd-Return save route",
+        "shared exact draft writes workspace/files/project and stage policy; validation blocks zero size",
+        "backend preview equals applied policy; unknown fields survive; hard invariants remain locked"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "disconnected-workspace-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "disconnected native editor keeps exact unsent settings draft"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "files-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "git-policy-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "git-project-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "git-project-light.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "identity-refusal-light.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "real identity_required keeps input and authoritative author"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "initial-metadata-light.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "initial-resources-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "invalid-size-light-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "zero size blocked by server validation; field draft retained"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "long-identity-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "long identity draft stays exact in native fields"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "metadata-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused",
+        "restart restores author, resources and mascot from daemon DB"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "readonly-stage-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "resources-dark-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "stage-git-light.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "workspace-light-minimum.png",
+      "checks": [
+        "real WindowGroup and private production daemon; Mac paused"
+      ],
+      "result": "passed"
+    }
+  ]
+}

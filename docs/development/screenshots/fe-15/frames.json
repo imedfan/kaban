@@ -1,0 +1,107 @@
+{
+  "source": "f7c37912f39d8e6f0a2fc47e692369e54168f3aa",
+  "frames": [
+    {
+      "file": "absent-files-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "77c040dd6528b27409bb9c44fd3acf2c9be8a458ec1dcb7d9726c56aa1d655a4"
+    },
+    {
+      "file": "commands-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "6c1b972049804efcd74e5d13d147cef9405c54030e5bb243d6c91b81d7610a4c"
+    },
+    {
+      "file": "disconnected-workspace-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "6f84061768985123485b793f4d92937977bc83a99afd84c45a1a7c328b4c332c"
+    },
+    {
+      "file": "files-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "82bb6153722a6b3b57a7313c7b8bccfb7c34c9ca39a7513ca2be05690f4f0d27"
+    },
+    {
+      "file": "git-policy-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "7d7e01cf509f7aecae9f9c0786890ef71c657c0e5c2422bdc27c0e49ff04e69a"
+    },
+    {
+      "file": "git-project-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "297b092d3deae00cabc1e6a1e2f49c1443a77435998a7d98ac9b003f8d22de80"
+    },
+    {
+      "file": "git-project-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "150ac12fa8d135fff8b21cef423ffc5032ffbcbbc12d020e0a9f2b7e5d3e7ba7"
+    },
+    {
+      "file": "identity-refusal-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "ccafdc67bc02fba3c36f701acaecf6d168edc7e1e918043be999c9d1d160c564"
+    },
+    {
+      "file": "initial-metadata-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "21b92c890efa33686813101d3332ab24ff62fce805e37030675b8033b09a16ad"
+    },
+    {
+      "file": "initial-resources-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "0537776513eec39684a2b8381edeb71eb547d7105f1f8984a8d79c3a3b8d35d4"
+    },
+    {
+      "file": "invalid-size-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "d0a8f5afbb764642ff263720f8f70cc5881599e2cfa2ff3073b1a44ff91ee6b6"
+    },
+    {
+      "file": "long-identity-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "6209ea3f891e8317fbf3affacc468165ad1526a7859251638ffd0afaf31bce88"
+    },
+    {
+      "file": "metadata-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "5ac90ffb83b25151517c7430ae7b50b1956a401b39e957dcf8d7675ea01efb7b"
+    },
+    {
+      "file": "readonly-stage-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "e84e5c20d327ad0c792e608ad675c6dc48055e330abe9a43b5f6447bbb22dd6a"
+    },
+    {
+      "file": "resources-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "f30dd76a433f083598fad084a2dc416b7065302a1db376936b5059db8b978246"
+    },
+    {
+      "file": "stage-git-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "7a05a025f860ef7f29702c30822f247206be08208be477f67a59390c9a47da8f"
+    },
+    {
+      "file": "workspace-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "5afccbae907a6078e042fe385f5f32f1ce21d025e6389a85f1f36d02f456e53c"
+    }
+  ]
+}

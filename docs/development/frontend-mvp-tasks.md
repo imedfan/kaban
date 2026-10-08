@@ -783,10 +783,16 @@ design `03-project-git-presets`, `04-stage-git-overrides`.
 
 ### Критерии приёмки
 
-- [ ] Identity/weight/maxRuns/mascot переживают перезапуск и меняются по projectUpdated.
-- [ ] Policy preview совпадает с backend resolved; hard invariants не снимаются из UI.
-- [ ] Изменение workspace/files/policy идёт через validated draft и не задевает чужие YAML-поля.
-- [ ] Отказ в любом разделе оставляет прежнее authoritative значение и сохраняет draft/ввод.
+- [x] Identity/weight/maxRuns/mascot переживают перезапуск и меняются по projectUpdated.
+- [x] Policy preview совпадает с backend resolved; hard invariants не снимаются из UI.
+- [x] Изменение workspace/files/policy идёт через validated draft и не задевает чужие YAML-поля.
+- [x] Отказ в любом разделе оставляет прежнее authoritative значение и сохраняет draft/ввод.
+
+FE-15 реализована в `codex/fe-15-project-settings`, код `f7c3791`, поверх открытых
+PR #104 и #105. Полный прогон 648 tests, финальные 186 BoardCore, 43 Linux
+Swift 6.1, App build и 17 native private-daemon сценариев прошли.
+[Отчёт и кадры](frontend-fe-15-2026-10-08.md) фиксируют restart, exact draft,
+backend preview, отказы, ⌘↩ и границы installed/pointer/VoiceOver приёмки FE-22.
 
 ## FE-16. Реализовать MCP проекта и выбор серверов стадии
 
