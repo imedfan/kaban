@@ -10,6 +10,7 @@ extension KabanStore {
     public func execute(_ envelope: CommandEnvelope, now: () -> Date = { Date() },
                         makeTaskID: () -> TaskID = { TaskID(rawValue: UUID().uuidString.lowercased()) }) throws -> CommandReply {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        if case .getPipelineSource(let id) = envelope.command { return try readPipelineSource(envelope, projectId: id) }
         if case .restoreWIP = envelope.command { return try executeWIPRestore(envelope, at: now()) }
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }

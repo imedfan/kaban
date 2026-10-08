@@ -59,6 +59,58 @@ public enum CommandErrorText {
 /// Текст `ValidationIssue`: `{path}` берётся из issue, `{stage}` — имя, которое передал вызывающий
 /// (клиент его не вычисляет из YAML), остальные ключи — из `params`. Не хватает ключа — `message`.
 public enum ValidationIssueText {
+    public static let labels = [
+        "bounce_limit_total": "Общий лимит возвратов", "returns_to.limit": "Лимит возвратов у пары",
+        "on_fail.limit": "Лимит возвратов при красном гейте", "on_conflict.limit": "Лимит возвратов при конфликте",
+        "max_waiting_human": "Лимит задач в ожидании человека", "max_runs_per_task": "Лимит запусков на задачу",
+        "max_file_mb": "Максимальный размер файла, МБ", "stall": "Таймаут зависания",
+        "wall": "Общий таймаут стадии", "backoff": "Пауза перед повтором"
+    ]
+    public static func duration(_ value: String) -> String {
+        guard let unit = value.last, let name = ["s": "с", "m": "мин", "h": "ч"][String(unit)],
+              !value.dropLast().isEmpty, value.dropLast().allSatisfy({ $0.isASCII && $0.isNumber }) else { return value }
+        return String(value.dropLast()) + " " + name
+    }
+    public static func render(_ issue: ValidationIssue, stageName: String? = nil) -> String {
+        var issue = issue
+        if let label = issue.params["label"] { issue.params["label"] = labels[label] ?? label }
+        if issue.code == "duration_out_of_range" {
+            for key in ["min", "max"] { if let value = issue.params[key] { issue.params[key] = duration(value) } }
+        }
+        let template: String
+        if issue.code == "no_return_target" { template = issue.stageId == nil ? "Некуда вернуть: нет стадии, которая правит код" : "Вернуть можно только на агентскую стадию, которая правит код" }
+        else if issue.code == "duplicate_id" { template = issue.path.contains("returns_to") ? "Возврат в «{id}» указан дважды" : "Id «{id}» уже занят другой стадией" }
+        else if let known = templates[issue.code] { template = known }
+        else { return issue.message }
+        return render(issue, template: template, stageName: stageName)
+    }
+    private static let templates: [String: String] = [
+        "yaml_syntax": "Ошибка в YAML, строка {line}", "version_unsupported": "Версия пайплайна {n} не поддерживается, нужна 1",
+        "type_mismatch": "Неверный формат поля {path}", "missing_field": "Не заполнено обязательное поле {path}",
+        "invalid_value": "Недопустимое значение {value} в {path}", "unknown_key": "Неизвестный ключ {key} (строка {line}), он будет проигнорирован",
+        "no_stages": "В пайплайне нет стадий", "id_invalid": "Id «{id}» недопустим",
+        "unknown_stage": "Стадии «{id}» нет в пайплайне", "queue_count": "Нужна ровно одна стадия Backlog, сейчас {n}",
+        "merge_count": "Нужна ровно одна стадия Merge, сейчас {n}", "terminal_missing": "Нет стадии Done",
+        "terminal_has_on_success": "Done последняя стадия, «Дальше» у неё не задаётся",
+        "on_success_missing": "Не указано, куда задача идёт после «{stage}»",
+        "on_success_cycle": "Стадии идут по кругу: задача никогда не дойдёт до Done",
+        "terminal_unreachable": "Из «{stage}» задача не дойдёт до Done",
+        "field_not_allowed_for_kind": "Поле {field} не используется у стадий типа {kind}",
+        "returns_not_allowed": "Возвраты через returns_to есть только у агентских стадий; у проверки «Если не прошло», у Merge «При конфликте»",
+        "returns_forward": "Вернуть можно только на более раннюю стадию",
+        "agent_missing": "У стадии «{stage}» не настроен агент", "model_missing": "У стадии «{stage}» не выбрана модель",
+        "model_auto_forbidden": "Модель auto не подходит: выберите модель явно", "harness_unsupported": "Исполнитель {harness} не поддерживается",
+        "wip_out_of_range": "WIP должен быть от {min} до {max}", "limit_out_of_range": "{label} должен быть от {min} до {max}",
+        "attempts_out_of_range": "Число попыток должно быть от {min} до {max}", "duration_out_of_range": "{label} должен быть от {min} до {max}",
+        "backoff_too_long": "Пауз больше, чем попыток: допустимо не больше {max}",
+        "secret_in_env": "Похоже на секрет в {key}: не храните секреты в pipeline.yaml",
+        "mcp_not_allowlisted": "MCP-сервер «{name}» выключен и в запусках будет недоступен",
+        "git_hard_invariant": "Это ограничение git отключить нельзя",
+        "git_condition_invalid": "Условие {when} не поддерживается: допустимо только return_reason == <причина>",
+        "git_unknown_command": "Неизвестная git-команда {cmd}: проверьте написание",
+        "git_readonly_extend": "Стадия «{stage}» только читает: {cmd} разрешить нельзя",
+        "stage_has_active_tasks": "В «{stage}» есть задачи: сначала перенесите их"
+    ]
     public static func render(_ issue: ValidationIssue, template: String, stageName: String? = nil) -> String {
         var params = issue.params
         params["path"] = issue.path

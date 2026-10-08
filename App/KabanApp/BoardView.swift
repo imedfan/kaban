@@ -167,7 +167,7 @@ struct BoardView: View {
             .contextMenu {
                 Button("Новая задача") { store.beginCreation(id) }
                     .disabled(!store.can(.createTask)).help(store.unavailableReason(.createTask))
-                Button("Настройки проекта") { store.screen = .project(id) }
+                Button("Настройки проекта") { store.selectedProjectID = id; store.screen = .project(id) }
                 Button("Переподключить папку…") { store.beginProjectFlow(.relink(id)) }.disabled(!store.session.can(.relinkProject(projectId: id, path: project.path)))
                 Button("Удалить из Kaban…", role: .destructive) { store.beginProjectFlow(.remove(id)) }.disabled(!store.session.can(.removeProject(projectId: id)))
                 Button("Выбрать маскота…") { store.mascotProjectID = id }.disabled(!store.session.can(.setMascot(projectId: id, seed: project.mascotSeed)))
@@ -1079,7 +1079,22 @@ struct ProjectSettingsView: View {
     let projectID: ProjectID
     let theme: ReferenceTheme
     @State private var selectedStage: StageID?
+    @State private var editingPipeline = false
+    @State private var pipelineEditor: PipelineEditorStore?
     var body: some View {
+        Group {
+            if editingPipeline, let editor = pipelineEditor {
+                PipelineEditorView(editor: editor, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme) { editingPipeline = false }
+                    .onAppear { store.editingPipelineProject = editor.projectID }
+                    .onDisappear { if store.editingPipelineProject == editor.projectID { store.editingPipelineProject = nil } }
+                    .id(editor.projectID)
+            } else { projectSettings }
+        }.task(id: projectID) {
+            pipelineEditor = store.pipelineEditor(for: projectID)
+            if store.showPipelineIssues { editingPipeline = true }
+        }
+    }
+    private var projectSettings: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if let project = store.projection?.projects[projectID] {
@@ -1087,6 +1102,8 @@ struct ProjectSettingsView: View {
                         ReferenceMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
                         VStack(alignment: .leading, spacing: 4) { Text(project.name).font(.system(size: 22, weight: .bold)); Text(project.path).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled) }
                     }
+                    Button("Редактировать пайплайн", systemImage: "slider.horizontal.3") { editingPipeline = true }
+                        .buttonStyle(KabanButtonStyle(primary: true))
                     if store.showPipelineIssues {
                         settingsSection("Ошибки пайплайна") {
                             if let pipeline = store.projection?.pipelines[projectID] {
@@ -1120,7 +1137,7 @@ struct ProjectSettingsView: View {
                     if let pipeline = store.projection?.pipelines[projectID] {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Пайплайн").font(.system(size: 13, weight: .semibold))
-                            Text("Изменения настроек будут доступны после подключения бэка.").font(.system(size: 11)).foregroundStyle(theme.secondary)
+                            Text("Committed версия. Изменения доступны в редакторе пайплайна.").font(.system(size: 11)).foregroundStyle(theme.secondary)
                             ScrollView(.horizontal) {
                                 HStack(spacing: 6) {
                                     ForEach(pipeline.stages.sorted { $0.display.order < $1.display.order }, id: \.id) { stage in

@@ -163,7 +163,8 @@ extension KabanStore {
             let source = try repository.pipelineSource()
             try draft.checkSourceBinding(currentSourceHash: source.versionHash(), emptySourceHash: source.files.isEmpty ? source.versionHash() : nil)
             guard let identity = record.summary.identity else { throw GitIdentityRequired(missing: [.name, .email]).commandError }
-            let plan = try repository.preparePipeline(content: draft.content, source: source, identity: identity, commandId: envelope.commandId)
+            let plan = try repository.preparePipeline(content: draft.content, source: source, identity: identity, commandId: envelope.commandId,
+                                                      requiresExactWorkingContent: draft.requiresExactWorkingContent == true)
             let operation = PipelineOperation(envelope: envelope, projectId: id, path: repository.path, repositoryID: repository.repositoryID, plan: plan, at: now())
             try database.write { db in
                 _ = try Self.project(id, db: db)

@@ -13,6 +13,7 @@ public enum CommandName: String, Codable, Hashable, Sendable, CaseIterable {
     case updatePipeline
     case validatePipeline
     case validatePipelineDraft
+    case getPipelineSource
     case getTaskDetail
     case createTask
     case editTask
@@ -68,6 +69,7 @@ extension Command {
         case .updatePipeline: .updatePipeline
         case .validatePipeline: .validatePipeline
         case .validatePipelineDraft: .validatePipelineDraft
+        case .getPipelineSource: .getPipelineSource
         case .getTaskDetail: .getTaskDetail
         case .createTask: .createTask
         case .editTask: .editTask

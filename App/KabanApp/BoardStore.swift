@@ -21,6 +21,18 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let environment: RunnerEnvironmentStore
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
+    private var pipelineEditors: [ProjectID: PipelineEditorStore] = [:]
+    var editingPipelineProject: ProjectID?
+    var activePipelineEditor: PipelineEditorStore? {
+        guard case .project(let id) = screen, editingPipelineProject == id else { return nil }
+        return pipelineEditors[id]
+    }
+    func pipelineEditor(for id: ProjectID) -> PipelineEditorStore {
+        if let editor = pipelineEditors[id] { return editor }
+        let editor = PipelineEditorStore(projectID: id, client: client, session: session)
+        pipelineEditors[id] = editor
+        return editor
+    }
     let usesFixture: Bool
     let dataSource: String
     let dataSourceDetail: String
@@ -105,7 +117,9 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         guard humanReview.draft(for: id) != nil, selectedID == id else { return }
         reviewRoute = .init(taskID: id, decision: decision)
     }
-    func openPipelineIssues(_ project: ProjectID) { reviewRoute = nil; showPipelineIssues = true; screen = .project(project) }
+    func openPipelineIssues(_ project: ProjectID) {
+        reviewRoute = nil; showPipelineIssues = true; selectedProjectID = project; screen = .project(project)
+    }
     @discardableResult func openClone(_ path: String?) async -> Bool {
         let task = selectedID
         guard !openingClone else { return false }

@@ -17,7 +17,7 @@ public extension Command {
     var mutationScope: CommandScope? {
         switch self {
         case .getTaskDetail, .getRunHistory, .listBranches, .detectGates,
-             .validatePipeline, .validatePipelineDraft, .checkEnvironment,
+             .validatePipeline, .validatePipelineDraft, .getPipelineSource, .checkEnvironment,
              .getCursorEnvironment, .listModels, .listProjectMcpServers, .listIncidents:
             nil
         case .createTask(let id, _, _): .project(id)

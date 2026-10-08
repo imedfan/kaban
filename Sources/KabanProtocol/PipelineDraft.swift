@@ -8,12 +8,15 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
     public var baseSourceHash: String?
     public var contentHash: String
     public var content: String
+    /// New editors have written exact bytes before apply. Legacy nil keeps BE-03
+    /// behavior; true rejects any different working file before preparing a commit.
+    public var requiresExactWorkingContent: Bool?
     public init(projectId: ProjectID, baseVersionHash: String?, content: String, baseSourceHash: String? = nil) {
         self.projectId = projectId; self.baseVersionHash = baseVersionHash
         self.baseSourceHash = baseSourceHash
         self.content = content; self.contentHash = PipelineContentHash.sha256(content)
     }
-    private enum CodingKeys: String, CodingKey { case projectId, baseVersionHash, baseSourceHash, contentHash, content }
+    private enum CodingKeys: String, CodingKey { case projectId, baseVersionHash, baseSourceHash, contentHash, content, requiresExactWorkingContent }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         projectId = try c.decode(ProjectID.self, forKey: .projectId)
@@ -23,12 +26,14 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
         baseSourceHash = try c.decodeIfPresent(String.self, forKey: .baseSourceHash)
         contentHash = try c.decode(String.self, forKey: .contentHash)
         content = try c.decode(String.self, forKey: .content)
+        requiresExactWorkingContent = try c.decodeIfPresent(Bool.self, forKey: .requiresExactWorkingContent)
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(projectId, forKey: .projectId); try c.encode(baseVersionHash, forKey: .baseVersionHash)
         try c.encode(contentHash, forKey: .contentHash); try c.encode(content, forKey: .content)
         try c.encodeIfPresent(baseSourceHash, forKey: .baseSourceHash)
+        try c.encodeIfPresent(requiresExactWorkingContent, forKey: .requiresExactWorkingContent)
     }
 
     public func checkSourceBinding(currentSourceHash: String?, emptySourceHash: String? = nil) throws {
