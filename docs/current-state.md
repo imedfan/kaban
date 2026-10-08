@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 8 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 9 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`5f1f733` (FE-15, PR #106).
+`a20a48d` (FE-16, PR #107).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -120,7 +120,7 @@ resolved preview с readOnly/conditional/source и locked invariants.
 все шесть jobs исходного FE-15 `73d6c57` прошли. Принятое дерево `5f1f733`
 совпало с разрешением FE-15 `9573ae2`. В FE-16 перенесено ожидание reconciliation
 и correlated mascot event в native ProjectSettingsQA из main.
-FE-16 подготовлена поверх FE-15 в `codex/fe-16-project-mcp`, исходный код
+FE-16 принята в main через [#107](https://github.com/imedfan/kaban/pull/107); исходный код
 `8a06d99`: daemon catalog project/personal, durable MCP permissions по имени,
 selected/effective stage facts, нативные MCP settings и stage picker в общем draft.
 653 tests, 308 Linux Swift 6.1 tests (один ожидаемый macOS skip), App build
@@ -130,7 +130,17 @@ selected/effective stage facts, нативные MCP settings и stage picker в
 restart/isolation, exact source, Escape, read failure и unexpected.
 Устранение unexpected через живой CLI остаётся открытым: MCP producer не
 подключён к `recheck(project)`, а обычный recheck сохраняет этот блок.
-По поручению пользователя работа останавливается после PR FE-16; FE-17 не начата.
+FE-17 подготовлена в [PR #108](https://github.com/imedfan/kaban/pull/108):
+структурированные git denials/grants, lifecycle и exact YAML постоянного
+правила. Все шесть CI jobs финального `ca1aac5` успешны. Код пока не в main;
+[отчёт FE-17](https://github.com/imedfan/kaban/blob/ca1aac52f9d00d813fc87c10b228b9b95b1b7bad/docs/development/frontend-fe-17-2026-10-08.md)
+сохраняет ограничения producer nextPrompt и installed приёмки.
+FE-18 подготовлена в `codex/fe-18-suspicious-files`, код `0cba1fe`:
+свежий exact-set acceptance, frozen return context, stage-specific решения,
+история, безопасное открытие файлов и общий exceptions draft. Узкие suites,
+663 tests, App build и 22 native private-daemon сценария прошли;
+[отчёт FE-18](development/frontend-fe-18-2026-10-09.md) содержит кадры и границы.
+Следующая задача очереди — FE-19.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
