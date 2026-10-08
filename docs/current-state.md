@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`6aac109` (FE-12, PR #103).
+`83f223b` (FE-13, PR #104).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -91,7 +91,7 @@ merge queue, dirty main/project recheck, durable conflict/gate материал�
 два approve/merge, неизменность dirty main, повторный Human Review, recovery
 без второго fast-forward и красные gates. [Отчёт FE-12](development/frontend-fe-12-2026-10-08.md)
 фиксирует код `5760bea`, настоящие окна и остающиеся producer/system пробелы.
-FE-13 подготовлена в `codex/fe-13-pipeline-editor` от `6aac109`: нативные формы
+FE-13 принята в main через [PR #104](https://github.com/imedfan/kaban/pull/104), merge `83f223b`: нативные формы
 стадий/лимитов и точный YAML, серверная проверка, отдельные черновики проектов,
 сравнение внешних изменений и атомарная запись перед authoritative apply.
 632 tests полного прогона, 272 tests затронутых клиентских suites, App build
@@ -99,6 +99,8 @@ FE-13 подготовлена в `codex/fe-13-pipeline-editor` от `6aac109`: 
 [Отчёт FE-13](development/frontend-fe-13-2026-10-08.md) сохраняет доказательства
 и границы. Все шесть CI jobs FE-13 `37f9feb` в [PR #104](https://github.com/imedfan/kaban/pull/104)
 прошли: Swift 6.1 teardown/CRLF и ожидание актуальной native validation исправлены.
+При интеграции main в FE-14 дерево принятой FE-13 совпало с `37f9feb`;
+model picker и QA дополнения FE-14 сохранены без изменения production-кода.
 FE-14 подготовлена поверх этого SHA в `codex/fe-14-model-catalog`: общий picker,
 подтверждённые catalog/rules, task/stage override, requested/actual/fallback и
 модельные действия. Snapshot содержит сохранённые model facts; старые volatile
@@ -125,8 +127,8 @@ MCP picker FE-16 остаётся следующей задачей; полны�
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в ветках | Core зависит только от Protocol; FE-01–12 в main; source/apply и настройки проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14, metadata/git/workspace/files FE-15 в ветках | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13 в main, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в ветках | Core зависит только от Protocol; FE-01–13 в main; source/apply и настройки проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13 в main, модели FE-14, metadata/git/workspace/files FE-15 в ветках | FE-01–13 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
@@ -174,7 +176,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять отдельные FE-13–15, продолжить FE-16–17; завершить
+1. Принять FE-14–15, продолжить FE-16–17; завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы
