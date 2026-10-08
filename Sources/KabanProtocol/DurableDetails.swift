@@ -1,5 +1,21 @@
 import Foundation
 
+/// JSON payload of a durable `merge_result` artifact. Only a confirmed local fast-forward emits it.
+public struct LocalMergeResult: Codable, Hashable, Sendable {
+    public let baseCommit: String
+    public let commit: String
+    public let ref: String
+    public init(baseCommit: String, commit: String, ref: String) {
+        self.baseCommit = baseCommit; self.commit = commit; self.ref = ref
+    }
+}
+
+/// JSON payload of a durable `merge_conflict` artifact; these are paths reported by rebase.
+public struct MergeConflictMaterial: Codable, Hashable, Sendable {
+    public let files: [String]
+    public init(files: [String]) { self.files = files }
+}
+
 /// Initial and updated global configuration; scheduler flags remain in Snapshot.schedulerFlags.
 /// Required values are supplied by the daemon rather than inferred by the client.
 public struct GlobalSettings: Codable, Hashable, Sendable {

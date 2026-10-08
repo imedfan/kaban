@@ -291,6 +291,9 @@ extension KabanClient {
         snapshot.tasks[index].state = state
         snapshot.tasks[index].runsSinceHuman = 0
         if let stageID { snapshot.tasks[index].stageId = stageID }
+        let stage = snapshot.pipelines.first { $0.projectId == previous.projectId }?.stages.first { $0.id == snapshot.tasks[index].stageId }
+        if stage?.kind != .merge || [.done, .cancelled].contains(state.status) { snapshot.tasks[index].mergeQueueSequence = nil }
+        else if previous.stageId != snapshot.tasks[index].stageId { snapshot.tasks[index].mergeQueueSequence = snapshot.seq + 1 }
         snapshot.tasks[index].updatedAt = Date()
         let task = snapshot.tasks[index]
         emit(.taskUpdated(task), projectID: task.projectId, commandID: commandId)

@@ -13,6 +13,12 @@ final class MergeQueueTests: XCTestCase {
         let second = try enqueue(f, "beta", "b.txt", "beta\n")
         try approve(f, "alpha")
         try approve(f, "beta")
+        XCTAssertEqual(try f.store.execute(.init(command: .setPriority(taskId: "beta", priority: 99))).result, .ok)
+        let cards = try f.store.getSnapshot().tasks
+        let alphaSeq = try XCTUnwrap(cards.first { $0.id == "alpha" }?.mergeQueueSequence)
+        let betaSeq = try XCTUnwrap(cards.first { $0.id == "beta" }?.mergeQueueSequence)
+        XCTAssertLessThan(alphaSeq, betaSeq, "Priority must not reorder approved merges")
+        XCTAssertFalse(try f.store.getTaskDetail("alpha").artifacts.contains { $0.kind == "merge_result" })
         _ = try tick(f, "merge-alpha")
         let started = try task(f, "alpha")
         XCTAssertEqual(started.machine.state.status, .gating)
@@ -25,6 +31,10 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(try text(f.origin, "a.txt"), "alpha\n")
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.origin + "/b.txt"))
         let firstTip = try sha(f, ["rev-parse", "refs/heads/main"])
+        let resultArtifact = try XCTUnwrap(f.store.getTaskDetail("alpha").artifacts.first { $0.kind == "merge_result" })
+        let result = try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(resultArtifact.text.utf8))
+        XCTAssertEqual(result.commit, firstTip); XCTAssertEqual(result.ref, "refs/heads/main")
+        XCTAssertNil(try f.store.getTaskDetail("alpha").task.mergeQueueSequence)
         _ = try tick(f, "merge-beta")
         XCTAssertEqual(try task(f, "beta").machine.state.status, .gating)
         _ = try f.store.runMergePass(owner: "test", at: at, workspaceRoot: f.workspace)
@@ -34,6 +44,20 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(try gitStatus(f, ["merge-base", "--is-ancestor", firstTip, "refs/heads/main"]), 0)
         XCTAssertEqual(try sha(f, ["rev-parse", "HEAD"]), try sha(f, ["rev-parse", "refs/heads/main"]))
         _ = (first, second)
+    }
+    func testRedMergeGatesKeepOutputAndReturnToCodingWithoutChangingMain() throws {
+        let f = try fixture(mergeGate: "/usr/bin/false")
+        _ = try enqueue(f, "red", "red.txt", "result\n")
+        let main = try sha(f, ["rev-parse", "main"])
+        try approve(f, "red"); _ = try tick(f, "red-merge")
+        _ = try f.store.runMergePass(owner: "test", at: at, workspaceRoot: f.workspace)
+        let detail = try f.store.getTaskDetail("red")
+        XCTAssertEqual(detail.task.stageId, "dev"); XCTAssertEqual(detail.task.bounceByReason["merge_conflict"], 1)
+        XCTAssertTrue(detail.artifacts.contains { $0.kind == "merge_gate_output" && $0.text.contains("/usr/bin/false") })
+        XCTAssertFalse(detail.artifacts.contains { $0.kind == "merge_result" })
+        XCTAssertEqual(try sha(f, ["rev-parse", "main"]), main)
+        try f.store.discardJournal()
+        XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("red").artifacts, detail.artifacts)
     }
 
     func testMainMovedBetweenCheckAndUpdateRechecks() throws {
@@ -158,6 +182,12 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(returned.machine.stageId.rawValue, "dev")
         XCTAssertEqual(returned.machine.state.status, .queued)
         XCTAssertEqual(returned.machine.returnReason, .mergeConflict)
+        let conflictArtifact = try XCTUnwrap(f.store.getTaskDetail("conflict").artifacts.first { $0.kind == "merge_conflict" })
+        let conflict = try KabanCoding.makeDecoder().decode(MergeConflictMaterial.self, from: Data(conflictArtifact.text.utf8))
+        XCTAssertEqual(conflict.files, ["shared.txt"])
+        XCTAssertEqual(conflictArtifact.stageId, "merge")
+        try f.store.discardJournal()
+        XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("conflict").artifacts.first { $0.kind == "merge_conflict" }, conflictArtifact)
         XCTAssertTrue(returned.machine.pendingPrompt.contains { addition in
             if case .mergeConflict(let files) = addition { return files.contains("shared.txt") }
             return false
@@ -227,6 +257,10 @@ final class MergeQueueTests: XCTestCase {
         let reopened = try KabanStore(path: f.path)
         _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
         XCTAssertEqual(try reopened.snapshot().tasks.first { $0.card.id == "startup" }?.machine.state, .done)
+        let result = try XCTUnwrap(reopened.getTaskDetail("startup").artifacts.first { $0.kind == "merge_result" })
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(result.text.utf8)).commit, main)
+        try reopened.discardJournal()
+        XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("startup").artifacts.filter { $0.kind == "merge_result" }, [result])
         XCTAssertEqual(try count(f), commits)
         XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/main"]), main)
         let seq = try reopened.snapshot().seq
@@ -238,7 +272,7 @@ final class MergeQueueTests: XCTestCase {
 
     private struct Fixture { var root: URL; var workspace: String; var path: String; var store: KabanStore; var origin: String }
 
-    private func pipeline() -> String {
+    private func pipeline(mergeGate: String? = nil) -> String {
         """
         version: 1
         board: {max_waiting_human: 4, bounce_limit_total: 5, max_runs_per_task: 12}
@@ -255,19 +289,20 @@ final class MergeQueueTests: XCTestCase {
           - id: merge
             kind: merge
             wip: 1
+            gates: \(mergeGate.map { "[\"" + $0 + "\"]" } ?? "[]")
             on_conflict: {stage: dev, limit: 1}
             on_success: done
           - {id: done, kind: terminal}
         """
     }
 
-    private func fixture() throws -> Fixture {
+    private func fixture(mergeGate: String? = nil) throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-merge-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
         let repo = root.appendingPathComponent("repo")
         try FileManager.default.createDirectory(at: repo.appendingPathComponent(".kaban"), withIntermediateDirectories: true)
-        try pipeline().write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
+        try pipeline(mergeGate: mergeGate).write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
         try "skill".write(to: repo.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
         try "base\n".write(to: repo.appendingPathComponent("shared.txt"), atomically: true, encoding: .utf8)
         try git(repo, ["init", "-b", "main"])

@@ -51,6 +51,7 @@ struct BoardView: View {
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
         .sheet(item: $store.reviewRoute) { HumanReviewSheet(store: store, route: $0) }
+        .sheet(item: $store.overlapRoute) { OverlapSheet(store: store, route: $0) }
         .sheet(item: $store.controlSheet) { TaskControlSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
         .popover(isPresented: Binding(get: { store.mascotProjectID != nil }, set: { if !$0 { store.mascotProjectID = nil } })) { if let id = store.mascotProjectID { MascotPickerView(store: store, projectID: id) } }
@@ -326,6 +327,9 @@ struct BoardView: View {
     private func laneBody(_ lane: BoardLane, width: CGFloat) -> some View {
         let displayed = columns(lane)
         return VStack(alignment: .leading, spacing: 6) {
+            if store.projection?.ephemeral.schedulerFlags.contains(.mergeBlocked(lane.project.id)) == true {
+                MergeBlockNotice(store: store, project: lane.project.id)
+            }
             if let pipeline = store.projection?.pipelines[lane.project.id], !pipeline.isValid {
                 Label("Пайплайн не запустится: \(pipeline.issues.first(where: { $0.severity == .error })?.message ?? "нужна настройка")", systemImage: "exclamationmark.triangle")
                     .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.status("waiting").2)
@@ -424,9 +428,9 @@ struct BoardView: View {
         }
     }
     private func taskButton(_ card: TaskCard, project: ProjectSummary, stageChip: String? = nil) -> some View {
-        Button { Task { await store.select(card.id) } } label: {
-            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), actualModel: store.currentRun(for: card)?.actualModelName, stageChip: stageChip)
-        }.buttonStyle(.plain)
+            TaskCardView(card: card, mascot: store.mascot(project.id), selected: store.selectedID == card.id, pendingLabel: store.pendingLabel(.task(card.id)), pipeline: store.projection?.pipelines[project.id], progress: store.progress(for: card), actualModel: store.currentRun(for: card)?.actualModelName, stageChip: stageChip,
+                         queuePosition: MergePresentation.position(card.id, queue: store.mergeQueue(card.projectId)),
+                         select: { Task { await store.select(card.id) } }, overlaps: { store.overlapRoute = .init(task: card.id) })
             .modifier(TaskDragSource(store: store, card: card))
             .task(id: BoardCardReadKey(card: card, generation: store.session.sessionGeneration)) { await store.readRunFacts(for: card) }
             .contextMenu {
@@ -543,6 +547,9 @@ struct TaskCardView: View {
     var progress: RunProgress? = nil
     var actualModel: String? = nil
     var stageChip: String? = nil
+    var queuePosition: Int? = nil
+    var select: (() -> Void)? = nil
+    var overlaps: (() -> Void)? = nil
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
@@ -551,7 +558,7 @@ struct TaskCardView: View {
     private var presentation: CardPresentation {
         .init(card: card, stage: pipeline?.stages.first { $0.id == card.stageId }, hasCurrentProgress: progress != nil)
     }
-    private var badges: [CardBadge] { CardPresentation.badges(card: card, pipeline: pipeline) }
+    private var badges: [CardBadge] { CardPresentation.badges(card: card, pipeline: pipeline).filter { $0.symbol != "square.on.square" } }
     var body: some View {
         let colors = theme.status(presentation.tone.rawValue)
         VStack(alignment: .leading, spacing: 0) {
@@ -568,6 +575,13 @@ struct TaskCardView: View {
                     .help(card.title)
                 if let stageChip {
                     Text(stageChip).font(.system(size: 10)).foregroundStyle(theme.secondary).lineLimit(1).help(stageChip)
+                }
+                if let queuePosition { Text("Очередь · \(queuePosition)").font(.system(size: 10)).foregroundStyle(theme.secondary).monospacedDigit() }
+                if !card.overlapsWith.isEmpty {
+                    Button { overlaps?() } label: { Label("Пересечения · \(card.overlapsWith.count)", systemImage: "square.on.square").font(.system(size: 9.5)).lineLimit(1) }
+                        .buttonStyle(.plain).foregroundStyle(theme.secondary).padding(.horizontal, 4).padding(.vertical, 2)
+                        .background(theme.control, in: RoundedRectangle(cornerRadius: 4))
+                        .accessibilityIdentifier("task.overlaps." + card.id.rawValue)
                 }
                 if !badges.isEmpty {
                     HStack(spacing: 4) {
@@ -629,8 +643,14 @@ struct TaskCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? theme.accent : [.waiting, .review, .incident].contains(presentation.tone) ? colors.0.opacity(0.35) : theme.line, lineWidth: selected ? 2 : 0.5))
         .shadow(color: .black.opacity(theme.dark ? 0.22 : 0.06), radius: 2, y: 1)
         .contentShape(RoundedRectangle(cornerRadius: 10))
+        .onTapGesture { select?() }
+        .focusable(select != nil)
+        .onKeyPress(.return) { guard let select else { return .ignored }; select(); return .handled }
+        .onKeyPress(.space) { guard let select else { return .ignored }; select(); return .handled }
         .onScrollVisibilityChange(threshold: 0.01) { visible = $0 }.onDisappear { visible = false }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { select?() }
         .accessibilityLabel("\(card.id.rawValue), \(card.title), \(stageChip.map { $0 + ", " } ?? "")\(presentation.label), \(badges.map(\.help).joined(separator: ", "))\(pendingLabel.map { ", " + $0 } ?? "")")
     }
 }
@@ -725,12 +745,14 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        if card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human {
+                        if (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
+                           store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .merge {
                             HumanAnswerView(store: store, card: card)
                         }
                         HumanReviewNotice(store: store, taskID: card.id)
                         if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
+                            MergeProgressView(store: store, detail: detail)
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
                                 Label("Обнаружен инцидент", systemImage: "light.beacon.max")
@@ -793,7 +815,7 @@ struct TaskDetailView: View {
     }
     private var closeButton: some View { KabanIconButton(symbol: "xmark", help: "Закрыть детали · Esc") { Task { await store.select(nil) } } }
     private func detailHeader(_ task: TaskCard) -> some View {
-        let presentation = CardPresentation(state: task.state)
+        let presentation = CardPresentation(card: task, stage: store.projection?.pipelines[task.projectId]?.stages.first { $0.id == task.stageId })
         let stages: [StageSummary] = (store.projection?.pipelines[task.projectId]?.stages ?? []).sorted { $0.display.order < $1.display.order }
         return VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 7) {
@@ -1031,7 +1053,7 @@ struct TaskDetailView: View {
                 } else if detail.task.state == .paused {
                     Button { store.beginControl(detail.task, action: .resume) } label: { Label("Продолжить", systemImage: "play") }.buttonStyle(KabanButtonStyle(primary: true)).disabled(!store.can(.resumeTask)).help(store.unavailableReason(.resumeTask))
                 }
-                if !TaskActions.canEdit(detail.task), TaskActions.canCancel(detail.task) {
+                if !TaskActions.canEdit(detail.task), TaskActions.canPause(detail.task) {
                     Text("Для правки поставьте на паузу").font(.caption).foregroundStyle(.secondary)
                 }
                 if TaskActions.canEdit(detail.task) {

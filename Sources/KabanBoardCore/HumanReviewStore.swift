@@ -12,9 +12,10 @@ public struct HumanReviewContext: Codable, Equatable, Sendable {
     public let runs: [RunSummary]
     public let clonePath: String?
     public init?(detail: TaskDetail, pipeline: PipelineSummary?) {
-        guard detail.task.state == .waitingHuman(.review), let pipeline,
-              pipeline.projectId == detail.task.projectId,
-              pipeline.stages.first(where: { $0.id == detail.task.stageId })?.kind == .human else { return nil }
+        guard let pipeline, pipeline.projectId == detail.task.projectId,
+              let stage = pipeline.stages.first(where: { $0.id == detail.task.stageId }),
+              (detail.task.state == .waitingHuman(.review) && stage.kind == .human)
+                || (detail.task.state == .waitingHuman(.conflictLimit) && stage.kind == .merge) else { return nil }
         card = detail.task; self.pipeline = pipeline
         artifacts = detail.artifacts; runs = detail.runs; clonePath = detail.clonePath
     }
@@ -36,13 +37,19 @@ public struct HumanReviewContext: Codable, Equatable, Sendable {
         }
     }
     public var targets: [StageSummary] { Self.returnTargets(card: card, pipeline: pipeline) }
-    public var defaultTarget: StageID? { pipeline.defaultReturnStage.flatMap { id in targets.contains { $0.id == id } ? id : nil } }
+    public var defaultTarget: StageID? {
+        let source = pipeline.stages.first { $0.id == card.stageId }
+        let reported = source?.kind == .merge ? source?.onConflict?.stage : pipeline.defaultReturnStage
+        return reported.flatMap { id in targets.contains { $0.id == id } ? id : nil }
+    }
     public func command(_ decision: HumanReviewDecision, current: HumanReviewContext?, comments: String,
                         target: StageID?, cancel: Bool, keepBranch: Bool) -> Command? {
         guard self == current else { return nil }
         switch decision {
         case .approve:
-            guard let next = pipeline.stages.first(where: { $0.id == card.stageId })?.onSuccess,
+            guard card.state == .waitingHuman(.review),
+                  pipeline.stages.first(where: { $0.id == card.stageId })?.kind == .human,
+                  let next = pipeline.stages.first(where: { $0.id == card.stageId })?.onSuccess,
                   pipeline.stages.contains(where: { $0.id == next }) else { return nil }
             return .approve(taskId: card.id)
         case .requestChanges:

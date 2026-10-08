@@ -53,7 +53,7 @@ public struct CardPresentation: Equatable, Sendable {
                 tone = .waiting
             }
         case .paused: label = "Пауза"; symbol = "pause.circle"; tone = .paused
-        case .blocked: label = "Основная ветка изменена"; symbol = "lock"; tone = .blocked
+        case .blocked: label = "В main есть ваши правки"; symbol = "lock"; tone = .blocked
         case .done: label = "Готово"; symbol = "checkmark.circle"; tone = .done
         case .cancelled: label = "Отменено"; symbol = "xmark.circle"; tone = .cancelled
         }
@@ -65,6 +65,10 @@ public struct CardPresentation: Equatable, Sendable {
             label = hasCurrentProgress ? "Получен прогресс" : "Запуск зарезервирован"
         } else if card.state == .gating && stage?.kind == .merge {
             label = "Rebase и гейты"
+        } else if card.state.status == .queued && stage?.kind == .merge {
+            label = "Ждёт слияния"
+        } else if card.state == .waitingHuman(.conflictLimit) {
+            label = "Лимит возвратов"
         } else {
             label = base.label
         }

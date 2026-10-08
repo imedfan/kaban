@@ -111,6 +111,21 @@ import KabanBoardCore
             default: break
             }
         }
+        if let mode = BoardQA.argument("--qa-merge"), let index = tasks.firstIndex(where: { $0.id == "SHOP-29" }), let second = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+            tasks[index].mergeQueueSequence = 10; tasks[index].overlapsWith = ["SHOP-31", "KBN-15", "removed-task"]
+            tasks[second].stageId = "merge"; tasks[second].state = .queued(nil); tasks[second].mergeQueueSequence = 20; tasks[second].priority = 99
+            switch mode {
+            case "queue", "unknown": tasks[index].state = .queued(nil)
+            case "dirty", "error", "pending": tasks[index].state = .blocked(.mainDirty)
+            case "limit", "changes", "long": tasks[index].state = .waitingHuman(.conflictLimit); tasks[index].bounceByReason = ["merge_conflict": 2]
+            case "return": tasks[index].stageId = "dev"; tasks[index].state = .queued(nil); tasks[index].bounceByReason = ["merge_conflict": 1]; tasks[index].mergeQueueSequence = nil
+            case "review": tasks[index].stageId = "review"; tasks[index].state = .waitingHuman(.review); tasks[index].bounceByReason = ["merge_conflict": 1]; tasks[index].mergeQueueSequence = nil
+            case "done": tasks[index].stageId = "done"; tasks[index].state = .done; tasks[index].mergeQueueSequence = nil
+            default: break
+            }
+            if mode == "unknown" { tasks[index].mergeQueueSequence = nil; tasks[second].mergeQueueSequence = nil }
+            if mode == "long" { tasks[index].title = String(repeating: "Длинное название задачи: исправление сложного конфликта и повторная проверка результата · ", count: 5) }
+        }
         let state = BoardQA.argument("--qa-state")
         if state == "long" {
             tasks[2].title = "Очень длинное название задачи: пагинация, фильтрация и согласованная обработка заказов для нескольких международных магазинов"
@@ -143,7 +158,8 @@ import KabanBoardCore
             current = [.runProgress(.init(runId: run.id, taskId: run.taskId, message: "Добавлены проверки границ курсора", lastActivityAt: now))]
             runs["SHOP-35"] = [.init(id: "fixture-substitution", taskId: "SHOP-35", stageId: "ai-review", number: 1, status: .failed, requestedModel: "opus-4.5", actualModelName: "Sonnet 4", countsTowardLimits: false, startedAt: now.addingTimeInterval(-180), endedAt: now)]
         }
-        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
+        let flags: [SchedulerFlag] = ["dirty", "error", "pending"].contains(BoardQA.argument("--qa-merge") ?? "") ? [.mergeBlocked("shop")] : []
+        return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
     }
 }
 

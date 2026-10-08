@@ -60,22 +60,25 @@ public struct TaskCard: Codable, Hashable, Sendable {
     /// Есть критерии приёмки: без них задачу нельзя отправить из Backlog (спека, UC-01).
     public var hasAcceptanceCriteria: Bool
     public var updatedAt: Date
+    /// Durable admission sequence for the current merge queue. nil: source cannot report order.
+    public var mergeQueueSequence: Seq?
 
     public init(id: TaskID, projectId: ProjectID, title: String, stageId: StageID, state: TaskState, priority: Int = 0,
                 branch: String? = nil, attempt: Int = 0, maxAttempts: Int? = nil, runsSinceHuman: Int = 0,
                 bounceByReason: [String: Int] = [:], overlapsWith: [TaskID] = [], unusedGitGrants: Int = 0,
                 model: ModelID? = nil, retryAt: Date? = nil, suspiciousFiles: [SuspiciousFile] = [],
-                hasAcceptanceCriteria: Bool = false, updatedAt: Date) {
+                hasAcceptanceCriteria: Bool = false, updatedAt: Date, mergeQueueSequence: Seq? = nil) {
         self.id = id; self.projectId = projectId; self.title = title; self.stageId = stageId; self.state = state
         self.priority = priority; self.branch = branch; self.attempt = attempt; self.maxAttempts = maxAttempts
         self.runsSinceHuman = runsSinceHuman; self.bounceByReason = bounceByReason; self.overlapsWith = overlapsWith
         self.unusedGitGrants = unusedGitGrants; self.model = model; self.suspiciousFiles = suspiciousFiles; self.retryAt = retryAt
         self.hasAcceptanceCriteria = hasAcceptanceCriteria; self.updatedAt = updatedAt
+        self.mergeQueueSequence = mergeQueueSequence
     }
 
     enum CodingKeys: String, CodingKey {
         case id, projectId, title, stageId, state, priority, branch, attempt, maxAttempts, runsSinceHuman, bounceByReason,
-             overlapsWith, unusedGitGrants, model, retryAt, suspiciousFiles, hasAcceptanceCriteria, updatedAt
+             overlapsWith, unusedGitGrants, model, retryAt, suspiciousFiles, hasAcceptanceCriteria, updatedAt, mergeQueueSequence
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -91,7 +94,8 @@ public struct TaskCard: Codable, Hashable, Sendable {
                   model: try c.decodeIfPresent(ModelID.self, forKey: .model), retryAt: try c.decodeIfPresent(Date.self, forKey: .retryAt),
                   suspiciousFiles: try c.decode([SuspiciousFile].self, forKey: .suspiciousFiles),
                   hasAcceptanceCriteria: try c.decodeIfPresent(Bool.self, forKey: .hasAcceptanceCriteria) ?? false,
-                  updatedAt: try c.decode(Date.self, forKey: .updatedAt))
+                  updatedAt: try c.decode(Date.self, forKey: .updatedAt),
+                  mergeQueueSequence: try c.decodeIfPresent(Seq.self, forKey: .mergeQueueSequence))
     }
 }
 

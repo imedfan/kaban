@@ -75,7 +75,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--review-live-smoke") != nil {
+            if BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }
@@ -125,7 +125,7 @@ private struct ReviewQAWindowCommands: Commands {
             menuItem.title = approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
             return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true)
         }
-        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil }
+        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil && runtime?.store?.overlapRoute == nil }
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
     }

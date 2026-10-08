@@ -147,6 +147,21 @@ jobs:
           print(json.dumps(result, ensure_ascii=False))
           PYQA
 
+          merge_result="$RUNNER_TEMP/kaban-merge-smoke.json"
+          merge_output="$RUNNER_TEMP/kaban-merge-smoke.log"
+          rm -f "$merge_result"
+          open -n -W -F --stdout "$merge_output" --stderr "$merge_output" \
+            "$derived_data/Build/Products/Debug/Kaban.app" --args \
+            -ApplePersistenceIgnoreState YES --merge-smoke "$merge_result" --qa-merge limit
+          cat "$merge_output"
+          python3 - "$merge_result" <<'PYQA'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as report:
+              result = json.load(report)
+          assert result["result"] == "passed", result
+          print(json.dumps(result, ensure_ascii=False))
+          PYQA
+
       - name: Test
         run: swift test
         env:

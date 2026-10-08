@@ -19,14 +19,6 @@ struct ReviewMaterialsView: View {
         }
     }
     var body: some View {
-        if let count = ReviewMaterialPresentation.conflictCount(detail.task) {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("После конфликта · возвратов \(count)", systemImage: "arrow.triangle.branch").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.status("conflict").2)
-                Text("Проверьте новый результат. Отдельный список правок при разрешении конфликта служба не передала.")
-                    .font(.system(size: 11)).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true)
-            }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(theme.status("conflict").1, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.status("conflict").0.opacity(0.35), lineWidth: 0.5))
-        }
         VStack(alignment: .leading, spacing: 7) {
             HStack {
                 Label("Клон задачи", systemImage: "folder").font(.system(size: 12, weight: .semibold))
@@ -121,7 +113,17 @@ struct ReviewMaterialsView: View {
                 }
             }
             if commits.count > 6 { Text("Ещё \(commits.count - 6) коммитов в полном источнике").font(.system(size: 11)).foregroundStyle(theme.secondary) }
-        } else if artifact.kind == "gate_output" {
+        } else if artifact.kind == "merge_result", let result = MergePresentation.result(detail) {
+            Text(result.ref).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+            Text(result.commit).font(.system(size: 10, design: .monospaced)).lineLimit(2).textSelection(.enabled).help(result.commit)
+            DisclosureGroup("Предыдущий commit основной ветки") { Text(result.baseCommit).font(.system(size: 10, design: .monospaced)).textSelection(.enabled) }.font(.system(size: 11))
+        } else if let conflict = MergePresentation.conflict(artifact) {
+            ForEach(Array(conflict.files.prefix(10).enumerated()), id: \.offset) { _, path in
+                Text(path).font(.system(size: 11, design: .monospaced)).lineLimit(2).truncationMode(.middle).textSelection(.enabled).help(path)
+            }
+            if conflict.files.count > 10 { Text("Ещё \(conflict.files.count - 10) файлов в полном источнике").font(.system(size: 11)).foregroundStyle(theme.secondary) }
+            Text("Файлы конфликта на момент rebase. Правки при разрешении оцениваются в новом результате и Human Review.").font(.system(size: 11)).foregroundStyle(theme.secondary)
+        } else if artifact.kind == "gate_output" || artifact.kind == "merge_gate_output" {
             if artifact.text.utf8.count > TaskDetailPresentation.largeTextBytes { originalText(artifact) }
             else { GateOutputReviewView(text: artifact.text) }
         } else {

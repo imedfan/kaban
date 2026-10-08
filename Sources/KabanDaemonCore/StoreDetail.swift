@@ -124,6 +124,28 @@ extension KabanStore {
                 d.feed.append(FeedItem(id: id, at: at, kind: "issue", text: issue, runId: run))
             }
         }
+        if case .mergeConflict(let files) = command {
+            let id = commandId.uuidString.lowercased() + "/merge-conflict"
+            let text = String(decoding: try KabanCoding.makeEncoder().encode(MergeConflictMaterial(files: files.map { SecretText.redact($0) })), as: UTF8.self)
+            d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, stageId: before.stageId,
+                                            kind: "merge_conflict", text: text, createdAt: at))
+            d.feed.append(FeedItem(id: id, at: at, kind: "merge_conflict", text: "Rebase: конфликт в файлах\n" + files.map { SecretText.redact($0) }.joined(separator: "\n")))
+        }
+        if case .gatesFailed(let output) = command, task.pipeline.stage(before.stageId)?.kind == .merge {
+            let id = commandId.uuidString.lowercased() + "/merge-gates"
+            d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, stageId: before.stageId,
+                                            kind: "merge_gate_output", text: SecretText.redact(output), createdAt: at))
+            d.feed.append(FeedItem(id: id, at: at, kind: "merge_gates", text: "Проверка после rebase не прошла. Вывод сохранён в материалах слияния."))
+        }
+        if case .merged = command,
+           let row = try Row.fetchOne(db, sql: "SELECT base_sha, tip_sha FROM merge_intent WHERE task_id = ?", arguments: [task.card.id.rawValue]) {
+            let result = LocalMergeResult(baseCommit: row["base_sha"], commit: row["tip_sha"], ref: "refs/heads/main")
+            let id = commandId.uuidString.lowercased() + "/merged"
+            let text = String(decoding: try KabanCoding.makeEncoder().encode(result), as: UTF8.self)
+            d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, stageId: before.stageId,
+                                            kind: "merge_result", text: text, createdAt: at))
+            d.feed.append(FeedItem(id: id, at: at, kind: "merged", text: "Слито в локальный \(result.ref)\n\(result.commit)"))
+        }
         try saveDetail(d, taskId: task.card.id, db: db)
         if task.machine.state.status == .queued && (before.state.status != .queued || before.stageId != task.machine.stageId) {
             try db.execute(sql: "UPDATE task_admission SET queue_seq = ? WHERE task_id = ?", arguments: [try seq(db), task.card.id.rawValue])
