@@ -82,7 +82,8 @@ FE-11 принята в main через [#102](https://github.com/imedfan/kaban/
 финального FE-11 `e51033d` прошли; merge/main — `11e81d7`.
 [Отчёт FE-11](development/frontend-fe-11-2026-10-08.md) сохраняет проверки кода
 `7464467` и границы системной приёмки.
-FE-12 подготовлена в `codex/fe-12-merge-progress` от этого main: фактический порядок
+FE-12 открыта отдельным [PR #103](https://github.com/imedfan/kaban/pull/103)
+в `codex/fe-12-merge-progress` от этого main: фактический порядок
 merge queue, dirty main/project recheck, durable conflict/gate материалы,
 ручной return на лимите и подтверждённый локальный ref/commit. Исправлен priority
 в merge scheduler. 620 tests полного прогона и 167 final BoardCore tests прошли;

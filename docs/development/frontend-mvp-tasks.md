@@ -598,8 +598,9 @@ Checkbox относятся к Core/native/private stdio сценариям. В�
 
 ## FE-12. Показать очередь merge, конфликты и подтверждённое завершение
 
-**Статус:** реализация подготовлена в `codex/fe-12-merge-progress` от FE-11/main
-`11e81d7`; код `5760bea`, [отчёт и кадры](frontend-fe-12-2026-10-08.md).
+**Статус:** отдельный [PR #103](https://github.com/imedfan/kaban/pull/103) открыт в main;
+ветка `codex/fe-12-merge-progress` от FE-11/main `11e81d7`. Код `5760bea`,
+[отчёт и кадры](frontend-fe-12-2026-10-08.md). Мерж выполняет Артём.
 
 **Приоритет:** P0
 
