@@ -828,7 +828,8 @@ backend preview, отказы, ⌘↩ и границы installed/pointer/VoiceO
 - [ ] Unexpected server виден и устраняется через явные настройки/повторную проверку.
 - [x] Ошибка чтения списка не показывается как «серверов нет», source collisions различимы.
 
-FE-16 подготовлена в `codex/fe-16-project-mcp`, исходный код `8a06d99`.
+FE-16 принята через [PR #107](https://github.com/imedfan/kaban/pull/107), merge
+`a20a48d`, принятое дерево `0b21fdb`; исходный код `8a06d99`.
 В ветку перенесён актуальный main `5f1f733` после принятия PR #105/#106,
 включая исправление последовательных native QA команд FE-15. Каталог и атомарная команда
 allowlist подключены к daemon; stage picker использует общий validated YAML draft.
@@ -945,10 +946,16 @@ apply, exact source, Escape, restart и unexpected. Третий критери�
 
 ### Критерии приёмки
 
-- [ ] Список и глобальный/проектный count согласованы с backend после reconnect/retention.
-- [ ] Инцидент скрытого проекта виден; pending resolution не исчезает по одному `.ok`.
-- [ ] После действия resolution/карточка/count подтверждены событиями, история доступна.
-- [ ] Unknown kind, удалённый проект и отсутствующий лог не ломают просмотр истории.
+- [x] Список и глобальный/проектный count согласованы с backend после reconnect/retention.
+- [x] Инцидент скрытого проекта виден; pending resolution не исчезает по одному `.ok`.
+- [x] После действия resolution/карточка/count подтверждены событиями, история доступна.
+- [x] Unknown kind, удалённый проект и отсутствующий лог не ломают просмотр истории.
+
+FE-19 подготовлена от main `a20a48d`, source `e193a04`, в
+`codex/fe-19-incidents`. 661 test и App build прошли. Критерии отмечены для
+Core и native private-daemon среды; [отчёт и кадры](frontend-fe-19-2026-10-09.md)
+отделяют реальный Git rollback от simulated future-kind wire fixture.
+Installed helper, physical pointer/keys и VoiceOver остаются в FE-22.
 
 ## FE-20. Реализовать настройки Мака, флаги планировщика и экран квоты
 
