@@ -195,7 +195,9 @@ private extension IncidentResolution {
         case "answerHuman": action = "Замечание агенту"
         case "retryStage": action = "Повтор стадии"
         case "moveTask": action = "Перенос"
-        case "cancelTask", "reject": action = "Отмена"
+        case "cancelTask": action = "Отмена"
+        case "reject": action = target == nil ? "Отклонение с отменой" : "Отклонение с возвратом"
+        case "approve": action = "Одобрение результата"
         default: action = command
         }
         return action + (target.map { " · \($0.rawValue)" } ?? "") + (keepBranch.map { $0 ? " · выбрано сохранение ветки" : " · выбрано удаление ветки" } ?? "")
