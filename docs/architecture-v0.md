@@ -396,6 +396,17 @@ signature; private stdio является явным development transport. По
   updatePipeline для local production проектов и отвечает новой версией либо
   issues/диагностикой; pipelineApplied подтверждает committed состояние.
   Fake registration остаётся ограниченным внутренним API, fake save недоступен.
+- FE-13: `getPipelineSource(projectId) -> pipelineSource(PipelineSourceContent)`
+  читает точные committed и working UTF-8 bytes локального проекта, path,
+  nullable valid baseVersionHash, baseSourceHash и worktreeSourceHash. Content=nil
+  означает отсутствующий файл. Query не refresh-ит проекцию и не создаёт receipt
+  или journal; повтор commandId возвращает свежий read. App не собирает source из summary.
+  Native apply добавляет optional `PipelineDraft.requiresExactWorkingContent=true`:
+  после coordinated atomic write backend требует эти байты в working file при
+  подготовке commit; даже возврат к старому committed YAML считается конфликтом.
+  Legacy draft без флага сохраняет BE-03 путь. Отказ не откатывает файл:
+  неприменённый текст и новый внешний edit остаются на диске; editor предлагает
+  сравнить/перечитать source и явно выбрать новую базу, сохранив draft.
 - `getCursorEnvironment` / `configureCursor(environment: CursorEnvironment)`:
   executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
   argv и произвольный env не передаются. Query reply — cursorEnvironment,

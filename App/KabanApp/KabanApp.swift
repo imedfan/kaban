@@ -28,7 +28,8 @@ import KabanProtocol
             CommandMenu("Задача") {
                 Button("Ответить или одобрить результат") {
                     if !runtime.showSetup, let store = runtime.store {
-                        if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
+                        if let editor = store.activePipelineEditor { Task { await editor.apply() } }
+                        else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
                     }
                 }.keyboardShortcut(.return, modifiers: [.command])
                 Divider()
@@ -75,7 +76,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
+            if BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }
@@ -114,13 +115,18 @@ private struct ReviewQAWindowCommands: Commands {
     @objc private func createTask(_ sender: NSMenuItem) { runtime?.store?.beginCreation() }
     @objc private func primaryTask(_ sender: NSMenuItem) {
         guard runtime?.showSetup == false, let store = runtime?.store else { return }
-        if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
+        if let editor = store.activePipelineEditor { Task { await editor.apply() } }
+        else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
     }
     @objc private func controlTask(_ sender: NSMenuItem) {
         if let action = TaskMenuAction(rawValue: sender.tag) { runtime?.store?.perform(action) }
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(primaryTask(_:)) {
+            if let editor = runtime?.store?.activePipelineEditor {
+                menuItem.title = "Применить пайплайн"
+                return runtime?.showSetup == false && editor.canApply
+            }
             let approve = runtime?.store?.canApproveSelected == true
             menuItem.title = approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
             return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true)

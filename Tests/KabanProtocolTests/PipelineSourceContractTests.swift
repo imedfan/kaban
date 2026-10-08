@@ -3,6 +3,18 @@ import XCTest
 import KabanProtocol
 
 final class PipelineSourceContractTests: XCTestCase {
+    func testExactSourceAndWrittenDraftRoundTripAndLegacyFlagRemainsAbsent() throws {
+        let decoder = KabanCoding.makeDecoder(), encoder = KabanCoding.makeEncoder()
+        let source = PipelineSourceContent(projectId: "p", path: "/tmp/repo/.kaban/pipeline.yaml", baseVersionHash: nil,
+                                           baseSourceHash: "source", committedContent: nil, workingContent: "# 👋\r\n", worktreeSourceHash: "working")
+        let result = CommandResult.pipelineSource(source), command = Command.getPipelineSource(projectId: "p")
+        XCTAssertEqual(try decoder.decode(Command.self, from: encoder.encode(command)), command)
+        XCTAssertEqual(try decoder.decode(CommandResult.self, from: encoder.encode(result)), result)
+        var draft = PipelineDraft(projectId: "p", baseVersionHash: nil, content: "# exact\n", baseSourceHash: "source")
+        XCTAssertNil(try decoder.decode(PipelineDraft.self, from: encoder.encode(draft)).requiresExactWorkingContent)
+        draft.requiresExactWorkingContent = true
+        XCTAssertEqual(try decoder.decode(PipelineDraft.self, from: encoder.encode(draft)), draft)
+    }
     func testLegacyAndMalformedSourceFields() throws {
         let decoder = KabanCoding.makeDecoder(), encoder = KabanCoding.makeEncoder()
         var pipeline = Samples.pipeline

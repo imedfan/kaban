@@ -22,6 +22,8 @@ public enum Command: Codable, Hashable, Sendable {
     case updatePipeline(projectId: ProjectID, contentHash: String, draft: PipelineDraft? = nil)
     case validatePipeline(projectId: ProjectID, content: String)
     case validatePipelineDraft(draft: PipelineDraft)
+    /// Fresh exact committed and working YAML; does not consume command identity.
+    case getPipelineSource(projectId: ProjectID)
     // Детали
     case getTaskDetail(taskId: TaskID)
     // Задачи
@@ -150,6 +152,7 @@ public enum CommandResult: Codable, Hashable, Sendable {
     case runs([RunSummary])
     case taskDetail(TaskDetail)
     case pipelineDraft(PipelineDraftValidation)
+    case pipelineSource(PipelineSourceContent)
     case cursorEnvironment(CursorEnvironment)
     case error(CommandError)
 }

@@ -35,13 +35,17 @@ public extension LocalGitRepository {
 
     /// Prepare immutable objects, leaving all refs, working files and the user's index unchanged.
     /// Caller validates candidate YAML and persists this plan before publishing the commit.
-    func preparePipeline(content: String, source: PipelineSource, identity: GitIdentity, commandId: CommandID) throws -> PipelineCommit {
+    func preparePipeline(content: String, source: PipelineSource, identity: GitIdentity, commandId: CommandID,
+                         requiresExactWorkingContent: Bool = false) throws -> PipelineCommit {
         guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == "refs/heads/main" else {
             throw Self.error("pipeline_checkout_required", "Для применения пайплайна откройте main.", ["baseBranch": "main"])
         }
         guard content.utf8.count <= DaemonWire.maxPipelineBytes else { throw Self.error("invalid_request", "Черновик пайплайна превышает лимит размера.") }
         let working = try workingPipelineSource(), previous = try workingPipelineFile()
         let requested = Data(content.utf8)
+        guard !requiresExactWorkingContent || previous?.data == requested else {
+            throw Self.error("pipeline_worktree_conflict", "Рабочий файл изменился после записи черновика. Перечитайте файл.")
+        }
         guard previous == nil || previous?.data == requested || previous == source.files[".kaban/pipeline.yaml"] else {
             throw Self.error("pipeline_worktree_conflict", "pipeline.yaml изменён отдельно от черновика; обновите черновик перед применением.")
         }

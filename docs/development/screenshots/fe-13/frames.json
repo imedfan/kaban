@@ -1,0 +1,53 @@
+{
+  "surface": "actual WindowGroup via AppKit",
+  "frames": [
+    {
+      "file": "absent-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "2488130fe365c8fef56d9979400948008d6863334ff0521108d65acc8ba54cf0"
+    },
+    {
+      "file": "apply-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "04e4c2dc8dc13d952e97cc4075fb036a7acbe59bde0aaf3f5241356c97b6f0ec"
+    },
+    {
+      "file": "executor-dark.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "01ce1ee9dda3e0dceaec7a94b47ce498ec305afa89cc290849fa41463ec09fa2"
+    },
+    {
+      "file": "forms-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "4fab471c0928826c6fbd04c551f2f2ccc4308b5b40ad48ecc923483f6b923c70"
+    },
+    {
+      "file": "invalid-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c5115196c7ac1b01383685818cc92f1e58f2d6543a0c1b3b7a393e3ba146d146"
+    },
+    {
+      "file": "long-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "19f065255be8457d36bd48f4749d7c2b9d28f1da3f3182eeba2840c6ed3d0355"
+    },
+    {
+      "file": "reopen-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "fd15d8459be926243ae28f4f7977b23b88ff0352ded20d281ff21080fff2f596"
+    },
+    {
+      "file": "yaml-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "49defec2377ba4ba1bbaa4fd018f240e7dc45d2e6218a7b31c08386624796a12"
+    }
+  ]
+}

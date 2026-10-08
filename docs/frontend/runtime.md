@@ -65,13 +65,21 @@ journal и live ephemeral updates; `.ok` не является применен�
 с seq больше seq ответа. Snapshot/subscription handshake, reconnect и resync
 должны сохранять эту границу; во время догонки команды недоступны.
 
-ConnectionStore, SchedulerStore, PipelineEditorStore, ModelCatalogStore и LogStore
+ConnectionStore, SchedulerStore, ModelCatalogStore и LogStore
 из [полного исходного плана, §2](../archive/2026-10-04/frontend-plan-v0.md)
 описывают предложенное разбиение будущей реализации. Текущий BoardStore не
 реализует все эти поверхности. Читай этот раздел при работе над подключением,
 логами или настройками; названия не требуют создания отдельных targets.
 Точные wire-типы и семантика — архитектура §5 и Sources/KabanProtocol/;
 поздние решения уточняют старые примеры и предложения плана.
+
+FE-13 реализует `PipelineEditorStore` в BoardCore; BoardStore сохраняет один
+экземпляр на projectId. Формы и YAML редактируют один точный текст, UI не импортирует
+Kit/GRDB и не валидирует pipeline. Source/validation queries идут через KabanClient,
+update — через BoardSession с тем же commandId до correlated event/snapshot.
+Generation/session/hash проверки отбрасывают поздние ответы. Смена экрана или
+проекта сохраняет ввод в памяти; restart сохраняет применённый файл, не локальный
+неотправленный draft. [Приёмка FE-13](../development/frontend-fe-13-2026-10-08.md).
 
 ## Проверка реализации
 
