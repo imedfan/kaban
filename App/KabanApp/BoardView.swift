@@ -526,10 +526,15 @@ struct BoardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Label("Квота Cursor", systemImage: "gauge.with.dots.needle.50percent").font(.system(size: 22, weight: .bold))
-                Text("Расход по пулам моделей").font(.system(size: 13)).foregroundStyle(theme.secondary)
-                quotaRows.padding(20).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
-                Text("Данные квоты появятся после подключения источника состояния.").font(.system(size: 12)).foregroundStyle(theme.secondary)
-            }.frame(maxWidth: 640, alignment: .leading).padding(32).frame(maxWidth: .infinity, alignment: .topLeading)
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Расход по пулам моделей").font(.system(size: 13)).foregroundStyle(theme.secondary)
+                        quotaRows.padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
+                        Text("Данные квоты появятся после подключения источника состояния.").font(.system(size: 12)).foregroundStyle(theme.secondary)
+                    }.frame(width: 200)
+                    ModelSettingsView(store: store.models, theme: theme).frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+            }.frame(maxWidth: 1100, alignment: .leading).padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -745,7 +750,7 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        if (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
+                        if card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
                            store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .merge {
                             HumanAnswerView(store: store, card: card)
                         }
@@ -753,6 +758,7 @@ struct TaskDetailView: View {
                         if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
                             MergeProgressView(store: store, detail: detail)
+                            TaskModelView(store: store, detail: detail, theme: theme)
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
                                 Label("Обнаружен инцидент", systemImage: "light.beacon.max")
@@ -781,6 +787,7 @@ struct TaskDetailView: View {
             .sheet(item: $store.materialTextRoute) { MaterialTextSheet(route: $0) }
             .sheet(item: $store.logRunRoute) { run in RunLogSheet(store: store, run: run) }
             .sheet(item: $store.wipRestoreRoute) { route in WIPRestoreSheet(store: store, route: route) }
+            .sheet(item: $store.modelOverrideRoute) { editor in TaskModelOverrideSheet(store: store, editor: editor) }
             .onChange(of: store.selectedID) { _, id in store.detailTab = id.flatMap { store.projection?.tasks[$0] }?.state == .waitingHuman(.review) ? "Сводка" : "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil }
     }
     private var availableRuns: [RunSummary]? {
@@ -1045,7 +1052,7 @@ struct TaskDetailView: View {
                     .font(.system(size: 11)).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
-                if store.humanAnswers.draft(for: detail.task.id) != nil {
+                if detail.task.state != .waitingHuman(.modelSubstituted), store.humanAnswers.draft(for: detail.task.id) != nil {
                     HumanAnswerSubmitButton(store: store, taskID: detail.task.id)
                 }
                 if TaskActions.canPause(detail.task) {
@@ -1084,7 +1091,7 @@ struct ProjectSettingsView: View {
     var body: some View {
         Group {
             if editingPipeline, let editor = pipelineEditor {
-                PipelineEditorView(editor: editor, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme) { editingPipeline = false }
+                PipelineEditorView(editor: editor, models: store.models, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme) { editingPipeline = false }
                     .onAppear { store.editingPipelineProject = editor.projectID }
                     .onDisappear { if store.editingPipelineProject == editor.projectID { store.editingPipelineProject = nil } }
                     .id(editor.projectID)

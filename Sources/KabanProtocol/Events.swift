@@ -67,6 +67,9 @@ public struct TaskTransition: Codable, Hashable, Sendable {
 }
 
 public struct SettingsChange: Codable, Hashable, Sendable {
+    public var modelCatalog: [ModelInfo]?
+    public var modelPoolRules: [ModelPoolRule]?
+    public var modelFlags: [ModelFlag]?
     public var key: String
     public var value: String
     /// Authoritative settings after the change. Legacy key/value remains for older clients.
@@ -74,8 +77,10 @@ public struct SettingsChange: Codable, Hashable, Sendable {
     /// Complete authoritative flag set after a durable scheduler change. nil is legacy/unknown;
     /// an empty array explicitly clears flags. Live ephemeral updates retain their existing DTO.
     public var schedulerFlags: [SchedulerFlag]?
-    public init(key: String, value: String, settings: GlobalSettings? = nil, schedulerFlags: [SchedulerFlag]? = nil) {
+    public init(key: String, value: String, settings: GlobalSettings? = nil, schedulerFlags: [SchedulerFlag]? = nil,
+                modelCatalog: [ModelInfo]? = nil, modelPoolRules: [ModelPoolRule]? = nil, modelFlags: [ModelFlag]? = nil) {
         self.key = key; self.value = value; self.settings = settings; self.schedulerFlags = schedulerFlags
+        self.modelCatalog = modelCatalog; self.modelPoolRules = modelPoolRules; self.modelFlags = modelFlags
     }
 }
 

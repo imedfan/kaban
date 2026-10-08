@@ -1,5 +1,16 @@
 import Foundation
 
+public struct TaskModelStage: Codable, Hashable, Sendable {
+    public var stageId: StageID
+    public var name: String
+    public var stageModel: ModelID
+    public var overrideModel: ModelID?
+    public var resolvedModel: ModelID { overrideModel ?? stageModel }
+    public init(stageId: StageID, name: String, stageModel: ModelID, overrideModel: ModelID? = nil) {
+        self.stageId = stageId; self.name = name; self.stageModel = stageModel; self.overrideModel = overrideModel
+    }
+}
+
 /// Запись `model_catalog` (§4). `auto` хранится с `forbidden = true` и в `listModels()` не отдаётся.
 public struct ModelInfo: Codable, Hashable, Sendable {
     public var id: ModelID

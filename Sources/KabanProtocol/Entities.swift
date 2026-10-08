@@ -174,6 +174,9 @@ public struct Incident: Codable, Hashable, Sendable {
 
 /// Состояние доски на момент `seq` (§5 `getSnapshot`).
 public struct Snapshot: Codable, Hashable, Sendable {
+    /// nil means unavailable from a legacy source; [] is a confirmed empty catalog/rule set.
+    public var modelCatalog: [ModelInfo]?
+    public var modelPoolRules: [ModelPoolRule]?
     public var protocolVersion: Int
     /// nil means an older server did not supply settings, not product defaults.
     public var settings: GlobalSettings?
@@ -191,13 +194,14 @@ public struct Snapshot: Codable, Hashable, Sendable {
 
     public init(seq: Seq, projects: [ProjectSummary], pipelines: [PipelineSummary], tasks: [TaskCard],
                 schedulerFlags: [SchedulerFlag] = [], modelFlags: [ModelFlag] = [], quota: QuotaState? = nil, openIncidentCount: Int = 0,
-                stageLoad: [StageLoad] = [], settings: GlobalSettings? = nil) {
+                stageLoad: [StageLoad] = [], settings: GlobalSettings? = nil, modelCatalog: [ModelInfo]? = nil, modelPoolRules: [ModelPoolRule]? = nil) {
         self.protocolVersion = KabanCoding.protocolVersion; self.seq = seq; self.projects = projects; self.pipelines = pipelines
         self.tasks = tasks; self.schedulerFlags = schedulerFlags; self.modelFlags = modelFlags; self.quota = quota
         self.openIncidentCount = openIncidentCount; self.stageLoad = stageLoad; self.settings = settings
+        self.modelCatalog = modelCatalog; self.modelPoolRules = modelPoolRules
     }
 
-    enum CodingKeys: String, CodingKey { case protocolVersion, seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota, openIncidentCount, stageLoad, settings }
+    enum CodingKeys: String, CodingKey { case protocolVersion, seq, projects, pipelines, tasks, schedulerFlags, modelFlags, quota, openIncidentCount, stageLoad, settings, modelCatalog, modelPoolRules }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(seq: try c.decode(Seq.self, forKey: .seq), projects: try c.decode([ProjectSummary].self, forKey: .projects),
@@ -206,7 +210,9 @@ public struct Snapshot: Codable, Hashable, Sendable {
                   modelFlags: try c.decode([ModelFlag].self, forKey: .modelFlags), quota: try c.decodeIfPresent(QuotaState.self, forKey: .quota),
                   openIncidentCount: try c.decode(Int.self, forKey: .openIncidentCount),
                   stageLoad: try c.decodeIfPresent([StageLoad].self, forKey: .stageLoad) ?? [],
-                  settings: try c.decodeIfPresent(GlobalSettings.self, forKey: .settings))
+                  settings: try c.decodeIfPresent(GlobalSettings.self, forKey: .settings),
+                  modelCatalog: try c.decodeIfPresent([ModelInfo].self, forKey: .modelCatalog),
+                  modelPoolRules: try c.decodeIfPresent([ModelPoolRule].self, forKey: .modelPoolRules))
         self.protocolVersion = try c.decode(Int.self, forKey: .protocolVersion)
     }
 }

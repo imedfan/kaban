@@ -19,6 +19,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let humanAnswers: HumanAnswerStore
     let humanReview: HumanReviewStore
     let environment: RunnerEnvironmentStore
+    let models: ModelSettingsStore
+    var modelOverrideRoute: TaskModelOverrideStore?
     let projects: ProjectLifecycleStore
     let folderAccess: ProjectFolderAccess
     private var pipelineEditors: [ProjectID: PipelineEditorStore] = [:]
@@ -159,6 +161,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
         environment = RunnerEnvironmentStore(client: client, session: session)
+        models = ModelSettingsStore(client: client, session: session)
     }
     isolated deinit { runLog.close(); session.stop(); subscription?.cancel() }
     func connect() async {
@@ -173,7 +176,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         subscription = Task { await previous?.value; await session.run() }
     }
     func select(_ id: TaskID?) async {
-        if selectedID != id { logRunRoute = nil; wipRestoreRoute = nil; reviewRoute = nil; cloneOpeningError = nil; runLog.close() }
+        if selectedID != id { modelOverrideRoute = nil; logRunRoute = nil; wipRestoreRoute = nil; reviewRoute = nil; cloneOpeningError = nil; runLog.close() }
         await session.select(id)
     }
     func find() {

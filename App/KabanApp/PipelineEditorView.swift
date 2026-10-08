@@ -4,6 +4,7 @@ import KabanBoardCore
 
 struct PipelineEditorView: View {
     @Bindable var editor: PipelineEditorStore
+    @Bindable var models: ModelSettingsStore
     let projectName: String
     let theme: ReferenceTheme
     let close: () -> Void
@@ -172,8 +173,10 @@ struct PipelineEditorView: View {
                 case "Исполнитель":
                     if item.kind == "agent" {
                         field("Харнес", p + ".agent.harness", quoted: true)
-                        field("Модель", p + ".agent.model", quoted: true)
-                        Text("Укажите явный ID модели. Служба проверяет обязательность и запрещает Auto.").font(.caption).foregroundStyle(theme.secondary)
+                        ModelPicker(store: models, selection: Binding(get: { editor.document.value(p + ".agent.model") ?? "" },
+                            set: { editor.patch(p + ".agent.model", value: $0, quoted: true) }), theme: theme)
+                            .disabled(!editor.document.canEdit(p + ".agent.model") || editor.isPending)
+                        Text("Модель стадии действует для будущих запусков; override отдельной задачи меняется в её деталях.").font(.caption).foregroundStyle(theme.secondary)
                         field("Скилл (путь)", p + ".agent.skill", quoted: true)
                         choice("Права", p + ".agent.permissions", ["write", "read-only"])
                         choice("Рабочая копия", p + ".agent.workspace", ["task", "fresh-readonly"])

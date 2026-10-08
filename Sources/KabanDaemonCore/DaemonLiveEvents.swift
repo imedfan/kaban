@@ -36,6 +36,10 @@ public final class DaemonLiveEvents: @unchecked Sendable {
                 // Durable settingsChanged may have superseded a live flag value while the
                 // producer was idle. The authoritative replacement must not restore old flags.
                 if case .schedulerFlagsChanged = $0.event { return $0.afterSeq == state.seq }
+                if state.modelCatalog != nil {
+                    if case .modelFlagsChanged = $0.event { return false }
+                    if case .modelCatalogChanged = $0.event { return false }
+                }
                 return true
             }.sorted { $0.cursor.offset < $1.cursor.offset }
             return .init(snapshot: state, cursor: cursor, current: values)
