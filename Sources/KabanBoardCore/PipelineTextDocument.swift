@@ -40,10 +40,45 @@ public struct PipelineTextDocument: Sendable {
         if raw.hasPrefix("'"), raw.hasSuffix("'") { return String(raw.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'") }
         return raw
     }
+    public func formValue(_ path: String) -> String? {
+        if let value = value(path) { return value }
+        guard let node = unique(path), let sequence = scalarSequence(node) else { return nil }
+        return "[" + sequence.tokens.joined(separator: ", ") + "]"
+    }
+    public func stringList(_ path: String) -> [String]? {
+        guard let raw = formValue(path) else { return unique(path) == nil && canEdit(path) ? [] : nil }
+        guard raw.hasPrefix("["), raw.hasSuffix("]") else { return nil }
+        var quote: Character?, escaped = false, token = "", tokens: [String] = []
+        for character in raw.dropFirst().dropLast() {
+            if escaped { token.append(character); escaped = false; continue }
+            if character == "\\", quote == "\"" { token.append(character); escaped = true; continue }
+            if let current = quote { token.append(character); if character == current { quote = nil }; continue }
+            if character == "\"" || character == "'" { quote = character; token.append(character) }
+            else if character == "," { tokens.append(token); token = "" }
+            else if character == "[" || character == "{" || character == "}" || character == "]" { return nil }
+            else { token.append(character) }
+        }
+        guard quote == nil, !escaped else { return nil }
+        if !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { tokens.append(token) }
+        var result: [String] = []
+        for token in tokens {
+            let text = token.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            if text.hasPrefix("\"") {
+                guard let value = try? JSONDecoder().decode(String.self, from: Data(text.utf8)) else { return nil }
+                result.append(value)
+            } else if text.hasPrefix("'"), text.hasSuffix("'") { result.append(String(text.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")) }
+            else {
+                guard !["&", "*", "!"].contains(where: text.hasPrefix), !text.contains(": ") else { return nil }
+                result.append(text)
+            }
+        }
+        return result
+    }
     public func canEdit(_ path: String) -> Bool {
         guard supportsForms else { return false }
         guard nodes.filter({ $0.path == path }).count < 2 else { return false }
-        if let node = unique(path) { return node.safe && !node.block }
+        if let node = unique(path) { return node.safe && (!node.block || scalarSequence(node) != nil) }
         let parts = path.split(separator: ".").map(String.init)
         for count in stride(from: parts.count - 1, through: 1, by: -1) {
             let parentPath = parts.prefix(count).joined(separator: ".")
@@ -59,7 +94,17 @@ public struct PipelineTextDocument: Sendable {
         let token = quoted ? Self.quote(value) : value
         var result = lines
         if let node = unique(path) {
-            let chars = Array(result[node.line]); result[node.line] = String(chars[..<node.range.lowerBound]) + token + String(chars[node.range.upperBound...])
+            let chars = Array(result[node.line])
+            let separator = node.range.lowerBound > 0 && chars[node.range.lowerBound - 1] == ":" ? " " : ""
+            result[node.line] = String(chars[..<node.range.lowerBound]) + separator + token + String(chars[node.range.upperBound...])
+            if node.block, let sequence = scalarSequence(node) {
+                for index in sequence.lines.reversed() {
+                    let chars = Array(result[index]), comment = commentEnd(chars, from: 0)
+                    if comment < chars.count {
+                        result[index] = String(repeating: " ", count: node.indent) + String(chars[comment...])
+                    } else { result.remove(at: index) }
+                }
+            }
         } else {
             let parts = path.split(separator: ".").map(String.init)
             var parent: Node?, depth = 0
@@ -109,6 +154,23 @@ public struct PipelineTextDocument: Sendable {
     }
     private func unique(_ path: String) -> Node? {
         let matches = nodes.filter { $0.path == path }; return matches.count == 1 ? matches[0] : nil
+    }
+    private func scalarSequence(_ node: Node) -> (lines: [Int], tokens: [String])? {
+        guard node.block, node.safe else { return nil }
+        var entries: [Int] = [], tokens: [String] = [], indent: Int?
+        for index in (node.line + 1)..<end(of: node) {
+            let text = lines[index].trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty || text.hasPrefix("#") { continue }
+            let chars = Array(lines[index]), spaces = chars.prefix { $0 == " " }.count
+            guard spaces > node.indent, indent == nil || indent == spaces, text.hasPrefix("- ") else { return nil }
+            indent = spaces
+            let start = spaces + 2, upper = commentEnd(chars, from: start)
+            let raw = String(chars[start..<upper]).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty, !["&", "*", "!", "|", ">", "{", "["].contains(where: raw.hasPrefix),
+                  !raw.contains(": ") || raw.hasPrefix("\"") || raw.hasPrefix("'") else { return nil }
+            entries.append(index); tokens.append(raw)
+        }
+        return entries.isEmpty ? nil : (entries, tokens)
     }
     private func isFlowMapping(_ node: Node) -> Bool {
         let text = String(Array(lines[node.line])[node.range])
