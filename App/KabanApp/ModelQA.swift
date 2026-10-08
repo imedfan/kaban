@@ -32,17 +32,17 @@ extension BoardQA {
                   store.models.catalog == rows, store.models.rules == rules, editor.content == draft else { throw failure("Failed refresh lost catalog, rules or draft") }
         } else {
             _ = await store.models.send(.refreshModelCatalog)
-            try await waitUntil("correlated catalog refresh") { store.models.receipt?.phase == .applied }
+            try await waitUntil("correlated catalog refresh and reconciliation") { store.models.receipt?.phase == .applied && store.canSend }
             guard store.models.catalog.contains(where: { $0.id.rawValue == "gpt-qa" }),
                   !store.models.catalog.contains(where: { $0.id.rawValue.lowercased() == "auto" }) else { throw failure("Real catalog missing or Auto visible") }
         }
         if mode == "flow" {
-            _ = await store.models.send(.setModelPoolRule(pattern: "gpt-*", pool: .cm))
-            try await waitUntil("correlated pool rule") { store.models.receipt?.phase == .applied }
+            guard await store.models.send(.setModelPoolRule(pattern: "gpt-*", pool: .cm)) else { throw failure("Pool rule send refused") }
+            try await waitUntil("correlated pool rule and reconciliation") { store.models.receipt?.phase == .applied && store.canSend }
             guard store.models.rules?.contains(where: { $0.pattern == "gpt-*" && $0.source == .user && $0.pool == .cm }) == true,
                   store.models.catalog.first(where: { $0.id.rawValue == "gpt-qa" })?.needsReview == false else { throw failure("Pool rule not authoritative") }
-            _ = await store.models.send(.removeModelPoolRule(pattern: "gpt-*"))
-            try await waitUntil("correlated rule removal") { store.models.receipt?.phase == .applied }
+            guard await store.models.send(.removeModelPoolRule(pattern: "gpt-*")) else { throw failure("Pool rule removal send refused") }
+            try await waitUntil("correlated rule removal and reconciliation") { store.models.receipt?.phase == .applied && store.canSend }
             guard store.models.rules?.contains(where: { $0.pattern == "gpt-*" && $0.source == .user }) == false else { throw failure("Rule removal not confirmed") }
             _ = await store.session.send(.createTask(projectId: project.id, title: "Модель задачи · проверка override", body: "## Критерии приёмки\n- [ ] Проверить модель\n"))
             try await waitUntil("created model task") { store.projection?.tasks.values.contains { $0.projectId == project.id } == true }
