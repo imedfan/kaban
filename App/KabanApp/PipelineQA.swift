@@ -24,6 +24,14 @@ extension BoardQA {
             guard try Data(contentsOf: URL(fileURLWithPath: source.path)) == Data(exact.utf8) else { throw failure("Working file differs from source read") }
         } else if source.workingContent != nil { throw failure("Absent file has fabricated content") }
         guard editor.content == exact else { throw failure("Source YAML differs from working bytes") }
+        func validateCurrentDraft() async throws {
+            let hash = editor.draft?.contentHash
+            await editor.validate()
+            try await waitUntil("current pipeline validation") {
+                guard case .checked(let result) = editor.validation else { return false }
+                return result.contentHash == hash
+            }
+        }
         let mode = argument("--qa-pipeline-mode") ?? "apply"
         if mode == "reopen" {
             guard source.committedContent?.contains("# Native exact draft") == true,
@@ -46,11 +54,11 @@ extension BoardQA {
             store.openPipelineIssues(project.id)
             try await waitUntil("original native editor") { store.activePipelineEditor === editor && store.selectedProjectID == project.id }
         }
-        editor.edit("version: [\n", debounce: false); await editor.validate()
+        editor.edit("version: [\n", debounce: false); try await validateCurrentDraft()
         guard editor.issues.contains(where: { $0.severity == .error }), !editor.canApply else { throw failure("Broken YAML can apply") }
-        editor.edit(exact.replacingOccurrences(of: "model: explicit", with: "model: auto"), debounce: false); await editor.validate()
+        editor.edit(exact.replacingOccurrences(of: "model: explicit", with: "model: auto"), debounce: false); try await validateCurrentDraft()
         guard editor.issues.contains(where: { $0.code == "model_auto_forbidden" }), !editor.canApply else { throw failure("Auto can apply") }
-        editor.edit(exact, debounce: false); await editor.validate()
+        editor.edit(exact, debounce: false); try await validateCurrentDraft()
         guard let stage = editor.document.stages.first(where: { $0.id == "dev" }) else { throw failure("Dev stage missing") }
         let fieldPath = "stages[\(stage.index)].name"
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
@@ -63,13 +71,14 @@ extension BoardQA {
         native.insertText("Разработка 👋", replacementRange: native.selectedRange()); window.makeFirstResponder(nil)
         try await waitUntil("native field patches exact source") { editor.document.value(fieldPath) == "Разработка 👋" }
         editor.patch("stages[\(stage.index)].wip", value: "1")
-        editor.edit(editor.content + "# Native exact draft  👋\n", debounce: false); await editor.validate()
+        editor.edit(editor.content + "# Native exact draft  👋\n", debounce: false); try await validateCurrentDraft()
         guard editor.canApply, editor.issues.contains(where: { $0.severity == .warning }) else { throw failure("Warning-only source cannot apply") }
         let savedDraft = editor.content
         try (exact + "# external edit\n").write(toFile: source.path, atomically: true, encoding: .utf8)
         await editor.apply()
         guard editor.changedSource != nil, editor.content == savedDraft, editor.submission == nil else { throw failure("Disk race lost draft or submitted") }
-        await editor.keepDraftOnChangedSource(); guard editor.canApply else { throw failure("Explicit new base unavailable") }
+        await editor.keepDraftOnChangedSource(); try await validateCurrentDraft()
+        guard editor.canApply else { throw failure("Explicit new base unavailable") }
         window.makeKeyAndOrderFront(nil); NSApp.activate(); NSApp.mainMenu?.update()
         guard let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36), NSApp.mainMenu?.performKeyEquivalent(with: key) == true else { throw failure("Native Cmd-Return apply route missing") }
         try await waitUntil("real correlated pipelineApplied") { editor.isApplied }
