@@ -29,7 +29,7 @@ extension KabanStore {
         let kinds = tasks.reduce(into: [StageID: StageKind]()) { result, task in
             if let stage = task.pipeline.stage(task.machine.stageId) { result[stage.id] = stage.kind }
         }
-        return .init(stagesWithActiveTasks: Set(tasks.map { $0.machine.stageId }), activeStageKinds: kinds)
+        return .init(mcpAllowlist: try mcpAllowlist(projectId, db: db), stagesWithActiveTasks: Set(tasks.map { $0.machine.stageId }), activeStageKinds: kinds)
     }
     static func sourceValidation(_ source: PipelineSource, projectId: ProjectID, db: Database) throws -> PipelineValidation {
         guard let file = source.files[".kaban/pipeline.yaml"] else {
@@ -62,8 +62,10 @@ extension KabanStore {
         }
         record.pipeline = storage; record.version = hash ?? ""
         record.production?.source = source
-        record.production?.unavailableReason = source.files[".kaban/pipeline.yaml"] == nil ? .noPipeline : (validation.isValid ? nil : .pipelineInvalid)
-        record.production?.pipelineSummary = storage.summary(projectId: record.summary.id, versionHash: validation.isValid ? hash : nil, issues: validation.issues, hasUncommittedEdits: edits)
+        record.production?.unavailableReason = source.files[".kaban/pipeline.yaml"] == nil ? .noPipeline :
+            (validation.isValid ? (try mcpBlockDetail(record.summary.id, db: db) == nil ? nil : .mcpUnexpected) : .pipelineInvalid)
+        record.production?.pipelineSummary = storage.summary(projectId: record.summary.id, versionHash: validation.isValid ? hash : nil,
+            issues: validation.issues, hasUncommittedEdits: edits, mcpAllowlist: try mcpAllowlist(record.summary.id, db: db))
         record.production?.pipelineSummary.sourceHash = sourceHash
         if validation.isValid, let hash, let config = validation.config {
             try rememberPipelineVersion(source, hash: hash, pipeline: config, projectId: record.summary.id, db: db)

@@ -37,44 +37,34 @@ extension KabanStore {
         try String.fetchOne(db, sql: "SELECT detail FROM mcp_preflight WHERE project_id = ? AND blocked = 1", arguments: [projectId.rawValue])
     }
 
-    public func setMCPAllowlist(projectId: ProjectID, names: [String]) throws {
-        projectOperations.lock(); defer { projectOperations.unlock() }
-        try database.write { db in
-            _ = try Self.project(projectId, db: db)
-            try db.execute(sql: "DELETE FROM project_mcp_allow WHERE project_id = ?", arguments: [projectId.rawValue])
-            for name in names where name != AgentConfig.boardMcpServer {
-                try db.execute(sql: "INSERT INTO project_mcp_allow(project_id, name) VALUES (?, ?)", arguments: [projectId.rawValue, name])
-            }
-        }
-    }
-
     /// Records the preflight for the task's current stage. A block rejects the next `start` and does not approve every server.
     public func applyMCPPreflight(taskId: TaskID, definitions: [MCPServerDefinition], boardURL: String, listOutput: String, listExit: Int32, at: Date) throws -> MCPPreflightDecision {
         projectOperations.lock(); defer { projectOperations.unlock() }
         return try database.write { db in
+            let flags = try Self.schedulerFlags(db), commandId = UUID()
             let task = try Self.task(taskId, db: db)
             let stageServers = task.pipeline.stage(task.machine.stageId)?.agent?.mcp ?? [AgentConfig.boardMcpServer]
             let allow = try Set(String.fetchAll(db, sql: "SELECT name FROM project_mcp_allow WHERE project_id = ?", arguments: [task.card.projectId.rawValue]))
             let decision = MCPPreflight.decide(stageServers: stageServers, allowlist: allow, definitions: definitions, boardURL: boardURL, listOutput: listOutput, listExit: listExit)
             let detail: String
+            let kind: String
             switch decision.block {
-            case .unexpected(let name): detail = name
-            case .unresolvable(let name): detail = name
-            case nil: detail = ""
+            case .unexpected(let name): detail = name; kind = "unexpected"
+            case .unresolvable(let name): detail = name; kind = "unresolvable"
+            case nil: detail = ""; kind = "unresolvable"
             }
             try db.execute(sql: """
-            INSERT INTO mcp_preflight(project_id, blocked, detail, warnings, config_json) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(project_id) DO UPDATE SET blocked = excluded.blocked, detail = excluded.detail, warnings = excluded.warnings, config_json = excluded.config_json
-            """, arguments: [task.card.projectId.rawValue, decision.block == nil ? 0 : 1, detail, decision.warnings.joined(separator: "\n"), decision.configJSON])
+            INSERT INTO mcp_preflight(project_id, blocked, detail, warnings, config_json, kind) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(project_id) DO UPDATE SET blocked = excluded.blocked, detail = excluded.detail, warnings = excluded.warnings, config_json = excluded.config_json, kind = excluded.kind
+            """, arguments: [task.card.projectId.rawValue, decision.block == nil ? 0 : 1, detail, decision.warnings.joined(separator: "\n"), decision.configJSON, kind])
             var record = try Self.project(task.card.projectId, db: db)
             if decision.block != nil {
                 if record.production != nil { record.production?.unavailableReason = .mcpUnexpected }
             } else if record.production?.unavailableReason == .mcpUnexpected {
                 record.production?.unavailableReason = nil
             }
-            if record.production != nil {
-                try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
-            }
+            _ = try Self.saveUpdatedProject(record, commandId: commandId, at: at, db: db)
+            try Self.recordChangedSchedulerFlags(from: flags, commandId: commandId, at: at, db: db)
             return decision
         }
     }

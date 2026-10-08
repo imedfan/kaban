@@ -327,6 +327,15 @@ struct BoardView: View {
     private func laneBody(_ lane: BoardLane, width: CGFloat) -> some View {
         let displayed = columns(lane)
         return VStack(alignment: .leading, spacing: 6) {
+            if let issue = lane.project.mcpIssue {
+                HStack(alignment: .top, spacing: 10) {
+                    Label(issue.kind == .unexpected ? "CLI видит лишний MCP «\(issue.name)»" : "MCP не удалось проверить: \(issue.name)", systemImage: "exclamationmark.triangle")
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("MCP проекта…") { store.showPipelineIssues = false; store.selectedProjectID = lane.project.id; store.screen = .project(lane.project.id); store.mcpProjectID = lane.project.id }
+                        .buttonStyle(KabanButtonStyle(compact: true))
+                }.padding(8).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
             if store.projection?.ephemeral.schedulerFlags.contains(.mergeBlocked(lane.project.id)) == true {
                 MergeBlockNotice(store: store, project: lane.project.id)
             }
@@ -1089,11 +1098,18 @@ struct ProjectSettingsView: View {
     @State private var editingPipeline = false
     @State private var pipelineEditor: PipelineEditorStore?
     @State private var metadata: ProjectSettingsStore?
+    @State private var mcp: ProjectMCPStore?
     @State private var editorSection: String?
     var body: some View {
         Group {
-            if editingPipeline, let editor = pipelineEditor {
-                PipelineEditorView(editor: editor, models: store.models, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme,
+            if store.mcpProjectID == projectID, let mcp {
+                ProjectMCPView(settings: mcp, board: store, theme: theme, close: { store.mcpProjectID = nil }, editStage: { stage in
+                    pipelineEditor?.selectedStageID = stage.rawValue; pipelineEditor?.section = "Исполнитель"
+                    editorSection = nil; editingPipeline = true; store.mcpProjectID = nil
+                })
+            } else if editingPipeline, let editor = pipelineEditor, let mcp {
+                PipelineEditorView(editor: editor, models: store.models, mcp: mcp,
+                    openMCP: { store.mcpProjectID = projectID }, projectName: store.projection?.projects[projectID]?.name ?? projectID.rawValue, theme: theme,
                     close: { editingPipeline = false }, initialSection: editorSection)
                     .onAppear { store.editingPipelineProject = editor.projectID }
                     .onDisappear { if store.editingPipelineProject == editor.projectID { store.editingPipelineProject = nil } }
@@ -1102,6 +1118,7 @@ struct ProjectSettingsView: View {
         }.task(id: projectID) {
             pipelineEditor = store.pipelineEditor(for: projectID)
             metadata = store.settings(for: projectID)
+            mcp = store.mcpSettings(for: projectID)
             if store.showPipelineIssues { editingPipeline = true }
         }.onChange(of: store.showPipelineIssues) { _, show in
             if show { editorSection = nil; editingPipeline = true }
@@ -1125,6 +1142,8 @@ struct ProjectSettingsView: View {
                             Button("Подозрительные файлы") { editorSection = "__files"; editingPipeline = true }
                             Button("Лимиты пайплайна") { editorSection = "__board"; editingPipeline = true }
                         }.menuStyle(.borderlessButton).fixedSize()
+                        Button("MCP проекта") { store.mcpProjectID = projectID }.buttonStyle(KabanButtonStyle())
+                            .accessibilityIdentifier("project-mcp-open")
                     }
                     if store.showPipelineIssues {
                         settingsSection("Ошибки пайплайна") {

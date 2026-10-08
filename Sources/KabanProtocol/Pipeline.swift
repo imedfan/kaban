@@ -45,16 +45,21 @@ public struct StageSummary: Codable, Hashable, Sendable {
     public var onConflict: StageReturn?
     /// Эффективная git-политика стадии, посчитанная демоном (арх. v0.11.6 §8.4). Заполнена у `agent`-стадий, у остальных `nil`.
     public var gitPolicy: EffectiveGitPolicy?
+    /// Stage selection and daemon-filtered names for future runs. `nil` is unknown on legacy producers.
+    public var mcp: [String]?
+    public var effectiveMcp: [String]?
 
     public init(id: StageID, name: String, kind: StageKind, display: StageDisplay, wip: Int? = nil, model: ModelID? = nil,
                 readOnly: Bool = false, returnsTo: [StageReturn] = [], onSuccess: StageID? = nil, maxAttempts: Int? = nil,
-                gates: [String] = [], onFail: StageReturn? = nil, onConflict: StageReturn? = nil, gitPolicy: EffectiveGitPolicy? = nil) {
+                gates: [String] = [], onFail: StageReturn? = nil, onConflict: StageReturn? = nil, gitPolicy: EffectiveGitPolicy? = nil,
+                mcp: [String]? = nil, effectiveMcp: [String]? = nil) {
         self.id = id; self.name = name; self.kind = kind; self.display = display; self.wip = wip; self.model = model
         self.readOnly = readOnly; self.returnsTo = returnsTo; self.onSuccess = onSuccess; self.maxAttempts = maxAttempts
         self.gates = gates; self.onFail = onFail; self.onConflict = onConflict; self.gitPolicy = gitPolicy
+        self.mcp = mcp; self.effectiveMcp = effectiveMcp
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, kind, display, wip, model, readOnly, returnsTo, onSuccess, maxAttempts, gates, onFail, onConflict, gitPolicy }
+    enum CodingKeys: String, CodingKey { case id, name, kind, display, wip, model, readOnly, returnsTo, onSuccess, maxAttempts, gates, onFail, onConflict, gitPolicy, mcp, effectiveMcp }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(id: try c.decode(StageID.self, forKey: .id), name: try c.decode(String.self, forKey: .name),
@@ -66,7 +71,9 @@ public struct StageSummary: Codable, Hashable, Sendable {
                   gates: try c.decodeIfPresent([String].self, forKey: .gates) ?? [],
                   onFail: try c.decodeIfPresent(StageReturn.self, forKey: .onFail),
                   onConflict: try c.decodeIfPresent(StageReturn.self, forKey: .onConflict),
-                  gitPolicy: try c.decodeIfPresent(EffectiveGitPolicy.self, forKey: .gitPolicy))
+                  gitPolicy: try c.decodeIfPresent(EffectiveGitPolicy.self, forKey: .gitPolicy),
+                  mcp: try c.decodeIfPresent([String].self, forKey: .mcp),
+                  effectiveMcp: try c.decodeIfPresent([String].self, forKey: .effectiveMcp))
     }
 }
 

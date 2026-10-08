@@ -1,0 +1,120 @@
+{
+  "source": "8a06d992ac859dc710cb35ba7f0a692d98e50f59",
+  "result": "passed",
+  "scenarios": [
+    {
+      "frame": "applied-settings-dark.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "restart restores daemon allowlist",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "apply-light.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "disabled selection remains in YAML; daemon warning permits valid apply",
+        "actual native stage switch applies exact YAML; server projects selected/effective names",
+        "native Escape from MCP restores the same draft, stage and section",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "disconnected-stage-dark-minimum.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "disabled selection remains in YAML; daemon warning permits valid apply",
+        "native Escape from MCP restores the same draft, stage and section",
+        "disconnect keeps MCP draft and disables apply",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "permissions-light.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "actual native switch sends command; correlated permission remains isolated to one project",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "read-error-light-minimum.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "malformed personal config is an explicit read failure, not empty servers",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "restart-dark-minimum.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "restart restores daemon allowlist",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "settings-light.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "stage-dark-minimum.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "disabled selection remains in YAML; daemon warning permits valid apply",
+        "native Escape from MCP restores the same draft, stage and section",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "stage-light.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "disabled selection remains in YAML; daemon warning permits valid apply",
+        "native Escape from MCP restores the same draft, stage and section",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "unexpected-board-dark-minimum.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "seeded preflight fact stays visible after real project recheck; no live CLI producer claimed",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    },
+    {
+      "frame": "unexpected-settings-light.png",
+      "checks": [
+        "real WindowGroup, private production daemon and catalog query; Mac paused",
+        "project/personal source collision stays visible; kaban cannot emit disable",
+        "seeded preflight fact stays visible after real project recheck; no live CLI producer claimed",
+        "personal config bytes unchanged; no run started"
+      ],
+      "result": "passed"
+    }
+  ]
+}

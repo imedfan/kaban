@@ -242,6 +242,8 @@ extension KabanStore {
                 try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
             }
             try db.execute(sql: "INSERT INTO project_path(project_id, path, repository_id) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET path = excluded.path, repository_id = excluded.repository_id", arguments: [record.summary.id.rawValue, record.summary.path, record.production!.repositoryID])
+            record.summary = try Self.mcpProjectSummary(record.summary, db: db)
+            try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), record.summary.id.rawValue])
             _ = try Self.journal(added ? .projectAdded(record.summary) : .projectUpdated(record.summary), projectId: record.summary.id, commandId: envelope.commandId, at: operation.at, db: db)
             if added || source != nil || sourceError != nil {
                 _ = try Self.journal(.pipelineApplied(record.projectedPipeline), projectId: record.summary.id, commandId: envelope.commandId, at: operation.at, db: db)

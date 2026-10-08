@@ -14,6 +14,8 @@ import KabanProtocol
         public let draft: PipelineDraft
     }
     public let projectID: ProjectID
+    public var selectedStageID: String?
+    public var section = "Основное"
     public private(set) var source: PipelineSourceContent?
     public private(set) var changedSource: PipelineSourceContent?
     public private(set) var content = ""
@@ -29,6 +31,7 @@ import KabanProtocol
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var validationGeneration = UUID()
     @ObservationIgnored private var checkTask: Task<Void, Never>?
+    private var validatedMCP: [String]?
     public init(projectID: ProjectID, client: any KabanClient, session: BoardSession) {
         self.projectID = projectID; self.client = client; self.session = session
     }
@@ -48,13 +51,15 @@ import KabanProtocol
     public var isCurrentDraftApplied: Bool { isApplied && submission?.draft.contentHash == draft?.contentHash }
     public var hasDraftChanges: Bool { source.map { Data(content.utf8) != Data(($0.workingContent ?? "").utf8) } ?? false }
     public var connectionAvailable: Bool { session.can(.validatePipelineDraft) }
+    public var mcpPermissions: [String]? { session.projection?.projects[projectID]?.mcpAllowlist }
     public var baseChanged: Bool {
         guard let source, let current = session.projection?.pipelines[projectID] else { return false }
         return current.versionHash != source.baseVersionHash || current.sourceHash != source.baseSourceHash
     }
     public var canApply: Bool {
         guard session.can(.updatePipeline(projectId: projectID, contentHash: "")), !isPending, !loading,
-              changedSource == nil, !baseChanged, !isCurrentDraftApplied, let draft,
+              changedSource == nil, !baseChanged, !isCurrentDraftApplied, let draft, validatedMCP == mcpPermissions,
+              session.pending(in: .project(projectID)) == nil,
               case .checked(let checked) = validation, checked.projectId == projectID,
               checked.contentHash == draft.contentHash, checked.baseVersionHash == draft.baseVersionHash,
               checked.baseSourceHash == draft.baseSourceHash else { return false }
@@ -87,6 +92,14 @@ import KabanProtocol
     public func addStage(id: String, kind: String) {
         do { edit(try document.addingStage(id: id, kind: kind)) }
         catch { self.error = error.localizedDescription }
+    }
+    public func setMCPServer(_ name: String, path: String, selected: Bool) {
+        guard !isPending, name != "kaban", var names = document.stringList(path) else { return }
+        guard !selected || mcpPermissions?.contains(name) == true else { return }
+        names.removeAll { $0 == name }
+        if !names.contains("kaban") { names.insert("kaban", at: 0) }
+        if selected { names.append(name) }
+        patch(path, value: "[" + names.map(PipelineTextDocument.quote).joined(separator: ", ") + "]")
     }
     public func activeTaskCount(stage: String) -> Int {
         session.projection?.tasks.values.filter { $0.projectId == projectID && $0.stageId.rawValue == stage && $0.state.status != .done && $0.state.status != .cancelled }.count ?? 0
@@ -128,18 +141,19 @@ import KabanProtocol
         guard session.can(.validatePipelineDraft) else {
             validation = .unavailable("Проверка недоступна. Подключитесь к службе Kaban с поддержкой редактора."); return
         }
-        let token = generation, connection = session.sessionGeneration
+        let token = generation, connection = session.sessionGeneration, permissions = mcpPermissions
         validation = .checking
         let envelope = CommandEnvelope(command: .validatePipelineDraft(draft: draft))
         do {
             let reply = try await client.send(envelope)
-            guard validationGeneration == requestGeneration, generation == token, session.sessionGeneration == connection, self.draft == draft else { return }
+            guard validationGeneration == requestGeneration, generation == token, session.sessionGeneration == connection, self.draft == draft, mcpPermissions == permissions else { return }
             guard reply.commandId == envelope.commandId else { throw invalidReply() }
             if case .error(let failure) = reply.result { throw failure }
             guard case .pipelineDraft(let value) = reply.result, value.projectId == projectID,
                   value.contentHash == draft.contentHash, value.baseVersionHash == draft.baseVersionHash,
                   value.baseSourceHash == draft.baseSourceHash else { throw invalidReply() }
             validation = .checked(value)
+            validatedMCP = permissions
             if let resolved = value.resolved { lastResolved = resolved }
         } catch {
             guard validationGeneration == requestGeneration, generation == token, session.sessionGeneration == connection else { return }
@@ -176,7 +190,7 @@ import KabanProtocol
         } catch { self.error = message(error) }
     }
     public func confirmApplied() async {
-        guard isApplied, let submitted = submission else { return }
+        guard isApplied, session.canSend, let submitted = submission else { return }
         do {
             let fresh = try await fetchSource()
             guard submission == submitted, isApplied else { return }

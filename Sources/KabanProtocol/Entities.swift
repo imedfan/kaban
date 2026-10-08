@@ -14,15 +14,20 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
     public var openIncidentCount: Int
     /// Автор коммитов демона (§8.2), хранится у демона на этом Маке, не в `.kaban/`. `nil` только у старого демона.
     public var identity: GitIdentity?
+    /// Local daemon permissions by server name. `nil` means an older producer did not report them.
+    public var mcpAllowlist: [String]?
+    public var mcpIssue: McpPreflightIssue?
 
     public init(id: ProjectID, name: String, path: String, baseBranch: String = "main", availability: Availability = .available,
-                weight: Int = 1, maxRuns: Int? = nil, mascotSeed: String, openIncidentCount: Int = 0, identity: GitIdentity? = nil) {
+                weight: Int = 1, maxRuns: Int? = nil, mascotSeed: String, openIncidentCount: Int = 0, identity: GitIdentity? = nil,
+                mcpAllowlist: [String]? = nil, mcpIssue: McpPreflightIssue? = nil) {
         self.id = id; self.name = name; self.path = path; self.baseBranch = baseBranch; self.availability = availability
         self.weight = weight; self.maxRuns = maxRuns; self.mascotSeed = mascotSeed; self.openIncidentCount = openIncidentCount
         self.identity = identity
+        self.mcpAllowlist = mcpAllowlist; self.mcpIssue = mcpIssue
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, path, baseBranch, availability, weight, maxRuns, mascotSeed, openIncidentCount, identity }
+    enum CodingKeys: String, CodingKey { case id, name, path, baseBranch, availability, weight, maxRuns, mascotSeed, openIncidentCount, identity, mcpAllowlist, mcpIssue }
     /// Поля, добавленные после v1, читаются со значением по умолчанию: старые фикстуры и сценарии остаются валидными.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -31,7 +36,9 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
                   availability: try c.decode(Availability.self, forKey: .availability), weight: try c.decode(Int.self, forKey: .weight),
                   maxRuns: try c.decodeIfPresent(Int.self, forKey: .maxRuns), mascotSeed: try c.decode(String.self, forKey: .mascotSeed),
                   openIncidentCount: try c.decodeIfPresent(Int.self, forKey: .openIncidentCount) ?? 0,
-                  identity: try c.decodeIfPresent(GitIdentity.self, forKey: .identity))
+                  identity: try c.decodeIfPresent(GitIdentity.self, forKey: .identity),
+                  mcpAllowlist: try c.decodeIfPresent([String].self, forKey: .mcpAllowlist),
+                  mcpIssue: try c.decodeIfPresent(McpPreflightIssue.self, forKey: .mcpIssue))
     }
 }
 

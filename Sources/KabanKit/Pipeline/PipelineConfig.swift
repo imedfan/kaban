@@ -320,19 +320,24 @@ public extension StageConfig {
     /// Board projection. `onFail` (gate) / `onConflict` (merge) are sent already resolved (v0.11.4 §3.1): the client
     /// never computes defaults. They are `nil` only for other kinds or an invalid pipeline without a return target.
     /// `gitPolicy` is the resolved policy of `agent` stages (v0.11.6 §8.4), `nil` for other kinds.
-    func summary(in pipeline: PipelineConfig) -> StageSummary {
+    func summary(in pipeline: PipelineConfig, mcpAllowlist: Set<String>? = nil) -> StageSummary {
         StageSummary(id: id, name: name, kind: kind, display: display, wip: effectiveWIP, model: agent?.model,
                      readOnly: isReadOnly, returnsTo: returnsTo, onSuccess: onSuccess,
                      maxAttempts: (kind == .agent || kind == .gate) ? retry.maxAttempts : nil,
                      gates: gates, onFail: failReturn(in: pipeline), onConflict: conflictReturn(in: pipeline),
-                     gitPolicy: kind == .agent ? GitPolicyResolver.resolve(project: pipeline.git, stage: self) : nil)
+                     gitPolicy: kind == .agent ? GitPolicyResolver.resolve(project: pipeline.git, stage: self) : nil,
+                     mcp: agent?.mcp,
+                     effectiveMcp: agent.flatMap { agent in mcpAllowlist.map { allow in
+                         MCPPreflight.allowedNames(stageServers: agent.mcp, allowlist: allow)
+                     } })
     }
 }
 
 public extension PipelineConfig {
-    func summary(projectId: ProjectID, versionHash: String?, issues: [ValidationIssue] = [], hasUncommittedEdits: Bool = false) -> PipelineSummary {
+    func summary(projectId: ProjectID, versionHash: String?, issues: [ValidationIssue] = [], hasUncommittedEdits: Bool = false,
+                 mcpAllowlist: Set<String>? = nil) -> PipelineSummary {
         PipelineSummary(projectId: projectId, versionHash: versionHash, gitPreset: git.preset, maxWaitingHuman: board.maxWaitingHuman,
-                        maxRunsPerTask: board.maxRunsPerTask, stages: stages.map { $0.summary(in: self) }, issues: issues,
+                        maxRunsPerTask: board.maxRunsPerTask, stages: stages.map { $0.summary(in: self, mcpAllowlist: mcpAllowlist) }, issues: issues,
                         hasUncommittedEdits: hasUncommittedEdits, defaultReturnStage: defaultReturnStage,
                         projectGitPolicy: GitPolicyResolver.resolveProject(git),
                         gitCommandCatalog: GitPolicyResolver.gitCommandCatalog)

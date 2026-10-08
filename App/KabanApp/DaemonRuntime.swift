@@ -189,7 +189,11 @@ import KabanTransport
             if BoardQA.argument("--developer-database") == nil { try installation.prepare() }
             else { try FileManager.default.createDirectory(at: URL(fileURLWithPath: path).deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
             let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/KabanDaemon")
-            let connection = StdioDaemonTransport(executable: helper, database: path, additionalArguments: ["--initialize"]); closeTransport = { await connection.close() }
+            var arguments = ["--initialize"]
+            if path.hasPrefix("/tmp/kaban-fe16-"), let personal = BoardQA.argument("--qa-personal-mcp-config"), personal.hasPrefix("/tmp/kaban-fe16-") {
+                arguments += ["--qa-personal-mcp-config", personal]
+            }
+            let connection = StdioDaemonTransport(executable: helper, database: path, additionalArguments: arguments); closeTransport = { await connection.close() }
             let transport: any DaemonTransport
             if CommandLine.arguments.contains("--qa-lose-create-reply") { transport = QAReplyLossTransport(base: connection) }
             else if CommandLine.arguments.contains("--qa-incompatible-daemon") { transport = QAIncompatibleTransport(base: connection) }

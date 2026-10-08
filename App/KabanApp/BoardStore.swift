@@ -25,8 +25,16 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let folderAccess: ProjectFolderAccess
     private var pipelineEditors: [ProjectID: PipelineEditorStore] = [:]
     private var projectSettings: [ProjectID: ProjectSettingsStore] = [:]
+    private var projectMCPStores: [ProjectID: ProjectMCPStore] = [:]
+    var mcpProjectID: ProjectID?
+    func mcpSettings(for id: ProjectID) -> ProjectMCPStore {
+        if let settings = projectMCPStores[id] { return settings }
+        let settings = ProjectMCPStore(projectID: id, client: client, session: session)
+        projectMCPStores[id] = settings
+        return settings
+    }
     var activeProjectSettings: ProjectSettingsStore? {
-        guard case .project(let id) = screen, editingPipelineProject == nil, mascotProjectID == nil, projectSheet == nil,
+        guard case .project(let id) = screen, mcpProjectID == nil, editingPipelineProject == nil, mascotProjectID == nil, projectSheet == nil,
               let settings = projectSettings[id], settings.section != nil else { return nil }
         return settings
     }
@@ -38,7 +46,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     }
     var editingPipelineProject: ProjectID?
     var activePipelineEditor: PipelineEditorStore? {
-        guard case .project(let id) = screen, editingPipelineProject == id else { return nil }
+        guard case .project(let id) = screen, mcpProjectID == nil, editingPipelineProject == id else { return nil }
         return pipelineEditors[id]
     }
     func pipelineEditor(for id: ProjectID) -> PipelineEditorStore {
