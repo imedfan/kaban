@@ -97,8 +97,16 @@ FE-13 подготовлена в `codex/fe-13-pipeline-editor` от `6aac109`: 
 632 tests полного прогона, 272 tests затронутых клиентских suites, App build
 и восемь запусков настоящего WindowGroup с private daemon прошли.
 [Отчёт FE-13](development/frontend-fe-13-2026-10-08.md) сохраняет доказательства
-и границы. Каталог моделей FE-14, полный settings UI FE-15 и MCP picker FE-16
-остаются следующими задачами; полный M1/MVP не принят.
+и границы. Все шесть CI jobs FE-13 `37f9feb` в [PR #104](https://github.com/imedfan/kaban/pull/104)
+прошли: Swift 6.1 teardown/CRLF и ожидание актуальной native validation исправлены.
+FE-14 подготовлена поверх этого SHA в `codex/fe-14-model-catalog`: общий picker,
+подтверждённые catalog/rules, task/stage override, requested/actual/fallback и
+модельные действия. Snapshot содержит сохранённые model facts; старые volatile
+flags/catalog не возвращаются поверх нового состояния при reconnect.
+644 tests полного прогона, 78 Linux Swift 6.1 tests, App build и 11 native
+сценариев прошли. [Отчёт FE-14](development/frontend-fe-14-2026-10-08.md)
+содержит 13 кадров и границы developer/DTO приёмки. Полный settings UI FE-15
+и MCP picker FE-16 остаются следующими задачами; полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
@@ -110,8 +118,8 @@ FE-13 подготовлена в `codex/fe-13-pipeline-editor` от `6aac109`: 
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore и безопасная запись FE-13 в ветке | Core зависит только от Protocol; FE-01–12 в main; query source и strict apply FE-13 проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; редактор pipeline FE-13 в ветке | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore и безопасная запись FE-13, ModelSettingsStore/task override FE-14 в ветках | Core зависит только от Protocol; FE-01–12 в main; query source и strict apply FE-13 проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; редактор pipeline FE-13 и model picker/settings/override FE-14 в ветках | FE-01–12 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется

@@ -1,0 +1,104 @@
+{
+  "code": "8913aeb",
+  "transport": "private daemon, developer stdio",
+  "checks": {
+    "commands-light": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: flow",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "empty-light-minimum": {
+      "checks": [
+        "real WindowGroup and private daemon",
+        "confirmed empty catalog and saved pool rules",
+        "Mac paused before configuring test CLI"
+      ],
+      "result": "passed"
+    },
+    "override-dark-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: override",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "picker-light": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: picker",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "picker-unavailable-dark-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: picker",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "refresh-error-light-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: refresh-error",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "settings-dark-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: settings",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "settings-light": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: settings",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "substitution-light": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: decision",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "unconfirmed-dark-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: unconfirmed",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    },
+    "unknown-dark-minimum": {
+      "checks": [
+        "native WindowGroup and real daemon model commands",
+        "catalog refresh and saved model facts",
+        "mode: unknown",
+        "pipeline draft preserved"
+      ],
+      "result": "passed"
+    }
+  }
+}

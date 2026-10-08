@@ -739,10 +739,17 @@ WindowGroup через private stdio: 632 tests, App build, восемь native 
 
 ### Критерии приёмки
 
-- [ ] Без выбранной явной модели pipeline не сохраняется; unavailable модель выбрать нельзя.
-- [ ] Override влияет только на выбранные task/stage, а правила пула обновляются по данным backend.
-- [ ] Подмена и отсутствие actual различимы; «Повторить»/«Другая модель»/«В Backlog» используют реальные команды.
-- [ ] Refresh error/reconnect не затирают draft и не подставляют демокаталог.
+- [x] Без выбранной явной модели pipeline не сохраняется; unavailable модель выбрать нельзя.
+- [x] Override влияет только на выбранные task/stage, а правила пула обновляются по данным backend.
+- [x] Подмена и отсутствие actual различимы; «Повторить»/«Другая модель»/«В Backlog» используют реальные команды.
+- [x] Refresh error/reconnect не затирают draft и не подставляют демокаталог.
+
+FE-14 реализована в `codex/fe-14-model-catalog` поверх FE-13 `37f9feb`
+([PR #104](https://github.com/imedfan/kaban/pull/104), пока не принят в main).
+644 tests, 78 tests Linux Swift 6.1, App build и 11 native private-daemon
+сценариев прошли. [Отчёт и кадры](frontend-fe-14-2026-10-08.md) отделяют реальные
+модельные команды от DTO fixtures состояний подмены/unknown actual. Installed
+helper, pointer/VoiceOver и авторизованный Cursor остаются приёмкой FE-22.
 
 ## FE-15. Завершить настройки проекта, git-политику и workspace
 
