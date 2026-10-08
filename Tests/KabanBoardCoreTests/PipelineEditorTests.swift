@@ -17,6 +17,7 @@ final class PipelineEditorTests: XCTestCase {
         XCTAssertEqual(PipelineTextDocument(inserted).value("stages[0].display.order"), "8")
         let flow = try document.replacing("stages[1].display.order", with: "9")
         XCTAssertTrue(flow.contains("kind: terminal, display: {order: 9}} # future"))
+        XCTAssertThrowsError(try document.replacing("board.max_waiting_human", with: "7\r\nversion: 2"))
     }
     func testComplexAndDuplicateMappingsRemainAvailableOnlyAsExactYAML() throws {
         for text in ["stages: &stage\n  - id: dev\n    kind: agent\n", "defaults: &d {kind: agent}\nstages:\n  - <<: *d\n    id: dev\n", "%YAML 1.2\n---\nstages: []\n"] {

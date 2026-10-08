@@ -22,7 +22,7 @@ public struct PipelineTextDocument: Sendable {
     private var nodes: [Node] = []
     public private(set) var supportsForms = true
     public init(_ source: String) {
-        lines = source.components(separatedBy: "\n")
+        lines = source.utf8.split(separator: 10, omittingEmptySubsequences: false).map { String(decoding: $0, as: UTF8.self) }
         scan()
     }
     public var stages: [Stage] {
@@ -55,7 +55,7 @@ public struct PipelineTextDocument: Sendable {
         return parts.count == 1 || (!parts[0].contains("[") && unique(parts[0]) == nil) || unique(parts[0])?.block == true
     }
     public func replacing(_ path: String, with value: String, quoted: Bool = false) throws -> String {
-        guard canEdit(path), !value.contains("\n"), !value.contains("\r"), !value.contains("\0") else { throw editError() }
+        guard canEdit(path), !value.utf8.contains(where: { $0 == 10 || $0 == 13 || $0 == 0 }) else { throw editError() }
         let token = quoted ? Self.quote(value) : value
         var result = lines
         if let node = unique(path) {
