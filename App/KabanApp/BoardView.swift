@@ -2,7 +2,7 @@ import SwiftUI
 import KabanProtocol
 import KabanBoardCore
 
-enum BoardScreen: Equatable { case board, project(ProjectID), quota }
+enum BoardScreen: Equatable { case board, project(ProjectID), quota, incidents }
 enum BoardFilter: String, CaseIterable { case all = "Доска", waiting = "Ждут человека", incidents = "Инциденты", hiddenStages = "Скрытые стадии" }
 
 struct BoardView: View {
@@ -19,7 +19,7 @@ struct BoardView: View {
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     private var lanes: [BoardLane] { store.projection?.lanes(orderedBy: store.visibleIDs) ?? [] }
     private var title: String {
-        switch store.screen { case .board: store.filter.rawValue; case .project: "Настройки проекта"; case .quota: "Этот Мак" }
+        switch store.screen { case .board: store.filter.rawValue; case .project: "Настройки проекта"; case .quota: "Этот Мак"; case .incidents: "Инциденты" }
     }
     var body: some View {
         GeometryReader { geometry in
@@ -42,12 +42,16 @@ struct BoardView: View {
                         ProjectSettingsView(store: store, projectID: id, theme: theme)
                     case .quota:
                         quotaPage
+                    case .incidents:
+                        IncidentsView(store: store)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(ReferenceBackdrop(theme: theme))
         }
         .foregroundStyle(theme.text)
+        .task { store.incidents.scheduleRefresh() }
+        .onChange(of: store.incidents.readKey) { _, _ in store.incidents.scheduleRefresh() }
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
         .sheet(item: $store.reviewRoute) { HumanReviewSheet(store: store, route: $0) }
@@ -103,19 +107,19 @@ struct BoardView: View {
             VStack(spacing: 3) {
                 ForEach(BoardFilter.allCases, id: \.self) { filter in
                     Button {
-                        store.screen = .board; store.filter = filter
+                        store.screen = filter == .incidents ? .incidents : .board; store.filter = filter
                     } label: {
                         HStack(spacing: 9) {
                             Image(systemName: filter == .all ? "rectangle.split.3x1" : filter == .waiting ? "hand.raised" : filter == .hiddenStages ? "eye.slash" : "light.beacon.max")
                                 .foregroundStyle(filter == .incidents && (store.projection?.openIncidentCount ?? 0) > 0 ? theme.status("incident").0 : theme.accent)
                                 .frame(width: 18)
-                            Text(filter.rawValue).font(.system(size: 13, weight: store.filter == filter && store.screen == .board ? .semibold : .medium))
+                            Text(filter.rawValue).font(.system(size: 13, weight: store.filter == filter && (store.screen == .board || store.screen == .incidents && filter == .incidents) ? .semibold : .medium))
                             Spacer()
                             if filter != .all {
                                 countBadge(filter == .waiting ? store.waitingCount : filter == .hiddenStages ? store.hiddenStageCount : store.projection?.openIncidentCount ?? 0, attention: filter == .waiting)
                             }
                         }.padding(.horizontal, 10).frame(height: 34)
-                            .background(store.screen == .board && store.filter == filter ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
+                            .background((store.screen == .board || store.screen == .incidents && filter == .incidents) && store.filter == filter ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
                             .contentShape(RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain)
                 }
@@ -193,7 +197,7 @@ struct BoardView: View {
             KabanIconButton(symbol: "sidebar.left", help: "Показать или скрыть проекты") { sidebarVisible.toggle() }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 18, weight: .bold))
-                Text(store.screen == .board ? "\(DesignSystem.projectCount(store.visibleIDs.count)) на доске" : "Kaban · \(store.selectedProjectID.flatMap { store.projection?.projects[$0]?.name } ?? "")")
+                Text(store.screen == .board ? "\(DesignSystem.projectCount(store.visibleIDs.count)) на доске" : store.screen == .incidents ? "Все проекты, включая скрытые" : "Kaban · \(store.selectedProjectID.flatMap { store.projection?.projects[$0]?.name } ?? "")")
                     .font(.system(size: 10.5)).foregroundStyle(theme.faint)
             }.frame(maxWidth: 200, alignment: .leading)
             if store.screen == .board {
@@ -759,20 +763,22 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        if card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
+                        if card.state != .waitingHuman(.incident), card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
                            store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .merge {
                             HumanAnswerView(store: store, card: card)
                         }
                         HumanReviewNotice(store: store, taskID: card.id)
                         if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
+                            ForEach(store.incidents.forTask(detail.task.id), id: \.id) { incident in
+                                IncidentDetailBlock(store: store, incident: incident)
+                            }
+                            if card.state == .waitingHuman(.incident), store.incidents.forTask(card.id).isEmpty {
+                                Text("Данные инцидента ещё не прочитаны. Откройте раздел «Инциденты» и обновите список.").font(.callout)
+                            }
                             MergeProgressView(store: store, detail: detail)
                             TaskModelView(store: store, detail: detail, theme: theme)
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
-                            if detail.task.state == .waitingHuman(.incident) {
-                                Label("Обнаружен инцидент", systemImage: "light.beacon.max")
-                                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("incident").2)
-                            }
                             if tab == "Описание" { description(detail) }
                             else if tab == "Лента" { feed(detail) }
                             else if tab == "Сводка" { summary(detail) }
@@ -780,6 +786,10 @@ struct TaskDetailView: View {
                         if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 }.task(id: store.detail?.task.id) {
+                    if BoardQA.argument("--qa-incident-scroll") == "bottom" {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        proxy.scrollTo("incident-decision", anchor: .bottom)
+                    }
                     if let source = BoardQA.argument("--qa-review-artifact") {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo(source, anchor: .top)
@@ -1119,9 +1129,9 @@ struct ProjectSettingsView: View {
             pipelineEditor = store.pipelineEditor(for: projectID)
             metadata = store.settings(for: projectID)
             mcp = store.mcpSettings(for: projectID)
-            if store.showPipelineIssues { editingPipeline = true }
+            if store.showPipelineIssues { editorSection = store.requestedPipelineSection; store.requestedPipelineSection = nil; editingPipeline = true }
         }.onChange(of: store.showPipelineIssues) { _, show in
-            if show { editorSection = nil; editingPipeline = true }
+            if show { editorSection = store.requestedPipelineSection; store.requestedPipelineSection = nil; editingPipeline = true }
         }
     }
     private var projectSettings: some View {

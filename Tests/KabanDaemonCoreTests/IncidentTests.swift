@@ -190,6 +190,11 @@ final class IncidentTests: XCTestCase {
         XCTAssertEqual(kept.tasks.first { $0.id == "refs" }?.state, .waitingHuman(.incident))
         guard case .incidents(let durable) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .open))).result else { return XCTFail() }
         XCTAssertEqual(durable.map(\.id), [opened])
+        let modelCommand = CommandEnvelope(command: .setModelOverride(taskId: "refs", stageId: "dev", model: nil))
+        XCTAssertEqual(try reopened.execute(modelCommand).result, .ok)
+        XCTAssertEqual(try reopened.getTaskDetail("refs").task.state, .waitingHuman(.incident))
+        XCTAssertEqual(try reopened.getSnapshot().openIncidentCount, 1)
+        XCTAssertFalse(try reopened.events().contains { if case .incidentResolved = $0.event { return true }; return false })
         let cancel = try reopened.execute(.init(command: .cancelTask(taskId: "refs", keepBranch: true)), now: { self.at })
         XCTAssertEqual(cancel.result, .ok)
         let resolved = try reopened.events().filter { $0.commandId == cancel.commandId }
@@ -198,6 +203,14 @@ final class IncidentTests: XCTestCase {
         XCTAssertEqual(try reopened.getSnapshot().openIncidentCount, 0)
         guard case .incidents(let all) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .all))).result else { return XCTFail() }
         XCTAssertEqual(all.first?.resolvedAt != nil, true)
+        XCTAssertEqual(all.first?.resolution, .init(command: "cancelTask", keepBranch: true, commandId: cancel.commandId))
+        let frozen = try reopened.getTaskDetail("refs").incidentPipeline
+        XCTAssertEqual(frozen?.projectId, snapshot.projects.first?.id)
+        XCTAssertEqual(frozen?.defaultReturnStage, "dev")
+        try reopened.discardJournal()
+        let afterRetention = try KabanStore(path: f.path)
+        guard case .incidents(let history) = try afterRetention.execute(.init(command: .listIncidents(projectIds: nil, state: .all))).result else { return XCTFail() }
+        XCTAssertEqual(history.first?.resolution, all.first?.resolution)
         guard case .incidents(let open) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .open))).result else { return XCTFail() }
         XCTAssertTrue(open.isEmpty)
 

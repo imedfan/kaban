@@ -8,7 +8,7 @@ public struct HumanAnswerContext: Codable, Equatable, Sendable {
     public let card: TaskCard
     public let request: HumanRequest?
     public init?(detail: TaskDetail, pipeline: PipelineSummary?) {
-        guard case .waitingHuman(let reason) = detail.task.state,
+        guard case .waitingHuman(let reason) = detail.task.state, reason != .incident,
               let pipeline, pipeline.projectId == detail.task.projectId,
               pipeline.stages.first(where: { $0.id == detail.task.stageId })?.kind == .agent else { return nil }
         let question = reason == .question ? detail.humanRequests.last : nil

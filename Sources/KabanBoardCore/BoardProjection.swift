@@ -384,6 +384,7 @@ public struct BoardProjection: Equatable, Sendable {
                 if var incident = incidents[resolved.incidentId] {
                     if incident.resolvedAt == nil {
                         incident.resolvedAt = envelope.at
+                        incident.resolution = resolved.resolution
                         incidents[resolved.incidentId] = incident
                     }
                 }

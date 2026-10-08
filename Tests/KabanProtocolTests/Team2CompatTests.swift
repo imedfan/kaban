@@ -147,7 +147,7 @@ final class Team2CompatTests: XCTestCase {
     func testUnknownRawEnumsRejectRatherThanGuess() {
         futureRaw(StageKind.self); futureRaw(GitPreset.self); futureRaw(StageCommitter.self); futureRaw(GitRuleSource.self)
         futureRaw(ValidationIssue.Severity.self); futureRaw(ProjectSummary.Availability.self); futureRaw(SuspiciousFile.Rule.self)
-        futureRaw(IncidentKind.self); futureRaw(IncidentListState.self); futureRaw(McpServerRef.Source.self)
+        futureRaw(IncidentListState.self); futureRaw(McpServerRef.Source.self)
         futureRaw(GitGrantDeliveryVia.self); futureRaw(GitGrantExpiryReason.self); futureRaw(Actor.self)
         futureRaw(ModelPool.self); futureRaw(ModelPoolRule.Source.self); futureRaw(ModelFlag.Reason.self)
         futureRaw(SchedulerFlag.Level.self); futureRaw(RunnerUnavailableReason.self); futureRaw(ProjectUnavailableReason.self)

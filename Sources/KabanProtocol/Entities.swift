@@ -156,12 +156,30 @@ public struct SuspiciousFile: Codable, Hashable, Sendable {
     }
 }
 
-public enum IncidentKind: String, Codable, Sendable, CaseIterable {
-    case refsMoved = "refs_moved"
-    case tagsChanged = "tags_changed"
-    case configChanged = "config_changed"
-    case kabanDirChanged = "kaban_dir_changed"
-    case foreignBase = "foreign_base"
+public struct IncidentKind: RawRepresentable, Codable, Hashable, Sendable, CaseIterable {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public static let refsMoved = Self(rawValue: "refs_moved")
+    public static let tagsChanged = Self(rawValue: "tags_changed")
+    public static let configChanged = Self(rawValue: "config_changed")
+    public static let kabanDirChanged = Self(rawValue: "kaban_dir_changed")
+    public static let foreignBase = Self(rawValue: "foreign_base")
+    public static let allCases: [Self] = [.refsMoved, .tagsChanged, .configChanged, .kabanDirChanged, .foreignBase]
+    public var isKnown: Bool { Self.allCases.contains(self) }
+    public init(from decoder: Decoder) throws { self.init(rawValue: try decoder.singleValueContainer().decode(String.self)) }
+    public func encode(to encoder: Encoder) throws {
+        var value = encoder.singleValueContainer(); try value.encode(rawValue)
+    }
+}
+
+public struct IncidentResolution: Codable, Hashable, Sendable {
+    public var command: String
+    public var target: StageID?
+    public var keepBranch: Bool?
+    public var commandId: CommandID
+    public init(command: String, target: StageID? = nil, keepBranch: Bool? = nil, commandId: CommandID) {
+        self.command = command; self.target = target; self.keepBranch = keepBranch; self.commandId = commandId
+    }
 }
 
 public struct Incident: Codable, Hashable, Sendable {
@@ -173,9 +191,10 @@ public struct Incident: Codable, Hashable, Sendable {
     public var rolledBack: [String]
     public var openedAt: Date
     public var resolvedAt: Date?
-    public init(id: IncidentID, projectId: ProjectID, taskId: TaskID, runId: RunID?, kind: IncidentKind, rolledBack: [String], openedAt: Date, resolvedAt: Date? = nil) {
+    public var resolution: IncidentResolution?
+    public init(id: IncidentID, projectId: ProjectID, taskId: TaskID, runId: RunID?, kind: IncidentKind, rolledBack: [String], openedAt: Date, resolvedAt: Date? = nil, resolution: IncidentResolution? = nil) {
         self.id = id; self.projectId = projectId; self.taskId = taskId; self.runId = runId; self.kind = kind
-        self.rolledBack = rolledBack; self.openedAt = openedAt; self.resolvedAt = resolvedAt
+        self.rolledBack = rolledBack; self.openedAt = openedAt; self.resolvedAt = resolvedAt; self.resolution = resolution
     }
 }
 

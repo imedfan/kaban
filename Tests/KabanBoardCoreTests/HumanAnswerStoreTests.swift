@@ -8,12 +8,13 @@ final class HumanAnswerStoreTests: XCTestCase {
     private func detail(_ state: TaskState = .waitingHuman(.question), stage: String = "dev", request: HumanRequest? = nil) -> TaskDetail {
         .init(seq: 10, task: Fix.card("t", stage: stage, state: state), feed: [], runs: [], humanRequests: [request ?? question])
     }
-    func testExactQuestionAndNoteCommandsAndAllAgentWaitingReasons() throws {
+    func testExactQuestionAndNotesExcludeIncidentDecision() throws {
         let context = try XCTUnwrap(HumanAnswerContext(detail: detail(), pipeline: Fix.pipeline()))
         let text = "**Сначала проверить**  \r\n👋"
         XCTAssertEqual(context.command(text: text, current: context), .answerHuman(taskId: "t", text: text, requestId: "q1"))
         XCTAssertNil(context.command(text: " \n", current: context)); XCTAssertNil(context.command(text: "a\0b", current: context))
-        for reason in WaitingHumanReason.allCases where reason != .question {
+        XCTAssertNil(HumanAnswerContext(detail: detail(.waitingHuman(.incident)), pipeline: Fix.pipeline()))
+        for reason in WaitingHumanReason.allCases where reason != .question && reason != .incident {
             let note = try XCTUnwrap(HumanAnswerContext(detail: detail(.waitingHuman(reason)), pipeline: Fix.pipeline()))
             XCTAssertEqual(note.command(text: text, current: note), .answerHuman(taskId: "t", text: text, requestId: nil))
         }

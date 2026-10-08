@@ -30,7 +30,8 @@ import KabanProtocol
                     if !runtime.showSetup, let store = runtime.store {
                         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
                         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
-                        else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
+                        else if store.canResolveIncident { store.resolveIncident() }
+        else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
                     }
                 }.keyboardShortcut(.return, modifiers: [.command])
                 Divider()
@@ -77,7 +78,7 @@ private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            if BoardQA.argument("--mcp-live-smoke") != nil || BoardQA.argument("--settings-live-smoke") != nil || BoardQA.argument("--model-live-smoke") != nil || BoardQA.argument("--pipeline-live-smoke") != nil || BoardQA.argument("--review-live-smoke") != nil || BoardQA.argument("--merge-live-smoke") != nil {
+            if BoardQA.needsExplicitWindow {
                 Button("Открыть окно ревью для проверки") { openWindow(id: "board") }
             }
         }
@@ -118,6 +119,7 @@ private struct ReviewQAWindowCommands: Commands {
         guard runtime?.showSetup == false, let store = runtime?.store else { return }
         if let editor = store.activePipelineEditor { Task { await editor.apply() } }
         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
+        else if store.canResolveIncident { store.resolveIncident() }
         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
     }
     @objc private func controlTask(_ sender: NSMenuItem) {
@@ -134,8 +136,8 @@ private struct ReviewQAWindowCommands: Commands {
                 return runtime?.showSetup == false && settings.canSubmit
             }
             let approve = runtime?.store?.canApproveSelected == true
-            menuItem.title = approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
-            return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true)
+            menuItem.title = runtime?.store?.canResolveIncident == true ? "Вернуть с замечанием по инциденту" : approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
+            return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true || runtime?.store?.canResolveIncident == true)
         }
         if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil && runtime?.store?.overlapRoute == nil }
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
