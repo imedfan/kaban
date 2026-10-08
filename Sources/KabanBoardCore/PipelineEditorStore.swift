@@ -31,7 +31,7 @@ import KabanProtocol
     public init(projectID: ProjectID, client: any KabanClient, session: BoardSession) {
         self.projectID = projectID; self.client = client; self.session = session
     }
-    isolated deinit { checkTask?.cancel() }
+    deinit { checkTask?.cancel() }
     public var draft: PipelineDraft? {
         source.map { .init(projectId: projectID, baseVersionHash: $0.baseVersionHash, content: content, baseSourceHash: $0.baseSourceHash) }
     }
