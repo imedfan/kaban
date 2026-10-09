@@ -94,3 +94,11 @@ producer-boundary quota/flags fixtures. `check-mac-settings.py` запускае
 Токен, HTTP Cursor, платный prompt и системная регистрация не используются.
 Команды, source, кадры и открытая UC-21 приёмка — в
 [отчёте FE-20](../docs/development/frontend-fe-20-2026-10-09.md).
+
+## Тексты диагностик FE-25
+
+`check-pipeline-editor.py --validation-messages` проверяет root type_mismatch,
+invalid_id и git_unknown_command в настоящем WindowGroup, light/dark minimum.
+Серверные диагностики идут через production daemon/private stdio на synthetic
+YAML; error блокирует Apply, warning допускает Apply. Проверка не применяет
+черновик и сверяет неизменность исходного файла. [Отчёт FE-25](../docs/development/frontend-fe-25-2026-10-09.md).
