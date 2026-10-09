@@ -4,6 +4,8 @@
 frontend: блоки работ, зависимости, результаты и критерии приёмки. Календарных
 сроков и разбивки по неделям нет. Номера FE-01–22 прежнего списка сохранены.
 
+Очередь доработок рабочего MVP после BE-20 и FE-22 — [mvp-fix-tasks.md](mvp-fix-tasks.md); пояснения — [mvp-fix-explanations.md](mvp-fix-explanations.md).
+
 **Плановое допущение:** backend завершил весь свой [список BE-01–20](backend-mvp-tasks.md),
 включая production Cursor/MCP, гейты, merge, recovery, capabilities, producers и
 штатный LaunchAgent. Все результаты ниже требуют реального завершённого бэка;
