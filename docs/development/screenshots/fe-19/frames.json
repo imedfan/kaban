@@ -1,0 +1,113 @@
+{
+  "sourceRevision": "e193a04ae0ee63c0843dea166ac1df310695ccb6",
+  "frames": [
+    {
+      "file": "config-light.png",
+      "sha256": "f13aa5e2f0e9223fe0015a4f2079bd84a413e04882aa9927b3c662d761274dd7",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "deleted-light.png",
+      "sha256": "f215c1c4830f06282d5f595a016690f79c811324a7fcee35ed3e3a8fda1f9d84",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "deleted-log-light.png",
+      "sha256": "b68558cfd0c1ad06580ca51876fd8efbec5ed4bdc27d7a682f5ed90326176571",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "disconnected-cache-dark-minimum.png",
+      "sha256": "6693b4ba4068f4427742aa416f7f9b89d0653c966ffee1f81e4bcee9ed140bc2",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "empty-light-minimum.png",
+      "sha256": "8abd2ac6f81df676f511b9651e647872024089c761c639a510a26481cc0da798",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "foreign-light.png",
+      "sha256": "5f51c041a28f89b9d6e46dcaf73d8567f566b1e86ca7f56fa8d52830af756b45",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "hidden-dark-minimum.png",
+      "sha256": "0ce0f81491c01e45ee0f1fd300738556e2bbf3bdaa384780f24b7851ed0ae707",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "long-controls-dark-minimum.png",
+      "sha256": "2178e5aeb50210ff8321ec07a4f7562358283642dde0a0b2caef99f6167eec9d",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "long-kaban-dark-minimum.png",
+      "sha256": "57ec6aff529f228c6e9e16bceb448e303796dbc9f2a274a01e89f100bbd5e6a3",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "missing-log-light.png",
+      "sha256": "b3b53f10a93f26454ef05fbe506315c0e3f8d0cca2ee5b741a5079cf54f233e6",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "model-without-resume-dark.png",
+      "sha256": "80b8c2137ca4e4e31580045544321e568ea575bc649d67d12d54f5324f280b4d",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "policy-draft-light.png",
+      "sha256": "72f4871c54c638714cc01ecdf83a4dff96a17e3111142cc48d2b1d418902239b",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "refs-light.png",
+      "sha256": "a6bac8285c2f996c3696947672e227f06059352f97045c3c19c1166eb14cf7d3",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "reopen-history-light.png",
+      "sha256": "49ee96ed1a8df64b18d229172f4cb377ebef7b62d60647d1b9bfec224e4564a2",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "retention-light-minimum.png",
+      "sha256": "391678ace2cc208e16bf3f0f97bd2bd36ae6fb0dde1b69b7707736a1b91bfdc2",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "return-native-menu-dark-minimum.png",
+      "sha256": "e71e3220c4c652184e801d4ac881de241d57049473e3a2e5550acb2f6327c7da",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "tags-dark-minimum.png",
+      "sha256": "e0635ea3b06a30863043560007a2f591b18084f7119242203c3a529238748d09",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "unknown-dark-minimum.png",
+      "sha256": "5f99683015547847f4534db23bf0d7f25943a16b7c661542638bac956ea98233",
+      "width": 2080,
+      "height": 1280
+    }
+  ]
+}

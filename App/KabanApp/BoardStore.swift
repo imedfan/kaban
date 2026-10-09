@@ -17,6 +17,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let runLog: RunLogStore
     let session: BoardSession
     let humanAnswers: HumanAnswerStore
+    let incidents: IncidentsStore
+    let incidentDecisions: IncidentDecisionStore
     let humanReview: HumanReviewStore
     let suspiciousFiles: SuspiciousFilesStore
     var suspiciousReturnRoute: SuspiciousReturnRoute?
@@ -88,7 +90,13 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var overlapRoute: OverlapRoute?
     var cloneOpeningError: String?
     var openingClone = false
+    var requestedPipelineSection: String?
     var showPipelineIssues = false
+    func openIncidentPolicy(_ project: ProjectID) {
+        guard projection?.projects[project] != nil else { return }
+        mcpProjectID = nil; requestedPipelineSection = "__git"; showPipelineIssues = true
+        selectedProjectID = project; screen = .project(project)
+    }
     var detailTab = "Описание"
     private var projectRechecks: [ProjectID: CommandID] = [:]
     func mergeQueue(_ project: ProjectID) -> [TaskCard] {
@@ -133,6 +141,17 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
               projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil, gitPermissions.preview == nil else { return false }
         return humanAnswers.canSubmit(id)
     }
+    var selectedIncidentID: IncidentID? {
+        if let id = incidents.selectedID, incidents.selected?.taskId == selectedID { return id }
+        return selectedID.flatMap { id in incidents.forTask(id).first(where: { $0.resolvedAt == nil })?.id }
+    }
+    var canResolveIncident: Bool {
+        guard screen == .board || screen == .incidents, sheet == nil, controlSheet == nil, projectSheet == nil,
+              logRunRoute == nil, modelOverrideRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil,
+              reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil, gitPermissions.preview == nil, let id = selectedIncidentID else { return false }
+        return incidentDecisions.canSubmit(id)
+    }
+    func resolveIncident() { if canResolveIncident, let id = selectedIncidentID { Task { await incidentDecisions.submit(id) } } }
     func answerSelected() { if canAnswerSelected, let id = selectedID { Task { await humanAnswers.submit(id) } } }
     var canApproveSelected: Bool {
         guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil, projectSheet == nil,
@@ -180,6 +199,9 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         let sourceKey = usesFixture ? "client.commands.fixture" : commandStorageKey
         let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
+        let incidents = IncidentsStore(client: client, session: session)
+        self.incidents = incidents
+        incidentDecisions = IncidentDecisionStore(session: session, incidents: incidents, storage: storage, key: sourceKey + ".incidentDecisions")
         humanAnswers = HumanAnswerStore(session: session, storage: storage, key: sourceKey + ".humanAnswers")
         suspiciousFiles = SuspiciousFilesStore(session: session, storage: storage, key: sourceKey + ".suspiciousFiles")
         humanReview = HumanReviewStore(session: session, storage: storage, key: sourceKey + ".humanReview")
@@ -190,19 +212,20 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         environment = RunnerEnvironmentStore(client: client, session: session)
         models = ModelSettingsStore(client: client, session: session)
     }
-    isolated deinit { runLog.close(); session.stop(); subscription?.cancel() }
+    isolated deinit { incidents.stop(); runLog.close(); session.stop(); subscription?.cancel() }
     func connect() async {
         guard subscription == nil else { return }
         let session = session
         subscription = Task { await session.run() }
     }
-    func stop() { runLog.close(); session.stop(); subscription?.cancel(); subscription = nil }
+    func stop() { incidents.stop(); runLog.close(); session.stop(); subscription?.cancel(); subscription = nil }
     func retry() {
         let previous = subscription, session = session
         previous?.cancel()
         subscription = Task { await previous?.value; await session.run() }
     }
     func select(_ id: TaskID?) async {
+        if id == nil, screen == .incidents { incidents.selectedID = nil }
         if selectedID != id { modelOverrideRoute = nil; logRunRoute = nil; wipRestoreRoute = nil; reviewRoute = nil; suspiciousReturnRoute = nil; detailScrollTarget = nil; fileOpeningError = nil; cloneOpeningError = nil; runLog.close() }
         await session.select(id)
     }

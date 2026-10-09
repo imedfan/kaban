@@ -65,7 +65,8 @@ extension KabanStore {
                                                  includesUncommitted: task.pipeline.git.preset == .strict,
                                                  baseCommit: try Self.cloneRecord(taskId, db: db)?.baseCommit,
                                                  bounceLimitTotal: task.pipeline.board.bounceLimitTotal,
-                                                 returnPipeline: task.pipeline.summary(projectId: task.card.projectId, versionHash: task.pipelineVersion)))
+                                                 returnPipeline: task.pipeline.summary(projectId: task.card.projectId, versionHash: task.pipelineVersion)),
+                                incidentPipeline: task.pipeline.summary(projectId: task.card.projectId, versionHash: task.pipelineVersion))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
         return detail
     }

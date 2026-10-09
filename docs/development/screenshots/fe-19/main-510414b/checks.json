@@ -1,0 +1,547 @@
+{
+  "sourceRevision": "1ba146d15bce98c727e0a4c4f219db9b8eca449f",
+  "scenarios": {
+    "incident-empty-light-minimum": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "empty": true,
+        "mode": "empty"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-refs-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "refs",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-tags-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "tags",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-config-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "config",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-long-kaban-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "kaban",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-long-controls-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "kaban",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-foreign-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "foreign",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-unknown-dark-minimum": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "mode": "unknown",
+        "simulatedFutureKindReadable": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-deleted-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "deletedHistoryReadable": true,
+        "mode": "deleted",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-deleted-log-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "deletedHistoryReadable": true,
+        "deletedTaskLogSheetReadable": true,
+        "mode": "deleted-log",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-hidden-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "hiddenProjectVisible": true,
+        "mode": "hidden",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-missing-log-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "missingLogReadable": true,
+        "mode": "missing-log",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-disconnected-cache-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "disconnectedCacheReadable": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "disconnected",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-policy-draft-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "policy",
+        "policyRouteKeepsIncidentOpen": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-model-without-resume-dark": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "model",
+        "modelChangeDoesNotResume": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-retention-light-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "retention",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-return-native-menu-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "return",
+        "resolutionCardCountConfirmed": true,
+        "returnViaNativeMenu": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "incident-reopen-history-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "mode": "reopen",
+        "resolutionHistoryAfterRestart": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-stale-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "old shown blob refused; no accepted pair; refreshed changed blob visible, explicit new action required"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-gate-empty-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-gate-comment-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-merge-empty-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-merge-comment-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-gate-escape-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Escape preserves comment without sending a decision"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-gate-return-accept-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact moveTask with acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-gate-return-comment-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact requestChanges without acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-merge-return-accept-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact moveTask with acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-merge-return-comment-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact requestChanges without acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-accept-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "exact path+blob accepted, authoritative transition to checks, no new run"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-reopen-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "new app and daemon restore accepted blobs, actor and backend time from SQLite"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-long-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-missing-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "missing clone shows an explicit file access error"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-binary-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-finder-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "bounded binary path validated with no symlink traversal and revealed through NSWorkspace Finder"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-cursor-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "bounded small text file opened through NSWorkspace in installed Cursor, without CLI execution"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-agent-removal-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "agent removal template preserves exact Unicode path in the existing answer draft without sending or accepting"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-long-controls-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector",
+        "actual SwiftUI inspector scroll reaches the controls below the long file path"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-exception-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "project exceptions open the shared YAML draft with exact path prefilled, without committing or accepting this task"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-strict-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "files-disconnected-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "disconnected file detail retained and mutations disabled"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "git-allow-revoke-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "allow and revoke use correlated events; .ok creates no local grant; repeat allow sends no second intent; authoritative badge 0 → 1 → 0"
+      ],
+      "result": "passed"
+    },
+    "git-reopen-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "new app and daemon restore revoked lifecycle and zero unused badge from SQLite"
+      ],
+      "result": "passed"
+    },
+    "git-created-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable created remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    "git-empty-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "empty task shows no invented denial or grant"
+      ],
+      "result": "passed"
+    },
+    "git-delivered-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable delivered remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    "git-consumed-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable consumed remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    "git-expired-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable expired remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    "git-hard-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "hard-invariant denial offers no allow or policy buttons"
+      ],
+      "result": "passed"
+    },
+    "git-unknown-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "unknown rule and argv displayed verbatim"
+      ],
+      "result": "passed"
+    },
+    "git-stale-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "cancelled task retains raw denial and explicit stale refusal"
+      ],
+      "result": "passed"
+    },
+    "git-long-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check"
+      ],
+      "result": "passed"
+    },
+    "git-preview-project-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write"
+      ],
+      "result": "passed"
+    },
+    "git-preview-stage-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write"
+      ],
+      "result": "passed"
+    },
+    "git-preview-escape-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write",
+        "native Escape closes preview without creating a command or changing YAML"
+      ],
+      "result": "passed"
+    },
+    "git-policy-commit-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write",
+        "native Cmd-Return menu command saves one addDenialToPolicy intent; correlated accepted version differs from base and exact committed source matches; durable resolved stage policy retained"
+      ],
+      "result": "passed"
+    },
+    "git-retry-light": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "five real denials wait for a human; retryStage queues the same stage while Mac remains paused"
+      ],
+      "result": "passed"
+    },
+    "git-disconnected-dark-minimum": {
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable history remains visible; disconnected actions disabled"
+      ],
+      "result": "passed"
+    }
+  },
+  "writerLeaseReleasedAtEndOfEachDriver": true
+}

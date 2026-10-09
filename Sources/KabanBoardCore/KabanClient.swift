@@ -52,6 +52,8 @@ extension KabanClient {
 }
 
 @MainActor public final class MockKabanClient: KabanClient {
+    private var incidentRecords: [Incident]
+    private var executingCommand: Command?
     private var snapshot: Snapshot
     private let sessionId = UUID()
     private var continuations: [UUID: AsyncStream<EventEnvelope>.Continuation] = [:]
@@ -68,8 +70,9 @@ extension KabanClient {
 
     public init(snapshot: Snapshot = MockKabanClient.fixture(), taskBodies: [TaskID: String] = [:],
                 taskRuns: [TaskID: [RunSummary]] = [:], currentEvents: [EphemeralEvent] = [],
-                humanRequests: [TaskID: [HumanRequest]] = [:]) {
+                humanRequests: [TaskID: [HumanRequest]] = [:], incidents: [Incident] = []) {
         self.snapshot = snapshot; self.bodies = taskBodies; self.runs = taskRuns; self.currentEvents = currentEvents
+        self.incidentRecords = incidents
         self.questions = humanRequests
         for (id, requests) in humanRequests {
             notes[id] = requests.map { .init(id: $0.requestId.rawValue, at: Date(), kind: "question", text: $0.question, runId: $0.runId) }
@@ -92,7 +95,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
+        let supported: Set<CommandName> = [.listIncidents, .getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -105,13 +108,17 @@ extension KabanClient {
             guard receipt.0 == envelope else { return .init(commandId: commandId, seq: nil, result: .error(CommandError(code: "command_id_conflict", message: "Этот идентификатор уже использован для другого действия."))) }
             return receipt.1
         }
+        executingCommand = envelope.command
         let result = execute(envelope.command, commandId: commandId)
+        executingCommand = nil
         let reply = CommandReply(commandId: commandId, seq: journal.last(where: { $0.commandId == commandId })?.seq, result: result)
         receipts[commandId] = (envelope, reply)
         return reply
     }
     private func execute(_ command: Command, commandId: CommandID) -> CommandResult {
         switch command {
+        case .listIncidents(let projects, let state):
+            return .incidents(incidentRecords.filter { (projects?.contains($0.projectId) ?? true) && (state == .all || $0.resolvedAt == nil) })
         case .getTaskDetail(let id):
             guard let task = snapshot.tasks.first(where: { $0.id == id }) else { return missingTask() }
             var feed = journal.compactMap { envelope -> FeedItem? in
@@ -120,7 +127,7 @@ extension KabanClient {
             }
             feed += notes[id] ?? []
             feed.sort { $0.at < $1.at }
-            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: runs[id] ?? [], humanRequests: questions[id] ?? [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: []))
+            return .taskDetail(TaskDetail(seq: snapshot.seq, task: task, feed: feed, runs: runs[id] ?? [], humanRequests: questions[id] ?? [], suspiciousFiles: task.suspiciousFiles, acceptedFiles: accepted[id] ?? [], body: bodies[id], wipRestoreOperations: [], incidentPipeline: snapshot.pipelines.first { $0.projectId == task.projectId }))
         case .answerHuman(let id, let text, let requestID):
             guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
             let card = snapshot.tasks[index]
@@ -153,9 +160,9 @@ extension KabanClient {
                       pipeline.stages.contains(where: { $0.id == next }) else { return invalidState() }
                 target = next
             case .requestChanges(_, let comments, let requested):
-                guard [.human, .gate, .merge].contains(source.kind), !comments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                guard [.human, .gate, .merge].contains(source.kind) || card.state == .waitingHuman(.incident), !comments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       !comments.contains("\0"), let requested = requested ?? pipeline.defaultReturnStage,
-                      HumanReviewContext.returnTargets(card: card, pipeline: pipeline).contains(where: { $0.id == requested }) else { return invalidState() }
+                      (HumanReviewContext.returnTargets(card: card, pipeline: pipeline) + (card.state == .waitingHuman(.incident) && source.kind == .agent && !source.readOnly ? [source] : [])).contains(where: { $0.id == requested }) else { return invalidState() }
                 target = requested
                 notes[id, default: []].append(.init(id: commandId.uuidString, at: Date(), kind: "review_comment", text: comments))
             case .reject(_, .cancel, let keep):
@@ -165,7 +172,7 @@ extension KabanClient {
                 return update(index, state: .cancelled, commandId: commandId)
             case .reject(_, .stage(let requested), _):
                 guard source.kind == .human, card.state == .waitingHuman(.review),
-                      HumanReviewContext.returnTargets(card: card, pipeline: pipeline).contains(where: { $0.id == requested }) else { return invalidState() }
+                      (HumanReviewContext.returnTargets(card: card, pipeline: pipeline) + (card.state == .waitingHuman(.incident) && source.kind == .agent && !source.readOnly ? [source] : [])).contains(where: { $0.id == requested }) else { return invalidState() }
                 target = requested; acceptDemoFiles(index, commandID: commandId)
             default: return invalidState()
             }
@@ -308,6 +315,21 @@ extension KabanClient {
         else if previous.stageId != snapshot.tasks[index].stageId { snapshot.tasks[index].mergeQueueSequence = snapshot.seq + 1 }
         snapshot.tasks[index].updatedAt = Date()
         let task = snapshot.tasks[index]
+        if previous.state == .waitingHuman(.incident), state != previous.state, let command = executingCommand {
+            let keep: Bool?
+            if case .cancelTask(_, let value) = command { keep = value } else { keep = nil }
+            let resolution = IncidentResolution(command: command.name.rawValue, target: state == .cancelled ? nil : task.stageId, keepBranch: keep, commandId: commandId)
+            var resolved = 0
+            for i in incidentRecords.indices where incidentRecords[i].taskId == task.id && incidentRecords[i].resolvedAt == nil {
+                incidentRecords[i].resolvedAt = task.updatedAt; incidentRecords[i].resolution = resolution; resolved += 1
+                emit(.incidentResolved(.init(incidentId: incidentRecords[i].id, by: .human, commandId: commandId, resolution: resolution)), projectID: task.projectId, commandID: commandId)
+            }
+            if resolved > 0, let i = snapshot.projects.firstIndex(where: { $0.id == task.projectId }) {
+                snapshot.projects[i].openIncidentCount = max(0, snapshot.projects[i].openIncidentCount - resolved)
+                snapshot.openIncidentCount = snapshot.projects.reduce(0) { $0 + $1.openIncidentCount }
+                emit(.projectUpdated(snapshot.projects[i]), projectID: task.projectId, commandID: commandId)
+            }
+        }
         emit(.taskUpdated(task), projectID: task.projectId, commandID: commandId)
         for loadIndex in snapshot.stageLoad.indices where snapshot.stageLoad[loadIndex].projectId == task.projectId {
             let load = snapshot.stageLoad[loadIndex]

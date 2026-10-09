@@ -28,6 +28,7 @@ import KabanProtocol
     public private(set) var pendingRecords: [ClientCommandJournal.Record] = []
     public private(set) var visibleIDs: [ProjectID] = []
     public private(set) var recoveryCount = 0
+    public private(set) var incidentReadRevision = UUID()
     private var selection = TaskDetailSelection()
     private var floors: [TaskID: Seq] = [:]
     private var schedulerFlagsSeq: Seq = 0
@@ -165,6 +166,7 @@ import KabanProtocol
             try journal?.observe(value)
             guard result == .applied || result == .ignored else { refreshPending(); return }
             switch value.event {
+            case .incidentOpened, .incidentResolved, .projectRemoved: incidentReadRevision = UUID()
             case .taskCreated(let card), .taskEdited(let card), .taskUpdated(let card): floors[card.id] = value.seq
             case .settingsChanged(let change):
                 if change.schedulerFlags != nil { schedulerFlagsSeq = value.seq }
@@ -209,6 +211,7 @@ import KabanProtocol
             if board.apply(current.event) == .resyncRequired { throw resyncError() }
         }
         projection = board; ephemeralCursor = replacement.cursor; receivedEphemeralCursor = replacement.cursor
+        incidentReadRevision = UUID()
         volatileBuffer = []; schedulerFlagsSeq = replacement.snapshot.seq
         modelFlagsSeq = replacement.snapshot.seq; modelCatalogSeq = replacement.snapshot.modelCatalog == nil ? 0 : replacement.snapshot.seq
         floors = Dictionary(uniqueKeysWithValues: replacement.snapshot.tasks.map { ($0.id, replacement.snapshot.seq) })

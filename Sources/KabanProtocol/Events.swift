@@ -132,8 +132,13 @@ public struct GitPolicyUpdated: Codable, Hashable, Sendable {
     public init(projectId: ProjectID, scope: PolicyScope, pipelineVersion: String) { self.projectId = projectId; self.scope = scope; self.pipelineVersion = pipelineVersion }
 }
 public struct IncidentResolved: Codable, Hashable, Sendable {
-    public var incidentId: IncidentID; public var by: Actor; public var commandId: CommandID?
-    public init(incidentId: IncidentID, by: Actor, commandId: CommandID?) { self.incidentId = incidentId; self.by = by; self.commandId = commandId }
+    public var incidentId: IncidentID
+    public var by: Actor
+    public var commandId: CommandID?
+    public var resolution: IncidentResolution?
+    public init(incidentId: IncidentID, by: Actor, commandId: CommandID?, resolution: IncidentResolution? = nil) {
+        self.incidentId = incidentId; self.by = by; self.commandId = commandId; self.resolution = resolution
+    }
 }
 public struct SuspiciousFilesFound: Codable, Hashable, Sendable {
     public var taskId: TaskID; public var runId: RunID?; public var stageId: StageID; public var files: [SuspiciousFile]

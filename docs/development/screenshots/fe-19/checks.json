@@ -1,0 +1,249 @@
+{
+  "sourceRevision": "e193a04ae0ee63c0843dea166ac1df310695ccb6",
+  "scenarios": {
+    "config-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "config",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "deleted-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "deletedHistoryReadable": true,
+        "mode": "deleted",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "deleted-log-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "deletedHistoryReadable": true,
+        "deletedTaskLogSheetReadable": true,
+        "mode": "deleted-log",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "disconnected-cache-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "disconnectedCacheReadable": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "disconnected",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "empty-light-minimum": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "empty": true,
+        "mode": "empty"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "foreign-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "foreign",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "hidden-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "hiddenProjectVisible": true,
+        "mode": "hidden",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "long-controls-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "kaban",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "long-kaban-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "kaban",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "missing-log-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "missingLogReadable": true,
+        "mode": "missing-log",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "model-without-resume-dark": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "model",
+        "modelChangeDoesNotResume": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "policy-draft-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "policy",
+        "policyRouteKeepsIncidentOpen": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "refs-light": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "refs",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "reopen-history-light": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "mode": "reopen",
+        "resolutionHistoryAfterRestart": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "retention-light-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "retention",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "return-native-menu-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "return",
+        "resolutionCardCountConfirmed": true,
+        "returnViaNativeMenu": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "tags-dark-minimum": {
+      "checks": {
+        "actualRollback": true,
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "frozenTargets": [
+          "dev"
+        ],
+        "mode": "tags",
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "unknown-dark-minimum": {
+      "checks": {
+        "allProjectsQuery": true,
+        "countFromProjectSummaries": true,
+        "mode": "unknown",
+        "simulatedFutureKindReadable": true,
+        "source": "bundled stdio private daemon; paid CLI and service registration unused"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    }
+  }
+}

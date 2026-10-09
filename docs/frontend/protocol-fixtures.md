@@ -5,6 +5,24 @@
 Имена DTO и команд сверять с `Sources/KabanProtocol/`; числовые ссылки 3.x сохранены из исходного плана.
 Предложения фронта остаются предложениями. Макеты и токены — [design](../../design/README.md).
 
+## FE-19: durable incident decisions
+
+`Incident.kind` остаётся строкой на wire. `IncidentKind` сохраняет неизвестные
+значения через `rawValue`, чтобы одна новая разновидность не ломала историю.
+Числовой kind и отсутствие обязательных id/projectId/taskId/rolledBack/openedAt
+по-прежнему отклоняются. Изменение не делает другие raw enums открытыми.
+
+Optional `Incident.resolution` и `IncidentResolved.resolution` содержат выбранный
+command, commandId и optional target/keepBranch. Metadata сохраняется вместе с
+resolvedAt и journal/count в транзакции; listIncidents возвращает её после retention.
+Для старых resolved записей без metadata действие неизвестно. keepBranch описывает
+выбор человека, а не завершение внешнего архивирования/удаления ветки.
+
+Optional `TaskDetail.incidentPipeline` сообщает frozen pipeline задачи.
+Legacy nil оставляет возврат недоступным; frontend не подставляет текущую версию
+проекта. Точный context включает record/card/pipeline, замечание и target.
+Model/policy change не разрешает инцидент; `.ok` не снимает pending resolution.
+
 ## BE-01: transport/session и новые запросы
 
 Текущий дополнительный контракт — архитектура §5 и

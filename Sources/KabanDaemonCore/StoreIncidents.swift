@@ -67,8 +67,9 @@ extension KabanStore {
                 for row in rows {
                     var incident = try decode(Incident.self, row["payload"])
                     incident.resolvedAt = at
+                    incident.resolution = command.incidentResolution(task: task, commandId: commandId)
                     try db.execute(sql: "UPDATE incident SET resolved = 1, payload = ? WHERE id = ?", arguments: [try encode(incident), incident.id.rawValue])
-                    _ = try journal(.incidentResolved(IncidentResolved(incidentId: incident.id, by: .human, commandId: commandId)), task: task, commandId: commandId, at: at, db: db)
+                    _ = try journal(.incidentResolved(IncidentResolved(incidentId: incident.id, by: .human, commandId: commandId, resolution: incident.resolution)), task: task, commandId: commandId, at: at, db: db)
                 }
                 if !rows.isEmpty { try publishIncidentCount(task.card.projectId, commandId: commandId, at: at, db: db) }
             default: break
@@ -126,5 +127,22 @@ extension KabanStore {
         if let number = Double.fromDatabaseValue(value) { return Date(timeIntervalSince1970: number) }
         if let number = Int64.fromDatabaseValue(value) { return Date(timeIntervalSince1970: Double(number)) }
         return Date(timeIntervalSince1970: 0)
+    }
+}
+
+private extension DurableTaskCommand {
+    func incidentResolution(task: DurableTask, commandId: CommandID) -> IncidentResolution? {
+        switch self {
+        case .answer: return .init(command: "answerHuman", target: task.machine.stageId, commandId: commandId)
+        case .requestChanges: return .init(command: "requestChanges", target: task.machine.stageId, commandId: commandId)
+        case .retryStage: return .init(command: "retryStage", target: task.machine.stageId, commandId: commandId)
+        case .move: return .init(command: "moveTask", target: task.machine.stageId, commandId: commandId)
+        case .cancel(let keep): return .init(command: "cancelTask", keepBranch: keep, commandId: commandId)
+        case .reject(let target, let keep):
+            if case .stage(let stage) = target { return .init(command: "reject", target: stage, commandId: commandId) }
+            return .init(command: "reject", keepBranch: keep, commandId: commandId)
+        case .approve: return .init(command: "approve", target: task.machine.stageId, commandId: commandId)
+        default: return nil
+        }
     }
 }
