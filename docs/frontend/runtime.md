@@ -5,7 +5,7 @@
 
 ## Реальные точки входа
 
-- `App/KabanApp/KabanApp.swift` создаёт DaemonRuntime: SMAppService + DaemonKabanClient по XPC; `--developer` использует встроенный helper по private stdio. AppFixture включается только в явном UI QA.
+- `App/KabanApp/KabanApp.swift` создаёт DaemonRuntime: SMAppService + DaemonKabanClient по XPC; `--developer` использует встроенный helper по private stdio. AppFixture и BoardQA компилируются только с KABAN_QA. Debug задаёт этот флаг, обычный Release не содержит fixtures и игнорирует QA-параметры. AppArguments сохраняет developer-параметры в обеих конфигурациях.
 - `App/KabanApp/BoardStore.swift` связывает views с клиентом, проекцией и выбором задачи.
 - `Sources/KabanBoardCore/KabanClient.swift` содержит типизированные envelope/reply,
   capabilities, log API, updates и mock. `ClientCommandJournal` сохраняет точную
@@ -87,7 +87,7 @@ Generation/session/hash проверки отбрасывают поздние �
 Сначала проверь nearby BoardCore tests и реальные DTO. Изменение поведения
 должно проверяться командами/событиями, включая отказы, stale result и повтор.
 Проверь app build и основной пользовательский сценарий в настоящем окне.
-Рендер отдельного ReferenceFrameView не заменяет проверку WindowGroup.
+Неиспользуемая галерея ReferenceFrameView удалена в FE-34. BoardQA проверяет настоящее WindowGroup только в QA-сборке.
 Матрица экранов/доступности — [acceptance](acceptance.md); визуальные источники — [design](../../design/README.md).
 
 ## FE-02: восстановление клиентского состояния

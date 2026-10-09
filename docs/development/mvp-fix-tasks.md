@@ -704,6 +704,11 @@
   - [ ] Каждый пункт, закрытый на бэке, отображается, а в `frontend-backend-integration-gaps.md` помечен закрытым.
 
 ### FE-34. Демо-код вне поставки
+
+Source `bf6ef6d`, [отчёт FE-34](frontend-fe-34-2026-10-09.md): Release не содержит
+демо и QA types, Debug сохраняет BoardQA. Обе сборки, 16 native сценариев и
+четыре minimum кадра проверены; local strict control/focus и CI описаны отдельно.
+
 - **Приоритет:** P2
 - **Зависимости:** нет.
 - **Проблема:** `App/KabanApp/NativeShell.swift` не используется; `Reference*.swift` (~2 400 строк, `ReferenceDemo` с фикстурами) компилируются в App; `ReferenceChip` и `ReferenceMascot` используются в `BoardView`.
