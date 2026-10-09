@@ -4,7 +4,7 @@ import KabanBoardCore
 
 struct MacSettingsView: View {
     @Bindable var store: BoardStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     private var editor: MacSettingsStore { store.macSettings }
     var body: some View {
         ScrollView {
@@ -113,7 +113,7 @@ struct MacSettingsView: View {
 
 struct QuotaBarsView: View {
     let store: BoardStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var compact = false
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
@@ -156,7 +156,7 @@ struct QuotaBarsView: View {
 
 struct SchedulerFlagsView: View {
     @Bindable var store: BoardStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var project: ProjectID?
     private var flags: [SchedulerFlag] {
         (store.projection?.ephemeral.schedulerFlags ?? []).filter {

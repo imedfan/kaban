@@ -1,13 +1,14 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func pipelineLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--pipeline-live-repository"), path.hasPrefix("/tmp/kaban-fe13-"),
-              argument("--developer-database")?.hasPrefix("/tmp/kaban-fe13-") == true,
+        guard let path = AppArguments.value("--pipeline-live-repository"), path.hasPrefix("/tmp/kaban-fe13-"),
+              AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe13-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private pipeline fixture or WindowGroup missing") }
-        if argument("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
+        if AppArguments.value("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
         if store.projection?.projects.values.contains(where: { $0.path == path }) != true {
             _ = await store.session.send(.addProject(path: path, createTemplate: false, identity: .init(name: "Pipeline QA", email: "pipeline@example.test")))
             try await waitUntil("real pipeline project") { store.projection?.projects.values.contains { $0.path == path } == true }
@@ -32,16 +33,16 @@ extension BoardQA {
                 return result.contentHash == hash
             }
         }
-        let mode = argument("--qa-pipeline-mode") ?? "apply"
+        let mode = AppArguments.value("--qa-pipeline-mode") ?? "apply"
         if mode == "reopen" {
             guard source.committedContent?.contains("# Native exact draft") == true,
                   source.baseVersionHash == store.projection?.pipelines[project.id]?.versionHash else { throw failure("Applied version not durable after restart") }
         }
         if mode == "capture" || mode == "reopen" {
-            if argument("--export-live-window") != nil { try await captureWindow() }
+            if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
             return ["real WindowGroup and daemon source", mode == "reopen" ? "restart restores exact committed text and authoritative version" : "native forms and server validation"]
         }
-        if let otherPath = argument("--pipeline-other-repository"), otherPath.hasPrefix("/tmp/kaban-fe13-") {
+        if let otherPath = AppArguments.value("--pipeline-other-repository"), otherPath.hasPrefix("/tmp/kaban-fe13-") {
             _ = await store.session.send(.addProject(path: otherPath, createTemplate: false, identity: .init(name: "Pipeline QA", email: "pipeline@example.test")))
             try await waitUntil("second real project") { store.projection?.projects.values.contains { $0.path == otherPath } == true }
             try await waitUntil("connected after second project") { store.canSend }
@@ -91,7 +92,8 @@ extension BoardQA {
               savedDraft.contains("future_extension: preserved"), savedDraft.contains("# preserve this comment") else {
             throw failure("Apply mismatch. exact=\(editor.source?.committedContent == savedDraft), version=\(editor.source?.baseVersionHash ?? "nil") snapshot=\(store.projection?.pipelines[project.id]?.versionHash ?? "nil"), wip=\(store.projection?.pipelines[project.id]?.stages.first(where: { $0.id == "dev" })?.wip ?? -1), error=\(editor.error ?? "none")")
         }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["real private stdio daemon and actual WindowGroup", "project switch preserves separate unsent drafts and native command owner", "native field edit preserves exact source and unknown fields/comments", "broken YAML and Auto blocked; warnings allow apply", "external write retains draft and requires explicit new base", "native Cmd-Return applies exact text via correlated pipelineApplied", "WIP and version agree with snapshot; daemon commits .kaban/"]
     }
 }
+#endif

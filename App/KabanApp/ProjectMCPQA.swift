@@ -1,14 +1,15 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func projectMCPLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--mcp-live-repository"), path.hasPrefix("/tmp/kaban-fe16-"),
-              argument("--developer-database")?.hasPrefix("/tmp/kaban-fe16-") == true,
-              let personalPath = argument("--qa-personal-mcp-config"), personalPath.hasPrefix("/tmp/kaban-fe16-"),
+        guard let path = AppArguments.value("--mcp-live-repository"), path.hasPrefix("/tmp/kaban-fe16-"),
+              AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe16-") == true,
+              let personalPath = AppArguments.value("--qa-personal-mcp-config"), personalPath.hasPrefix("/tmp/kaban-fe16-"),
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private MCP fixture or WindowGroup missing") }
-        window.setContentSize(argument("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
         if !store.macPaused { _ = await store.session.send(.pauseAll) }
         try await waitUntil("Mac paused before MCP QA") { store.macPaused && store.canSend }
@@ -18,7 +19,7 @@ extension BoardQA {
         }
         guard let project = store.projection?.projects.values.first(where: { $0.path == path }) else { throw failure("Project missing") }
         store.selectedProjectID = project.id; store.screen = .project(project.id); store.showPipelineIssues = false
-        let settings = store.mcpSettings(for: project.id), mode = argument("--qa-mcp-mode") ?? "settings"
+        let settings = store.mcpSettings(for: project.id), mode = AppArguments.value("--qa-mcp-mode") ?? "settings"
         let personal = try Data(contentsOf: URL(fileURLWithPath: personalPath))
         await settings.load()
         store.mcpProjectID = project.id
@@ -40,7 +41,7 @@ extension BoardQA {
                 try await waitUntil("native MCP switch") { findAccessibility(window, identifier: "mcp-allow-project-github") != nil }
                 guard let toggle = findAccessibility(window, identifier: "mcp-allow-project-github"), pressAccessibility(toggle) else { throw failure("Native MCP switch press failed") }
                 try await waitUntil("correlated native MCP toggle") { settings.receipt?.phase == .applied && settings.allowed?.contains("github") == true }
-                if let other = argument("--mcp-other-repository"), other.hasPrefix("/tmp/kaban-fe16-") {
+                if let other = AppArguments.value("--mcp-other-repository"), other.hasPrefix("/tmp/kaban-fe16-") {
                     _ = await store.session.send(.addProject(path: other, createTemplate: false, identity: .init(name: "Other QA", email: "other@example.test")))
                     try await waitUntil("second MCP project") { store.projection?.projects.values.contains { $0.path == other } == true }
                     guard store.projection?.projects.values.first(where: { $0.path == other })?.mcpAllowlist == ["kaban"] else { throw failure("MCP permission crossed projects") }
@@ -115,7 +116,7 @@ extension BoardQA {
         if mode == "stage" || mode == "apply" || mode == "disconnected" {
             try await Task.sleep(for: .milliseconds(300))
         }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return checks
     }
     private static func findAccessibility(_ window: NSWindow, identifier: String) -> NSSwitch? {
@@ -131,3 +132,4 @@ extension BoardQA {
         return true
     }
 }
+#endif

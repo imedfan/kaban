@@ -5,7 +5,7 @@ import KabanProtocol
 @main struct KabanApp: App {
     @NSApplicationDelegateAdaptor(KabanAppDelegate.self) private var delegate
     @State private var runtime = DaemonRuntime()
-    private var qaTheme: ColorScheme? { BoardQA.argument("--qa-theme").map { $0 == "dark" ? .dark : .light } }
+    private var qaTheme: ColorScheme? { AppArguments.qaValue("--qa-theme").map { $0 == "dark" ? .dark : .light } }
     var body: some Scene {
         WindowGroup("Kaban", id: "board") {
             DaemonRuntimeView(runtime: runtime)
@@ -16,7 +16,13 @@ import KabanProtocol
         .defaultLaunchBehavior(.presented)
         .defaultSize(width: 1440, height: 900)
         .windowStyle(.hiddenTitleBar)
-        .commands { ReviewQAWindowCommands() }
+        .commands {
+            #if KABAN_QA
+            ReviewQAWindowCommands()
+            #else
+            EmptyCommands()
+            #endif
+        }
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Новая задача") { runtime.store?.beginCreation() }.keyboardShortcut("n")
@@ -77,6 +83,7 @@ import KabanProtocol
 
 /// Explicitly presents the actual WindowGroup when LaunchServices suppresses
 /// the automatic window during isolated live acceptance. Absent in normal use.
+#if KABAN_QA
 private struct ReviewQAWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
@@ -87,6 +94,8 @@ private struct ReviewQAWindowCommands: Commands {
         }
     }
 }
+
+#endif
 
 @MainActor final class KabanAppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private weak var runtime: DaemonRuntime?
@@ -163,6 +172,8 @@ private struct ReviewQAWindowCommands: Commands {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Kaban", withExtension: "icns", subdirectory: "Resources"), let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
+        #if KABAN_QA
         if BoardQA.isActive { NSApp.setActivationPolicy(.regular); NSApp.activate(); Task { await BoardQA.run() } }
+        #endif
     }
 }

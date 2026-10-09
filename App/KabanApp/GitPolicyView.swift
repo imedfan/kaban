@@ -5,7 +5,7 @@ import KabanBoardCore
 struct GitPolicyView: View {
     let policy: EffectiveGitPolicy
     let catalog: [String]
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var title = "Итоговая политика"
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -63,7 +63,7 @@ struct GitPolicyView: View {
 
 private struct HardInvariantTile: View {
     let id: String
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @State private var showDetail = false
     var body: some View {
         HStack(alignment: .top, spacing: 7) {

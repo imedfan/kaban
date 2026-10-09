@@ -8,7 +8,7 @@ enum TaskDetailAnchor: Hashable { case suspiciousActions, humanAnswer }
 struct SuspiciousFilesView: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @State private var historyExpanded = false
     private var context: SuspiciousFilesContext? { store.suspiciousFiles.context(for: detail.task.id) }
     private var pending: Bool { store.session.pending(in: .task(detail.task.id)) != nil }

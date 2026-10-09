@@ -7,7 +7,7 @@ extension TaskModelOverrideStore: Identifiable { nonisolated public var id: Task
 struct TaskModelView: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     private var stage: TaskModelStage? { detail.modelStages?.first { $0.stageId == detail.task.stageId } }
     private var run: RunSummary? { detail.runs.filter { $0.stageId == detail.task.stageId }.max { $0.number < $1.number } }
     private var flags: [ModelFlag] {
@@ -69,7 +69,7 @@ struct TaskModelOverrideSheet: View {
     @Bindable var editor: TaskModelOverrideStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Модель конкретной задачи").font(.title2.bold())

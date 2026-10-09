@@ -5,7 +5,7 @@ import KabanBoardCore
 struct GitPermissionsView: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -40,7 +40,7 @@ struct GitDenialRow: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
     let denial: GitDenialSnapshot
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     private var hard: Bool { denial.context?.restriction?.code == "git_hard_invariant" || GitPolicyPresentation.invariant(denial.denial.rule) != nil }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -106,7 +106,7 @@ struct GitGrantHistory: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
     let grant: GitGrantSnapshot
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var body: some View {
         let presentation = GitGrantPresentation(grant, detail: detail)
         VStack(alignment: .leading, spacing: 7) {
@@ -132,7 +132,7 @@ struct GitGrantHistory: View {
 
 struct GitCommandStatus: View {
     let record: ClientCommandJournal.Record?
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @ViewBuilder var body: some View {
         if let record {
             if record.isPending { Text("Ожидаем подтверждение службы…").font(.system(size: 11)).foregroundStyle(theme.secondary) }

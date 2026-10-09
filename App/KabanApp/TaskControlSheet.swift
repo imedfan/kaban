@@ -34,7 +34,7 @@ struct TaskControlSheet: View {
     @State private var keepBranch = false
     @State private var grantEnabled = false
     @State private var grantText = "1"
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var card: TaskCard { route.request.card }
     private var current: TaskCard? { store.projection?.tasks[card.id] }
     private var stale: Bool {
@@ -140,8 +140,8 @@ struct TaskControlSheet: View {
             }
         }.padding(20).frame(width: 560).background(theme.window)
             .onAppear {
-                if store.usesFixture && BoardQA.argument("--qa-state") == "control-cancel-keep" { keepBranch = true }
-                if store.usesFixture, let text = BoardQA.argument("--qa-control-grant") { grantEnabled = true; grantText = text }
+                if store.usesFixture && AppArguments.qaValue("--qa-state") == "control-cancel-keep" { keepBranch = true }
+                if store.usesFixture, let text = AppArguments.qaValue("--qa-control-grant") { grantEnabled = true; grantText = text }
                 if case .move(let suggested) = route.request.action { targetID = suggested; stageFocused = true }
             }
     }
