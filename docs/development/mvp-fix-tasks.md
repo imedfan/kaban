@@ -131,6 +131,8 @@
 ## 1. Backend
 
 ### BE-21. Убрать App Sandbox и проверить штатную установку helper
+
+**Ход работы 9.10:** код в `codex/be-21-unsandboxed-helper`; ad-hoc Release/Debug, signing policy и native smoke проверены. Первый register/unregister прошёл; финальный installed XPC, системное одобрение и reboot остаются открытыми. [Отчёт](backend-be-21-2026-10-09.md).
 - **Приоритет:** P0
 - **Зависимости:** нет (параллельно с BE-22). Блокирует FE-32, FE-21 (автозапуск), FE-22, DOC-03.
 - **Требования:** арх. §13 «Hardened runtime, Developer ID, без App Sandbox»; арх. §1; UC-12; критерии BE-20 (`backend-mvp-tasks.md:593-595`). **Ответ Артёма 9.10:** сертификата Apple нет, работа локально, ad-hoc подпись; одобрение в настройках macOS делает Артём.
@@ -151,10 +153,10 @@
   - [ ] Given чистая установка локальной ad-hoc сборки из `/Applications`, When онбординг вызывает `register()`, Then `SMAppService.agent.status` = `enabled` или `requiresApproval`; после ручного одобрения Артёмом в настройках macOS XPC-ping успешен; ручного запуска демона нет.
   - [ ] После reboot демон поднимается ровно один раз (один pid в `launchctl print gui/$UID/app.kaban.agent`) и восстанавливает очередь (BE-18).
   - [ ] `unregister` останавливает демон, повторная регистрация не создаёт второго экземпляра.
-  - [ ] В `codesign -d --entitlements -` у App нет `app-sandbox`.
+  - [x] В `codesign -d --entitlements -` у App нет `app-sandbox`.
   - [ ] Критерии BE-20 (`:593`, `:595`) отмечены на локальной ad-hoc сборке. Критерий `:594` (другой Team ID) переведён в `backend-mvp-tasks.md` в «не для MVP: сертификата нет, решение Артёма 9.10».
   - [ ] Шаг ручного одобрения в «Объектах входа» и «Конфиденциальности и безопасности» описан в DOC-03 со скриншотами настоящего окна.
-  - [ ] Запись в `docs/decisions-log.md`, закрывающая расхождение от 2026-10-06.
+  - [x] Запись в `docs/decisions-log.md`, закрывающая расхождение от 2026-10-06.
 
 ### BE-22. Спайк 1 на живом Cursor CLI
 - **Приоритет:** P0

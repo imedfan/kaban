@@ -103,3 +103,12 @@ production Release: демо и QA types отсутствуют, общие Kaba
 Debug dylib читает и его. Демо types запрещены в обеих конфигурациях.
 Debug включает KABAN_QA, Release по умолчанию не включает. CI собирает и проверяет
 оба варианта. [Приёмка FE-34](../docs/development/frontend-fe-34-2026-10-09.md).
+
+
+## Локальная подпись BE-21
+
+`package-local-app.sh` собирает ad-hoc Release с Hardened Runtime и запускает
+`check-local-app-signing.py --app <bundle>`. Проверка читает подписи настоящих
+App/helper, требует `app.kaban.desktop` / `app.kaban.agent`, runtime и отсутствие
+`com.apple.security.app-sandbox`. Она не регистрирует службу и не заменяет
+проверку SMAppService, одобрение macOS или reboot.
