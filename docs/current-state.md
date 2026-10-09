@@ -162,11 +162,12 @@ FE-25 опубликована в [PR #116](https://github.com/imedfan/kaban/pul
 217 BoardCore tests, App build и два native diagnostics smoke прошли.
 [Отчёт FE-25](https://github.com/imedfan/kaban/blob/238f4ea653803ad9a6e7abe62d960ba3b0d83677/docs/development/frontend-fe-25-2026-10-09.md). Дальше FE-23/24/26–34
 по зависимостям новой очереди; требования полного MVP сохраняются.
-FE-34 подготовлена в `codex/fe-34-release-ui`, source `bf6ef6d`: неиспользуемые
+FE-34 опубликована в [PR #117](https://github.com/imedfan/kaban/pull/117),
+source `bf6ef6d`: неиспользуемые
 демо-экраны удалены, общие Kaban-компоненты сохранены, fixtures и BoardQA только
-с KABAN_QA. Debug и Release builds и Mach-O checks прошли; 16 native сценариев
-и четыре actual WindowGroup кадра проверены. Local strict control потерял focus;
-CI проверяется отдельно. [Отчёт FE-34](development/frontend-fe-34-2026-10-09.md).
+с KABAN_QA. Debug и Release builds и Mach-O checks прошли; 17 native сценариев
+и четыре actual WindowGroup кадра проверены. Strict control прошёл отдельным
+повтором на той же сборке после потери фокуса. CI проверяется отдельно. [Отчёт FE-34](development/frontend-fe-34-2026-10-09.md).
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
