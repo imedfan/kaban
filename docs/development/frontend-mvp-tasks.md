@@ -875,7 +875,8 @@ apply, exact source, Escape, restart и unexpected. Третий критери�
 - [x] Delivered, consumed и expired различимы; hard invariant нельзя обойти через UI.
 - [x] Добавление в политику показывает принятую версию и действует с новых runs.
 
-FE-17 подготовлена в `codex/fe-17-git-approvals` от main `a20a48d`.
+FE-17 принята через [PR #108](https://github.com/imedfan/kaban/pull/108), merge `93a2bde`.
+Исходная проверенная ветка `codex/fe-17-git-approvals` создана от main `a20a48d`.
 661 test полного прогона, 15 финальных grant/recovery tests, App build и
 17 native private-daemon сценариев прошли. Отказы получены настоящим `/git/check`;
 новые project/stage правила проверены на точном Git-коммите, повторе команды,
@@ -927,7 +928,8 @@ UI ожидает correlated событие, затем читает новую 
 - [x] Принятый набор/история переживают reopen; suspicious не увеличивает incident count.
 - [x] Preview, Finder и отсутствующий клон имеют понятные состояния и соблюдают файловые разрешения.
 
-Проверено 9 октября 2026 на коде `0cba1fe`: [отчёт и 22 кадра](frontend-fe-18-2026-10-09.md).
+FE-18 принята через [PR #109](https://github.com/imedfan/kaban/pull/109), merge `510414b`.
+Исходная проверка 9 октября 2026 на коде `0cba1fe`: [отчёт и 22 кадра](frontend-fe-18-2026-10-09.md).
 663 tests, App build, реальные private Git checks и нативные Cmd-Return/Escape
 прошли. Checkbox относятся к указанной Core/native private приёмке. Signed folder
 grants, installed helper/XPC, физические pointer/keyboard и VoiceOver остаются
@@ -967,10 +969,13 @@ grants, installed helper/XPC, физические pointer/keyboard и VoiceOver
 - [x] После действия resolution/карточка/count подтверждены событиями, история доступна.
 - [x] Unknown kind, удалённый проект и отсутствующий лог не ломают просмотр истории.
 
-FE-19 подготовлена от main `a20a48d`, source `e193a04`, в
-`codex/fe-19-incidents`. 661 test и App build прошли. Критерии отмечены для
-Core и native private-daemon среды; [отчёт и кадры](frontend-fe-19-2026-10-09.md)
-отделяют реальный Git rollback от simulated future-kind wire fixture.
+FE-19 подготовлена в `codex/fe-19-incidents`, [PR #110](https://github.com/imedfan/kaban/pull/110).
+Исходный source `e193a04` проверен от main `a20a48d` (661 test и App build).
+После принятия FE-17/18 перенесён актуальный main `510414b`; конфликты разрешены.
+Повторный source `1ba146d`: 680 tests, App build и 57 native сценариев прошли.
+Критерии отмечены для Core и native private-daemon среды;
+[отчёт и кадры](frontend-fe-19-2026-10-09.md) отделяют реальный Git rollback
+от simulated future-kind wire fixture.
 Installed helper, physical pointer/keys и VoiceOver остаются в FE-22.
 
 ## FE-20. Реализовать настройки Мака, флаги планировщика и экран квоты
