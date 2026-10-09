@@ -87,6 +87,7 @@ struct KabanIconButton: View {
 struct KabanSegments<Selection: Hashable>: View {
     @Binding var selection: Selection
     let options: [(Selection, String)]
+    var equalWidths = true
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         let theme = ReferenceTheme(dark: scheme == .dark)
@@ -94,7 +95,8 @@ struct KabanSegments<Selection: Hashable>: View {
             ForEach(options, id: \.0) { option in
                 Button { selection = option.0 } label: {
                     Text(option.1).font(.system(size: 11, weight: selection == option.0 ? .semibold : .medium))
-                        .frame(maxWidth: .infinity).frame(height: 26)
+                        .padding(.horizontal, equalWidths ? 0 : 8)
+                        .frame(maxWidth: equalWidths ? .infinity : nil).frame(height: 26)
                         .foregroundStyle(selection == option.0 ? theme.text : theme.secondary)
                         .background(selection == option.0 ? theme.card : Color.clear, in: RoundedRectangle(cornerRadius: 7))
                         .contentShape(RoundedRectangle(cornerRadius: 7))

@@ -418,7 +418,7 @@ import KabanProtocol
         case .wipRestored(let value): value.taskId == taskID
         // These payloads omit taskId. A full selected-task read safely resolves
         // ownership, including a grant/incident that arrived during the first read.
-        case .gitGrantCreated, .gitGrantDelivered, .gitGrantConsumed, .gitGrantRevoked, .gitGrantExpired, .incidentResolved, .unknown: true
+        case .gitGrantCreated, .gitGrantDelivered, .gitGrantConsumed, .gitGrantRevoked, .gitGrantExpired, .gitPolicyUpdated, .incidentResolved, .unknown: true
         default: false
         }
     }

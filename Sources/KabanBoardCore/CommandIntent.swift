@@ -32,7 +32,7 @@ public extension Command {
              .setProjectWeight(let id, _, _), .pauseProject(let id),
              .resumeProject(let id), .setProjectMcpAllowlist(let id, _): .project(id)
         case .updatePipeline(let id, _, _): .pipeline(id)
-        case .allowGitOnce(let id), .addDenialToPolicy(let id, _): .denial(id)
+        case .allowGitOnce(let id), .addDenialToPolicy(let id, _, _): .denial(id)
         case .revokeGitGrant(let id): .grant(id)
         case .clearModelFlag(let id): .model(id)
         case .recheck(.project(let id)): .project(id)
@@ -65,7 +65,8 @@ public extension Command {
             pipeline.projectId == id
         case (.allowGitOnce(let id), .gitGrantCreated(let value)): value.denialId == id
         case (.revokeGitGrant(let id), .gitGrantRevoked(let value)): value.grantId == id
-        case (.addDenialToPolicy(_, let scope), .gitPolicyUpdated(let value)): value.scope == scope
+        case (.addDenialToPolicy(_, let scope, let draft), .gitPolicyUpdated(let value)):
+            value.scope == scope && draft?.projectId == value.projectId && value.pipelineVersion != draft?.baseVersionHash
         case (.configureCursor, .cursorEnvironmentChanged): true
         case (.pauseProject(let id), .settingsChanged(let change)):
             change.schedulerFlags?.contains(.projectPaused(id)) == true

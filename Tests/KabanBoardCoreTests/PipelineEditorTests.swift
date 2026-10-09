@@ -154,7 +154,7 @@ final class PipelineEditorTests: XCTestCase {
     }
 }
 
-@MainActor private final class EditorTestClient: KabanClient {
+@MainActor final class EditorTestClient: KabanClient {
     var source: PipelineSourceContent
     var pipeline: PipelineSummary
     var held = false, wrongProject = false, refuseWithExternalEdit = false
@@ -171,7 +171,7 @@ final class PipelineEditorTests: XCTestCase {
     func synchronize() async throws -> SnapshotReplacement { .init(snapshot: try await getSnapshot(), cursor: .init(sessionId: UUID(), offset: 0), current: []) }
     func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> { AsyncThrowingStream { $0.yield(.connection(.connected)) } }
     func events() -> AsyncStream<EventEnvelope> { AsyncStream { _ in } }
-    func capabilities() async throws -> DaemonCapabilities { .init(operations: [.init(name: "synchronize", supported: true)], commands: [CommandName.getPipelineSource, .validatePipelineDraft, .updatePipeline].map { .init(name: $0.rawValue, support: .supported) }) }
+    func capabilities() async throws -> DaemonCapabilities { .init(operations: [.init(name: "synchronize", supported: true)], commands: [CommandName.getPipelineSource, .validatePipelineDraft, .updatePipeline, .addDenialToPolicy].map { .init(name: $0.rawValue, support: .supported) }) }
     func resolve(_ index: Int, issues: [ValidationIssue]) { waiters[index].1.resume(returning: validation(waiters[index].0, issues: issues)) }
     private func validation(_ envelope: CommandEnvelope, issues: [ValidationIssue]) -> CommandReply {
         guard case .validatePipelineDraft(let draft) = envelope.command else { fatalError() }
@@ -186,7 +186,7 @@ final class PipelineEditorTests: XCTestCase {
         case .validatePipelineDraft:
             if held { return await withCheckedContinuation { waiters.append((envelope, $0)) } }
             return validation(envelope, issues: issues)
-        case .updatePipeline:
+        case .updatePipeline, .addDenialToPolicy:
             applied.append(envelope)
             if refuseWithExternalEdit {
                 try "late external\n".write(toFile: source.path, atomically: true, encoding: .utf8)

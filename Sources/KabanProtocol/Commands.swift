@@ -48,7 +48,7 @@ public enum Command: Codable, Hashable, Sendable {
     case acceptSuspiciousFiles(taskId: TaskID, files: [FileBlobRef])
     // Git
     case allowGitOnce(denialId: DenialID)
-    case addDenialToPolicy(denialId: DenialID, scope: PolicyScope)
+    case addDenialToPolicy(denialId: DenialID, scope: PolicyScope, draft: PipelineDraft? = nil)
     case revokeGitGrant(grantId: GrantID)
     // Планировщик
     case pauseAll

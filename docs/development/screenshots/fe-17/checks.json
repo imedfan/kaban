@@ -1,0 +1,143 @@
+{
+  "source": "9e08eb80a08954a1f221e2781821d493ee3fda92",
+  "fixture": "/tmp/kaban-fe17-r9kwd8gg",
+  "checks": [
+    {
+      "scenario": "allow-revoke-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "allow and revoke use correlated events; .ok creates no local grant; repeat allow sends no second intent; authoritative badge 0 → 1 → 0"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "consumed-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable consumed remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "created-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable created remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "delivered-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable delivered remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "disconnected-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable history remains visible; disconnected actions disabled"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "empty-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "empty task shows no invented denial or grant"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "expired-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "durable expired remains distinct with backend timestamps after daemon recovery"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "hard-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "hard-invariant denial offers no allow or policy buttons"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "long-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "policy-commit-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write",
+        "native Cmd-Return menu command saves one addDenialToPolicy intent; correlated accepted version differs from base and exact committed source matches; durable resolved stage policy retained"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "preview-escape-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write",
+        "native Escape closes preview without creating a command or changing YAML"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "preview-project-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "preview-stage-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "native preview shows explicit scope, exact YAML and server-resolved policy before disk write"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "reopen-dark-minimum",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "new app and daemon restore revoked lifecycle and zero unused badge from SQLite"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "retry-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "five real denials wait for a human; retryStage queues the same stage while Mac remains paused"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "stale-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "cancelled task retains raw denial and explicit stale refusal"
+      ],
+      "result": "passed"
+    },
+    {
+      "scenario": "unknown-light",
+      "checks": [
+        "real WindowGroup, production daemon over private stdio, durable denial produced by loopback /git/check",
+        "unknown rule and argv displayed verbatim"
+      ],
+      "result": "passed"
+    }
+  ]
+}

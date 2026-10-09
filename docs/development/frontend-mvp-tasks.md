@@ -870,10 +870,20 @@ apply, exact source, Escape, restart и unexpected. Третий критери�
 
 ### Критерии приёмки
 
-- [ ] Реальный отказ можно разрешить/отозвать; строки/бейджи восстанавливаются после reopen.
-- [ ] Повтор allowGitOnce не даёт второго разрешения; stale denial даёт явный отказ.
-- [ ] Delivered, consumed и expired различимы; hard invariant нельзя обойти через UI.
-- [ ] Добавление в политику показывает принятую версию и действует с новых runs.
+- [x] Реальный отказ можно разрешить/отозвать; строки/бейджи восстанавливаются после reopen.
+- [x] Повтор allowGitOnce не даёт второго разрешения; stale denial даёт явный отказ.
+- [x] Delivered, consumed и expired различимы; hard invariant нельзя обойти через UI.
+- [x] Добавление в политику показывает принятую версию и действует с новых runs.
+
+FE-17 подготовлена в `codex/fe-17-git-approvals` от main `a20a48d`.
+661 test полного прогона, 15 финальных grant/recovery tests, App build и
+17 native private-daemon сценариев прошли. Отказы получены настоящим `/git/check`;
+новые project/stage правила проверены на точном Git-коммите, повторе команды,
+recovery после коммита и новом run. [Отчёт и кадры](frontend-fe-17-2026-10-08.md).
+UI ожидает correlated событие, затем читает новую committed версию и policy;
+старый run сохраняет frozen policy. Grant delivery через MCP проверена.
+Требование доставки в следующий Cursor-промпт сохраняется: producer `.nextPrompt`
+пока отсутствует; [пробел интеграции](frontend-backend-integration-gaps.md) остаётся открытым.
 
 ## Блок 5. Исключения и управление ресурсами
 

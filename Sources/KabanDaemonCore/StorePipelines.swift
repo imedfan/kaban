@@ -148,8 +148,17 @@ extension KabanStore {
             return .init(commandId: envelope.commandId, seq: nil, result: .error(.init(code: CommandError.protocolMismatchCode, message: "Несовместимая версия протокола.")))
         }
         do {
-            guard case .updatePipeline(let id, let hash, let draft) = envelope.command else { preconditionFailure() }
-            guard let draft else { throw CommandError(code: "pipeline_draft_required", message: "Передайте точный YAML и базовую версию в draft.") }
+            let id: ProjectID, hash: String, draft: PipelineDraft
+            switch envelope.command {
+            case .updatePipeline(let projectId, let contentHash, let value):
+                guard let value else { throw CommandError(code: "pipeline_draft_required", message: "Передайте точный YAML и базовую версию в draft.") }
+                id = projectId; hash = contentHash; draft = value
+            case .addDenialToPolicy(let denialId, let scope, let value):
+                guard let value else { throw CommandError(code: "pipeline_draft_required", message: "Сначала проверьте точный YAML-черновик правила.") }
+                let denial = try database.read { try Self.gitPolicyDenial(denialId, scope: scope, db: $0) }
+                id = denial.task.card.projectId; hash = value.contentHash; draft = value
+            default: preconditionFailure()
+            }
             var record = try database.read { try Self.project(id, db: $0) }
             if record.production != nil {
                 try refreshPipelines(only: id)
@@ -160,6 +169,12 @@ extension KabanStore {
             try draft.checkSourceBinding(currentSourceHash: record.projectedPipeline.sourceHash, emptySourceHash: record.production?.source?.files.isEmpty == true ? record.projectedPipeline.sourceHash : nil)
             let validation = try database.read { try Self.validateDraftContent(projectId: id, content: draft.content, db: $0) }
             guard validation.isValid else { return try savePipelineReply(.init(commandId: envelope.commandId, seq: nil, result: .validationIssues(validation.issues)), request: request) }
+            if case .addDenialToPolicy(let denialId, let scope, _) = envelope.command, let config = validation.config {
+                let issues = try database.read { try Self.gitPolicyDraftIssues(denialId, scope: scope, config: config, db: $0) }
+                if !issues.isEmpty {
+                    return try savePipelineReply(.init(commandId: envelope.commandId, seq: nil, result: .validationIssues(validation.issues + issues)), request: request)
+                }
+            }
             let repository = try LocalGitRepository(path: record.summary.path)
             guard repository.repositoryID == record.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
             let source = try repository.pipelineSource()
@@ -167,6 +182,9 @@ extension KabanStore {
             guard let identity = record.summary.identity else { throw GitIdentityRequired(missing: [.name, .email]).commandError }
             let plan = try repository.preparePipeline(content: draft.content, source: source, identity: identity, commandId: envelope.commandId,
                                                       requiresExactWorkingContent: draft.requiresExactWorkingContent == true)
+            if case .addDenialToPolicy = envelope.command, try plan.source.versionHash() == draft.baseVersionHash {
+                throw CommandError(code: "git_policy_unchanged", message: "Черновик не создаёт новую версию .kaban/. Правило не сохранено.")
+            }
             let operation = PipelineOperation(envelope: envelope, projectId: id, path: repository.path, repositoryID: repository.repositoryID, plan: plan, at: now())
             try database.write { db in
                 _ = try Self.project(id, db: db)
@@ -174,6 +192,9 @@ extension KabanStore {
                 try Self.requirePipelineIdle(id, db: db)
                 let valid = try Self.validateDraftContent(projectId: id, content: draft.content, db: db)
                 guard valid.isValid else { throw StoreError.invalidPipeline }
+                if case .addDenialToPolicy(let denialId, let scope, _) = envelope.command, let config = valid.config {
+                    guard try Self.gitPolicyDraftIssues(denialId, scope: scope, config: config, db: db).isEmpty else { throw StoreError.invalidPipeline }
+                }
                 try db.execute(sql: "INSERT INTO pipeline_operation(id, request, project_id, payload) VALUES (?, ?, ?, ?)", arguments: [envelope.commandId.uuidString, request, id.rawValue, try Self.encode(operation)])
             }
             return try finishPipelineOperation(operation)
@@ -246,6 +267,10 @@ extension KabanStore {
             try Self.applyUncommittedValidation(workingFile, error: workingError, record: &record, db: db)
             try db.execute(sql: "UPDATE project SET payload = ? WHERE id = ?", arguments: [try Self.encode(record), operation.projectId.rawValue])
             _ = try Self.journal(.pipelineApplied(record.projectedPipeline), projectId: operation.projectId, commandId: operation.envelope.commandId, at: operation.at, db: db)
+            if case .addDenialToPolicy(let denialId, let scope, _) = operation.envelope.command {
+                try Self.recordGitPolicyUpdate(denialId, scope: scope, config: config, version: acceptedHash,
+                                               commandId: operation.envelope.commandId, at: operation.at, db: db)
+            }
             try Self.recordChangedLoads(from: loads, commandId: operation.envelope.commandId, at: operation.at, db: db)
             try Self.recordChangedSchedulerFlags(from: flags, commandId: operation.envelope.commandId, at: operation.at, db: db)
             try db.execute(sql: "DELETE FROM pipeline_operation WHERE id = ?", arguments: [operation.envelope.commandId.uuidString])

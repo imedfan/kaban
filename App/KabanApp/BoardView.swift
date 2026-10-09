@@ -777,11 +777,18 @@ struct TaskDetailView: View {
                                 Text("Данные инцидента ещё не прочитаны. Откройте раздел «Инциденты» и обновите список.").font(.callout)
                             }
                             MergeProgressView(store: store, detail: detail)
-                            TaskModelView(store: store, detail: detail, theme: theme)
+                            if tab != "Разрешения git" { TaskModelView(store: store, detail: detail, theme: theme) }
+                            if !detail.gitDenials.isEmpty, tab == "Описание" {
+                                Button { store.detailTab = "Разрешения git" } label: {
+                                    Label("Отказы git · \(detail.gitDenials.count) · неиспользованные разрешения · \(detail.task.unusedGitGrants)", systemImage: "key")
+                                        .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                                }.buttonStyle(KabanButtonStyle(compact: true))
+                            }
                             if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if tab == "Описание" { description(detail) }
                             else if tab == "Лента" { feed(detail) }
                             else if tab == "Сводка" { summary(detail) }
+                            else if tab == "Разрешения git" { GitPermissionsView(store: store, detail: detail, theme: theme) }
                         }
                         if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
@@ -793,6 +800,12 @@ struct TaskDetailView: View {
                     if let source = BoardQA.argument("--qa-review-artifact") {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo(source, anchor: .top)
+                    }
+                }
+                .task(id: store.detail?.gitGrants.first?.grant.grantId) {
+                    if BoardQA.argument("--qa-git-history") == "yes", let grant = store.detail?.gitGrants.first {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        proxy.scrollTo(grant.grant.grantId, anchor: .top)
                     }
                 }
                 }
@@ -807,7 +820,9 @@ struct TaskDetailView: View {
             .sheet(item: $store.logRunRoute) { run in RunLogSheet(store: store, run: run) }
             .sheet(item: $store.wipRestoreRoute) { route in WIPRestoreSheet(store: store, route: route) }
             .sheet(item: $store.modelOverrideRoute) { editor in TaskModelOverrideSheet(store: store, editor: editor) }
+            .sheet(item: Binding(get: { store.gitPermissions.preview }, set: { store.gitPermissions.preview = $0 })) { preview in GitPolicyPreviewSheet(board: store, preview: preview) }
             .onChange(of: store.selectedID) { _, id in store.detailTab = id.flatMap { store.projection?.tasks[$0] }?.state == .waitingHuman(.review) ? "Сводка" : "Описание"; store.materialTextRoute = nil; store.logRunRoute = nil }
+            .onChange(of: store.selectedID) { _, _ in store.gitPermissions.preview = nil }
     }
     private var availableRuns: [RunSummary]? {
         if case .unavailable = store.session.detailReadState { return store.session.runHistory ?? store.detail?.runs }
@@ -866,7 +881,9 @@ struct TaskDetailView: View {
                     }
                 }
             }.scrollIndicators(.hidden)
-            KabanSegments(selection: $store.detailTab, options: [("Описание", "Описание"), ("Лента", "Лента"), ("Сводка", "Сводка"), ("Запуски", "Запуски")])
+            ScrollView(.horizontal) {
+                KabanSegments(selection: $store.detailTab, options: [("Описание", "Описание"), ("Лента", "Лента"), ("Сводка", "Сводка"), ("Запуски", "Запуски"), ("Разрешения git", "Разрешения git")], equalWidths: false)
+            }.scrollIndicators(.hidden)
         }.padding(16).overlay(alignment: .bottom) { theme.line.frame(height: 0.5) }
     }
     private func status(_ value: CardPresentation) -> some View {
@@ -902,6 +919,7 @@ struct TaskDetailView: View {
         }
     }
     @ViewBuilder private func feed(_ detail: TaskDetail) -> some View {
+        if !detail.gitDenials.isEmpty { GitPermissionsView(store: store, detail: detail, theme: theme) }
         if detail.feed.isEmpty { empty("Событий пока нет") }
         ForEach(detail.feed, id: \.id) { item in
             VStack(alignment: .leading, spacing: 7) {
