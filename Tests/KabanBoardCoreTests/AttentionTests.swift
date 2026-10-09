@@ -77,7 +77,7 @@ final class AttentionTests: XCTestCase {
         _ = board.apply(old); XCTAssertTrue(store.receive(.journal(old), board: board, now: Fix.t0.addingTimeInterval(601)).isEmpty)
         XCTAssertTrue(AttentionStore(storage: storage, key: "flags").enabled)
     }
-    @MainActor func testSessionPublishesOnlyAppliedAndDrainedUpdates() throws {
+    @MainActor func testSessionPublishesOnlyAppliedAndDrainedUpdates() async throws {
         let session = BoardSession(client: MockKabanClient(snapshot: Fix.snapshot()), storage: MemoryKeyValueStore(), key: "session")
         let sessionID = UUID()
         var observed: [BoardSessionUpdate] = []
