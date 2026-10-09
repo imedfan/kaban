@@ -47,6 +47,7 @@ struct ModelSettingsView: View {
                     TextField("ID или префикс-*", text: $pattern).textFieldStyle(.roundedBorder).accessibilityIdentifier("model-pool-pattern")
                     Picker("Пул", selection: $pool) { Text("Cm").tag(ModelPool.cm); Text("Om").tag(ModelPool.om) }.frame(width: 90)
                     Button("Сохранить правило") { Task { await store.send(.setModelPoolRule(pattern: pattern, pool: pool)) } }
+                        .fixedSize()
                         .disabled(pattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.can(.setModelPoolRule(pattern: pattern, pool: pool)))
                 }
             } else { Text("Служба не передала сохранённые правила. Обновите службу Kaban.").font(.caption).foregroundStyle(.orange) }

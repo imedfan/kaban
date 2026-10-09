@@ -41,7 +41,7 @@ struct BoardView: View {
                     case .project(let id):
                         ProjectSettingsView(store: store, projectID: id, theme: theme)
                     case .quota:
-                        quotaPage
+                        MacSettingsView(store: store, theme: theme)
                     case .incidents:
                         IncidentsView(store: store)
                     }
@@ -229,6 +229,7 @@ struct BoardView: View {
             ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 LazyVStack(alignment: .leading, spacing: 8, pinnedViews: [.sectionHeaders]) {
+                    SchedulerFlagsView(store: store, theme: theme)
                     if store.projection == nil { ProgressView("Загрузка доски…").frame(width: max(width - 24, 0), height: 280) }
                     else if lanes.isEmpty { emptyBoard.frame(width: max(width - 24, 0), height: 280) }
                     else if store.hasTaskFilter && store.visibleMatchCount == 0 {
@@ -332,6 +333,7 @@ struct BoardView: View {
     private func laneBody(_ lane: BoardLane, width: CGFloat) -> some View {
         let displayed = columns(lane)
         return VStack(alignment: .leading, spacing: 6) {
+            SchedulerFlagsView(store: store, theme: theme, project: lane.project.id)
             if let issue = lane.project.mcpIssue {
                 HStack(alignment: .top, spacing: 10) {
                     Label(issue.kind == .unexpected ? "CLI видит лишний MCP «\(issue.name)»" : "MCP не удалось проверить: \(issue.name)", systemImage: "exclamationmark.triangle")
@@ -403,6 +405,15 @@ struct BoardView: View {
                             Spacer(minLength: 0)
                             stageLoadLabel(project: project.id, stage: column.stage.id)
                             Image(systemName: "chevron.down").font(.system(size: 8))
+                        }
+                    }
+                    if let model = column.stage.model {
+                        if store.models.flags.contains(where: { $0.modelId == model }) {
+                            Label("Флаг модели", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                        }
+                        if let pool = store.models.catalog.first(where: { $0.id == model })?.pool,
+                           store.projection?.ephemeral.schedulerFlags.contains(where: { if case .poolUsageExhausted(let blocked, _) = $0 { return blocked == pool }; return false }) == true {
+                            Label(pool.rawValue.capitalized + " исчерпан", systemImage: "hourglass").font(.caption).foregroundStyle(.orange)
                         }
                     }
                 }.font(.system(size: 11)).foregroundStyle(Color(hex: theme.dark ? 0xf2f2f5 : 0x1d1d1f)).frame(maxWidth: .infinity, alignment: .leading).padding(4).frame(minHeight: 28)
@@ -516,40 +527,17 @@ struct BoardView: View {
             HStack { Text("Процессы агентов").fixedSize(horizontal: false, vertical: true); Spacer(); Text("Нет данных").foregroundStyle(theme.faint).fixedSize() }.font(.system(size: 11))
                 .help("Служба пока не сообщает подтверждённые процессы и их потолок.")
             HStack { Text("Резервирования"); Spacer(); Text("\(store.reservationCount)").monospacedDigit() }.font(.system(size: 10)).foregroundStyle(theme.secondary)
+            if let settings = store.projection?.settings {
+                HStack { Text("Потолок запусков"); Spacer(); Text("\(settings.maxConcurrentRuns)").monospacedDigit() }.font(.caption)
+            }
             theme.line.frame(height: 0.5)
-            quotaRows
+            if store.projection?.settings?.quotaOptions.enabled == true {
+                QuotaBarsView(store: store, theme: theme, compact: true)
+            }
             Text(store.dataSource).font(.system(size: 10)).foregroundStyle(theme.faint)
                 .fixedSize(horizontal: false, vertical: true).help(store.dataSourceDetail)
         }.padding(12).background(theme.lane, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.line, lineWidth: 0.5))
-    }
-    private var quotaRows: some View {
-        VStack(spacing: 8) {
-            ForEach([ModelPool.cm, .om], id: \.self) { pool in
-                HStack(spacing: 8) {
-                    Text(pool.rawValue.capitalized).font(.system(size: 10, weight: .semibold)).frame(width: 20, alignment: .leading)
-                    if let quota = store.projection?.ephemeral.quota, !quota.isStale(now: Date()), let percent = quota.percentUsed(pool) {
-                        ProgressView(value: percent, total: 100).tint(pool == .cm ? theme.status("gating").0 : theme.status("waiting").0)
-                        Text("\(Int(percent))%").font(.system(size: 10)).monospacedDigit()
-                    } else { Text("Нет данных").font(.system(size: 11)).foregroundStyle(theme.faint); Spacer() }
-                }
-            }
-        }
-    }
-    private var quotaPage: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Label("Квота Cursor", systemImage: "gauge.with.dots.needle.50percent").font(.system(size: 22, weight: .bold))
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Расход по пулам моделей").font(.system(size: 13)).foregroundStyle(theme.secondary)
-                        quotaRows.padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
-                        Text("Данные квоты появятся после подключения источника состояния.").font(.system(size: 12)).foregroundStyle(theme.secondary)
-                    }.frame(width: 200)
-                    ModelSettingsView(store: store.models, theme: theme).frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-            }.frame(maxWidth: 1100, alignment: .leading).padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
-        }
     }
 }
 

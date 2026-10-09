@@ -32,6 +32,7 @@ import KabanProtocol
                         else if let preview = store.gitPermissions.preview { Task { await preview.save() } }
                         else if let editor = store.activePipelineEditor { Task { await editor.apply() } }
                         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
+                        else if let settings = store.activeMacSettings, let section = settings.section { Task { await settings.submit(section) } }
                         else if store.canResolveIncident { store.resolveIncident() }
                         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
                     }
@@ -123,6 +124,7 @@ private struct ReviewQAWindowCommands: Commands {
         else if let preview = store.gitPermissions.preview { Task { await preview.save() } }
         else if let editor = store.activePipelineEditor { Task { await editor.apply() } }
         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
+        else if let settings = store.activeMacSettings, let section = settings.section { Task { await settings.submit(section) } }
         else if store.canResolveIncident { store.resolveIncident() }
         else if store.canApproveSelected { store.approveSelected() } else { store.answerSelected() }
     }
@@ -138,6 +140,10 @@ private struct ReviewQAWindowCommands: Commands {
             if let preview = runtime?.store?.gitPermissions.preview {
                 menuItem.title = "Сохранить правило git"
                 return runtime?.showSetup == false && preview.canSave
+            }
+            if let settings = runtime?.store?.activeMacSettings {
+                menuItem.title = settings.section == .ceiling ? "Сохранить потолок" : "Применить квоту"
+                return runtime?.showSetup == false && settings.section.map(settings.canSubmit) == true
             }
             if let editor = runtime?.store?.activePipelineEditor {
                 menuItem.title = "Применить пайплайн"
