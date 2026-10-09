@@ -150,3 +150,12 @@ Legacy detail без поля остаётся неизвестным; обяз�
 в replacement: полный snapshot новее этого retained cache. Live events с afterSeq
 раньше последнего model settings journal event отбрасываются в transport/session.
 [Проверки и native evidence FE-14](../development/frontend-fe-14-2026-10-08.md).
+
+`TaskDetail.fileCheck?` сообщает frozen maxFileBytes, includesUncommitted,
+baseCommit?, bounceLimitTotal? и returnPipeline? этой задачи. Последний
+содержит StageSummary/onFail/onConflict и writable return targets из её
+сохранённой версии, даже после изменения pipeline проекта. Отсутствие поля
+означает неизвестный порог; без returnPipeline специальный gate/merge return
+недоступен. Старые required поля TaskDetail остаются required. Проверки:
+RoundTripTests, IncidentTests и SuspiciousFilesTests;
+[native evidence FE-18](../development/frontend-fe-18-2026-10-09.md).

@@ -28,7 +28,8 @@ import KabanProtocol
             CommandMenu("Задача") {
                 Button("Ответить или одобрить результат") {
                     if !runtime.showSetup, let store = runtime.store {
-                        if let preview = store.gitPermissions.preview { Task { await preview.save() } }
+                        if let route = store.suspiciousReturnRoute { Task { await store.suspiciousFiles.submitReturn(route.taskID) } }
+                        else if let preview = store.gitPermissions.preview { Task { await preview.save() } }
                         else if let editor = store.activePipelineEditor { Task { await editor.apply() } }
                         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
                         else if store.canResolveIncident { store.resolveIncident() }
@@ -118,7 +119,8 @@ private struct ReviewQAWindowCommands: Commands {
     @objc private func createTask(_ sender: NSMenuItem) { runtime?.store?.beginCreation() }
     @objc private func primaryTask(_ sender: NSMenuItem) {
         guard runtime?.showSetup == false, let store = runtime?.store else { return }
-        if let preview = store.gitPermissions.preview { Task { await preview.save() } }
+        if let route = store.suspiciousReturnRoute { Task { await store.suspiciousFiles.submitReturn(route.taskID) } }
+        else if let preview = store.gitPermissions.preview { Task { await preview.save() } }
         else if let editor = store.activePipelineEditor { Task { await editor.apply() } }
         else if let settings = store.activeProjectSettings { Task { await settings.submit() } }
         else if store.canResolveIncident { store.resolveIncident() }
@@ -129,6 +131,10 @@ private struct ReviewQAWindowCommands: Commands {
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(primaryTask(_:)) {
+            if let route = runtime?.store?.suspiciousReturnRoute {
+                menuItem.title = "Вернуть задачу с решением по файлам"
+                return runtime?.showSetup == false && runtime?.store?.suspiciousFiles.canReturn(route.taskID) == true
+            }
             if let preview = runtime?.store?.gitPermissions.preview {
                 menuItem.title = "Сохранить правило git"
                 return runtime?.showSetup == false && preview.canSave
@@ -145,7 +151,7 @@ private struct ReviewQAWindowCommands: Commands {
             menuItem.title = runtime?.store?.canResolveIncident == true ? "Вернуть с замечанием по инциденту" : approve ? "Одобрить результат ревью" : "Отправить ответ агенту"
             return runtime?.showSetup == false && (approve || runtime?.store?.canAnswerSelected == true || runtime?.store?.canResolveIncident == true)
         }
-        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil && runtime?.store?.overlapRoute == nil && runtime?.store?.gitPermissions.preview == nil }
+        if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil && runtime?.store?.overlapRoute == nil && runtime?.store?.suspiciousReturnRoute == nil && runtime?.store?.gitPermissions.preview == nil }
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
     }

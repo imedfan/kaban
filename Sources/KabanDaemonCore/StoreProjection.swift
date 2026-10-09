@@ -61,6 +61,11 @@ extension KabanStore {
                                 artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials.map { denial in
                                     var denial = denial; denial.context = Self.gitDenialContext(denial, task: task, detail: d); return denial
                                 }, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db), modelStages: try Self.taskModelStages(task, db: db),
+                                fileCheck: .init(maxFileBytes: task.pipeline.suspiciousFiles.maxFileBytes,
+                                                 includesUncommitted: task.pipeline.git.preset == .strict,
+                                                 baseCommit: try Self.cloneRecord(taskId, db: db)?.baseCommit,
+                                                 bounceLimitTotal: task.pipeline.board.bounceLimitTotal,
+                                                 returnPipeline: task.pipeline.summary(projectId: task.card.projectId, versionHash: task.pipelineVersion)),
                                 incidentPipeline: task.pipeline.summary(projectId: task.card.projectId, versionHash: task.pipelineVersion))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
         return detail

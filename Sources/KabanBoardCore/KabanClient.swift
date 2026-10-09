@@ -95,7 +95,7 @@ extension KabanClient {
         }
     }
     public func capabilities() async throws -> DaemonCapabilities {
-        let supported: Set<CommandName> = [.listIncidents, .getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
+        let supported: Set<CommandName> = [.listIncidents, .getTaskDetail, .createTask, .editTask, .setPriority, .moveTask, .cancelTask, .pauseTask, .resumeTask, .retryStage, .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles, .pauseAll, .resumeAll, .pauseProject, .resumeProject, .setMascot]
         return .init(operations: ["snapshot", "command", "subscribe", "synchronize"].map { .init(name: $0, supported: true) },
                      commands: CommandName.allCases.map { .init(name: $0.rawValue, support: supported.contains($0) ? .supported : .unsupported) })
     }
@@ -226,6 +226,18 @@ extension KabanClient {
             snapshot.tasks[index].updatedAt = Date()
             emit(.taskUpdated(snapshot.tasks[index]), projectID: snapshot.tasks[index].projectId, commandID: commandId)
             return .ok
+        case .acceptSuspiciousFiles(let id, let shown):
+            guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }),
+                  snapshot.tasks[index].state == .waitingHuman(.suspiciousFiles),
+                  let pipeline = snapshot.pipelines.first(where: { $0.projectId == snapshot.tasks[index].projectId }),
+                  let next = pipeline.stages.first(where: { $0.id == snapshot.tasks[index].stageId })?.onSuccess,
+                  let target = pipeline.stages.first(where: { $0.id == next }) else { return invalidState() }
+            let current = snapshot.tasks[index].suspiciousFiles.map { FileBlobRef(path: $0.path, blob: $0.blob) }
+            guard Set(current) == Set(shown), shown.count == Set(shown).count else {
+                return .error(.init(code: CommandError.staleSuspiciousFilesCode, message: "Набор файлов изменился — ничего не принято."))
+            }
+            acceptDemoFiles(index, commandID: commandId)
+            return update(index, state: target.kind == .terminal ? .done : .queued(nil), commandId: commandId, stageID: next)
         case .moveTask(let id, let targetID):
             guard let index = snapshot.tasks.firstIndex(where: { $0.id == id }) else { return missingTask() }
             let task = snapshot.tasks[index]

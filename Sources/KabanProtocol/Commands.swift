@@ -240,18 +240,21 @@ public struct TaskDetail: Codable, Hashable, Sendable {
     public var modelStages: [TaskModelStage]?
     /// Frozen routes for incident decisions. nil means a legacy producer did not report them.
     public var incidentPipeline: PipelineSummary?
+    public var fileCheck: SuspiciousFileCheck?
     public init(seq: Seq, task: TaskCard, feed: [FeedItem], runs: [RunSummary], humanRequests: [HumanRequest] = [],
                 suspiciousFiles: [SuspiciousFile] = [], acceptedFiles: [AcceptedFile] = [], clonePath: String? = nil,
                 artifacts: [TaskArtifact] = [], gitGrants: [GitGrantSnapshot] = [], gitDenials: [GitDenialSnapshot] = [],
-                body: String? = nil, wipRestoreOperations: [WIPRestoreOperation]? = nil, modelStages: [TaskModelStage]? = nil, incidentPipeline: PipelineSummary? = nil) {
+                body: String? = nil, wipRestoreOperations: [WIPRestoreOperation]? = nil, modelStages: [TaskModelStage]? = nil,
+                fileCheck: SuspiciousFileCheck? = nil, incidentPipeline: PipelineSummary? = nil) {
         self.seq = seq; self.task = task; self.feed = feed; self.runs = runs; self.humanRequests = humanRequests
         self.suspiciousFiles = suspiciousFiles; self.acceptedFiles = acceptedFiles; self.clonePath = clonePath
         self.artifacts = artifacts; self.gitGrants = gitGrants; self.gitDenials = gitDenials
-        self.body = body; self.wipRestoreOperations = wipRestoreOperations; self.modelStages = modelStages; self.incidentPipeline = incidentPipeline
+        self.body = body; self.wipRestoreOperations = wipRestoreOperations; self.modelStages = modelStages
+        self.fileCheck = fileCheck; self.incidentPipeline = incidentPipeline
     }
 
     enum CodingKeys: String, CodingKey {
-        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials, body, wipRestoreOperations, modelStages, incidentPipeline
+        case seq, task, feed, runs, humanRequests, suspiciousFiles, acceptedFiles, clonePath, artifacts, gitGrants, gitDenials, body, wipRestoreOperations, modelStages, fileCheck, incidentPipeline
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -264,6 +267,7 @@ public struct TaskDetail: Codable, Hashable, Sendable {
         try c.encodeIfPresent(wipRestoreOperations, forKey: .wipRestoreOperations)
         try c.encodeIfPresent(modelStages, forKey: .modelStages)
         try c.encodeIfPresent(incidentPipeline, forKey: .incidentPipeline)
+        try c.encodeIfPresent(fileCheck, forKey: .fileCheck)
         if !artifacts.isEmpty { try c.encode(artifacts, forKey: .artifacts) }
         if !gitGrants.isEmpty { try c.encode(gitGrants, forKey: .gitGrants) }
         if !gitDenials.isEmpty { try c.encode(gitDenials, forKey: .gitDenials) }
@@ -282,6 +286,7 @@ public struct TaskDetail: Codable, Hashable, Sendable {
                   body: try c.decodeIfPresent(String.self, forKey: .body),
                   wipRestoreOperations: try c.decodeIfPresent([WIPRestoreOperation].self, forKey: .wipRestoreOperations),
                   modelStages: try c.decodeIfPresent([TaskModelStage].self, forKey: .modelStages),
+                  fileCheck: try c.decodeIfPresent(SuspiciousFileCheck.self, forKey: .fileCheck),
                   incidentPipeline: try c.decodeIfPresent(PipelineSummary.self, forKey: .incidentPipeline))
     }
 }
