@@ -69,6 +69,20 @@ public struct HumanAnswerContext: Codable, Equatable, Sendable {
               receipt(for: id)?.phase != .applied || draft.submittedBy == nil else { return false }
         return draft.context.command(text: draft.text, current: currentContext(for: id)) != nil
     }
+    public func prepareNotificationReply(_ text: String, for id: TaskID, requestID: HumanRequestID) -> String? {
+        guard storageError == nil else { return storageError }
+        guard session.detailReadState == .loaded, let current = currentContext(for: id),
+              current.request?.requestId == requestID else { return "Вопрос изменился или больше недоступен. Ответ не отправлен." }
+        guard receipt(for: id)?.isPending != true, session.pending(in: .task(id)) == nil else {
+            return "Для задачи уже ожидается подтверждение команды. Ответ не отправлен."
+        }
+        if let draft = draft(for: id), !draft.text.isEmpty, draft.text != text {
+            return "В задаче сохранён другой черновик. Ответ из уведомления не заменил его."
+        }
+        guard current.command(text: text, current: current) != nil else { return "Напишите непустой ответ без служебных символов." }
+        setText(text, for: id)
+        return storageError
+    }
     public func setText(_ text: String, for id: TaskID) {
         guard storageError == nil, receipt(for: id)?.isPending != true, var draft = draft(for: id) else { return }
         draft.text = text; draft.submittedBy = nil; save(draft)
