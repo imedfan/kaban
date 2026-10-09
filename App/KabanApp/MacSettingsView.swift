@@ -18,7 +18,10 @@ struct MacSettingsView: View {
                 SchedulerFlagsView(store: store, theme: theme)
                 ceiling
                 HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 16) { quotaOptions; QuotaBarsView(store: store, theme: theme) }.frame(width: 350)
+                    VStack(alignment: .leading, spacing: 16) {
+                        quotaOptions.fixedSize(horizontal: false, vertical: true)
+                        QuotaBarsView(store: store, theme: theme).padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
+                    }.frame(width: 350)
                     ModelSettingsView(store: store.models, theme: theme).frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 projects
@@ -48,14 +51,14 @@ struct MacSettingsView: View {
             Button(store.macPaused ? "Продолжить новые запуски" : "Пауза новых запусков") { Task { await store.toggleMacPause() } }
                 .disabled(!store.can(store.macPaused ? .resumeAll : .pauseAll) || editor.pending)
             staleNotice(.ceiling)
-        }.padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(theme.card, in: RoundedRectangle(cornerRadius: 12))
     }
     @ViewBuilder private var quotaOptions: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Квота Cursor · неофициально", systemImage: "gauge.with.dots.needle.50percent").font(.headline)
             if let options = editor.options {
                 Toggle("Получать квоту Cursor", isOn: Binding(get: { options.enabled }, set: { value in var changed = options; changed.enabled = value; editor.editOptions(changed) }))
-                    .disabled(editor.pending).accessibilityIdentifier("mac.quota.enabled")
+                    .toggleStyle(.switch).disabled(editor.pending).accessibilityIdentifier("mac.quota.enabled")
                 Text("Опция требует отдельного согласия. Предполагается только чтение токена Cursor на этом Маке и запрос статистики к api2.cursor.sh. Токен не вводится и не хранится в этой форме.")
                     .font(.caption).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true)
                 Toggle("Понимаю и соглашаюсь", isOn: Binding(get: { options.consent }, set: { value in var changed = options; changed.consent = value; if !value { changed.enabled = false }; editor.editOptions(changed) }))
@@ -68,6 +71,7 @@ struct MacSettingsView: View {
                 Picker("Интервал", selection: Binding(get: { ["60", "300", "900", "1800"].contains(editor.interval) ? editor.interval : "custom" }, set: { if $0 != "custom" { editor.editInterval($0) } else { editor.editInterval("") } })) {
                     Text("1 мин").tag("60"); Text("5 мин").tag("300"); Text("15 мин").tag("900"); Text("30 мин").tag("1800"); Text("Свой").tag("custom")
                 }.pickerStyle(.segmented).disabled(editor.pending)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack { Text("Интервал, секунд"); TextField("Положительное целое", text: Binding(get: { editor.interval }, set: editor.editInterval)).textFieldStyle(.roundedBorder).disabled(editor.pending) }
                 ForEach([ModelPool.cm, .om], id: \.self) { pool in
                     HStack {
@@ -187,6 +191,7 @@ struct SchedulerFlagsView: View {
                     }.padding(10).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                 }
             }
+            if let error = store.models.error { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
         }
     }
     private func supportsScope(_ command: Command) -> Bool {
