@@ -73,7 +73,7 @@ import KabanProtocol
             }
         }
         MenuBarExtra {
-            MenuBarView(runtime: runtime)
+            MenuBarView(runtime: runtime).preferredColorScheme(qaTheme)
         } label: {
             Label(runtime.store?.projection == nil ? "—" : "\(runtime.store?.waitingCount ?? 0)", systemImage: runtime.store?.projection?.ephemeral.schedulerFlags.isEmpty == false ? "exclamationmark.triangle" : "list.bullet.rectangle")
                 .accessibilityLabel(runtime.store?.projection == nil ? "Kaban. Нет данных о задачах" : "Kaban. Ждут человека: \(runtime.store?.waitingCount ?? 0)")

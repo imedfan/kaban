@@ -16,7 +16,10 @@ def main():
     parser.add_argument("--theme", choices=["light", "dark"], default="light")
     parser.add_argument("--minimum", action="store_true")
     parser.add_argument("--functional-only", action="store_true", help="Check live routes/Quit only; explicitly leave popup acceptance open")
+    parser.add_argument("--manual-popup", action="store_true", help="Wait up to five minutes for the user to open the actual popup")
     args = parser.parse_args()
+    if args.functional_only and args.manual_popup:
+        parser.error("Choose functional-only or manual-popup")
     executable = args.app.resolve() / "Contents/MacOS/Kaban"
     if not executable.is_file() or not args.seed.is_file():
         parser.error("Build App and seed-human-answers.swift first")
@@ -31,8 +34,10 @@ def main():
         command += ["--qa-size", "minimum"]
     if args.functional_only:
         command += ["--qa-menubar-functional", "YES"]
+    if args.manual_popup:
+        command += ["--qa-menubar-manual", "YES"]
     with (root / "app.log").open("w") as log:
-        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=120)
+        result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=360 if args.manual_popup else 120)
     report = json.loads((root / "result.json").read_text())
     expected = "functional_passed_popup_unverified" if args.functional_only else "passed"
     if result.returncode or report.get("result") != expected:
