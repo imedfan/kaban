@@ -1,0 +1,240 @@
+{
+  "sourceRevision": "8b480e25fafbbae467f8d668cf5c0a9ce6ce20e8",
+  "baseRevision": "93a2bde",
+  "frames": [
+    {
+      "file": "files-accept-light.png",
+      "sha256": "0ab419bde255f73e4f596835e01943af3414101cc7a8d6a3949caae610943fbc",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-agent-removal-dark-minimum.png",
+      "sha256": "ef49ef14a1a7c76ad214bbc33e0c2091d0328bb41a7f68a12251d8a990e327d3",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-binary-light.png",
+      "sha256": "8ae5c2b881e4a5832a4cfbca67ccba06b65bae724805268be7894658a5216ac9",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-cursor-light.png",
+      "sha256": "2f5c3d03aeabefbbe271e761e8eb795f388f02fb9127cf6aea61b90110c9f4c3",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-disconnected-dark-minimum.png",
+      "sha256": "df5078c395909941c644a488ffcdfd565c8d0770f48ec415bf7e1a9cdca0634e",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-exception-light.png",
+      "sha256": "dc5b31f6d9871f71469c445dde135078c526e45b2b43d3bd176359a316e98580",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-finder-light.png",
+      "sha256": "8ae5c2b881e4a5832a4cfbca67ccba06b65bae724805268be7894658a5216ac9",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-gate-comment-dark-minimum.png",
+      "sha256": "a1bb34cf973d214c60ddfcda5e35b1548fb2dcba8627d60d54cab4a633c3285a",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-gate-empty-light.png",
+      "sha256": "dd7af0fba9f36200e24a8b7145f8b72c2e566a5f6ebb61308a2a823a8eb114fb",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-gate-escape-light.png",
+      "sha256": "ffb91bfbf2d058540e73659255b67f8c5ea2d9a6b6b1bc717495a526d1fb04f0",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-gate-return-accept-light.png",
+      "sha256": "5472d849743e0179b34918a34b7a755e312edf3554691717c758c6d50b5ff5d1",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-gate-return-comment-dark-minimum.png",
+      "sha256": "a124cf3019027627ddf69f37d8a138dea8a2e5b733d55a77fba90d0dcafabc63",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-long-controls-dark-minimum.png",
+      "sha256": "3a3e0262ddf2eaccb82eb927c04672e6b111a11116d28fb3d31220ccaa5ec00d",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-long-dark-minimum.png",
+      "sha256": "98fdaebdbb576e33559f7ca36e2aa1c62d40cdfa7dab0a96d8488f0c18a59afc",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-merge-comment-light.png",
+      "sha256": "f073273be819527a8695401eb6d375b3509d0edd3c1029a0e687e108990b6deb",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-merge-empty-dark-minimum.png",
+      "sha256": "8b67b4dc60f1a1cfeaeb0981faf981d1ecf7d020d86a2d8671e43e6d1720147b",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-merge-return-accept-dark-minimum.png",
+      "sha256": "3ea412cb84e0ab038e0ca3f05659c1cb8b1faffd57bd4daf28607e885f79c6a9",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-merge-return-comment-light.png",
+      "sha256": "58de6a77f55bdd227f423cccc7d01e2b8f53e116aaa3c056681f7084285ade86",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-missing-light.png",
+      "sha256": "28aa1efdd144717bf30a3787a5bd8a2f95b3cda89ff9f0286c508cd3a2d74b77",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-reopen-dark-minimum.png",
+      "sha256": "28d48c326f81d3b165698f68ae90cbe61025258f8e33b2b1d394d59215592be3",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "files-stale-light.png",
+      "sha256": "e31758742a033d7550ac360ebd8428a06af8735f60164e3cdc9279c2a9dac8f9",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-strict-dark-minimum.png",
+      "sha256": "5c7f9bba8b1011c83c0b6098940931dcd2fd5c89108a38ffd6b1a230f4f065b5",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-allow-revoke-light.png",
+      "sha256": "41565df5f158f433c8c523572dab88205fbcf85615e81413f6b46b2d9fbfe532",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-consumed-dark-minimum.png",
+      "sha256": "65e7e91d820191d0d94c2b6c4b93e0a05b507eb3fa160f46b01d88f677c31fe7",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-created-light.png",
+      "sha256": "c8c36a63503cbec5d79cafda22a5d39c886994fb1f6589684b52ed2403e86b5a",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-delivered-light.png",
+      "sha256": "8d1945632b6015344419a0935a41370f15c9ea34f111f8fdcb6ec55cd10f73b4",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-disconnected-dark-minimum.png",
+      "sha256": "9300aba3e905b6c4c38ac08e77c040e4ade017b31bdf7718afaa2662e126edc9",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-empty-dark-minimum.png",
+      "sha256": "8f455134bdc8783a0947f5edc6659cb42eb624c258a1468178e4ca00eeaff2dd",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-expired-light.png",
+      "sha256": "8401fb2728da2a6af5859fe76c83bfdfb8528f625bf30939511497356522e4a7",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-hard-dark-minimum.png",
+      "sha256": "6e8c1865556d0823bb5fb59c834045ccf6ca22e914de8b5b1830478a3d2de291",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-long-dark-minimum.png",
+      "sha256": "83d84bba0adfb6f73a6843d18d23c3abed08b9606d9f72e129e186c3268d495e",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-policy-commit-light.png",
+      "sha256": "0be419f49fe8a4b0bd802c492a992c1c68429d752023ea48fbf658dac04dd462",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-preview-escape-light.png",
+      "sha256": "7680af843a82178e88e6abb5c7aebee6045911cf764e501e46e2a7e23d620331",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-preview-project-light.png",
+      "sha256": "5b42f0301dffbb3c3fc41bc314393e2954ab60f2ccedb0a89df34e9340e88912",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-preview-stage-dark-minimum.png",
+      "sha256": "2b8db1e45fea1c9c6af65f04ac5866116eb35dc933ebb8275a902fd676540566",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-reopen-dark-minimum.png",
+      "sha256": "d3f8032ec51d40c4372fd530d85f3e00bc37fd25b631d53fce8e24656c843f07",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-retry-light.png",
+      "sha256": "a78c24b6535518ec16d189a4508946fb693cf9970995f75cf3e50dc801767871",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-stale-light.png",
+      "sha256": "09de46f165ef388b06a48d5c002278caba9859b9b9af73502828758037b493e8",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-unknown-light.png",
+      "sha256": "d38bef959c84c9fb188645bd9ee6dc7ae45f81acd19fe7e57c40d2fccfb9b704",
+      "width": 2880,
+      "height": 1800
+    }
+  ]
+}

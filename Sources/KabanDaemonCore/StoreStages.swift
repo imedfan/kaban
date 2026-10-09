@@ -272,12 +272,7 @@ extension KabanStore {
             let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
             return (.incident(.foreignBase, rolledBack: restored), "incident")
         }
-        let strict = task.pipeline.git.preset == .strict
-        let files = try TaskClone.collectBranchFiles(clone: clone.clonePath, base: base, strict: strict, identity: identity)
-        let accepted = try database.read { db in Set(try Self.acceptedFileRows(task.card.id, db: db).map { FileBlobRef(path: $0.path, blob: $0.blob) }) }
-        var found = SuspiciousFilesScanner.scan(files.map(\.file), policy: task.pipeline.suspiciousFiles, accepted: accepted)
-        let text = Dictionary(files.map { ($0.file.path, $0.isText) }, uniquingKeysWith: { _, last in last })
-        for index in found.indices { found[index].isText = text[found[index].path] ?? false }
+        let found = try currentSuspiciousFiles(task: task, clone: clone, identity: identity)
         if !found.isEmpty { return (.suspiciousFiles(found), "suspicious") }
         let dirty = readOnly && ((try? TaskClone.worktreeDirty(clone.clonePath, identity: identity)) ?? true)
         return (dirty ? .readOnlyChanges : .clean, dirty ? "readonly" : "clean")

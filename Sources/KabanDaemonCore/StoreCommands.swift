@@ -47,6 +47,13 @@ extension KabanStore {
             } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
             try refreshPipelines(only: validating)
         }
+        let suspicious: Result<SuspiciousObservation, CommandError>?
+        if case .acceptSuspiciousFiles = envelope.command, envelope.protocolVersion == KabanCoding.protocolVersion {
+            do {
+                if let reply = try database.read({ try Self.wireReplay(envelope.commandId, request: request, db: $0) }) { return reply }
+            } catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }
+            suspicious = try prepareSuspiciousAcceptance(envelope.command)
+        } else { suspicious = nil }
         return try database.write { db in
             do {
                 if let reply = try Self.wireReplay(envelope.commandId, request: request, db: db) { return reply }
@@ -96,10 +103,20 @@ extension KabanStore {
             default: break
             }
             var reply: CommandReply?
+            if let suspicious, case .acceptSuspiciousFiles(_, let shown) = envelope.command {
+                let refusal: CommandError?
+                switch suspicious {
+                case .failure(let error): refusal = error
+                case .success(let observation): refusal = try Self.refreshSuspiciousAcceptance(observation, shown: shown, at: now(), db: db)
+                }
+                if let refusal { reply = .init(commandId: envelope.commandId, seq: nil, result: .error(refusal)) }
+            }
             do {
-                try db.inSavepoint {
-                    reply = try Self.dispatch(envelope, request: request, now: now, makeTaskID: makeTaskID, db: db)
-                    return .commit
+                if reply == nil {
+                    try db.inSavepoint {
+                        reply = try Self.dispatch(envelope, request: request, now: now, makeTaskID: makeTaskID, db: db)
+                        return .commit
+                    }
                 }
             } catch let error as StoreError {
                 reply = Self.failure(error, commandId: envelope.commandId)

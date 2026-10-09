@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 8 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 9 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`a20a48d` (FE-16, PR #107).
+`93a2bde` (FE-17, PR #108).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -131,7 +131,8 @@ selected/effective stage facts, нативные MCP settings и stage picker в
 restart/isolation, exact source, Escape, read failure и unexpected.
 Устранение unexpected через живой CLI остаётся открытым: MCP producer не
 подключён к `recheck(project)`, а обычный recheck сохраняет этот блок.
-После возобновления очереди подготовлена FE-17 в `codex/fe-17-git-approvals`:
+FE-17 принята через [PR #108](https://github.com/imedfan/kaban/pull/108), merge `93a2bde`.
+Проверенный исходный FE-17 `9e08eb8`:
 нативные отказы git, authoritative lifecycle и badge, разовое разрешение/отзыв,
 project/stage preview постоянного правила и новый committed YAML через общий
 pipeline intent/recovery. 661 test полного прогона, 15 финальных grant/recovery
@@ -139,6 +140,14 @@ tests, App build и 17 сценариев настоящего окна прош
 [Отчёт FE-17](development/frontend-fe-17-2026-10-08.md) сохраняет код, кадры и границы.
 Delivery через MCP проверена; producer уведомлений следующего Cursor-промпта
 остаётся [интеграционным пробелом](development/frontend-backend-integration-gaps.md).
+FE-18 подготовлена в `codex/fe-18-suspicious-files`, код `0cba1fe`:
+свежий exact-set acceptance, frozen return context, stage-specific решения,
+история, безопасное открытие файлов и общий exceptions draft. Узкие suites,
+663 tests, App build и 22 native private-daemon сценария прошли;
+[отчёт FE-18](development/frontend-fe-18-2026-10-09.md) содержит кадры и границы.
+Конфликт #109 с принятым FE-17 разрешён, source `8b480e2`: 672 tests, App build
+и 39 native сценариев FE-17/18 прошли. FE-18 остаётся отдельным открытым PR.
+FE-19 опубликована в [PR #110](https://github.com/imedfan/kaban/pull/110); FE-20 проходит проверку в отдельной ветке.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.

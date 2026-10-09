@@ -291,7 +291,7 @@ import KabanProtocol
                 // The addressed answer composer presents its own durable receipt
                 // beside the retained text. A modal alert would cover the new question.
                 switch record.envelope.command {
-                case .answerHuman, .approve, .requestChanges, .reject: break
+                case .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles: break
                 default: error = message; editorError = message
                 }
                 reportedFailures.insert(record.envelope.commandId)
