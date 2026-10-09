@@ -80,13 +80,15 @@ extension BoardQA {
             checks["offlineDraftPreserved"] = true
         }
         if argument("--qa-mac-scroll") == "bottom" {
+            try await captureWindow()
             try await Task.sleep(for: .milliseconds(700))
             func scroll(_ view: NSView) -> NSScrollView? {
                 if let found = view as? NSScrollView, found.documentView?.frame.height ?? 0 > found.contentView.bounds.height { return found }
                 for child in view.subviews { if let found = scroll(child) { return found } }; return nil
             }
             if let view = window.contentView.flatMap(scroll), let document = view.documentView {
-                view.contentView.scroll(to: .init(x: 0, y: document.frame.height - view.contentView.bounds.height)); view.reflectScrolledClipView(view.contentView)
+                view.contentView.scroll(to: .init(x: 0, y: document.isFlipped ? max(0, document.frame.height - view.contentView.bounds.height) : 0)); view.reflectScrolledClipView(view.contentView)
+                checks["bottomViewport"] = true
             }
         }
         try await captureWindow()
