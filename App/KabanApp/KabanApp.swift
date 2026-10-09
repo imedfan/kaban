@@ -176,6 +176,11 @@ private struct ReviewQAWindowCommands: Commands {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Kaban", withExtension: "icns", subdirectory: "Resources"), let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
-        if BoardQA.isActive { NSApp.setActivationPolicy(.regular); NSApp.activate(); Task { await BoardQA.run() } }
+        if BoardQA.isActive {
+            if let theme = BoardQA.argument("--qa-theme") {
+                NSApp.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
+            }
+            NSApp.setActivationPolicy(.regular); NSApp.activate(); Task { await BoardQA.run() }
+        }
     }
 }

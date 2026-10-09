@@ -111,8 +111,19 @@ extension BoardQA {
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("MenuBarExtra PNG unavailable") }
         try png.write(to: URL(fileURLWithPath: path + ".menubar.png"))
         checks["menuBarPopupFrame"] = ["width": popup.frame.width, "height": popup.frame.height]
+        let appearance = popup.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+        checks["menuBarPopupAppearance"] = appearance?.rawValue ?? "unknown"
+        if let theme = argument("--qa-theme") {
+            guard appearance == (theme == "dark" ? .darkAqua : .aqua) else {
+                throw failure("Actual MenuBarExtra appearance \(String(describing: appearance)) differs from requested \(theme). PNG saved to \(path).menubar.png")
+            }
+        }
         guard popup.frame.height > 100 else { throw failure("Actual MenuBarExtra popup collapsed: \(popup.frame). PNG saved to \(path).menubar.png") }
         checks["actualMenuBarExtraWindow"] = true
+        if argument("--qa-menubar-manual") == "YES" {
+            FileHandle.standardError.write(Data("MenuBarExtra captured. Leaving the QA app open for 60 seconds before Quit.\n".utf8))
+            try await Task.sleep(for: .seconds(60))
+        }
         return checks
     }
 }
