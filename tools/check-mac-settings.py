@@ -23,7 +23,8 @@ def main():
 
     def run(name, mode, theme="light", minimum=False, bottom=False):
         command = [str(executable), "-ApplePersistenceIgnoreState", "YES", "--developer",
-                   "--developer-database", str(root / "store.sqlite"), "--mac-live-smoke", str(root / (name + ".json")),
+                   "--developer-database", str(root / "store.sqlite"), "--qa-task-suite", "kaban.qa.fe20." + root.name,
+                   "--mac-live-smoke", str(root / (name + ".json")),
                    "--qa-mac-mode", mode, "--qa-theme", theme, "--export-live-window", str(root / (name + ".png"))]
         if minimum:
             command += ["--qa-size", "minimum"]
