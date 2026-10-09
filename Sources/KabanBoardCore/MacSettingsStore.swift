@@ -11,6 +11,7 @@ import KabanProtocol
         var interval: String
         var commandID: CommandID?
         var handledID: CommandID?
+        var section: Section?
     }
     public let session: BoardSession
     private let storage: any KeyValueStoring
@@ -18,7 +19,7 @@ import KabanProtocol
     private var draft: Draft?
     private var handledID: CommandID?
     public private(set) var error: String?
-    public private(set) var section: Section?
+    public var section: Section? { draft?.section }
     public var settings: GlobalSettings? { session.projection?.settings }
     public var ceiling: String { draft?.ceiling ?? "" }
     public var options: QuotaOptions? { draft?.options }
@@ -52,9 +53,9 @@ import KabanProtocol
     public func reset() {
         guard !pending else { return }; draft = nil; error = nil; handledID = nil; begin()
     }
-    public func editCeiling(_ value: String) { guard !pending else { return }; draft?.ceiling = value; section = .ceiling; error = nil; save() }
-    public func editInterval(_ value: String) { guard !pending else { return }; draft?.interval = value; section = .quota; error = nil; save() }
-    public func editOptions(_ value: QuotaOptions) { guard !pending else { return }; draft?.options = value; section = .quota; error = nil; save() }
+    public func editCeiling(_ value: String) { guard !pending else { return }; draft?.ceiling = value; draft?.section = .ceiling; error = nil; save() }
+    public func editInterval(_ value: String) { guard !pending else { return }; draft?.interval = value; draft?.section = .quota; error = nil; save() }
+    public func editOptions(_ value: QuotaOptions) { guard !pending else { return }; draft?.options = value; draft?.section = .quota; error = nil; save() }
     private func command(_ section: Section) -> Command? {
         guard let draft else { return nil }
         switch section {

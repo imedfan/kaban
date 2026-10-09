@@ -41,7 +41,7 @@ struct MacSettingsView: View {
             HStack {
                 Text("Максимум одновременных запусков")
                 TextField("Целое число", text: Binding(get: { editor.ceiling }, set: editor.editCeiling)).textFieldStyle(.roundedBorder).frame(width: 90)
-                    .disabled(editor.pending).accessibilityIdentifier("mac.ceiling")
+                    .disabled(editor.pending || editor.options == nil).accessibilityIdentifier("mac.ceiling")
                 Button("Сохранить потолок") { Task { await editor.submit(.ceiling) } }.disabled(!editor.canSubmit(.ceiling))
             }
             Text("Сейчас: \(editor.settings.map { String($0.maxConcurrentRuns) } ?? "нет данных") · резервирований: \(store.reservationCount). Подтверждённые процессы служба не сообщает.")

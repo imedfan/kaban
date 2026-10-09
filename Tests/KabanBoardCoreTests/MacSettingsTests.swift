@@ -67,6 +67,7 @@ final class MacSettingsTests: XCTestCase {
         XCTAssertEqual(editor.receipt?.phase, .awaitingEvent)
         let reopened = MacSettingsStore(session: session, storage: storage, key: "mac.draft")
         XCTAssertEqual(reopened.interval, "900"); XCTAssertEqual(reopened.options?.thresholdOm, 23)
+        XCTAssertEqual(reopened.section, .quota)
         let id = try XCTUnwrap(editor.commandID)
         let chosen = QuotaOptions(enabled: true, consent: true, pollInterval: 900, thresholdOm: 23)
         client.snapshot.settings = .init(maxConcurrentRuns: 4, quotaOptions: chosen, quotaConsentedAt: Fix.t0)
@@ -81,6 +82,7 @@ final class MacSettingsTests: XCTestCase {
         let editedAfterSuccess = MacSettingsStore(session: session, storage: storage, key: "mac.draft")
         editedAfterSuccess.observeOutcome()
         XCTAssertEqual(editedAfterSuccess.interval, "1800")
+        XCTAssertEqual(editedAfterSuccess.section, .quota)
     }
     @MainActor func testStaleExternalSettingsAndRejectedSendPreserveIntent() async throws {
         let client = MacTestClient(), storage = MemoryKeyValueStore()
