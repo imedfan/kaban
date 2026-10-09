@@ -124,3 +124,19 @@ production producer вычисления пересечений в DaemonCore о
 собранным конфигом, изоляцией личного профиля и authenticated CLI. Критерий FE-16
 про устранение unexpected через настройки/перепроверку остаётся открытым;
 успех UI, unit preflight seam или private stdio не заменяет живой CLI результат.
+
+## FE-17: доставка grant в следующий Cursor-промпт
+
+Проверено на базе FE-16 `a20a48d` и реализации FE-17. В Sources нет producer
+`GitGrantDelivered.via = .nextPrompt`. `StoreMCP.environmentForAgentRun` передаёт
+run token; RunSpec не содержит входа `git_grants`, а StoreProcesses не формирует
+Cursor-промпт. Это расходится с архитектурой §8.3 и UC-17: новый запуск должен
+узнать о разовом разрешении в промпте, если живой агент не получил его через MCP.
+
+FE-17 сохраняет созданный grant для того же task/stage. Настоящий board-tool
+вызов доставляет notice и записывает `.mcpResponse`; `/git/check` отдельно
+фиксирует consumption. UI различает эти факты и не создаёт `.nextPrompt` или
+delivered timestamp локально. Нужен production producer prompt material с
+привязкой task/stage/run, durable delivery и проверкой restart/replay. Native
+QA запускал private production daemon и реальные MCP отказы, без Cursor CLI;
+он не закрывает этот producer или полный M1.

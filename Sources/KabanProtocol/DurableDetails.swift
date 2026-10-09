@@ -49,7 +49,33 @@ public struct TaskArtifact: Codable, Hashable, Sendable {
 public struct GitDenialSnapshot: Codable, Hashable, Sendable {
     public var denial: GitDenied
     public var at: Date
-    public init(denial: GitDenied, at: Date) { self.denial = denial; self.at = at }
+    public var context: GitDenialContext?
+    public var policyUpdates: [GitDenialPolicyUpdate]?
+    public init(denial: GitDenied, at: Date, context: GitDenialContext? = nil,
+                policyUpdates: [GitDenialPolicyUpdate]? = nil) {
+        self.denial = denial; self.at = at; self.context = context; self.policyUpdates = policyUpdates
+    }
+}
+
+/// Server-normalized rule and current eligibility. Missing context in a legacy reply means unknown.
+public struct GitDenialContext: Codable, Hashable, Sendable {
+    public var stageId: StageID?
+    public var policyRule: String
+    public var restriction: CommandError?
+    public init(stageId: StageID?, policyRule: String, restriction: CommandError?) {
+        self.stageId = stageId; self.policyRule = policyRule; self.restriction = restriction
+    }
+}
+
+/// An accepted configuration commit, retained with the denial after journal retention.
+public struct GitDenialPolicyUpdate: Codable, Hashable, Sendable {
+    public var scope: PolicyScope
+    public var pipelineVersion: String
+    public var policy: EffectiveGitPolicy
+    public var at: Date
+    public init(scope: PolicyScope, pipelineVersion: String, policy: EffectiveGitPolicy, at: Date) {
+        self.scope = scope; self.pipelineVersion = pipelineVersion; self.policy = policy; self.at = at
+    }
 }
 
 /// Durable grant lifecycle, independent of journal retention. Payloads reuse journal DTOs.

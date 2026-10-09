@@ -202,9 +202,9 @@ public final class KabanStore: Sendable {
                 }
             }
             let detailSeq = try Self.persistDetail(before: before, task: task, command: command, effects: result.effects, commandId: commandId, at: at, db: db)
+            try Self.expireGitGrants(in: result.effects, task: task, commandId: commandId, at: at, db: db)
             task.card = try Self.projectedCard(task, db: db)
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try Self.encode(task), taskId.rawValue])
-            try Self.expireGitGrants(in: result.effects, task: task, commandId: commandId, at: at, db: db)
             try Self.recordSafetyEffects(command: command, effects: result.effects, task: task, commandId: commandId, at: at, db: db)
             if first == nil { first = detailSeq }
             let seq = try Self.journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)

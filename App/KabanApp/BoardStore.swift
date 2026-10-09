@@ -18,12 +18,13 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     let session: BoardSession
     let humanAnswers: HumanAnswerStore
     let humanReview: HumanReviewStore
+    let gitPermissions: GitPermissionsStore
     let environment: RunnerEnvironmentStore
     let models: ModelSettingsStore
     let macSettings: MacSettingsStore
     var activeMacSettings: MacSettingsStore? {
         screen == .quota && sheet == nil && controlSheet == nil && projectSheet == nil && logRunRoute == nil
-            && reviewRoute == nil && modelOverrideRoute == nil ? macSettings : nil
+            && reviewRoute == nil && modelOverrideRoute == nil && gitPermissions.preview == nil ? macSettings : nil
     }
     var modelOverrideRoute: TaskModelOverrideStore?
     let projects: ProjectLifecycleStore
@@ -130,13 +131,13 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var canSend: Bool { session.canSend }
     var canAnswerSelected: Bool {
         guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil,
-              projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil, overlapRoute == nil else { return false }
+              projectSheet == nil, logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil, overlapRoute == nil, gitPermissions.preview == nil else { return false }
         return humanAnswers.canSubmit(id)
     }
     func answerSelected() { if canAnswerSelected, let id = selectedID { Task { await humanAnswers.submit(id) } } }
     var canApproveSelected: Bool {
         guard let id = selectedID, screen == .board, sheet == nil, controlSheet == nil, projectSheet == nil,
-              logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil, overlapRoute == nil else { return false }
+              logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, reviewRoute == nil, overlapRoute == nil, gitPermissions.preview == nil else { return false }
         return humanReview.canSubmit(.approve, for: id)
     }
     func approveSelected() { if canApproveSelected, let id = selectedID { Task { await humanReview.submit(.approve, for: id) } } }
@@ -182,6 +183,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         self.session = session
         humanAnswers = HumanAnswerStore(session: session, storage: storage, key: sourceKey + ".humanAnswers")
         humanReview = HumanReviewStore(session: session, storage: storage, key: sourceKey + ".humanReview")
+        gitPermissions = GitPermissionsStore(client: client, session: session)
         runLog = RunLogStore(client: client)
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
         folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
@@ -365,7 +367,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         projects.open(route.operation); projectSheet = route
     }
     func beginCreation(_ projectID: ProjectID? = nil) {
-        guard controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil, can(.createTask), let id = projectID ?? selectedProjectID else { return }
+        guard controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil, gitPermissions.preview == nil, can(.createTask), let id = projectID ?? selectedProjectID else { return }
         selectedProjectID = id; prepareCreation(); sheet = .create(id)
     }
     func hide(_ id: ProjectID) { session.hide(id) }

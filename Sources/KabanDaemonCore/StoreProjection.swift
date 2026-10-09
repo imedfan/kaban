@@ -58,7 +58,9 @@ extension KabanStore {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
         let detail = TaskDetail(seq: try Self.seq(db), task: try Self.projectedCard(task, db: db), feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
                                 suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
-                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db), modelStages: try Self.taskModelStages(task, db: db))
+                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials.map { denial in
+                                    var denial = denial; denial.context = Self.gitDenialContext(denial, task: task, detail: d); return denial
+                                }, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db), modelStages: try Self.taskModelStages(task, db: db))
         try Self.ensureWireFit(detail, code: CommandError.detailTooLargeCode, message: "Детали задачи не помещаются в сообщение. История запусков доступна отдельно.")
         return detail
     }
@@ -96,6 +98,9 @@ extension KabanStore {
     }
     static func projectedCard(_ task: DurableTask, db: Database) throws -> TaskCard {
         var card = task.card
+        card.unusedGitGrants = try detail(task.card.id, db: db).gitGrants.filter {
+            $0.consumption == nil && $0.revocation == nil && $0.expiry == nil
+        }.count
         card.mergeQueueSequence = task.pipeline.stage(task.machine.stageId)?.kind == .merge
             ? try Int64.fetchOne(db, sql: "SELECT queue_seq FROM task_admission WHERE task_id = ?", arguments: [card.id.rawValue]) : nil
         return card
