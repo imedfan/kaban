@@ -145,6 +145,8 @@ FE-18 подготовлена в `codex/fe-18-suspicious-files`, код `0cba1f
 история, безопасное открытие файлов и общий exceptions draft. Узкие suites,
 663 tests, App build и 22 native private-daemon сценария прошли;
 [отчёт FE-18](development/frontend-fe-18-2026-10-09.md) содержит кадры и границы.
+Конфликт #109 с принятым FE-17 разрешён, source `8b480e2`: 672 tests, App build
+и 39 native сценариев FE-17/18 прошли. FE-18 остаётся отдельным открытым PR.
 FE-19 опубликована в [PR #110](https://github.com/imedfan/kaban/pull/110); FE-20 проходит проверку в отдельной ветке.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
