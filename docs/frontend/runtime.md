@@ -13,6 +13,7 @@
 - `BoardProjection`, `PendingCommands`, `BoardSetStore`, `DropRules` находятся в BoardCore.
 - Protocol DTO и команды находятся в `Sources/KabanProtocol/`.
 - MacSettingsStore сохраняет baseline/draft/keyboard section и ждёт correlated settingsChanged. QuotaPresentation и SchedulerFlagPresentation отображают факты источника; UI не выполняет polling и не снимает flags собственным таймером.
+- DaemonRuntime владеет BoardStore subscription и NativeNotifications независимо от WindowGroup. MenuBarExtra читает ту же проекцию. AttentionStore наблюдает только применённые updates, сохраняет seq/preferences и подавляет replay; notification reply использует HumanAnswerStore и точный requestID. Quit останавливает клиентские подписки синхронно, без unregister LaunchAgent.
 
 BoardCore зависит только от Protocol, без SwiftUI/AppKit. Приложение не импортирует
 Kit/GRDB. DaemonKabanClient реализует существующую клиентскую границу и передаёт connection/replacement/journal/ephemeral из sessionUpdates. Установка SMAppService пока блокируется Sandbox; [проверки BE-20](../development/backend-launch-agent-2026-10-06.md).

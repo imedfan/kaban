@@ -150,7 +150,17 @@ FE-19 принята в main `484b78d` через [PR #110](https://github.com/i
 App build и 12 native сценариев прошли. [Отчёт FE-20](development/frontend-fe-20-2026-10-09.md)
 сохраняет каждый source и разграничивает реальный wire от quota fixture.
 Полная UC-21 приёмка остаётся открытой из-за отсутствующего quota reader/poller
-и polling/error status. Дальше FE-21–22; требования MVP сохраняются полностью.
+и polling/error status. FE-20 опубликована в [PR #111](https://github.com/imedfan/kaban/pull/111).
+Все шесть CI jobs `2d0df81` прошли, включая macOS App/native smoke после
+обхода compiler IRGen для Binding setter в Swift 6.3.3.
+FE-21 реализована в `codex/fe-21-menubar-notifications`, App source `2386cf7`:
+MenuBarExtra, runtime-owned subscription, event dedup и guarded notification reply.
+691 tests, финальные 217 BoardCore и App build прошли. Private light/dark smoke
+подтвердили закрытое окно, reopen, stale/exact/deleted routes и настоящий Quit.
+[Отчёт FE-21](development/frontend-fe-21-2026-10-09.md) сохраняет частичный статус:
+strict popup smoke завершился ошибкой из-за недоступного event access;
+OS notifications, popup и mainApp login/installed приёмка остаются открытыми.
+Дальше FE-22 и открытые интеграционные пробелы; требования MVP сохраняются полностью.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
@@ -163,8 +173,8 @@ App build и 12 native сценариев прошли. [Отчёт FE-20](devel
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 в отдельной ветке | Core зависит только от Protocol; FE-01–19 в main; source/apply и настройки проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 в отдельной ветке | FE-01–19 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 и AttentionStore FE-21 в отдельных ветках | Core зависит только от Protocol; FE-01–19 в main; source/apply и настройки проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 и MenuBarExtra/NativeNotifications FE-21 в отдельных ветках | FE-01–19 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
@@ -212,7 +222,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять клиентскую поверхность FE-20 и продолжить FE-21–22; завершить
+1. Принять клиентскую поверхность FE-20, завершить системную приёмку FE-21 и FE-22; завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы

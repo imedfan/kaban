@@ -1,0 +1,23 @@
+{
+  "sourceRevision": "2386cf75fcbc4dcc5ac2c9e9ec03b9d39ced52c5",
+  "frames": [
+    {
+      "file": "board-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "93ec4782dcb4c003fb85d2203f47e04dad345b712963427e4860766cc7641fc2",
+      "sourceRevision": "2386cf75fcbc4dcc5ac2c9e9ec03b9d39ced52c5",
+      "surface": "actual board WindowGroup, not MenuBarExtra",
+      "viewed": true
+    },
+    {
+      "file": "board-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "41258c2244d44b8f3070bb20b780b8fd38dc7d9155824d68ac9896aac0369ec3",
+      "sourceRevision": "2386cf75fcbc4dcc5ac2c9e9ec03b9d39ced52c5",
+      "surface": "actual board WindowGroup, not MenuBarExtra",
+      "viewed": true
+    }
+  ]
+}
