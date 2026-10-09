@@ -1,0 +1,59 @@
+{
+  "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+  "frames": [
+    {
+      "file": "root-type-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "609e53df0b631446ba20123a073a2750caab91f671bef41e53371fc094873f11",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    },
+    {
+      "file": "invalid-id-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "f309a43e83e7dad169f175d34621a0ff60303dd99e90240d6b2920224e449c71",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    },
+    {
+      "file": "git-warning-light-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "b7bc28a1b2a9e4b2463b88eefe13c54577636e0ac7ee69bbf230cd72056d1c60",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    },
+    {
+      "file": "root-type-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "275d1aba6120a4c9efe53f1b31c6602e97ea7b8095f2fa3b23e2aff983ac9e96",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    },
+    {
+      "file": "invalid-id-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "2f93f8de5e1beeeecdb00a75ae65552a5aca3ffa849a2adfdcbd948dc4943649",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    },
+    {
+      "file": "git-warning-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "ace5ebba1bf1c0259cd72a9e42db5cc43164ecfc6cceeaaa3f403feca7933982",
+      "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+      "surface": "actual WindowGroup; synthetic private repository from check-pipeline-editor.py",
+      "viewed": true
+    }
+  ]
+}

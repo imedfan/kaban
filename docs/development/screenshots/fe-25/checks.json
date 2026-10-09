@@ -1,0 +1,24 @@
+{
+  "sourceRevision": "3411f3531b98db2e173bd46d22ee48e96609ded4",
+  "transport": "production daemon over developer stdio",
+  "data": "synthetic YAML from tools/check-pipeline-editor.py; no user database or repository",
+  "systemAcceptance": false,
+  "light": {
+    "checks": [
+      "actual WindowGroup and production stdio validation",
+      "root type_mismatch, invalid_id and git warning use approved Russian messages",
+      "error blocks Apply and warning permits Apply",
+      "draft validation leaves committed and working source unchanged"
+    ],
+    "result": "passed"
+  },
+  "dark": {
+    "checks": [
+      "actual WindowGroup and production stdio validation",
+      "root type_mismatch, invalid_id and git warning use approved Russian messages",
+      "error blocks Apply and warning permits Apply",
+      "draft validation leaves committed and working source unchanged"
+    ],
+    "result": "passed"
+  }
+}
