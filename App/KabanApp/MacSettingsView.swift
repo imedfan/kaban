@@ -27,7 +27,7 @@ struct MacSettingsView: View {
                 projects
                 if let error = editor.error { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
                 if let phase = editor.receipt?.phase {
-                    Text(phase == .applied ? "Подтверждено службой" : editor.receipt?.isPending == true ? "Ожидаем подтверждения событиями…" : "Изменение не применено. Ввод сохранён.")
+                    Text(phase == .applied ? "Последнее отправленное изменение подтверждено службой" : editor.receipt?.isPending == true ? "Ожидаем подтверждения событиями…" : "Изменение не применено. Ввод сохранён.")
                         .font(.callout).foregroundStyle(theme.secondary)
                 }
             }.padding(20).frame(maxWidth: 1200, alignment: .leading).frame(maxWidth: .infinity, alignment: .topLeading)

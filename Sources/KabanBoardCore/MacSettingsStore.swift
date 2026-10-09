@@ -183,7 +183,7 @@ public struct SchedulerFlagPresentation: Equatable, Sendable {
             command = .recheck(scope: .runner); action = "Проверить снова"
         case .poolUsageExhausted(let pool, let date):
             title = pool.rawValue.capitalized + " исчерпан"
-            detail = (date.map { "Сброс: " + Self.date($0) } ?? "Дата сброса неизвестна.") + " Другой пул и текущие запуски продолжают работу."
+            detail = (date.map { "Сброс: " + Self.date($0) } ?? "Дата сброса неизвестна.") + " Ограничены новые запуски этого пула. Текущие запуски продолжаются."
             command = nil; action = nil
         case .projectPaused(let id):
             project = id; title = "Проект на паузе"; detail = "Текущие запуски продолжаются."
