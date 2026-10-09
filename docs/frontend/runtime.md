@@ -12,6 +12,7 @@
   отправку и metadata ответа для последующего reconciliation.
 - `BoardProjection`, `PendingCommands`, `BoardSetStore`, `DropRules` находятся в BoardCore.
 - Protocol DTO и команды находятся в `Sources/KabanProtocol/`.
+- MacSettingsStore сохраняет baseline/draft/keyboard section и ждёт correlated settingsChanged. QuotaPresentation и SchedulerFlagPresentation отображают факты источника; UI не выполняет polling и не снимает flags собственным таймером.
 
 BoardCore зависит только от Protocol, без SwiftUI/AppKit. Приложение не импортирует
 Kit/GRDB. DaemonKabanClient реализует существующую клиентскую границу и передаёт connection/replacement/journal/ephemeral из sessionUpdates. Установка SMAppService пока блокируется Sandbox; [проверки BE-20](../development/backend-launch-agent-2026-10-06.md).

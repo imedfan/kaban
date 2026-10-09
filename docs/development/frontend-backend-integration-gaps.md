@@ -140,3 +140,26 @@ delivered timestamp локально. Нужен production producer prompt mate
 привязкой task/stage/run, durable delivery и проверкой restart/replay. Native
 QA запускал private production daemon и реальные MCP отказы, без Cursor CLI;
 он не закрывает этот producer или полный M1.
+
+## FE-20: опрос квоты Cursor
+
+Проверено 9 октября 2026 на main `484b78d` и клиентской ветке FE-20.
+`setQuotaOptions` сохраняет consent/options и публикует settingsChanged.
+`DaemonService.updateSchedulerInputs` принимает quota от внутреннего producer;
+`QuotaState`/quotaUpdated передают проценты, цикл и fetchedAt. Это working
+producer boundary, но отдельного production reader/poller нет. Daemon runtime
+не вызывает GetCurrentPeriodUsage. Wire также не сообщает попытку опроса,
+ошибку, её время и состояние отзыва согласия для активного запроса.
+
+FE-20 показывает authoritative settings/flags/quota и неизвестность источника;
+в native проверке quota/flags внесены явно через setSchedulerInputs. Эта
+проверка не подтверждает запрос Cursor или доступ к аккаунту.
+
+Для завершения UC-21 нужны read-only token adapter, consent-gated polling
+к `api2.cursor.sh` без redirect/refresh/storage токена, typed polling/error status,
+отмена активного запроса и защита позднего результата после revoke. Отдельно
+проверить enabled:false/nil, старые данные, ошибку источника и свежие данные перед
+новым стартом. Реактивные ограничения остаются независимо от опции.
+[Архитектура §7](../architecture-v0.md) и [FE-20 отчёт](frontend-fe-20-2026-10-09.md)
+сохраняют полный контракт. [Spike 1](../../spikes/backend/README.md) требует
+отдельного согласия для проверки GetCurrentPeriodUsage с настоящим токеном.

@@ -1,0 +1,77 @@
+{
+  "sourceRevision": "5c28f6bfccd492df97bed8458daa25e96387976d",
+  "frames": [
+    {
+      "file": "commands-light.png",
+      "sha256": "09c360b4d31c72371899340ceb0d9dc0852dd716852f1bcc82d253f49aa52dd4",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "restart-dark-minimum.png",
+      "sha256": "2e5cf8b7406d01a22b6df30abd2763f6dced2e40392b35bf859a8c438c7b56c5",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "fresh-light.png",
+      "sha256": "6f8055e6225275719e68d54c1fc134ef0072ab3ac6e9250ec49c7bf158634627",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "fresh-dark-minimum.png",
+      "sha256": "a814044ed5d8c190d65c972458071dae41ebaf60e8a2df9ea92ac030b42d2f51",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "unknown-light.png",
+      "sha256": "15787e4822500602b319c2b804dc9156ae0b4d58dde292c9af747136f0e6a7a9",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "unknown-dark-minimum.png",
+      "sha256": "074245a6b948fe1f608619683d17297d6c518e460c45fae625550cbd1e86b307",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "stale-light.png",
+      "sha256": "01bb4532a1c9ef13c375289b97ed07d6a99465678ac4c4301598888fff032ea3",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "stale-dark-minimum.png",
+      "sha256": "b186357e11dbbf7366998544adfabf9bcd840b4240d85a95fef5107e04f86cda",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "flags-dark-minimum.png",
+      "sha256": "28ebdc039ee72d0c9a1259601932ded6308d08fc2728c6051965583c26548ae9",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "offline-light.png",
+      "sha256": "a5831acd6430b5aabb6300276098e1a1a2dd6d343f84d287f99b99b5e3df2feb",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "revoke-light.png",
+      "sha256": "f825a5363380d8aeb590763fa5e3fc0f31306c6f7d2e1b6925eaa5a84b0674c7",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "revoked-restart-dark-minimum.png",
+      "sha256": "b27bd474adef3bb89fb9d0260ab70c5db3485d9bc830fbe172b1a26f4c5d7525",
+      "width": 2080,
+      "height": 1280
+    }
+  ]
+}

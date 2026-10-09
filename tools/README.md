@@ -83,3 +83,14 @@ serialized DTO private fixture после реального rollback. Mac в fi
 Cursor CLI и регистрация службы не используются. Команды сборки seed и запуска,
 проверенные кадры и ограничения — в
 [отчёте FE-19](../docs/development/frontend-fe-19-2026-10-09.md).
+
+## Настройки Мака FE-20
+
+`seed-mac-settings.swift` готовит private production store и явно задаёт
+producer-boundary quota/flags fixtures. `check-mac-settings.py` запускает
+настоящий WindowGroup и bundled stdio daemon, проверяет typed settings,
+паузы, consent/revoke, process restart, native menu route, nil/stale/fresh,
+совместные flags и offline draft. Каждый запуск проверяет освобождение writer lease.
+Токен, HTTP Cursor, платный prompt и системная регистрация не используются.
+Команды, source, кадры и открытая UC-21 приёмка — в
+[отчёте FE-20](../docs/development/frontend-fe-20-2026-10-09.md).

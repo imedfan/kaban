@@ -969,7 +969,7 @@ grants, installed helper/XPC, физические pointer/keyboard и VoiceOver
 - [x] После действия resolution/карточка/count подтверждены событиями, история доступна.
 - [x] Unknown kind, удалённый проект и отсутствующий лог не ломают просмотр истории.
 
-FE-19 подготовлена в `codex/fe-19-incidents`, [PR #110](https://github.com/imedfan/kaban/pull/110).
+FE-19 принята через [PR #110](https://github.com/imedfan/kaban/pull/110), merge `484b78d`.
 Исходный source `e193a04` проверен от main `a20a48d` (661 test и App build).
 После принятия FE-17/18 перенесён актуальный main `510414b`; конфликты разрешены.
 Повторный source `1ba146d`: 680 tests, App build и 57 native сценариев прошли.
@@ -1014,11 +1014,19 @@ QuotaBars; `GlobalSettings`, `SchedulerFlag`, `ModelFlag`, `QuotaState`, `Billin
 
 ### Критерии приёмки
 
-- [ ] Ceiling/паузы сохраняются после restart; действующие runs не рисуются остановленными из-за pauseAll.
-- [ ] Несколько флагов и пулов не скрывают причины; unavailable Runner имеет «Проверить снова».
-- [ ] Нет согласия — опрос не включается; nil Cm/Om не превращается в 0% или 100%.
-- [ ] Снятие/истечение флага подтверждается backend, UI не стартует задачи собственным таймером.
+- [x] Ceiling/паузы сохраняются после restart; действующие runs не рисуются остановленными из-за pauseAll.
+- [x] Несколько флагов и пулов не скрывают причины; unavailable Runner имеет «Проверить снова».
+- [x] Нет согласия — опрос не включается; nil Cm/Om не превращается в 0% или 100%.
+- [x] Снятие/истечение флага подтверждается backend, UI не стартует задачи собственным таймером.
 - [ ] UC-21 проверен с реальным producer: согласие, обновление, ошибка, отзыв согласия, nil и старые данные; реактивные лимиты проверены отдельно.
+
+Клиентская поверхность подготовлена в `codex/fe-20-mac-quota` от main `484b78d`.
+[Отчёт и 12 кадров](frontend-fe-20-2026-10-09.md) фиксируют source, 685 tests
+предыдущего полного прогона, финальные 211 BoardCore tests и native private
+команды/restart/consent/flags/unknown/stale/offline. Checkbox относятся к этой среде.
+**FE-20 полностью не завершена:** нет production quota reader/poller и polling/error
+status; пятый критерий остаётся открытым. [Конкретный пробел UC-21](frontend-backend-integration-gaps.md#fe-20-опрос-квоты-cursor).
+Installed helper и физическая приёмка сохраняются для FE-22.
 
 ## Блок 6. Фоновая работа и полная приёмка
 
