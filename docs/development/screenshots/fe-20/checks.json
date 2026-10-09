@@ -1,0 +1,145 @@
+{
+  "sourceRevision": "5c28f6bfccd492df97bed8458daa25e96387976d",
+  "scenarios": {
+    "commands-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "consentAndSettingsEvents": true,
+        "mode": "flow",
+        "nativeCmdReturnCeilingRoute": true,
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "restart-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "draftKeyboardRouteRestored": true,
+        "durableSettingsAndPauses": true,
+        "mode": "restart",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "fresh-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "fresh",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": false
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "fresh-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "fresh",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": false
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "unknown-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "unknown",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": true
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "unknown-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "unknown",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": true
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "stale-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "stale",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": true
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "stale-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "bottomViewport": true,
+        "mode": "stale",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests",
+        "unknownRemainsUnknown": true
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "flags-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "initialFlags": 8,
+        "mode": "flags",
+        "quotaProducerAccepted": false,
+        "rateLimitClearedByEventOnly": true,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "offline-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "mode": "offline",
+        "offlineDraftPreserved": true,
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "revoke-light": {
+      "checks": {
+        "authoritativeSettings": true,
+        "mode": "revoke",
+        "quotaProducerAccepted": false,
+        "revocationConfirmed": true,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "revoked-restart-dark-minimum": {
+      "checks": {
+        "authoritativeSettings": true,
+        "mode": "revoked-restart",
+        "quotaProducerAccepted": false,
+        "source": "private stdio daemon; quota/flags are producer-boundary fixtures, no token or Cursor requests"
+      },
+      "result": "passed",
+      "writerLeaseReleased": true
+    }
+  }
+}

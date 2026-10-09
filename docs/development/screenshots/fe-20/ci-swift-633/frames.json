@@ -1,0 +1,77 @@
+{
+  "sourceRevision": "96fda7f6763003a34f3905b41a7dd574c7b55ebe",
+  "frames": [
+    {
+      "file": "commands-light.png",
+      "sha256": "e0e457eb97d5d54f189a8c15972da916c40be5ba09371c6ec406979489b1985c",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "flags-dark-minimum.png",
+      "sha256": "cba83abdc150f190736d8f8faf348a0043ed23b5faec709ec50ef3b408641f32",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "fresh-dark-minimum.png",
+      "sha256": "22f80bd25ab325faa03340359af03e82636db33e08b92bcc78e36131e94ece01",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "fresh-light.png",
+      "sha256": "3f9dd4c4f19d348dec72540cddc971eb5ac0dbc33578cccb21278c73464137ec",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "offline-light.png",
+      "sha256": "1ed87f4d135d5a64e8049e96aa242d235a53bf633f126d01969c1d44a3defadf",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "restart-dark-minimum.png",
+      "sha256": "bda2cc65f15863ab52d7b494171c1b020a7cf3f1ab2482167f4c34b39e4e205f",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "revoke-light.png",
+      "sha256": "d05f803bac72f4156b1dd13d601c63a3aa60459671cd10518b92149701b11ee3",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "revoked-restart-dark-minimum.png",
+      "sha256": "be2157ff5de64fe30d970ab3361f6a8cf508ead2d6dabcb307eb9f7560f3de21",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "stale-dark-minimum.png",
+      "sha256": "2b5a7331cd0827b2885fe638b71f9e5d68e6aa930b1a32a37be14304d7e63da9",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "stale-light.png",
+      "sha256": "946ac8b53bf40b2dcad7b512ee8eddd37e694d66d77de2b03fa77f2364cce86d",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "unknown-dark-minimum.png",
+      "sha256": "343e4620cc0c3f54ac3be1f7dcc5412c7b17b61bcacf9fb09f8f2eaa51d5767c",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "unknown-light.png",
+      "sha256": "e6c560a41a0eb86c79e9fa59d261f45f41107ddb91292a30e4eb75bb98a23f6e",
+      "width": 2880,
+      "height": 1800
+    }
+  ]
+}
