@@ -43,9 +43,10 @@ extension BoardQA {
             checks["nativeCmdReturnCeilingRoute"] = true
         } else if mode == "restart" {
             guard initial.maxConcurrentRuns == 3, initial.quotaOptions.pollInterval == 900, initial.quotaOptions.thresholdCm == 17,
-                  initial.quotaConsentedAt != nil, store.macPaused,
+                  initial.quotaConsentedAt != nil, editor.section == .quota, store.macPaused,
                   store.projection?.projectOrder.first.map { store.projectPaused($0) } == true else { throw failure("Settings/pause restart failed") }
             checks["durableSettingsAndPauses"] = true
+            checks["draftKeyboardRouteRestored"] = true
         } else if mode == "revoke" {
             var options = initial.quotaOptions; options.enabled = false; options.consent = false; editor.editOptions(options)
             guard await editor.submit(.quota) else { throw failure("Revoke refused") }
