@@ -128,7 +128,7 @@ import Darwin
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_SUCCESS)
         } catch {
-            if let path = ["--files-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
+            if let path = ["--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
