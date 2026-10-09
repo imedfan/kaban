@@ -49,9 +49,6 @@ extension KabanStore {
             return GitCheckReply(allow: true, message: "", rule: "policy")
         }
         let detail = try detail(taskId, db: db)
-        if let extra = try extraDeny(command, project: task.card.projectId, stage: task.machine.stageId, startedAt: detail.runs.first { $0.id == run }?.startedAt, db: db) {
-            return try deny(task, run: run, argv: argv, rule: extra, at: at, db: db)
-        }
         if let index = detail.gitGrants.firstIndex(where: {
             $0.taskId == taskId && $0.stageId == task.machine.stageId && GitCheck.sameCommand($0.grant.argv, argv)
                 && $0.consumption == nil && $0.revocation == nil && $0.expiry == nil
@@ -61,7 +58,7 @@ extension KabanStore {
             updated.gitGrants[index].consumption = ref
             updated.gitGrants[index].consumedAt = at
             try saveDetail(updated, taskId: taskId, db: db)
-            _ = try journal(.gitGrantConsumed(ref), task: task, commandId: UUID(), at: at, db: db)
+            _ = try journalGitGrant(.gitGrantConsumed(ref), task: task, commandId: UUID(), at: at, db: db)
             return GitCheckReply(allow: true, message: "", rule: "grant")
         }
         let rule = policy.denied.first { GitPolicyResolver.covers($0.rule, command) }?.rule
@@ -77,38 +74,73 @@ extension KabanStore {
         var task = try task(found.taskId, db: db)
         var detail = try detail(found.taskId, db: db)
         if detail.gitGrants.contains(where: { $0.grant.denialId == denialId }) { return try seq(db) }
-        let words = GitCheck.normalize(argv: found.denial.denial.argv)
-        if let id = GitCheck.blocked(words) {
-            throw StoreError.rejected(CommandError(code: "git_hard_invariant", message: "Жёсткий инвариант нельзя разрешить.", params: ["rule": id]))
-        }
+        let context = gitDenialContext(found.denial, task: task, detail: detail)
+        if let restriction = context.restriction { throw StoreError.rejected(restriction) }
+        guard let stageId = context.stageId else { throw StoreError.incompleteProjection }
         let grant = GitGrantCreated(grantId: GrantID(rawValue: "grant-\(UUID().uuidString.lowercased())"), denialId: denialId, argv: found.denial.denial.argv, by: .human)
-        detail.gitGrants.append(GitGrantSnapshot(grant: grant, taskId: found.taskId, stageId: task.machine.stageId, createdAt: at))
+        detail.gitGrants.append(GitGrantSnapshot(grant: grant, taskId: found.taskId, stageId: stageId, createdAt: at))
         try saveDetail(detail, taskId: found.taskId, db: db)
         task.card.updatedAt = at
         try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try encode(task), found.taskId.rawValue])
-        return try journal(.gitGrantCreated(grant), task: task, commandId: commandId, at: at, db: db)
+        return try journalGitGrant(.gitGrantCreated(grant), task: task, commandId: commandId, at: at, db: db)
     }
 
-    static func addDenialToPolicy(_ denialId: DenialID, scope: PolicyScope, commandId: CommandID, at: Date, db: Database) throws -> Seq {
+    static func gitPolicyDenial(_ denialId: DenialID, scope: PolicyScope, db: Database) throws -> (task: DurableTask, context: GitDenialContext) {
         guard let found = try findDenial(denialId, db: db) else {
             throw StoreError.rejected(CommandError(code: CommandError.notFoundCode, message: "Отказ не найден."))
         }
         let task = try task(found.taskId, db: db)
         guard try isManaged(found.taskId, db: db) else { throw StoreError.incompleteProjection }
-        let rule = GitCheck.normalize(argv: found.denial.denial.argv).joined(separator: " ")
-        guard !rule.isEmpty else { throw StoreError.rejected(CommandError(code: "invalid_request", message: "В отказе нет команды.")) }
-        let stage: String? = switch scope {
-        case .project: nil
-        case .stage(let id): id.rawValue
+        let context = gitDenialContext(found.denial, task: task, detail: try detail(found.taskId, db: db))
+        if let restriction = context.restriction { throw StoreError.rejected(restriction) }
+        if case .stage(let id) = scope, id != context.stageId {
+            throw StoreError.rejected(CommandError(code: "git_policy_scope", message: "Выберите стадию, на которой произошёл отказ."))
         }
-        try db.execute(sql: "INSERT OR IGNORE INTO git_policy_extra(id, project_id, stage_id, rule, created_at) VALUES (?, ?, ?, ?, ?)", arguments: [
-            denialId.rawValue, task.card.projectId.rawValue, stage, rule, at.timeIntervalSince1970,
-        ])
-        // A row created while a run is already going does not change that run. The YAML autocommit
-        // stays with updatePipeline; this table is what the next run's /git/check reads.
-        guard db.changesCount == 1 else { return try seq(db) }
-        let version = task.pipelineVersion ?? "extra"
-        return try journal(.gitPolicyUpdated(GitPolicyUpdated(projectId: task.card.projectId, scope: scope, pipelineVersion: version)), task: task, commandId: commandId, at: at, db: db)
+        return (task, context)
+    }
+
+    static func gitPolicyDraftIssues(_ denialId: DenialID, scope: PolicyScope, config: PipelineConfig, db: Database) throws -> [ValidationIssue] {
+        let denial = try gitPolicyDenial(denialId, scope: scope, db: db)
+        let rule = denial.context.policyRule
+        let policy: EffectiveGitPolicy?
+        let explicitRules: [String]
+        let path: String
+        switch scope {
+        case .project:
+            policy = GitPolicyResolver.resolveProject(config.git)
+            explicitRules = config.git.allow; path = "git.allow"
+        case .stage(let id):
+            policy = config.stage(id).map { GitPolicyResolver.resolve(project: config.git, stage: $0) }
+            explicitRules = config.stage(id)?.git?.extend ?? []; path = "stages.\(id.rawValue).git.extend"
+        }
+        let stagePolicy = denial.context.stageId.flatMap { config.stage($0) }.map { GitPolicyResolver.resolve(project: config.git, stage: $0) }
+        guard explicitRules.contains(where: { GitPolicyResolver.normalize($0) == rule }),
+              policy?.allows(rule) == true, stagePolicy?.allows(rule) == true else {
+            return [.init(path: path, code: "git_policy_rule_not_allowed",
+                          message: "В выбранной области правило должно разрешать команду. Запреты и read-only стадии сохраняют силу.", severity: .error)]
+        }
+        return []
+    }
+
+    static func recordGitPolicyUpdate(_ denialId: DenialID, scope: PolicyScope, config: PipelineConfig, version: String,
+                                     commandId: CommandID, at: Date, db: Database) throws {
+        guard let found = try findDenial(denialId, db: db) else { throw StoreError.incompleteProjection }
+        var detail = try detail(found.taskId, db: db)
+        guard let index = detail.gitDenials.firstIndex(where: { $0.denial.denialId == denialId }) else { throw StoreError.incompleteProjection }
+        let policy: EffectiveGitPolicy
+        switch scope {
+        case .project: policy = GitPolicyResolver.resolveProject(config.git)
+        case .stage(let id):
+            guard let stage = config.stage(id) else { throw StoreError.incompleteProjection }
+            policy = GitPolicyResolver.resolve(project: config.git, stage: stage)
+        }
+        var updates = detail.gitDenials[index].policyUpdates ?? []
+        updates.append(.init(scope: scope, pipelineVersion: version, policy: policy, at: at))
+        detail.gitDenials[index].policyUpdates = updates
+        try saveDetail(detail, taskId: found.taskId, db: db)
+        let task = try task(found.taskId, db: db)
+        _ = try journal(.gitPolicyUpdated(.init(projectId: task.card.projectId, scope: scope, pipelineVersion: version)),
+                        task: task, commandId: commandId, at: at, db: db)
     }
 
     static func revokeGitGrant(_ grantId: GrantID, commandId: CommandID, at: Date, db: Database) throws -> Seq {
@@ -117,13 +149,17 @@ extension KabanStore {
         }
         guard try isManaged(found.taskId, db: db) else { throw StoreError.incompleteProjection }
         if found.detail.gitGrants[found.index].revocation != nil { return try seq(db) }
+        guard found.detail.gitGrants[found.index].consumption == nil,
+              found.detail.gitGrants[found.index].expiry == nil else {
+            throw StoreError.rejected(CommandError(code: "git_grant_inactive", message: "Разрешение уже использовано или истекло."))
+        }
         var detail = found.detail
         let revoked = GitGrantRevoked(grantId: grantId, by: .human)
         detail.gitGrants[found.index].revocation = revoked
         detail.gitGrants[found.index].revokedAt = at
         try saveDetail(detail, taskId: found.taskId, db: db)
         let task = try task(found.taskId, db: db)
-        return try journal(.gitGrantRevoked(revoked), task: task, commandId: commandId, at: at, db: db)
+        return try journalGitGrant(.gitGrantRevoked(revoked), task: task, commandId: commandId, at: at, db: db)
     }
 
     /// Grants end with the task. The argv stays on the snapshot. Idempotent when a grant is already expired.
@@ -135,7 +171,8 @@ extension KabanStore {
         guard let reason, let data = try Data.fetchOne(db, sql: "SELECT payload FROM task_detail WHERE task_id = ?", arguments: [task.card.id.rawValue]) else { return }
         var detail = try decode(StoredDetail.self, data)
         var changed = false
-        for index in detail.gitGrants.indices where detail.gitGrants[index].expiry == nil {
+        for index in detail.gitGrants.indices where detail.gitGrants[index].expiry == nil
+            && detail.gitGrants[index].consumption == nil && detail.gitGrants[index].revocation == nil {
             let expired = GitGrantExpired(grantId: detail.gitGrants[index].grant.grantId, reason: reason)
             detail.gitGrants[index].expiry = expired
             detail.gitGrants[index].expiredAt = at
@@ -164,30 +201,37 @@ extension KabanStore {
         return denied(rule)
     }
 
-    private static func extraDeny(_ command: String, project: ProjectID, stage: StageID, startedAt: Date?, db: Database) throws -> String? {
-        for row in try Row.fetchAll(db, sql: "SELECT stage_id, rule, created_at FROM git_policy_extra WHERE project_id = ?", arguments: [project.rawValue]) {
-            let bound: String? = row["stage_id"]
-            if let bound, bound != stage.rawValue { continue }
-            let created = Date(timeIntervalSince1970: createdAt(row))
-            guard let startedAt, startedAt >= created else { continue }
-            let rule: String = row["rule"]
-            if GitPolicyResolver.covers(rule, command) { return rule }
+    static func gitDenialContext(_ denial: GitDenialSnapshot, task: DurableTask, detail: StoredDetail) -> GitDenialContext {
+        let words = GitCheck.normalize(argv: denial.denial.argv)
+        let stage = detail.runs.first { $0.id == denial.denial.runId }?.stageId
+        let restriction: CommandError?
+        if let id = GitCheck.blocked(words) {
+            restriction = .init(code: "git_hard_invariant", message: "Жёсткий инвариант нельзя разрешить.", params: ["rule": id])
+        } else if words.isEmpty {
+            restriction = .init(code: "invalid_request", message: "В отказе нет команды.")
+        } else if task.machine.state == .done || task.machine.state == .cancelled || stage == nil || stage != task.machine.stageId {
+            restriction = .init(code: "stale_git_denial", message: "Отказ относится к завершённой задаче или другой стадии.")
+        } else {
+            restriction = nil
         }
-        return nil
+        return .init(stageId: stage, policyRule: words.joined(separator: " "), restriction: restriction)
     }
 
-    private static func createdAt(_ row: Row) -> Double {
-        if let value = Double.fromDatabaseValue(row["created_at"]) { return value }
-        if let value = Int64.fromDatabaseValue(row["created_at"]) { return Double(value) }
-        return .greatestFiniteMagnitude
+    static func journalGitGrant(_ event: JournalEvent, task: DurableTask, commandId: CommandID, at: Date, db: Database) throws -> Seq {
+        _ = try journal(event, task: task, commandId: commandId, at: at, db: db)
+        var updated = task
+        updated.card = try projectedCard(task, db: db)
+        updated.card.updatedAt = at
+        try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try encode(updated), task.card.id.rawValue])
+        return try journal(.taskUpdated(updated.card), task: updated, commandId: commandId, at: at, db: db)
     }
 
-    private struct LocatedDenial {
+    struct LocatedDenial {
         var taskId: TaskID
         var denial: GitDenialSnapshot
     }
 
-    private static func findDenial(_ id: DenialID, db: Database) throws -> LocatedDenial? {
+    static func findDenial(_ id: DenialID, db: Database) throws -> LocatedDenial? {
         for row in try Row.fetchAll(db, sql: "SELECT task_id, payload FROM task_detail") {
             let detail = try decode(StoredDetail.self, row["payload"])
             if let denial = detail.gitDenials.first(where: { $0.denial.denialId == id }) {

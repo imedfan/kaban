@@ -234,11 +234,13 @@ extension KabanStore {
 
     private static func consumeNotices(taskId: TaskID, runId: String, at: Date, db: Database) throws -> [String] {
         var detail = try detail(taskId, db: db)
+        let owner = try task(taskId, db: db)
         var notes: [String] = []
         var delivered: [GitGrantDelivered] = []
         for index in detail.gitGrants.indices {
             let grant = detail.gitGrants[index]
-            guard grant.taskId == taskId, grant.delivery == nil, grant.revocation == nil, grant.expiry == nil, grant.consumption == nil else { continue }
+            guard grant.taskId == taskId, grant.stageId == owner.machine.stageId,
+                  grant.delivery == nil, grant.revocation == nil, grant.expiry == nil, grant.consumption == nil else { continue }
             let delivery = GitGrantDelivered(grantId: grant.grant.grantId, runId: RunID(rawValue: runId), via: .mcpResponse)
             detail.gitGrants[index].delivery = delivery
             detail.gitGrants[index].deliveredAt = at
@@ -247,7 +249,6 @@ extension KabanStore {
         }
         if !notes.isEmpty {
             try saveDetail(detail, taskId: taskId, db: db)
-            let owner = try task(taskId, db: db)
             for delivery in delivered {
                 _ = try journal(.gitGrantDelivered(delivery), task: owner, commandId: UUID(), at: at, db: db)
             }

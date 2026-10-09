@@ -1,0 +1,107 @@
+{
+  "source": "9e08eb80a08954a1f221e2781821d493ee3fda92",
+  "frames": [
+    {
+      "file": "allow-revoke-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "a5fb1084c58ec4a1df9e75038e7c1d50086add69f5600d182f82eeff3b2621a4"
+    },
+    {
+      "file": "consumed-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "0bd521f5339cf512cd8f6152356cf06ececdaa8ce2d5846b0ebd05d5b95e08af"
+    },
+    {
+      "file": "created-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "d2a089cc01eea9349b9aecf3d80fc6cd1942bcfeaf9463e9cc0b2b9d70b0f6a5"
+    },
+    {
+      "file": "delivered-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "3c373467ef962317ebd4593b1223fab8a0efd2387b2ef8832558c7793fd18900"
+    },
+    {
+      "file": "disconnected-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c50cd3af471f266d119527080538c11dca3a3491e0c866ffee0a54c2c58be447"
+    },
+    {
+      "file": "empty-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c72909b0915410c2d9d2c1920f074f61372e8d8513405f07525904ea20b96243"
+    },
+    {
+      "file": "expired-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "fe867cd121cf57d1e8e1e331998893b00e40723d7a81ce15e8161a5d8b3c934c"
+    },
+    {
+      "file": "hard-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "8a19a8955e71b773a70a56dc5de47a47616e14c98614266a4276029a5068f414"
+    },
+    {
+      "file": "long-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "b6f5d02343f16ecb842f70133b7df773bd7cc95cf4aa568205e013085511be8e"
+    },
+    {
+      "file": "policy-commit-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "0c43bb07c6d8ffa49f917262283633e83cd3af2cf94d66d9475f2c296f188ddb"
+    },
+    {
+      "file": "preview-escape-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "3490df9941b6d190852542d4093aadfb4f068bc00d2d646e302c37f5c3ef1623"
+    },
+    {
+      "file": "preview-project-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "0a5dd91746c2aeb69d7ca31bc72c5a1041e23e21adfd57b45b15959d098fce11"
+    },
+    {
+      "file": "preview-stage-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "a027fcd3d98331b1f114d9a34ba054538dcd480fbe20cf3b9b6b3621ada910db"
+    },
+    {
+      "file": "reopen-dark-minimum.png",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "65310528264495984cd5b1abc586e5fe469835abf4d8fc22bf39d183817f0318"
+    },
+    {
+      "file": "retry-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "74dd55c8d1c912b0c6bc98c32d1326d130d8b9a4d3cfe60ee783eab7eec27a5b"
+    },
+    {
+      "file": "stale-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "26278e1457a2cc891ad87f2f8dc206b65711b94b7b26e8a7a177c3afeee27501"
+    },
+    {
+      "file": "unknown-light.png",
+      "width": 2880,
+      "height": 1800,
+      "sha256": "ed4a586ffec7c9e7011e6cf6238ad853a00b787e9b151896ff05e2bc811b5c89"
+    }
+  ]
+}

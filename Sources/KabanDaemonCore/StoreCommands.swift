@@ -17,6 +17,7 @@ extension KabanStore {
         if case .getPipelineSource(let id) = envelope.command { return try readPipelineSource(envelope, projectId: id) }
         if case .restoreWIP = envelope.command { return try executeWIPRestore(envelope, at: now()) }
         if case .updatePipeline = envelope.command { return try executePipelineUpdate(envelope, now: now) }
+        if case .addDenialToPolicy = envelope.command { return try executePipelineUpdate(envelope, now: now) }
         if Self.isProjectOperation(envelope.command) { return try executeProjectOperation(envelope, now: now) }
         if case .recheck(.runner) = envelope.command { return try recheckRunner(envelope, at: now()) }
         if case .refreshModelCatalog = envelope.command { return try refreshModelCatalog(envelope, at: now()) }
@@ -202,8 +203,6 @@ extension KabanStore {
             throw StoreError.rejected(.init(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна требует production lifecycle проекта.", params: ["command": envelope.command.name.rawValue]))
         case .allowGitOnce(let denialId):
             return ok(try allowGitOnce(denialId, commandId: id, at: now(), db: db))
-        case .addDenialToPolicy(let denialId, let scope):
-            return ok(try addDenialToPolicy(denialId, scope: scope, commandId: id, at: now(), db: db))
         case .revokeGitGrant(let grantId):
             return ok(try revokeGitGrant(grantId, commandId: id, at: now(), db: db))
         case .acceptSuspiciousFiles(let taskId, let files):

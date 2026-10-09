@@ -9,14 +9,14 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { ["--files-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
+    static var isActive: Bool { ["--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
     }
     static func run() async {
         do {
-            if argument("--files-live-smoke") != nil || argument("--mcp-live-smoke") != nil || argument("--settings-live-smoke") != nil || argument("--model-live-smoke") != nil || argument("--pipeline-live-smoke") != nil || argument("--review-live-smoke") != nil || argument("--merge-live-smoke") != nil {
+            if argument("--files-live-smoke") != nil || argument("--git-live-smoke") != nil || argument("--mcp-live-smoke") != nil || argument("--settings-live-smoke") != nil || argument("--model-live-smoke") != nil || argument("--pipeline-live-smoke") != nil || argument("--review-live-smoke") != nil || argument("--merge-live-smoke") != nil {
                 func find(_ menu: NSMenu?) -> NSMenuItem? {
                     for item in menu?.items ?? [] {
                         if item.title == "Открыть окно ревью для проверки" { return item }
@@ -41,6 +41,9 @@ import Darwin
             guard let store else { throw failure("No application store") }
             if let path = argument("--files-live-smoke") {
                 let checks = try await suspiciousFilesLiveSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--git-live-smoke") {
+                let checks = try await gitPermissionsLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--mcp-live-smoke") {
                 let checks = try await projectMCPLiveSmoke(store)
