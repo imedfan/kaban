@@ -4,6 +4,7 @@ import KabanProtocol
 
 public enum BoardSessionUpdate: Sendable {
     case replacement
+    case ready
     case journal(EventEnvelope)
     case ephemeral(EphemeralEnvelope)
 }
@@ -281,6 +282,7 @@ public enum BoardSessionUpdate: Sendable {
                     if case .taskDetail(let value) = reply.result, value.task.id == id, value.seq >= (floors[id] ?? 0) { try journal?.observeRestores(in: value) }
                 }
                 refreshPending(); finishCreations(); connectionState = .connected
+                onAppliedUpdate?(.ready)
             } catch {
                 guard generation == epoch, !Task.isCancelled else { return }
                 // Pending remains saved. Stop accepting new mutations until a

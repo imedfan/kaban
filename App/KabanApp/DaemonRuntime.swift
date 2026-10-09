@@ -7,7 +7,14 @@ import KabanBoardCore
 import KabanTransport
 
 @MainActor @Observable final class DaemonRuntime {
-    var store: BoardStore?
+    var store: BoardStore? {
+        didSet {
+            if let store { notifications.attach(store); Task { await store.connect() } }
+            else { notifications.detach() }
+        }
+    }
+    let notifications = NativeNotifications()
+    var presentBoard: (() -> Void)?
     var status = "Подключение службы Kaban…"
     var failure: String?
     var busy = false
@@ -21,6 +28,13 @@ import KabanTransport
     var developer: Bool { CommandLine.arguments.contains("--developer") || BoardQA.argument("--daemon-smoke") != nil }
     var fixture: Bool { BoardQA.isActive && BoardQA.argument("--qa-runtime-state") == nil && BoardQA.argument("--daemon-smoke") == nil && !developer }
     private var setupKey: String { "onboarding.completed." + (developer ? "developer" : "installed") }
+    func shutdown() async {
+        started = false; initialization?.cancel()
+        store?.stop(); notifications.detach()
+        await initialization?.value; initialization = nil
+        store?.stop(); store = nil
+        await closeTransport?(); closeTransport = nil
+    }
     func finishSetup() {
         guard store?.canSend == true else { return }
         showSetup = false
@@ -51,6 +65,8 @@ import KabanTransport
             if state == "approval" { status = "Разрешите Kaban в настройках «Объекты входа и расширения»" }
             failure = state == "approval" ? nil : state == "protocol-error" ? "Несовместимая версия протокола. Обновите службу Kaban и проверьте подключение снова." : "macOS не смогла включить локальную службу. Откройте «Объекты входа и расширения», проверьте разрешение для Kaban и повторите подключение. Сохранённые задачи останутся в локальной базе."
         }
+        notifications.configure(self)
+        if let store { notifications.attach(store); Task { await store.connect() } }
     }
     func start() {
         guard !started else { return }; started = true
@@ -232,6 +248,7 @@ import KabanTransport
 struct DaemonRuntimeView: View {
     @Bindable var runtime: DaemonRuntime
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openWindow) private var openWindow
     var body: some View {
         Group {
             if let store = runtime.store, !runtime.showSetup {
@@ -239,6 +256,9 @@ struct DaemonRuntimeView: View {
             } else {
                 OnboardingView(runtime: runtime).onAppear { BoardQA.store = runtime.store }
             }
+        }
+        .onAppear {
+            runtime.presentBoard = { openWindow(id: "board"); NSApp.activate() }
         }
         .task { runtime.start() }
         .onChange(of: runtime.store.map { ObjectIdentifier($0) }, initial: true) { _, _ in

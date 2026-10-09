@@ -48,9 +48,14 @@ public struct AttentionNotice: Equatable, Sendable {
         guard error == nil else { return [] }
         var notices: [AttentionNotice] = []
         switch update {
+        case .ready: return []
         case .replacement:
             saved.seq = max(saved.seq, board.stateSeq)
-            previous = board.tasks; flags = Set(board.ephemeral.schedulerFlags.compactMap(Self.flagKey)); questions = [:]
+            for card in board.tasks.values where card.state == .waitingHuman(.question) {
+                notices += takeQuestion(card, board: board, now: now)
+            }
+            questions = questions.filter { board.tasks[$0.key] != nil }
+            previous = board.tasks; flags = Set(board.ephemeral.schedulerFlags.compactMap(Self.flagKey))
         case .journal(let event):
             guard event.seq > saved.seq else { return [] }
             saved.seq = event.seq

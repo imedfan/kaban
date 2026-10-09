@@ -37,6 +37,18 @@ final class AttentionTests: XCTestCase {
         XCTAssertEqual(notices.first?.target, .task(projectID: Fix.project, taskID: "a", requestID: "question-1"))
         XCTAssertTrue(store.receive(.journal(waiting), board: board, now: Fix.t0).isEmpty)
     }
+    @MainActor func testReplacementBetweenQuestionAndCardPreservesFreshNotice() {
+        let store = AttentionStore(storage: MemoryKeyValueStore(), key: "replacement")
+        var card = Fix.card("a")
+        var board = BoardProjection(snapshot: Fix.snapshot(tasks: [card])); _ = store.receive(.replacement, board: board, now: Fix.t0)
+        let request = Fix.envelope(11, .humanRequested(.init(requestId: "fresh", taskId: "a", runId: "r", question: "Вопрос")))
+        _ = board.apply(request); XCTAssertTrue(store.receive(.journal(request), board: board, now: Fix.t0).isEmpty)
+        card.state = .waitingHuman(.question)
+        board = BoardProjection(snapshot: Fix.snapshot(seq: 12, tasks: [card]))
+        XCTAssertEqual(store.receive(.replacement, board: board, now: Fix.t0).first?.target,
+                       .task(projectID: Fix.project, taskID: "a", requestID: "fresh"))
+        XCTAssertTrue(store.receive(.replacement, board: board, now: Fix.t0).isEmpty)
+    }
     @MainActor func testOldCatchupDisabledAndGlobalFlagsDoNotFlood() {
         let storage = MemoryKeyValueStore(), store = AttentionStore(storage: storage, key: "flags")
         var board = BoardProjection(snapshot: Fix.snapshot()); _ = store.receive(.replacement, board: board, now: Fix.t0)

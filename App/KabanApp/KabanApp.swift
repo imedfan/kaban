@@ -72,6 +72,12 @@ import KabanProtocol
 
             }
         }
+        MenuBarExtra {
+            MenuBarView(runtime: runtime)
+        } label: {
+            Label(runtime.store?.projection == nil ? "—" : "\(runtime.store?.waitingCount ?? 0)", systemImage: runtime.store?.projection?.ephemeral.schedulerFlags.isEmpty == false ? "exclamationmark.triangle" : "list.bullet.rectangle")
+                .accessibilityLabel(runtime.store?.projection == nil ? "Kaban. Нет данных о задачах" : "Kaban. Ждут человека: \(runtime.store?.waitingCount ?? 0)")
+        }.menuBarExtraStyle(.window)
     }
 }
 
@@ -160,6 +166,12 @@ private struct ReviewQAWindowCommands: Commands {
         if menuItem.action == #selector(createTask(_:)) { return runtime?.store?.can(.createTask) == true && runtime?.store?.controlSheet == nil && runtime?.store?.projectSheet == nil && runtime?.store?.reviewRoute == nil && runtime?.store?.overlapRoute == nil && runtime?.store?.suspiciousReturnRoute == nil && runtime?.store?.gitPermissions.preview == nil }
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let runtime else { return .terminateNow }
+        Task { await runtime.shutdown(); sender.reply(toApplicationShouldTerminate: true) }
+        return .terminateLater
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Kaban", withExtension: "icns", subdirectory: "Resources"), let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
