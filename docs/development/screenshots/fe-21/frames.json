@@ -18,6 +18,24 @@
       "sourceRevision": "2386cf75fcbc4dcc5ac2c9e9ec03b9d39ced52c5",
       "surface": "actual board WindowGroup, not MenuBarExtra",
       "viewed": true
+    },
+    {
+      "file": "popup-light.png",
+      "width": 840,
+      "height": 1240,
+      "sha256": "cc20347bdb4b081a8fd53eb06ce9e4a43f4db155f71f62980040b6da1ec4f51a",
+      "sourceRevision": "9625b090b0ecc8ae96898ab99d59039f7ef5d5db",
+      "surface": "actual MenuBarExtra contentView bitmap; synthetic seed-human-answers tasks only; transparent AppKit background, not compositor glass",
+      "viewed": true
+    },
+    {
+      "file": "status-item.png",
+      "width": 93,
+      "height": 44,
+      "sha256": "08107907a5c05310197803cd31999da7253e74f9dd22c614a28aef6022ea0b6c",
+      "sourceRevision": "9625b090b0ecc8ae96898ab99d59039f7ef5d5db",
+      "surface": "actual own NSStatusBarButton bitmap; synthetic count 2",
+      "viewed": true
     }
   ]
 }

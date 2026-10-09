@@ -5,7 +5,7 @@
     "xcode": "27.0 (27A266a)",
     "macOS": "27.0.1 (26A434)"
   },
-  "scope": "functional private stdio; actual MenuBarExtra popup and system delivery unverified",
+  "scope": "synthetic seed-human-answers private stdio; actual popup opened manually; system delivery and login unverified",
   "board-light": {
     "checks": {
       "actualMenuBarExtraWindow": false,
@@ -54,5 +54,56 @@
       "waitingIncludesHiddenProjects": true
     },
     "result": "functional_passed_popup_pending"
+  },
+  "manualLight": {
+    "checks": {
+      "actualMenuBarExtraWindow": true,
+      "deletedTargetExplained": true,
+      "exactReplyConfirmedByEvent": true,
+      "liveUpdatesWithClosedWindow": true,
+      "menuBarPopupFrame": {
+        "height": 620,
+        "width": 420
+      },
+      "notificationRoutesReuseBoardWindow": true,
+      "reopenUsesSameProjection": true,
+      "source": "private stdio daemon; no system notification delivery or registration",
+      "staleReplyPreservedWithoutSend": true,
+      "statusItemSize": {
+        "height": 22,
+        "width": 46.5
+      },
+      "waitingIncludesHiddenProjects": true
+    },
+    "result": "passed",
+    "writerLeaseReleased": true,
+    "sourceRevision": "9625b090b0ecc8ae96898ab99d59039f7ef5d5db"
+  },
+  "darkRequestedBeforeAppearanceFix": {
+    "checks": {
+      "actualMenuBarExtraWindow": true,
+      "deletedTargetExplained": true,
+      "exactReplyConfirmedByEvent": true,
+      "liveUpdatesWithClosedWindow": true,
+      "menuBarPopupFrame": {
+        "height": 620,
+        "width": 420
+      },
+      "notificationRoutesReuseBoardWindow": true,
+      "reopenUsesSameProjection": true,
+      "source": "private stdio daemon; no system notification delivery or registration",
+      "staleReplyPreservedWithoutSend": true,
+      "statusItemSize": {
+        "height": 22,
+        "width": 46.5
+      },
+      "waitingIncludesHiddenProjects": true
+    },
+    "result": "passed",
+    "writerLeaseReleased": true,
+    "sourceRevision": "9625b090b0ecc8ae96898ab99d59039f7ef5d5db",
+    "additionalQAChanges": "hold App open 60 seconds after capture",
+    "requestedTheme": "dark",
+    "visualResult": "User native screenshot shows light presentation. Dark theme acceptance not confirmed."
   }
 }

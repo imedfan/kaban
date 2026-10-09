@@ -153,13 +153,17 @@ App build и 12 native сценариев прошли. [Отчёт FE-20](devel
 и polling/error status. По принятой v0.11.27 проактивная квота вынесена за рабочий MVP.
 Все шесть CI jobs `2d0df81` прошли, включая macOS App/native smoke после
 обхода compiler IRGen для Binding setter в Swift 6.3.3.
-FE-21 реализована в `codex/fe-21-menubar-notifications`, App source `2386cf7`:
+FE-21 реализована в [draft PR #115](https://github.com/imedfan/kaban/pull/115),
+ветка `codex/fe-21-menubar-notifications`:
 MenuBarExtra, runtime-owned subscription, event dedup и guarded notification reply.
 691 tests, финальные 217 BoardCore и App build прошли. Private light/dark smoke
 подтвердили закрытое окно, reopen, stale/exact/deleted routes и настоящий Quit.
 [Отчёт FE-21](development/frontend-fe-21-2026-10-09.md) сохраняет частичный статус:
-strict popup smoke завершился ошибкой из-за недоступного event access;
-OS notifications, popup и mainApp login/installed приёмка остаются открытыми.
+автоматический клик недоступен; ручное открытие выявило и подтвердило
+исправление схлопнутого popup. В `9625b09` он имеет 420×620 pt и показывает
+счётчик 2. Обе темы сверяются после QA appearance fix `2aa2d0f`.
+OS notifications и mainApp login/installed приёмка остаются открытыми.
+Оба Linux CI jobs `09ae818` прошли после исправления XCTest discovery.
 Дальше FE-22 и открытые интеграционные пробелы; требования MVP сохраняются полностью.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных

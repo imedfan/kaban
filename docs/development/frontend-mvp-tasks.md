@@ -1039,9 +1039,11 @@ Installed helper и физическая приёмка сохраняются �
 
 Клиентская реализация и private functional smoke сохранены в
 [отчёте FE-21](frontend-fe-21-2026-10-09.md). 691 tests, App build и light/dark
-closed-window/reply/Quit прошли. Strict popup smoke не открыл MenuBarExtra
-при eventAccess=false; system notifications, popup и login/installed приёмка
-остаются открытыми. Критерии полной FE-21 пока не отмечены.
+closed-window/reply/Quit прошли. Автоматический клик недоступен при
+eventAccess=false; ручное открытие подтвердило исправление схлопнутого popup
+420×620 pt и счётчик 2. Обе темы сверяются после QA appearance fix;
+system notifications и login/installed приёмка остаются открытыми.
+Критерии полной FE-21 пока не отмечены.
 
 **Приоритет:** P1
 
