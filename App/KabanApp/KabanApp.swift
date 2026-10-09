@@ -168,10 +168,8 @@ private struct ReviewQAWindowCommands: Commands {
         return true
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let runtime else { return .terminateNow }
-        Task { await runtime.shutdown(); sender.reply(toApplicationShouldTerminate: true) }
-        return .terminateLater
+    func applicationWillTerminate(_ notification: Notification) {
+        runtime?.stopForTermination()
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Kaban", withExtension: "icns", subdirectory: "Resources"), let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }

@@ -76,8 +76,14 @@ struct MenuBarView: View {
                             .disabled(runtime.onboardingSystem.busy || BoardQA.isActive)
                     }
                 }
-                Toggle("Открывать Kaban при входе", isOn: Binding(get: { runtime.onboardingSystem.loginStatus == .enabled }, set: { value in Task { await runtime.onboardingSystem.setAutoLaunch(value) } }))
-                    .disabled(runtime.onboardingSystem.busy || BoardQA.isActive)
+                if let loginStatus = runtime.onboardingSystem.loginStatus {
+                    Toggle("Открывать Kaban при входе", isOn: Binding(get: { loginStatus == .enabled }, set: { value in Task { await runtime.onboardingSystem.setAutoLaunch(value) } }))
+                        .disabled(runtime.onboardingSystem.busy || runtime.developer || runtime.fixture || BoardQA.isActive || loginStatus == .requiresApproval)
+                    if loginStatus == .requiresApproval {
+                        Text("Разрешите автозапуск Kaban в «Объектах входа».").font(.caption).foregroundStyle(.secondary)
+                        Button("Объекты входа…") { runtime.openSettings() }
+                    }
+                } else { Text("Проверка автозапуска…").font(.caption).foregroundStyle(.secondary) }
                 if let error = runtime.onboardingSystem.loginError { Text(error).font(.caption).foregroundStyle(.orange) }
                 if let error = runtime.onboardingSystem.notificationError { Text(error).font(.caption).foregroundStyle(.orange) }
                 if let message = runtime.notifications.message { Text(message).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
@@ -95,9 +101,10 @@ struct MenuBarView: View {
             }.padding(16)
         }.frame(width: 420).frame(maxHeight: 620)
             .onAppear {
-                runtime.presentBoard = { openWindow(id: "board"); NSApp.activate() }
+                let open = openWindow
+                runtime.presentBoard = { [weak runtime] in runtime?.revealBoard { open(id: "board") } }
                 Task { await runtime.onboardingSystem.refresh(fixture: BoardQA.isActive) }
             }
     }
-    private func showBoard() { openWindow(id: "board"); NSApp.activate() }
+    private func showBoard() { runtime.revealBoard { openWindow(id: "board") } }
 }

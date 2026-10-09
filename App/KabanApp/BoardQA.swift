@@ -43,7 +43,8 @@ import Darwin
             guard let store else { throw failure("No application store") }
             if let path = argument("--menubar-live-smoke") {
                 let checks = try await menuBarLiveSmoke(store)
-                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+                let result = argument("--qa-menubar-functional") == "YES" ? "functional_passed_popup_unverified" : "passed"
+                try JSONSerialization.data(withJSONObject: ["result": result, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--incident-live-smoke") {
                 let checks = try await incidentLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
@@ -135,6 +136,10 @@ import Darwin
             }
             if (argument("--merge-smoke") != nil || argument("--merge-live-smoke") != nil), argument("--export-live-window") != nil {
                 try await captureWindow()
+            }
+            if argument("--menubar-live-smoke") != nil {
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+                return
             }
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_SUCCESS)

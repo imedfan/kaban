@@ -28,12 +28,15 @@ import KabanTransport
     var developer: Bool { CommandLine.arguments.contains("--developer") || BoardQA.argument("--daemon-smoke") != nil }
     var fixture: Bool { BoardQA.isActive && BoardQA.argument("--qa-runtime-state") == nil && BoardQA.argument("--daemon-smoke") == nil && !developer }
     private var setupKey: String { "onboarding.completed." + (developer ? "developer" : "installed") }
-    func shutdown() async {
+    func revealBoard(_ open: () -> Void) {
+        if let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.canBecomeMain && $0.isVisible }) {
+            window.makeKeyAndOrderFront(nil)
+        } else { open() }
+        NSApp.activate()
+    }
+    func stopForTermination() {
         started = false; initialization?.cancel()
         store?.stop(); notifications.detach()
-        await initialization?.value; initialization = nil
-        store?.stop(); store = nil
-        await closeTransport?(); closeTransport = nil
     }
     func finishSetup() {
         guard store?.canSend == true else { return }
@@ -258,7 +261,8 @@ struct DaemonRuntimeView: View {
             }
         }
         .onAppear {
-            runtime.presentBoard = { openWindow(id: "board"); NSApp.activate() }
+            let open = openWindow
+            runtime.presentBoard = { [weak runtime] in runtime?.revealBoard { open(id: "board") } }
         }
         .task { runtime.start() }
         .onChange(of: runtime.store.map { ObjectIdentifier($0) }, initial: true) { _, _ in

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 
 
 def main():
@@ -14,6 +15,7 @@ def main():
     parser.add_argument("--seed", type=Path, default=Path("/tmp/kaban-fe21-seed"))
     parser.add_argument("--theme", choices=["light", "dark"], default="light")
     parser.add_argument("--minimum", action="store_true")
+    parser.add_argument("--functional-only", action="store_true", help="Check live routes/Quit only; explicitly leave popup acceptance open")
     args = parser.parse_args()
     executable = args.app.resolve() / "Contents/MacOS/Kaban"
     if not executable.is_file() or not args.seed.is_file():
@@ -27,14 +29,25 @@ def main():
                "--export-live-window", str(root / "window.png")]
     if args.minimum:
         command += ["--qa-size", "minimum"]
+    if args.functional_only:
+        command += ["--qa-menubar-functional", "YES"]
     with (root / "app.log").open("w") as log:
         result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=120)
     report = json.loads((root / "result.json").read_text())
-    if result.returncode or report.get("result") != "passed":
+    expected = "functional_passed_popup_unverified" if args.functional_only else "passed"
+    if result.returncode or report.get("result") != expected:
         raise RuntimeError(str(report))
+    deadline = time.monotonic() + 5
     with (root / "store.sqlite.daemon.lock").open("rb") as lease:
-        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fcntl.flock(lease, fcntl.LOCK_UN)
+        while True:
+            try:
+                fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lease, fcntl.LOCK_UN)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
     report["writerLeaseReleased"] = True
     (root / "result.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(report, ensure_ascii=False), flush=True)
