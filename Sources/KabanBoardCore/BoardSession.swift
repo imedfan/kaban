@@ -2,8 +2,15 @@ import Foundation
 import Observation
 import KabanProtocol
 
+public enum BoardSessionUpdate: Sendable {
+    case replacement
+    case journal(EventEnvelope)
+    case ephemeral(EphemeralEnvelope)
+}
+
 /// One application session. Views select data; they never own the update stream.
 @MainActor @Observable public final class BoardSession {
+    public var onAppliedUpdate: ((BoardSessionUpdate) -> Void)?
     private let client: any KabanClient
     public let boardSet: BoardSetStore
     public private(set) var journal: ClientCommandJournal?
@@ -187,6 +194,7 @@ import KabanProtocol
                 scheduleDetail(id)
             }
             if pendingRecords.contains(where: { $0.envelope.command.awaitsExternalCompletion }) { startReconciliation() }
+            if result == .applied { onAppliedUpdate?(.journal(value)) }
         case .ephemeral(let value):
             guard let cursor = receivedEphemeralCursor, cursor.sessionId == value.cursor.sessionId else { throw resyncError() }
             if value.cursor.offset <= cursor.offset { return }
@@ -221,6 +229,7 @@ import KabanProtocol
         if let id = selectedID, board.tasks[id] == nil { clearSelection() }
         refreshPending()
         if let id = selectedID { scheduleDetail(id) }
+        onAppliedUpdate?(.replacement)
     }
     private func drainVolatile() throws {
         while let first = volatileBuffer.first, first.afterSeq <= (projection?.stateSeq ?? -1) {
@@ -231,6 +240,7 @@ import KabanProtocol
             if case .modelCatalogChanged = first.event { stale = first.afterSeq < modelCatalogSeq }
             if !stale, projection?.apply(first.event) == .resyncRequired { throw resyncError() }
             ephemeralCursor = first.cursor
+            if !stale { onAppliedUpdate?(.ephemeral(first)) }
             if case .runProgress(let progress) = first.event,
                let id = selectedID, progress.taskId == id {
                 scheduleDetail(id)
