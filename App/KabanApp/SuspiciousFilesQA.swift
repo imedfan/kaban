@@ -1,13 +1,14 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func suspiciousFilesLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard argument("--developer-database")?.hasPrefix("/tmp/kaban-fe18-") == true, store.macPaused,
+        guard AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe18-") == true, store.macPaused,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private paused file fixture or WindowGroup missing") }
-        window.setContentSize(argument("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
-        let mode = argument("--qa-files-mode") ?? "accept"
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        let mode = AppArguments.value("--qa-files-mode") ?? "accept"
         let name = mode == "reopen" ? "accept" : mode == "finder" ? "binary" : mode == "exception" || mode == "agent" ? "long" : mode == "disconnected" || mode == "cursor" ? "strict" : mode
         let id = TaskID(rawValue: "files-" + name)
         guard let card = store.projection?.tasks[id] else { throw failure("Files task missing") }
@@ -51,7 +52,7 @@ extension BoardQA {
             let expected: Command = mode.hasSuffix("comment")
                 ? .requestChanges(taskId: id, comments: initial.context.removalText, target: "dev") : .moveTask(taskId: id, stage: "dev")
             guard store.suspiciousFiles.command(for: id) == expected else { throw failure("Comment did not change exact command") }
-            if argument("--qa-files-submit") == "yes" {
+            if AppArguments.value("--qa-files-submit") == "yes" {
                 guard let sheet = window.attachedSheet,
                       let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0, windowNumber: sheet.windowNumber,
                                                context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36),
@@ -61,7 +62,7 @@ extension BoardQA {
                       store.detail?.task.bounceByReason == detail.task.bounceByReason else { throw failure("Return command or counters changed") }
                 guard mode.hasSuffix("comment") ? store.detail?.acceptedFiles.isEmpty == true : store.detail?.acceptedFiles.isEmpty == false else { throw failure("Return acceptance effect wrong") }
                 checks.append("native Cmd-Return executes exact \(mode.hasSuffix("comment") ? "requestChanges without acceptance" : "moveTask with acceptance"), explicit dev target and unchanged bounce counts")
-            } else if argument("--qa-files-escape") == "yes" {
+            } else if AppArguments.value("--qa-files-escape") == "yes" {
                 guard let sheet = window.attachedSheet,
                       let key = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: sheet.windowNumber,
                                                context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53),
@@ -106,7 +107,7 @@ extension BoardQA {
             checks.append("file path, rule, size, blob and frozen server threshold shown in actual task inspector")
         }
         guard store.projection?.projects.values.reduce(0, { $0 + $1.openIncidentCount }) == incidents else { throw failure("Suspicious files changed incident count") }
-        if argument("--qa-files-scroll") == "bottom" {
+        if AppArguments.value("--qa-files-scroll") == "bottom" {
             store.detailScrollTarget = .suspiciousActions
             try await waitUntil("inspector scroll intent consumed") { store.detailScrollTarget == nil }
             checks.append("actual SwiftUI inspector scroll reaches the controls below the long file path")
@@ -115,3 +116,4 @@ extension BoardQA {
         return checks
     }
 }
+#endif

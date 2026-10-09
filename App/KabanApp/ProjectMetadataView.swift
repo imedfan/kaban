@@ -5,7 +5,7 @@ import KabanBoardCore
 struct ProjectMetadataView: View {
     @Bindable var settings: ProjectSettingsStore
     @Bindable var board: BoardStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @FocusState private var identityFocus: IdentityField?
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {

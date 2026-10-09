@@ -1,3 +1,4 @@
+#if KABAN_QA
 import Foundation
 import KabanProtocol
 import KabanBoardCore
@@ -15,9 +16,9 @@ import KabanBoardCore
             .init(id: "merge", name: "Merge", kind: .merge, display: .init(order: 5), onSuccess: "done", onConflict: .init(stage: "dev", limit: 2)),
             .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 6))
         ]
-        if BoardQA.argument("--qa-review") != nil { stages[2].readOnly = false }
-        let boardMatrix = BoardQA.argument("--qa-board") == "matrix"
-        if BoardQA.argument("--qa-answer") == "gate" {
+        if AppArguments.qaValue("--qa-review") != nil { stages[2].readOnly = false }
+        let boardMatrix = AppArguments.qaValue("--qa-board") == "matrix"
+        if AppArguments.qaValue("--qa-answer") == "gate" {
             stages.append(.init(id: "checks", name: "Checks", kind: .gate, display: .init(order: 7), onFail: .init(stage: "dev", limit: 3)))
         }
         if boardMatrix {
@@ -79,19 +80,19 @@ import KabanBoardCore
                 if index == 0 { value.hasAcceptanceCriteria = false }; tasks.append(value)
             }
         }
-        if BoardQA.argument("--qa-detail") != nil || BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if AppArguments.qaValue("--qa-detail") != nil || AppArguments.qaValue("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].title = "Платёжный шлюз: проверить возвраты, вебхуки и сохранность результата при повторной доставке"
         }
-        if BoardQA.argument("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if AppArguments.qaValue("--qa-log") != nil, let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].stageId = "dev"; tasks[index].state = .paused
         }
-        if let mode = BoardQA.argument("--qa-review"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if let mode = AppArguments.qaValue("--qa-review"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].stageId = "review"; tasks[index].state = .waitingHuman(.review)
             if mode == "conflict" { tasks[index].bounceByReason = ["merge_conflict": 1] }
             if mode == "long" || mode == "long-comment" { tasks[index].title = String(repeating: "Слияние гостевой корзины после повторной доставки и проверки платежа · ", count: 3) }
         }
         var questions: [TaskID: [HumanRequest]] = [:]
-        if let mode = BoardQA.argument("--qa-answer"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if let mode = AppArguments.qaValue("--qa-answer"), let index = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].stageId = "dev"; tasks[index].state = .waitingHuman(.question)
             tasks[index].title = "Платёжный шлюз: сохранить ответ при повторной доставке и продолжить работу"
             let question = mode == "long" ? String(repeating: "При повторной доставке вебхука сначала проверить состояние возврата или повторить запрос к провайдеру? ", count: 8) : "При сетевой ошибке повторять возврат или сначала проверить его состояние?"
@@ -111,7 +112,7 @@ import KabanBoardCore
             default: break
             }
         }
-        if let mode = BoardQA.argument("--qa-merge"), let index = tasks.firstIndex(where: { $0.id == "SHOP-29" }), let second = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
+        if let mode = AppArguments.qaValue("--qa-merge"), let index = tasks.firstIndex(where: { $0.id == "SHOP-29" }), let second = tasks.firstIndex(where: { $0.id == "SHOP-31" }) {
             tasks[index].mergeQueueSequence = 10; tasks[index].overlapsWith = ["SHOP-31", "KBN-15", "removed-task"]
             tasks[second].stageId = "merge"; tasks[second].state = .queued(nil); tasks[second].mergeQueueSequence = 20; tasks[second].priority = 99
             switch mode {
@@ -126,7 +127,7 @@ import KabanBoardCore
             if mode == "unknown" { tasks[index].mergeQueueSequence = nil; tasks[second].mergeQueueSequence = nil }
             if mode == "long" { tasks[index].title = String(repeating: "Длинное название задачи: исправление сложного конфликта и повторная проверка результата · ", count: 5) }
         }
-        let state = BoardQA.argument("--qa-state")
+        let state = AppArguments.qaValue("--qa-state")
         if state == "long" {
             tasks[2].title = "Очень длинное название задачи: пагинация, фильтрация и согласованная обработка заказов для нескольких международных магазинов"
             tasks[2].id = .init(rawValue: "SHOP-VERY-LONG-IDENTIFIER-2026-1042")
@@ -158,7 +159,7 @@ import KabanBoardCore
             current = [.runProgress(.init(runId: run.id, taskId: run.taskId, message: "Добавлены проверки границ курсора", lastActivityAt: now))]
             runs["SHOP-35"] = [.init(id: "fixture-substitution", taskId: "SHOP-35", stageId: "ai-review", number: 1, status: .failed, requestedModel: "opus-4.5", actualModelName: "Sonnet 4", countsTowardLimits: false, startedAt: now.addingTimeInterval(-180), endedAt: now)]
         }
-        let flags: [SchedulerFlag] = ["dirty", "error", "pending"].contains(BoardQA.argument("--qa-merge") ?? "") ? [.mergeBlocked("shop")] : []
+        let flags: [SchedulerFlag] = ["dirty", "error", "pending"].contains(AppArguments.qaValue("--qa-merge") ?? "") ? [.mergeBlocked("shop")] : []
         return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
     }
 }
@@ -223,3 +224,4 @@ import KabanBoardCore
         return .init(commandId: envelope.commandId, seq: result == .ok ? 0 : nil, result: result)
     }
 }
+#endif

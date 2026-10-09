@@ -94,3 +94,12 @@ producer-boundary quota/flags fixtures. `check-mac-settings.py` запускае
 Токен, HTTP Cursor, платный prompt и системная регистрация не используются.
 Команды, source, кадры и открытая UC-21 приёмка — в
 [отчёте FE-20](../docs/development/frontend-fe-20-2026-10-09.md).
+
+## Состав App FE-34
+
+`check-app-build-contents.py --app <Kaban.app>` проверяет реальные Mach-O символы
+production Release: демо и QA types отсутствуют, общие Kaban UI types присутствуют.
+С `--qa` проверка требует BoardQA, AppFixture и NativeWindowCapture; при наличии
+Debug dylib читает и его. Демо types запрещены в обеих конфигурациях.
+Debug включает KABAN_QA, Release по умолчанию не включает. CI собирает и проверяет
+оба варианта. [Приёмка FE-34](../docs/development/frontend-fe-34-2026-10-09.md).

@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import SwiftUI
 import KabanProtocol
@@ -9,12 +10,8 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
-    static var needsExplicitWindow: Bool { argument("--mac-live-smoke") != nil || argument("--incident-live-smoke") != nil || argument("--files-live-smoke") != nil || argument("--git-live-smoke") != nil || argument("--mcp-live-smoke") != nil || argument("--settings-live-smoke") != nil || argument("--model-live-smoke") != nil || argument("--pipeline-live-smoke") != nil || argument("--review-live-smoke") != nil || argument("--merge-live-smoke") != nil }
-    static func argument(_ name: String) -> String? {
-        guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
-        return CommandLine.arguments[index + 1]
-    }
+    static var isActive: Bool { ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
+    static var needsExplicitWindow: Bool { AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
     static func run() async {
         do {
             if needsExplicitWindow {
@@ -29,114 +26,114 @@ import Darwin
                 guard let item = find(NSApp.mainMenu), let menu = item.menu else { throw failure("WindowGroup command missing") }
                 menu.performActionForItem(at: menu.index(of: item))
             }
-            if argument("--qa-runtime-state") != nil {
+            if AppArguments.value("--qa-runtime-state") != nil {
                 try await waitUntil("runtime WindowGroup") { NSApp.windows.contains { $0.styleMask.contains(.titled) } }
                 if CommandLine.arguments.contains("--qa-incompatible-daemon") {
                     try await waitUntil("protocol rejection") { runtime?.busy == false && runtime?.failure != nil && runtime?.store == nil }
                 }
                 try await captureWindow()
-                if argument("--qa-window-id") != nil { return }
+                if AppArguments.value("--qa-window-id") != nil { return }
                 await runtime?.closeDeveloperSession()
                 Darwin.exit(EXIT_SUCCESS)
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--incident-live-smoke") {
+            if let path = AppArguments.value("--incident-live-smoke") {
                 let checks = try await incidentLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--files-live-smoke") {
+            } else if let path = AppArguments.value("--files-live-smoke") {
                 let checks = try await suspiciousFilesLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--mac-live-smoke") {
+            } else if let path = AppArguments.value("--mac-live-smoke") {
                 let checks = try await macSettingsLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--git-live-smoke") {
+            } else if let path = AppArguments.value("--git-live-smoke") {
                 let checks = try await gitPermissionsLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--mcp-live-smoke") {
+            } else if let path = AppArguments.value("--mcp-live-smoke") {
                 let checks = try await projectMCPLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--settings-live-smoke") {
+            } else if let path = AppArguments.value("--settings-live-smoke") {
                 let checks = try await projectSettingsLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--model-live-smoke") {
+            } else if let path = AppArguments.value("--model-live-smoke") {
                 let checks = try await modelLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--pipeline-live-smoke") {
+            } else if let path = AppArguments.value("--pipeline-live-smoke") {
                 let checks = try await pipelineLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--merge-live-smoke") {
+            } else if let path = AppArguments.value("--merge-live-smoke") {
                 let checks = try await mergeLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--merge-smoke") {
+            } else if let path = AppArguments.value("--merge-smoke") {
                 let checks = try await mergeSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--review-live-smoke") {
+            } else if let path = AppArguments.value("--review-live-smoke") {
                 let checks = try await reviewLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--review-smoke") {
+            } else if let path = AppArguments.value("--review-smoke") {
                 let checks = try await reviewSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--answer-live-smoke") {
+            } else if let path = AppArguments.value("--answer-live-smoke") {
                 let checks = try await answerLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--answer-smoke") {
+            } else if let path = AppArguments.value("--answer-smoke") {
                 let checks = try await answerSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--control-live-smoke") {
+            } else if let path = AppArguments.value("--control-live-smoke") {
                 let checks = try await controlLiveSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--control-smoke") ?? argument("--control-routing-smoke") {
-                let checks = try await controlSmoke(store, requiresFocus: argument("--control-routing-smoke") == nil)
+            } else if let path = AppArguments.value("--control-smoke") ?? AppArguments.value("--control-routing-smoke") {
+                let checks = try await controlSmoke(store, requiresFocus: AppArguments.value("--control-routing-smoke") == nil)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--log-live-smoke") {
+            } else if let path = AppArguments.value("--log-live-smoke") {
                 let checks = try await logLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--log-volume-smoke") {
+            } else if let path = AppArguments.value("--log-volume-smoke") {
                 let checks = try await logVolumeSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--log-smoke") {
+            } else if let path = AppArguments.value("--log-smoke") {
                 let checks = try await logSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--detail-live-smoke") {
+            } else if let path = AppArguments.value("--detail-live-smoke") {
                 let checks = try await detailLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--detail-smoke") {
+            } else if let path = AppArguments.value("--detail-smoke") {
                 let checks = try await detailSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--task-smoke") ?? argument("--board-smoke") {
+            } else if let path = AppArguments.value("--task-smoke") ?? AppArguments.value("--board-smoke") {
                 let checks: [String]
-                if argument("--task-smoke") != nil { checks = try await taskSmoke(store) }
+                if AppArguments.value("--task-smoke") != nil { checks = try await taskSmoke(store) }
                 else { checks = try await boardSmoke(store) }
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--project-smoke") {
+            } else if let path = AppArguments.value("--project-smoke") {
                 let checks = try await projectSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--daemon-smoke") {
+            } else if let path = AppArguments.value("--daemon-smoke") {
                 let checks = try await daemonSmoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks, "seq": store.projection?.stateSeq ?? 0], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--ui-smoke") {
+            } else if let path = AppArguments.value("--ui-smoke") {
                 let checks = try await smoke(store)
                 let data = try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: path))
-            } else if let path = argument("--export-live-window") ?? argument("--qa-window-id") {
+            } else if let path = AppArguments.value("--export-live-window") ?? AppArguments.value("--qa-window-id") {
                 try await prepare(store)
                 _ = path
                 try await captureWindow()
-                if argument("--qa-window-id") != nil { return }
+                if AppArguments.value("--qa-window-id") != nil { return }
             }
-            if (argument("--merge-smoke") != nil || argument("--merge-live-smoke") != nil), argument("--export-live-window") != nil {
+            if (AppArguments.value("--merge-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil), AppArguments.value("--export-live-window") != nil {
                 try await captureWindow()
             }
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_SUCCESS)
         } catch {
-            if let path = ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
+            if let path = ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
@@ -146,12 +143,12 @@ import Darwin
         }
     }
     static func captureWindow() async throws {
-        guard let path = argument("--export-live-window") ?? argument("--qa-window-id"),
+        guard let path = AppArguments.value("--export-live-window") ?? AppArguments.value("--qa-window-id"),
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No main window or output path") }
-        window.setContentSize(argument("--qa-size") == "minimum" || argument("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" || AppArguments.value("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
         try await Task.sleep(for: .milliseconds(700))
-        if argument("--qa-state") == "mascot" {
+        if AppArguments.value("--qa-state") == "mascot" {
             store?.mascotProjectID = nil
             try await Task.sleep(for: .milliseconds(100))
             store?.mascotProjectID = "shop"
@@ -167,10 +164,10 @@ import Darwin
             guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Mascot PNG unavailable") }
             try png.write(to: URL(fileURLWithPath: path + ".popover.png"))
         }
-        if argument("--qa-window-id") != nil {
+        if AppArguments.value("--qa-window-id") != nil {
             try Data(String(window.windowNumber).utf8).write(to: URL(fileURLWithPath: path)); return
         }
-        if argument("--qa-onboarding-scroll") == "bottom", let root = window.contentView {
+        if AppArguments.value("--qa-onboarding-scroll") == "bottom", let root = window.contentView {
             func scrollViews(_ view: NSView) -> [NSScrollView] {
                 (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews($0) }
             }
@@ -180,7 +177,7 @@ import Darwin
             scroll.contentView.scroll(to: .init(x: 0, y: max(y, 0))); scroll.reflectScrolledClipView(scroll.contentView)
             try await Task.sleep(for: .milliseconds(300))
         }
-        let bitmap = try await ReferenceExport.captureLiveWindow()
+        let bitmap = try await NativeWindowCapture.capture()
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
         let url = URL(fileURLWithPath: path)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -235,24 +232,24 @@ import Darwin
         try await waitUntil("task cancellation") { store.projection?.tasks[id]?.state == .cancelled && store.projection?.isSent(id) == false && store.canSend }
         await store.select(id)
         guard store.detail?.body == "Durable body\n" else { throw failure("Live body changed") }
-        if let path = argument("--daemon-smoke-window") {
-            if argument("--qa-size") == "minimum" { NSApp.windows.first { $0.styleMask.contains(.titled) }?.setContentSize(.init(width: 1040, height: 640)) }
+        if let path = AppArguments.value("--daemon-smoke-window") {
+            if AppArguments.value("--qa-size") == "minimum" { NSApp.windows.first { $0.styleMask.contains(.titled) }?.setContentSize(.init(width: 1040, height: 640)) }
             try await Task.sleep(for: .milliseconds(700))
-            let bitmap = try await ReferenceExport.captureLiveWindow()
+            let bitmap = try await NativeWindowCapture.capture()
             guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("PNG encoding failed") }
             try png.write(to: URL(fileURLWithPath: path))
         }
         return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
     private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
-        guard !initial.usesFixture, let repository = argument("--project-smoke-repository"), let relocated = argument("--project-smoke-relink"), let runtime else { throw failure("Real project smoke configuration missing") }
+        guard !initial.usesFixture, let repository = AppArguments.value("--project-smoke-repository"), let relocated = AppArguments.value("--project-smoke-relink"), let runtime else { throw failure("Real project smoke configuration missing") }
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Project WindowGroup missing") }
         let before = initial.projection?.projects.count ?? 0
         initial.beginProjectFlow(.add)
         try await waitUntil("actual AddProject sheet") { window.attachedSheet != nil }
         initial.projects.setCreateTemplate(false)
         var enteredIdentity: GitIdentity?
-        if let nonGit = argument("--project-smoke-non-git") {
+        if let nonGit = AppArguments.value("--project-smoke-non-git") {
             initial.projects.editPath(nonGit); _ = await initial.projects.submit()
             try await waitUntil("real non-git refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "not_git_repository" && initial.canSend }; return false }
             guard initial.projection?.projects.count == before, initial.projects.draft.path == nonGit, !initial.projects.draft.createTemplate else { throw failure("Non-git refusal lost input or registered a lane") }
@@ -291,8 +288,8 @@ import Darwin
         await initial.projects.refreshDiagnostics()
         try await waitUntil("completed server project diagnostics") { !initial.projects.isReading && initial.projects.branches != nil && initial.projects.gates != nil && initial.projects.environmentError != nil }
         guard initial.projects.branches?.contains("main") == true, initial.projects.gates != nil, initial.projects.environment == nil, initial.projects.environmentError != nil else { throw failure("Project diagnostics lost authoritative/unknown distinction") }
-        if argument("--project-smoke-non-git") != nil, initial.projectCaption(id) != "Пайплайн не настроен" { throw failure("no_pipeline caption does not reflect server validation") }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--project-smoke-non-git") != nil, initial.projectCaption(id) != "Пайплайн не настроен" { throw failure("no_pipeline caption does not reflect server validation") }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         initial.projectSheet = nil; initial.selectedProjectID = id
         try await waitUntil("closed AddProject sheet") { window.attachedSheet == nil }
         initial.beginCreation(id)
@@ -326,8 +323,8 @@ import Darwin
         if try await prepareRunHistory(store) { return }
         if try await prepareDetails(store) { return }
         if try await prepareTaskEditor(store) { return }
-        if let state = argument("--qa-state"), try await prepareTaskControl(store, state: state) { return }
-        switch argument("--qa-state") {
+        if let state = AppArguments.value("--qa-state"), try await prepareTaskControl(store, state: state) { return }
+        switch AppArguments.value("--qa-state") {
         case "grouped": store.compactBoard = true
         case "hidden-stages": store.filter = .hiddenStages
         case "hidden-project": store.hide("shop")
@@ -354,7 +351,7 @@ import Darwin
             store.connectionState = .reconnecting(lastSeq: store.projection?.stateSeq); store.sheet = .create("shop")
         default: break
         }
-        if let state = argument("--qa-project-form") {
+        if let state = AppArguments.value("--qa-project-form") {
             if state == "remove" { store.beginProjectFlow(.remove("shop")) }
             else if state == "relink" { store.beginProjectFlow(.relink("shop")) }
             else {
@@ -375,7 +372,7 @@ import Darwin
         guard store.usesFixture else { throw failure("Board smoke requires explicit DTO fixtures") }
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No actual board WindowGroup") }
         window.makeKeyAndOrderFront(nil)
-        if argument("--qa-board-restart") == "verify" {
+        if AppArguments.value("--qa-board-restart") == "verify" {
             guard store.visibleIDs == ["docs", "kaban", "mobile"], store.projection?.projects["shop"] != nil,
                   (store.projection?.badgeCounts(for: "shop").waitingHuman ?? 0) > 0,
                   store.projection?.projects["shop"]?.openIncidentCount == 1,
@@ -410,7 +407,7 @@ import Darwin
         try await Task.sleep(for: .milliseconds(200))
         guard store.projection?.tasks == initialTasks else { throw failure("Compact board mutated task state") }
         checks.append("Compact view and local board changes render in the actual WindowGroup")
-        if argument("--qa-board-restart") == "seed" {
+        if AppArguments.value("--qa-board-restart") == "seed" {
             store.hide("shop"); store.session.move("docs", to: 0)
             guard store.visibleIDs == ["docs", "kaban", "mobile"] else { throw failure("Restart seed order wrong") }
             checks.append("Separate QA UserDefaults suite persisted hidden shop and reordered docs for a new application process")
@@ -468,7 +465,7 @@ import Darwin
         try await waitUntil("menu shortcuts") { store.sheet != nil && store.searchRequest > 0 }
         store.sheet = nil
         checks.append("Cmd-N and Cmd-F invoke the real application menu commands")
-        if argument("--qa-project-form") != nil {
+        if AppArguments.value("--qa-project-form") != nil {
             try await projectKeyboardSmoke(store)
             checks.append("AddProject Return submits, refusal focuses missing email; Escape closes and reopening preserves input")
         }
@@ -536,3 +533,4 @@ struct QAIncompatibleTransport: DaemonTransport {
         return response
     }
 }
+#endif

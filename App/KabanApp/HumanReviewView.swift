@@ -12,7 +12,7 @@ struct HumanReviewNotice: View {
     @Bindable var store: BoardStore
     let taskID: TaskID
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         if store.humanReview.isStale(taskID), store.humanReview.receipt(for: taskID)?.isPending != true {
             VStack(alignment: .leading, spacing: 8) {
@@ -90,7 +90,7 @@ struct HumanReviewSheet: View {
     let route: HumanReviewRoute
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var review: HumanReviewStore { store.humanReview }
     private var draft: HumanReviewStore.Draft? { review.draft(for: route.taskID) }
     private var pending: Bool { review.receipt(for: route.taskID)?.isPending == true }

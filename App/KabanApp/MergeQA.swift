@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -47,7 +48,7 @@ import KabanBoardCore
 extension BoardQA {
     private static func captureMergeBefore(path: String) async throws {
         try await Task.sleep(for: .milliseconds(500))
-        let bitmap = try await ReferenceExport.captureLiveWindow()
+        let bitmap = try await NativeWindowCapture.capture()
         guard let data = bitmap.representation(using: .png, properties: [:]) else { throw failure("Merge before PNG missing") }
         try data.write(to: URL(fileURLWithPath: path))
         if let sheet = NSApp.windows.first(where: { $0.styleMask.contains(.titled) })?.attachedSheet,
@@ -59,7 +60,7 @@ extension BoardQA {
     }
     static var mergeClient: QAMergeClient?
     static func prepareMerge(_ store: BoardStore) async throws -> Bool {
-        guard let mode = argument("--qa-merge") else { return false }
+        guard let mode = AppArguments.value("--qa-merge") else { return false }
         await store.select("SHOP-29"); store.detailTab = "Сводка"
         if mode == "overlaps" { store.hide("kaban"); store.overlapRoute = .init(task: "SHOP-29") }
         if mode == "changes" {
@@ -98,9 +99,9 @@ extension BoardQA {
         return ["actual minimum WindowGroup and native TextEditor", "merge conflict limit cannot approve", "one exact explicit decision; any reconciliation replays use the same commandId", "correlated dev queue", "native overlap sheet and link reveals hidden project"]
     }
     static func mergeLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--merge-live-fixture"), path.hasPrefix("/tmp/kaban-fe12-"),
+        guard let path = AppArguments.value("--merge-live-fixture"), path.hasPrefix("/tmp/kaban-fe12-"),
               let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: String],
-              metadata["database"] == argument("--developer-database"), let origin = metadata["origin"], origin.hasPrefix("/tmp/kaban-fe12-"),
+              metadata["database"] == AppArguments.value("--developer-database"), let origin = metadata["origin"], origin.hasPrefix("/tmp/kaban-fe12-"),
               let mode = metadata["mode"], let firstRaw = metadata["first"], let projectRaw = metadata["project"] else { throw failure("Private merge fixture missing") }
         let first = TaskID(rawValue: firstRaw), project = ProjectID(rawValue: projectRaw)
         func read(_ id: TaskID) async throws {
@@ -111,7 +112,7 @@ extension BoardQA {
             }
         }
         let window = NSApp.windows.first { $0.styleMask.contains(.titled) }
-        if argument("--qa-size") == "minimum" { window?.setContentSize(.init(width: 1040, height: 640)) }
+        if AppArguments.value("--qa-size") == "minimum" { window?.setContentSize(.init(width: 1040, height: 640)) }
         func git(_ args: [String]) throws -> String {
             let process = Process(), pipe = Pipe(); process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
             process.arguments = ["-C", origin] + args; process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
@@ -131,11 +132,11 @@ extension BoardQA {
             try await waitUntil("second priority confirmed") { store.projection?.tasks[second]?.priority == 99 }
             guard store.mergeQueue(project).map(\.id) == [first, second], try git(["rev-parse", "main"]) == metadata["main"] else { throw failure("Approval changed main or queue order") }
             try await read(first)
-            if let board = argument("--merge-live-board-before") {
+            if let board = AppArguments.value("--merge-live-board-before") {
                 await store.select(nil); window?.setContentSize(.init(width: 1440, height: 900))
                 try await captureMergeBefore(path: board); try await read(first)
             }
-            if let before = argument("--merge-live-before") { try await captureMergeBefore(path: before) }
+            if let before = AppArguments.value("--merge-live-before") { try await captureMergeBefore(path: before) }
             _ = await store.session.send(.resumeAll)
             try await waitUntil("both real local merges") { store.projection?.tasks[first]?.state == .done && store.projection?.tasks[second]?.state == .done }
             try await read(first); guard let firstResult = store.detail.flatMap(MergePresentation.result) else { throw failure("First final commit missing") }
@@ -154,7 +155,7 @@ extension BoardQA {
                   store.detail?.artifacts.contains(where: { MergePresentation.conflict($0)?.files == ["shared.txt"] }) == true else { throw failure("Durable limit/conflict paths missing") }
             store.humanReview.edit(first, comments: "Resolve shared.txt conflict. Review again."); store.beginReview(.requestChanges, task: first)
             try await waitUntil("real merge return sheet") { window?.attachedSheet != nil }
-            if let before = argument("--merge-live-before") { try await captureMergeBefore(path: before) }
+            if let before = AppArguments.value("--merge-live-before") { try await captureMergeBefore(path: before) }
             _ = await store.humanReview.submit(.requestChanges, for: first)
             try await waitUntil("real manual return") { store.humanReview.receipt(for: first)?.phase == .applied && store.projection?.tasks[first]?.stageId == "dev" }
             store.reviewRoute = nil; await store.session.retryDetail()
@@ -163,7 +164,7 @@ extension BoardQA {
         } else if mode == "review" {
             guard store.detail?.task.state == .waitingHuman(.review), store.detail?.task.bounceByReason["merge_conflict"] == 1,
                   store.detail?.artifacts.contains(where: { $0.kind == "merge_conflict" }) == true else { throw failure("Repeated Human Review missing") }
-            if let before = argument("--merge-live-before") { try await captureMergeBefore(path: before) }
+            if let before = AppArguments.value("--merge-live-before") { try await captureMergeBefore(path: before) }
             _ = await store.humanReview.submit(.approve, for: first)
             try await waitUntil("fixed result queued") { store.projection?.tasks[first]?.stageId == "merge" }
             _ = await store.session.send(.resumeAll)
@@ -184,3 +185,4 @@ extension BoardQA {
         return ["actual private stdio daemon and WindowGroup", "production git/gates scenario: " + mode, "durable merge facts after journal retention", "source states, no UI merge automaton", "local main verified"]
     }
 }
+#endif

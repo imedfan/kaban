@@ -6,7 +6,7 @@ struct SuspiciousReturnSheet: View {
     @Bindable var store: BoardStore
     let route: SuspiciousReturnRoute
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var files: SuspiciousFilesStore { store.suspiciousFiles }
     private var draft: SuspiciousFilesStore.ReturnDraft? { files.draft(for: route.taskID) }
     private var accepts: Bool { draft?.comments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true }

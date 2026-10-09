@@ -18,35 +18,37 @@ import KabanTransport
     private var started = false
     private var connectingInstalled = false
     private let service = SMAppService.agent(plistName: DaemonInstallation.plistName)
-    var developer: Bool { CommandLine.arguments.contains("--developer") || BoardQA.argument("--daemon-smoke") != nil }
-    var fixture: Bool { BoardQA.isActive && BoardQA.argument("--qa-runtime-state") == nil && BoardQA.argument("--daemon-smoke") == nil && !developer }
+    var developer: Bool { CommandLine.arguments.contains("--developer") || AppArguments.qaValue("--daemon-smoke") != nil }
+    var fixture: Bool { AppArguments.isQA && AppArguments.qaValue("--qa-runtime-state") == nil && AppArguments.qaValue("--daemon-smoke") == nil && !developer }
     private var setupKey: String { "onboarding.completed." + (developer ? "developer" : "installed") }
     func finishSetup() {
         guard store?.canSend == true else { return }
         showSetup = false
-        if !fixture && !BoardQA.isActive { UserDefaults.standard.set(true, forKey: setupKey) }
+        if !fixture && !AppArguments.isQA { UserDefaults.standard.set(true, forKey: setupKey) }
     }
     init() {
-        showSetup = BoardQA.argument("--qa-onboarding") != nil || (!BoardQA.isActive && !UserDefaults.standard.bool(forKey: setupKey))
+        showSetup = AppArguments.qaValue("--qa-onboarding") != nil || (!AppArguments.isQA && !UserDefaults.standard.bool(forKey: setupKey))
+        #if KABAN_QA
         if fixture {
             let base = AppFixture.client()
             let client: any KabanClient
-            if let state = BoardQA.argument("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
-            else if let state = BoardQA.argument("--qa-project-form") { client = QAProjectClient(base: base, state: state) }
-            else if BoardQA.argument("--qa-state") == "control-pending" { client = QADeferredControlClient(base: base) }
-            else if let mode = BoardQA.argument("--qa-merge") { let mergeClient = QAMergeClient(base: base, mode: mode); BoardQA.mergeClient = mergeClient; client = mergeClient }
-            else if let mode = BoardQA.argument("--qa-review") { let reviewClient = QAHumanReviewClient(base: base, mode: mode); BoardQA.reviewClient = reviewClient; client = reviewClient }
-            else if let mode = BoardQA.argument("--qa-answer") { let answerClient = QAHumanAnswerClient(base: base, mode: mode); BoardQA.answerClient = answerClient; client = answerClient }
-            else if let mode = BoardQA.argument("--qa-log") { let logClient = QARunHistoryClient(base: base, mode: mode); BoardQA.logClient = logClient; client = logClient }
-            else if let mode = BoardQA.argument("--qa-detail") { let detailClient = QADetailClient(base: base, mode: mode); BoardQA.detailClient = detailClient; client = detailClient }
+            if let state = AppArguments.qaValue("--qa-onboarding"), state != "unavailable" { client = QAEnvironmentClient(base: base, state: state) }
+            else if let state = AppArguments.qaValue("--qa-project-form") { client = QAProjectClient(base: base, state: state) }
+            else if AppArguments.qaValue("--qa-state") == "control-pending" { client = QADeferredControlClient(base: base) }
+            else if let mode = AppArguments.qaValue("--qa-merge") { let mergeClient = QAMergeClient(base: base, mode: mode); BoardQA.mergeClient = mergeClient; client = mergeClient }
+            else if let mode = AppArguments.qaValue("--qa-review") { let reviewClient = QAHumanReviewClient(base: base, mode: mode); BoardQA.reviewClient = reviewClient; client = reviewClient }
+            else if let mode = AppArguments.qaValue("--qa-answer") { let answerClient = QAHumanAnswerClient(base: base, mode: mode); BoardQA.answerClient = answerClient; client = answerClient }
+            else if let mode = AppArguments.qaValue("--qa-log") { let logClient = QARunHistoryClient(base: base, mode: mode); BoardQA.logClient = logClient; client = logClient }
+            else if let mode = AppArguments.qaValue("--qa-detail") { let detailClient = QADetailClient(base: base, mode: mode); BoardQA.detailClient = detailClient; client = detailClient }
             else { client = base }
             let storage: any KeyValueStoring
-            if let suite = BoardQA.argument("--qa-board-suite"), suite.hasPrefix("kaban.qa."), let defaults = UserDefaults(suiteName: suite) {
+            if let suite = AppArguments.qaValue("--qa-board-suite"), suite.hasPrefix("kaban.qa."), let defaults = UserDefaults(suiteName: suite) {
                 storage = DefaultsStorage(defaults: defaults)
             } else { storage = MemoryKeyValueStore() }
             store = BoardStore(client: client, storage: storage, fixture: true)
         }
-        if let state = BoardQA.argument("--qa-runtime-state"), !CommandLine.arguments.contains("--qa-incompatible-daemon") {
+        #endif
+        if let state = AppArguments.qaValue("--qa-runtime-state"), !CommandLine.arguments.contains("--qa-incompatible-daemon") {
             status = state == "protocol-error" ? "Служба Kaban требует обновления" : "Не удалось подключиться к службе Kaban"
             if state == "approval" { status = "Разрешите Kaban в настройках «Объекты входа и расширения»" }
             failure = state == "approval" ? nil : state == "protocol-error" ? "Несовместимая версия протокола. Обновите службу Kaban и проверьте подключение снова." : "macOS не смогла включить локальную службу. Откройте «Объекты входа и расширения», проверьте разрешение для Kaban и повторите подключение. Сохранённые задачи останутся в локальной базе."
@@ -54,13 +56,15 @@ import KabanTransport
     }
     func start() {
         guard !started else { return }; started = true
+        #if KABAN_QA
         BoardQA.runtime = self
+        #endif
         initialization = Task { await initializeRuntime(); initialization = nil }
     }
     private func initializeRuntime() async {
-        if BoardQA.argument("--qa-runtime-state") != nil, !CommandLine.arguments.contains("--qa-incompatible-daemon") { return }
+        if AppArguments.qaValue("--qa-runtime-state") != nil, !CommandLine.arguments.contains("--qa-incompatible-daemon") { return }
         if fixture { return }
-        if let report = BoardQA.argument("--service-smoke") { await serviceSmoke(report); return }
+        if let report = AppArguments.qaValue("--service-smoke") { await serviceSmoke(report); return }
         if developer { await connectDeveloper(); return }
         await registerIfNeeded()
     }
@@ -97,7 +101,7 @@ import KabanTransport
         Darwin.exit(values["result"] as? String == "observed" ? EXIT_SUCCESS : EXIT_FAILURE)
     }
     func refresh() async {
-        guard started, !fixture, !developer, !busy, BoardQA.argument("--qa-runtime-state") == nil else { return }
+        guard started, !fixture, !developer, !busy, AppArguments.qaValue("--qa-runtime-state") == nil else { return }
         busy = true; defer { busy = false }
         observeStatus()
         if service.status != .enabled, store != nil {
@@ -185,29 +189,33 @@ import KabanTransport
         failure = nil
         do {
             let installation = DaemonInstallation(developer: true)
-            let path = BoardQA.argument("--developer-database") ?? installation.database.path
-            if BoardQA.argument("--developer-database") == nil { try installation.prepare() }
+            let path = AppArguments.value("--developer-database") ?? installation.database.path
+            if AppArguments.value("--developer-database") == nil { try installation.prepare() }
             else { try FileManager.default.createDirectory(at: URL(fileURLWithPath: path).deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
             let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/KabanDaemon")
             var arguments = ["--initialize"]
-            if path.hasPrefix("/tmp/kaban-fe16-"), let personal = BoardQA.argument("--qa-personal-mcp-config"), personal.hasPrefix("/tmp/kaban-fe16-") {
+            if path.hasPrefix("/tmp/kaban-fe16-"), let personal = AppArguments.qaValue("--qa-personal-mcp-config"), personal.hasPrefix("/tmp/kaban-fe16-") {
                 arguments += ["--qa-personal-mcp-config", personal]
             }
             let connection = StdioDaemonTransport(executable: helper, database: path, additionalArguments: arguments); closeTransport = { await connection.close() }
             let transport: any DaemonTransport
+            #if KABAN_QA
             if CommandLine.arguments.contains("--qa-lose-create-reply") { transport = QAReplyLossTransport(base: connection) }
             else if CommandLine.arguments.contains("--qa-incompatible-daemon") { transport = QAIncompatibleTransport(base: connection) }
             else { transport = connection }
+            #else
+            transport = connection
+            #endif
             let client = DaemonKabanClient(transport: transport); _ = try await client.getSnapshot()
             try await client.capabilities().requireSession()
-            if let project = BoardQA.argument("--daemon-smoke-project") {
+            if let project = AppArguments.qaValue("--daemon-smoke-project") {
                 let result = try await client.send(.addProject(path: project, createTemplate: true), commandId: UUID())
                 if case .error(let error) = result { throw error }
                 _ = try await client.send(.pauseAll, commandId: UUID())
             }
             let taskStorage: any KeyValueStoring
-            if let suite = BoardQA.argument("--qa-task-suite"), suite.hasPrefix("kaban.qa.") { taskStorage = DefaultsStorage(suiteName: suite) }
-            else if BoardQA.isActive { taskStorage = MemoryKeyValueStore() }
+            if let suite = AppArguments.qaValue("--qa-task-suite"), suite.hasPrefix("kaban.qa.") { taskStorage = DefaultsStorage(suiteName: suite) }
+            else if AppArguments.isQA { taskStorage = MemoryKeyValueStore() }
             else { taskStorage = DefaultsStorage() }
             store = BoardStore(client: client, storage: taskStorage,
                                dataSource: "Режим разработки · отдельная БД", dataSourceDetail: path,
@@ -235,14 +243,24 @@ struct DaemonRuntimeView: View {
     var body: some View {
         Group {
             if let store = runtime.store, !runtime.showSetup {
-                BoardView(store: store).onAppear { BoardQA.store = store }
+                BoardView(store: store).onAppear {
+                    #if KABAN_QA
+                    BoardQA.store = store
+                    #endif
+                }
             } else {
-                OnboardingView(runtime: runtime).onAppear { BoardQA.store = runtime.store }
+                OnboardingView(runtime: runtime).onAppear {
+                    #if KABAN_QA
+                    BoardQA.store = runtime.store
+                    #endif
+                }
             }
         }
         .task { runtime.start() }
         .onChange(of: runtime.store.map { ObjectIdentifier($0) }, initial: true) { _, _ in
+            #if KABAN_QA
             BoardQA.store = runtime.store
+            #endif
             if let store = runtime.store { Task { await store.connect() } }
         }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await runtime.refresh() } } }

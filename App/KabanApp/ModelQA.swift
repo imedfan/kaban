@@ -1,24 +1,25 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func modelLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--model-live-repository"), path.hasPrefix("/tmp/kaban-fe14-"),
-              argument("--developer-database")?.hasPrefix("/tmp/kaban-fe14-") == true,
+        guard let path = AppArguments.value("--model-live-repository"), path.hasPrefix("/tmp/kaban-fe14-"),
+              AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe14-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private model fixture or WindowGroup missing") }
-        if argument("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
+        if AppArguments.value("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
         if !store.macPaused { _ = await store.session.send(.pauseAll); try await waitUntil("paused Mac for model QA") { store.macPaused && store.canSend } }
         if store.projection?.projects.values.contains(where: { $0.path == path }) != true {
             _ = await store.session.send(.addProject(path: path, createTemplate: false, identity: .init(name: "Model QA", email: "model@example.test")))
             try await waitUntil("model QA project") { store.projection?.projects.values.contains { $0.path == path } == true }
         }
         guard let project = store.projection?.projects.values.first(where: { $0.path == path }) else { throw failure("Model project missing") }
-        let mode = argument("--qa-model-mode") ?? "settings"
+        let mode = AppArguments.value("--qa-model-mode") ?? "settings"
         store.screen = .quota
         if mode == "bootstrap" {
             guard store.models.rules != nil, store.models.catalogKnown else { throw failure("Model configuration unknown from real daemon") }
-            if argument("--export-live-window") != nil { try await captureWindow() }
+            if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
             return ["real WindowGroup and private daemon", "confirmed empty catalog and saved pool rules", "Mac paused before configuring test CLI"]
         }
         let editor = store.pipelineEditor(for: project.id)
@@ -88,14 +89,14 @@ extension BoardQA {
             }
             guard let popover = NSApp.windows.first(where: { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }),
                   let view = popover.contentView?.superview ?? popover.contentView,
-                  let path = argument("--export-live-window") else { throw failure("Picker popover missing") }
+                  let path = AppArguments.value("--export-live-window") else { throw failure("Picker popover missing") }
             popover.layoutIfNeeded(); view.layoutSubtreeIfNeeded()
             guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Picker capture unavailable") }
             view.cacheDisplay(in: view.bounds, to: bitmap)
             guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Picker PNG missing") }
             try png.write(to: URL(fileURLWithPath: path + ".popover.png"))
         }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         if mode == "decision" {
             _ = await store.models.send(.clearModelFlag(modelId: "explicit"))
             try await waitUntil("correlated clear model flag") { store.models.receipt?.phase == .applied && !store.models.flags.contains { $0.modelId.rawValue == "explicit" } }
@@ -109,3 +110,4 @@ extension BoardQA {
         return ["native WindowGroup and real daemon model commands", "catalog refresh and saved model facts", "mode: " + mode, "pipeline draft preserved"]
     }
 }
+#endif

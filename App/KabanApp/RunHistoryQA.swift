@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -125,7 +126,7 @@ import KabanBoardCore
 extension BoardQA {
     static var logClient: QARunHistoryClient?
     static func prepareRunHistory(_ store: BoardStore) async throws -> Bool {
-        guard let mode = argument("--qa-log") else { return false }
+        guard let mode = AppArguments.value("--qa-log") else { return false }
         await store.select("SHOP-31"); await store.session.readRunHistory(); store.detailTab = "Запуски"
         guard let run = store.session.runHistory?.last else { throw failure("QA run history missing") }
         if mode == "history" { return true }
@@ -220,7 +221,7 @@ extension BoardQA {
         store.find()
         try await waitUntil("source find bar") { sourceText.enclosingScrollView?.isFindBarVisible == true }
         try await Task.sleep(for: .milliseconds(150))
-        if let path = argument("--log-source-capture"), let view = sourceSheet.contentView?.superview ?? sourceSheet.contentView {
+        if let path = AppArguments.value("--log-source-capture"), let view = sourceSheet.contentView?.superview ?? sourceSheet.contentView {
             sourceSheet.layoutIfNeeded(); view.layoutSubtreeIfNeeded(); view.displayIfNeeded()
             guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Native source capture unavailable") }
             view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -258,7 +259,7 @@ extension BoardQA {
 
 extension BoardQA {
     static func logLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--log-live-fixture"), path.hasPrefix("/tmp/") || path.hasPrefix("/private/tmp/"),
+        guard let path = AppArguments.value("--log-live-fixture"), path.hasPrefix("/tmp/") || path.hasPrefix("/private/tmp/"),
               let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: String],
               let taskValue = metadata["task"], let runValue = metadata["run"], let ref = metadata["wip"],
               let clone = metadata["clone"], let origin = metadata["origin"], let historyPath = metadata["history"] else { throw failure("Isolated live run fixture missing") }
@@ -267,12 +268,12 @@ extension BoardQA {
         let original = try KabanCoding.makeDecoder().decode([RunSummary].self, from: Data(contentsOf: URL(fileURLWithPath: historyPath)))
         guard store.history(for: taskID) == original, let run = original.first(where: { $0.id == runID }) else { throw failure("Real daemon history changed") }
         store.logRunRoute = run
-        if argument("--log-live-missing") != nil {
+        if AppArguments.value("--log-live-missing") != nil {
             try await waitUntil("missing real log") {
                 if case .unavailable(let error) = store.runLog.state { return error.code == CommandError.logUnavailableCode }
                 return false
             }
-            if argument("--export-live-window") != nil { try await captureWindow() }
+            if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
             return ["bundled daemon distinguishes removed log file from empty log and preserves RunSummary"]
         }
         try await waitUntil("real retained log prefix") { store.runLog.state == .expired(availableFromOffset: 76) }
@@ -286,11 +287,11 @@ extension BoardQA {
         let text = String(decoding: data, as: UTF8.self)
         guard text.contains("<redacted>"), !text.contains(metadata["secret"] ?? "never-match"),
               store.runLog.entries.first?.offset == 76 else { throw failure("Cleaned normalized export/prefix missing") }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         store.logRunRoute = nil; store.runLog.close()
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Live WindowGroup missing") }
         try await waitUntil("live log sheet closed") { window.attachedSheet == nil }
-        if argument("--log-live-reopen") == nil {
+        if AppArguments.value("--log-live-reopen") == nil {
             store.beginWIPRestore(run)
             try await waitUntil("live WIP confirmation") { window.attachedSheet != nil }
             guard let sheet = window.attachedSheet,
@@ -317,7 +318,7 @@ extension BoardQA {
         guard try String(contentsOfFile: clone + "/draft.txt", encoding: .utf8) == "selected snapshot",
               try gitRead(origin, ["rev-parse", "HEAD"]) == metadata["main"],
               try gitRead(clone, ["rev-parse", "HEAD"]) == metadata["head"] else { throw failure("Clone tree or main/HEAD incorrect") }
-        if argument("--log-live-reopen") == nil {
+        if AppArguments.value("--log-live-reopen") == nil {
             guard let record = store.restoreRecord(for: taskID),
                   try gitRead(clone, ["show", "refs/kaban/wip/restore-" + record.envelope.commandId.uuidString.lowercased() + ":local.txt"]) == "backup me" else { throw failure("Current edits not backed up") }
             let before = store.projection?.tasks[taskID]
@@ -333,3 +334,4 @@ extension BoardQA {
                 "stale ref rejection keeps authoritative board/main; durable completion survives reopening"]
     }
 }
+#endif

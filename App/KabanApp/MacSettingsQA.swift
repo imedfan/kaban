@@ -1,12 +1,13 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func macSettingsLiveSmoke(_ store: BoardStore) async throws -> [String: Any] {
-        guard argument("--developer-database")?.hasPrefix("/tmp/kaban-fe20-") == true,
+        guard AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe20-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private FE-20 database and WindowGroup required") }
-        let mode = argument("--qa-mac-mode") ?? "settings"
+        let mode = AppArguments.value("--qa-mac-mode") ?? "settings"
         store.screen = mode == "flags" ? .board : .quota
         let editor = store.macSettings; editor.begin()
         guard let initial = editor.settings else { throw failure("Authoritative settings missing") }
@@ -80,7 +81,7 @@ extension BoardQA {
             guard !editor.canSubmit(.ceiling), editor.ceiling == "11" else { throw failure("Offline lost draft or enabled save") }
             checks["offlineDraftPreserved"] = true
         }
-        if argument("--qa-mac-scroll") == "bottom" {
+        if AppArguments.value("--qa-mac-scroll") == "bottom" {
             try await captureWindow()
             try await Task.sleep(for: .milliseconds(700))
             func scroll(_ view: NSView) -> NSScrollView? {
@@ -96,3 +97,4 @@ extension BoardQA {
         return checks
     }
 }
+#endif

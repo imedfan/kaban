@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -78,19 +79,19 @@ import KabanBoardCore
 extension BoardQA {
     static var detailClient: QADetailClient?
     static func prepareDetails(_ store: BoardStore) async throws -> Bool {
-        guard let mode = argument("--qa-detail") else { return false }
+        guard let mode = AppArguments.value("--qa-detail") else { return false }
         if mode == "loading" {
             Task { await store.select("SHOP-31") }
             try await waitUntil("detail loading") { store.selectedID != nil && store.session.detailReadState == .loading }
         } else { await store.select("SHOP-31") }
-        store.detailTab = argument("--qa-detail-tab") ?? (mode == "too-large" ? "Запуски" : "Сводка")
+        store.detailTab = AppArguments.value("--qa-detail-tab") ?? (mode == "too-large" ? "Запуски" : "Сводка")
         if mode == "too-large" { await store.session.readRunHistory() }
         if mode == "material", let artifact = store.detail?.artifacts.last { store.materialTextRoute = .init(id: artifact.id.rawValue, title: "Материал · future_material", text: artifact.text) }
         if mode == "log", let run = store.detail?.runs.first { store.logRunRoute = run }
         return true
     }
     static func detailLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--detail-live-fixture"),
+        guard let path = AppArguments.value("--detail-live-fixture"),
               let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: String],
               let question = metadata["questionTask"], let summary = metadata["summaryTask"], let body = metadata["body"] else { throw failure("Isolated detail metadata missing") }
         await store.select(TaskID(rawValue: question))
@@ -104,7 +105,7 @@ extension BoardQA {
         await store.select(TaskID(rawValue: summary))
         guard store.detail?.artifacts.contains(where: { $0.kind == "summary" && $0.text == "Durable summary survives journal retention." }) == true else { throw failure("Durable summary missing") }
         store.detailTab = "Сводка"
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["bundled stdio daemon and private database after journal deletion", "exact Markdown, persisted question and answer through getTaskDetail", "getRunHistory and readLog independent of detail query", "durable stage summary after reopening the daemon", "Cursor not launched; run records seeded through store APIs"]
     }
     static func detailSmoke(_ store: BoardStore) async throws -> [String] {
@@ -136,3 +137,4 @@ extension BoardQA {
         return ["actual WindowGroup inspector and four tabs", "question event refreshes progress and gate output without reopening", "detail_too_large keeps exact body and has separate history/log reads", "unknown material/feed kinds and nil clonePath remain readable", "full readonly source text and native Escape sheet dismissal"]
     }
 }
+#endif
