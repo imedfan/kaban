@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 8 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 9 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`a20a48d` (FE-16, PR #107).
+`510414b` (FE-18, PR #109).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -120,8 +120,8 @@ resolved preview с readOnly/conditional/source и locked invariants.
 все шесть jobs исходного FE-15 `73d6c57` прошли. Принятое дерево `5f1f733`
 совпало с разрешением FE-15 `9573ae2`. В FE-16 перенесено ожидание reconciliation
 и correlated mascot event в native ProjectSettingsQA из main.
-FE-16 принята в main через [PR #107](https://github.com/imedfan/kaban/pull/107), merge
-`a20a48d`; принятое дерево совпало с разрешением конфликтов `0b21fdb`. Исходный код
+FE-16 принята в main через [PR #107](https://github.com/imedfan/kaban/pull/107),
+merge `a20a48d`, принятое дерево `0b21fdb`; исходный код
 `8a06d99`: daemon catalog project/personal, durable MCP permissions по имени,
 selected/effective stage facts, нативные MCP settings и stage picker в общем draft.
 653 tests, 308 Linux Swift 6.1 tests (один ожидаемый macOS skip), App build
@@ -131,14 +131,20 @@ selected/effective stage facts, нативные MCP settings и stage picker в
 restart/isolation, exact source, Escape, read failure и unexpected.
 Устранение unexpected через живой CLI остаётся открытым: MCP producer не
 подключён к `recheck(project)`, а обычный recheck сохраняет этот блок.
-После возобновления очереди подготовлена FE-17 в `codex/fe-17-git-approvals`:
-нативные отказы git, authoritative lifecycle и badge, разовое разрешение/отзыв,
-project/stage preview постоянного правила и новый committed YAML через общий
-pipeline intent/recovery. 661 test полного прогона, 15 финальных grant/recovery
-tests, App build и 17 сценариев настоящего окна прошли.
-[Отчёт FE-17](development/frontend-fe-17-2026-10-08.md) сохраняет код, кадры и границы.
-Delivery через MCP проверена; producer уведомлений следующего Cursor-промпта
-остаётся [интеграционным пробелом](development/frontend-backend-integration-gaps.md).
+FE-17 принята в main `93a2bde` через [PR #108](https://github.com/imedfan/kaban/pull/108).
+Нативные отказы git, grant lifecycle и committed policy intent входят в main.
+[Отчёт FE-17](development/frontend-fe-17-2026-10-08.md) сохраняет исходные проверки.
+FE-18 принята в main `510414b` через [PR #109](https://github.com/imedfan/kaban/pull/109).
+Свежий exact-set acceptance, frozen return context, история файлов и exceptions draft
+входят в main. [Отчёт FE-18](development/frontend-fe-18-2026-10-09.md) сохраняет
+исходные проверки и повторную интеграцию с FE-17 на `8b480e2`.
+FE-19 подготовлена в [PR #110](https://github.com/imedfan/kaban/pull/110).
+Конфликты с принятыми FE-17/18 разрешены; повторно проверенный source
+`1ba146d`. 680 tests, App build и 57 native сценариев прошли.
+Список включает скрытые проекты и durable историю; решение/карточка/count
+подтверждаются событиями. [Отчёт FE-19](development/frontend-fe-19-2026-10-09.md)
+сохраняет исходные и новые проверки, кадры и границы системной приёмки.
+FE-20 подготовлена в отдельной ветке; далее FE-21–22.
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
@@ -149,10 +155,10 @@ Delivery через MCP проверена; producer уведомлений сл
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store v1–v21, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions в main; grant lifecycle и committed policy intent FE-17 в ветке | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
+| DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore, ModelSettingsStore, ProjectSettingsStore и ProjectMCPStore в main; GitPermissionsStore/preview FE-17 в ветке | Core зависит только от Protocol; FE-01–16 в main; source/apply и настройки проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, pipeline/model/project/MCP settings в main; git permissions/history/preview FE-17 в ветке | FE-01–16 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в отдельной ветке | Core зависит только от Protocol; FE-01–18 в main; source/apply и настройки проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в отдельной ветке | FE-01–18 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется
@@ -200,7 +206,7 @@ Lifecycle проектов и редактор задач приняты в FE-0
 на полностью завершённый BE-01–20, без недель и сроков. Она не сокращает продуктовые
 требования до перечисленных ниже текущих пробелов.
 
-1. Принять FE-17; продолжить FE-18 и завершить
+1. Принять подготовленную FE-19 и продолжить FE-20–22; завершить
    metadata/system FE-05–09 и зависимости FE-03/04, включая
    штатные live-зависимости; дальнейшие задачи — по одному PR. [Конкретные environment/helper пробелы](development/frontend-backend-integration-gaps.md).
 2. Подключить configuration, материалы запуска, review/merge и все способы

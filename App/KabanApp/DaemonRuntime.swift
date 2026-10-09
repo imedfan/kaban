@@ -227,6 +227,12 @@ import KabanTransport
             } else { status = "Не удалось подключиться к службе Kaban" }
         }
     }
+    func closeDeveloperSession() async {
+        guard developer else { return }
+        initialization?.cancel(); initialization = nil
+        store?.stop()
+        await closeTransport?(); closeTransport = nil
+    }
 }
 struct DaemonRuntimeView: View {
     @Bindable var runtime: DaemonRuntime

@@ -1,0 +1,182 @@
+{
+  "sourceSHA": "0cba1fe9e4d4c6ad78b0cc919566f3910f152f2c",
+  "cases": {
+    "disconnected-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "disconnected file detail retained and mutations disabled"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "accept-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "exact path+blob accepted, authoritative transition to checks, no new run"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "gate-return-accept-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact moveTask with acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "merge-return-accept-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact moveTask with acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "cursor-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "bounded small text file opened through NSWorkspace in installed Cursor, without CLI execution"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "exception-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "project exceptions open the shared YAML draft with exact path prefilled, without committing or accepting this task"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "gate-escape-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Escape preserves comment without sending a decision"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "strict-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "gate-return-comment-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact requestChanges without acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "gate-empty-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "long-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "merge-return-comment-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native Cmd-Return executes exact requestChanges without acceptance, explicit dev target and unchanged bounce counts"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "merge-comment-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "stale-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "old shown blob refused; no accepted pair; refreshed changed blob visible, explicit new action required"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "gate-comment-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "long-controls-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector",
+        "actual SwiftUI inspector scroll reaches the controls below the long file path"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "binary-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "file path, rule, size, blob and frozen server threshold shown in actual task inspector"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "finder-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "bounded binary path validated with no symlink traversal and revealed through NSWorkspace Finder"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "reopen-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "new app and daemon restore accepted blobs, actor and backend time from SQLite"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "merge-empty-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "native gate/merge return preview changes title, exact command and per-file acceptance effect with empty/nonempty comment"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "missing-light": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "missing clone shows an explicit file access error"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    },
+    "agent-removal-dark-minimum": {
+      "checks": [
+        "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+        "agent removal template preserves exact Unicode path in the existing answer draft without sending or accepting"
+      ],
+      "result": "passed",
+      "writerLeaseReleased": true
+    }
+  }
+}

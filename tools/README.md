@@ -72,3 +72,14 @@ PNG и файл после применения остаются там для �
 apply/version/WIP и restart; снимает light/dark/minimum/long/absent окна.
 Capture success не заменяет просмотра PNG. Signed helper registration, system
 permissions, VoiceOver и живой Cursor не проверяются; платные CLI не запускаются.
+
+## Инциденты FE-19
+
+`seed-incidents.swift` создаёт private Git/store fixture через production APIs.
+`check-incidents.py` проверяет настоящий WindowGroup и bundled stdio daemon,
+включая скрытые/удалённые проекты, model-without-resume, явный возврат,
+retention/restart и отсутствующий лог. Future kind отдельно подставляется в
+serialized DTO private fixture после реального rollback. Mac в fixture на паузе;
+Cursor CLI и регистрация службы не используются. Команды сборки seed и запуска,
+проверенные кадры и ограничения — в
+[отчёте FE-19](../docs/development/frontend-fe-19-2026-10-09.md).

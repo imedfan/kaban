@@ -2,7 +2,7 @@ import SwiftUI
 import KabanProtocol
 import KabanBoardCore
 
-enum BoardScreen: Equatable { case board, project(ProjectID), quota }
+enum BoardScreen: Equatable { case board, project(ProjectID), quota, incidents }
 enum BoardFilter: String, CaseIterable { case all = "Доска", waiting = "Ждут человека", incidents = "Инциденты", hiddenStages = "Скрытые стадии" }
 
 struct BoardView: View {
@@ -19,7 +19,7 @@ struct BoardView: View {
     private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
     private var lanes: [BoardLane] { store.projection?.lanes(orderedBy: store.visibleIDs) ?? [] }
     private var title: String {
-        switch store.screen { case .board: store.filter.rawValue; case .project: "Настройки проекта"; case .quota: "Этот Мак" }
+        switch store.screen { case .board: store.filter.rawValue; case .project: "Настройки проекта"; case .quota: "Этот Мак"; case .incidents: "Инциденты" }
     }
     var body: some View {
         GeometryReader { geometry in
@@ -42,15 +42,20 @@ struct BoardView: View {
                         ProjectSettingsView(store: store, projectID: id, theme: theme)
                     case .quota:
                         MacSettingsView(store: store, theme: theme)
+                    case .incidents:
+                        IncidentsView(store: store)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(ReferenceBackdrop(theme: theme))
         }
         .foregroundStyle(theme.text)
+        .task { store.incidents.scheduleRefresh() }
+        .onChange(of: store.incidents.readKey) { _, _ in store.incidents.scheduleRefresh() }
         .id(store.qaLayoutRevision)
         .sheet(item: $store.sheet) { TaskActionSheet(store: store, route: $0).id($0.id) }
         .sheet(item: $store.reviewRoute) { HumanReviewSheet(store: store, route: $0) }
+        .sheet(item: $store.suspiciousReturnRoute) { SuspiciousReturnSheet(store: store, route: $0) }
         .sheet(item: $store.overlapRoute) { OverlapSheet(store: store, route: $0) }
         .sheet(item: $store.controlSheet) { TaskControlSheet(store: store, route: $0) }
         .sheet(item: $store.projectSheet) { ProjectLifecycleSheet(store: store, route: $0) }
@@ -103,19 +108,19 @@ struct BoardView: View {
             VStack(spacing: 3) {
                 ForEach(BoardFilter.allCases, id: \.self) { filter in
                     Button {
-                        store.screen = .board; store.filter = filter
+                        store.screen = filter == .incidents ? .incidents : .board; store.filter = filter
                     } label: {
                         HStack(spacing: 9) {
                             Image(systemName: filter == .all ? "rectangle.split.3x1" : filter == .waiting ? "hand.raised" : filter == .hiddenStages ? "eye.slash" : "light.beacon.max")
                                 .foregroundStyle(filter == .incidents && (store.projection?.openIncidentCount ?? 0) > 0 ? theme.status("incident").0 : theme.accent)
                                 .frame(width: 18)
-                            Text(filter.rawValue).font(.system(size: 13, weight: store.filter == filter && store.screen == .board ? .semibold : .medium))
+                            Text(filter.rawValue).font(.system(size: 13, weight: store.filter == filter && (store.screen == .board || store.screen == .incidents && filter == .incidents) ? .semibold : .medium))
                             Spacer()
                             if filter != .all {
                                 countBadge(filter == .waiting ? store.waitingCount : filter == .hiddenStages ? store.hiddenStageCount : store.projection?.openIncidentCount ?? 0, attention: filter == .waiting)
                             }
                         }.padding(.horizontal, 10).frame(height: 34)
-                            .background(store.screen == .board && store.filter == filter ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
+                            .background((store.screen == .board || store.screen == .incidents && filter == .incidents) && store.filter == filter ? theme.control : .clear, in: RoundedRectangle(cornerRadius: 8))
                             .contentShape(RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain)
                 }
@@ -193,7 +198,7 @@ struct BoardView: View {
             KabanIconButton(symbol: "sidebar.left", help: "Показать или скрыть проекты") { sidebarVisible.toggle() }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 18, weight: .bold))
-                Text(store.screen == .board ? "\(DesignSystem.projectCount(store.visibleIDs.count)) на доске" : "Kaban · \(store.selectedProjectID.flatMap { store.projection?.projects[$0]?.name } ?? "")")
+                Text(store.screen == .board ? "\(DesignSystem.projectCount(store.visibleIDs.count)) на доске" : store.screen == .incidents ? "Все проекты, включая скрытые" : "Kaban · \(store.selectedProjectID.flatMap { store.projection?.projects[$0]?.name } ?? "")")
                     .font(.system(size: 10.5)).foregroundStyle(theme.faint)
             }.frame(maxWidth: 200, alignment: .leading)
             if store.screen == .board {
@@ -747,13 +752,24 @@ struct TaskDetailView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         readStatus
-                        if card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .human),
-                           store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind != .merge {
+                        if let detail = store.detail, detail.task.state == .waitingHuman(.suspiciousFiles) || !detail.acceptedFiles.isEmpty {
+                            SuspiciousFilesView(store: store, detail: detail, theme: theme)
+                        }
+                        let kind = store.detail?.fileCheck?.returnPipeline?.stages.first(where: { $0.id == card.stageId })?.kind
+                            ?? store.projection?.pipelines[card.projectId]?.stages.first(where: { $0.id == card.stageId })?.kind
+                        if card.state != .waitingHuman(.incident), card.state != .waitingHuman(.modelSubstituted), (card.state != .waitingHuman(.review) || kind != .human), kind != .merge {
                             HumanAnswerView(store: store, card: card)
+                                .id(TaskDetailAnchor.humanAnswer)
                         }
                         HumanReviewNotice(store: store, taskID: card.id)
                         if let error = store.cloneOpeningError { Text(error).font(.caption).foregroundStyle(theme.secondary) }
                         if let detail = store.detail {
+                            ForEach(store.incidents.forTask(detail.task.id), id: \.id) { incident in
+                                IncidentDetailBlock(store: store, incident: incident)
+                            }
+                            if card.state == .waitingHuman(.incident), store.incidents.forTask(card.id).isEmpty {
+                                Text("Данные инцидента ещё не прочитаны. Откройте раздел «Инциденты» и обновите список.").font(.callout)
+                            }
                             MergeProgressView(store: store, detail: detail)
                             if tab != "Разрешения git" { TaskModelView(store: store, detail: detail, theme: theme) }
                             if !detail.gitDenials.isEmpty, tab == "Описание" {
@@ -762,7 +778,6 @@ struct TaskDetailView: View {
                                         .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
                                 }.buttonStyle(KabanButtonStyle(compact: true))
                             }
-                            if !card.suspiciousFiles.isEmpty { suspiciousBlock(card.suspiciousFiles) }
                             if detail.task.state == .waitingHuman(.incident) {
                                 Label("Обнаружен инцидент", systemImage: "light.beacon.max")
                                     .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("incident").2)
@@ -774,7 +789,13 @@ struct TaskDetailView: View {
                         }
                         if tab == "Запуски" { runs(availableRuns) }
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                }.onChange(of: store.detailScrollTarget) { _, target in
+                    if let target { proxy.scrollTo(target, anchor: .top); store.detailScrollTarget = nil }
                 }.task(id: store.detail?.task.id) {
+                    if BoardQA.argument("--qa-incident-scroll") == "bottom" {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        proxy.scrollTo("incident-decision", anchor: .bottom)
+                    }
                     if let source = BoardQA.argument("--qa-review-artifact") {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo(source, anchor: .top)
@@ -1038,23 +1059,6 @@ struct TaskDetailView: View {
         return project.flatMap { store.projection?.pipelines[$0]?.stages.first { $0.id == id }?.name } ?? id.rawValue
     }
     private func empty(_ text: String) -> some View { Text(text).font(.system(size: 12)).foregroundStyle(theme.faint) }
-    private func suspiciousBlock(_ files: [SuspiciousFile]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Подозрительные файлы · \(files.count)", systemImage: "exclamationmark.shield")
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.status("waiting").2)
-            Text("Проверьте файлы перед следующим действием.").font(.system(size: 11)).foregroundStyle(theme.secondary)
-            ForEach(files, id: \.path) { file in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(file.path).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Text(file.rule == .pattern ? "по шаблону \(file.pattern ?? "—")" : "превышен лимит размера")
-                        Spacer(); Text(ByteCountFormatter.string(fromByteCount: file.sizeBytes, countStyle: .file))
-                    }.font(.system(size: 10)).foregroundStyle(theme.secondary)
-                }.padding(9).background(theme.card, in: RoundedRectangle(cornerRadius: 7))
-            }
-        }.padding(12).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.status("waiting").0.opacity(0.4), lineWidth: 0.5))
-    }
     @ViewBuilder private func detailActions(_ detail: TaskDetail) -> some View {
         if detail.task.state == .waitingHuman(.review), store.projection?.pipelines[detail.task.projectId]?.stages.first(where: { $0.id == detail.task.stageId })?.kind == .human {
             HumanReviewFooter(store: store, detail: detail,
@@ -1125,9 +1129,9 @@ struct ProjectSettingsView: View {
             pipelineEditor = store.pipelineEditor(for: projectID)
             metadata = store.settings(for: projectID)
             mcp = store.mcpSettings(for: projectID)
-            if store.showPipelineIssues { editingPipeline = true }
+            if store.showPipelineIssues { editorSection = store.requestedPipelineSection; store.requestedPipelineSection = nil; editingPipeline = true }
         }.onChange(of: store.showPipelineIssues) { _, show in
-            if show { editorSection = nil; editingPipeline = true }
+            if show { editorSection = store.requestedPipelineSection; store.requestedPipelineSection = nil; editingPipeline = true }
         }
     }
     private var projectSettings: some View {

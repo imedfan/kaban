@@ -8,8 +8,9 @@ public struct HumanAnswerContext: Codable, Equatable, Sendable {
     public let card: TaskCard
     public let request: HumanRequest?
     public init?(detail: TaskDetail, pipeline: PipelineSummary?) {
-        guard case .waitingHuman(let reason) = detail.task.state,
-              let pipeline, pipeline.projectId == detail.task.projectId,
+        let source = detail.task.state == .waitingHuman(.suspiciousFiles) ? detail.fileCheck?.returnPipeline ?? pipeline : pipeline
+        guard case .waitingHuman(let reason) = detail.task.state, reason != .incident,
+              let pipeline = source, pipeline.projectId == detail.task.projectId,
               pipeline.stages.first(where: { $0.id == detail.task.stageId })?.kind == .agent else { return nil }
         let question = reason == .question ? detail.humanRequests.last : nil
         if reason == .question && question == nil { return nil }

@@ -5,6 +5,23 @@ import XCTest
 final class RoundTripTests: XCTestCase {
     let encoder = KabanCoding.makeEncoder(pretty: true)
     let decoder = KabanCoding.makeDecoder()
+    func testUnknownIncidentKindPreservesHistoryAndRequiredFields() throws {
+        let known = Incident(id: "future", projectId: "p", taskId: "t", runId: nil,
+                             kind: .refsMoved, rolledBack: [], openedAt: Date(timeIntervalSince1970: 0))
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(known)) as? [String: Any])
+        object["kind"] = "future_violation"
+        let decoded = try decoder.decode(Incident.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(decoded.kind.rawValue, "future_violation")
+        let encoded = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(decoded)) as? [String: Any])
+        XCTAssertEqual(encoded["kind"] as? String, "future_violation")
+        try roundTrip(CommandReply(commandId: UUID(), seq: nil, result: .incidents([known, decoded])))
+        try roundTrip(JournalEvent.incidentOpened(decoded))
+        object.removeValue(forKey: "rolledBack")
+        XCTAssertThrowsError(try decoder.decode(Incident.self, from: JSONSerialization.data(withJSONObject: object)))
+        object["rolledBack"] = []
+        object["kind"] = 42
+        XCTAssertThrowsError(try decoder.decode(Incident.self, from: JSONSerialization.data(withJSONObject: object)))
+    }
     func testMergeQueueAndMaterialsRemainBackwardCompatible() throws {
         var card = Samples.tasks[0]
         card.mergeQueueSequence = 42; try roundTrip(card)
@@ -26,6 +43,19 @@ final class RoundTripTests: XCTestCase {
     func testSuspiciousFilesSurviveResync() throws {
         // Набор живёт в TaskCard (снимок, taskUpdated), принятые — в TaskDetail (§8.2).
         try roundTrip(Samples.taskDetail)
+        var detail = Samples.taskDetail
+        XCTAssertNil(detail.fileCheck)
+        XCTAssertNil(detail.incidentPipeline)
+        detail.fileCheck = .init(maxFileBytes: 1024, includesUncommitted: true, baseCommit: "exact-base", bounceLimitTotal: 5, returnPipeline: Samples.pipeline)
+        detail.incidentPipeline = Samples.pipeline
+        try roundTrip(detail)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(detail)) as? [String: Any])
+        legacy.removeValue(forKey: "incidentPipeline")
+        XCTAssertNil(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: legacy)).incidentPipeline)
+        legacy.removeValue(forKey: "fileCheck")
+        XCTAssertNil(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: legacy)).fileCheck)
+        legacy.removeValue(forKey: "suspiciousFiles")
+        XCTAssertThrowsError(try decoder.decode(TaskDetail.self, from: JSONSerialization.data(withJSONObject: legacy)))
         let card = try XCTUnwrap(Samples.tasks.first { $0.id == "t-8" })
         XCTAssertEqual(card.suspiciousFiles.count, 2)
         let json = String(decoding: try encoder.encode(Samples.taskDetail), as: UTF8.self)

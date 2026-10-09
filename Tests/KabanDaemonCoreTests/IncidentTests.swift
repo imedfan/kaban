@@ -61,6 +61,71 @@ final class IncidentTests: XCTestCase {
         XCTAssertFalse(found.contains { $0.path == "form.txt" })
     }
 
+    func testBranchDiffPreservesUnicodeTabsNewlinesAndRenamedBinaryPaths() throws {
+        let f = try fixture(pipeline(preset: "strict"))
+        try Data([0, 1, 2, 0]).write(to: f.repo.appendingPathComponent("old.key"))
+        try git(f.repo, ["add", "old.key"]); try git(f.repo, ["commit", "-m", "binary base"])
+        let clone = try reach(f, "paths")
+        let textPath = "вложенный 👋/.env\tс переводом\nстроки"
+        let binaryPath = "ключ 👋\tновый.key"
+        try FileManager.default.createDirectory(at: clone.appendingPathComponent(textPath).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "PRIVATE=fixture\n".write(to: clone.appendingPathComponent(textPath), atomically: true, encoding: .utf8)
+        try git(clone, ["add", "--", textPath]); try git(clone, ["commit", "-m", "paths"])
+        try git(clone, ["mv", "--", "old.key", binaryPath]); try git(clone, ["commit", "-m", "rename"])
+        let untrackedPath = " \t/.env 👋\n"
+        try FileManager.default.createDirectory(at: clone.appendingPathComponent(untrackedPath).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "UNTRACKED=fixture\n".write(to: clone.appendingPathComponent(untrackedPath), atomically: true, encoding: .utf8)
+        _ = try apply(f, "paths", .completeStage(try runId(f, "paths"), summary: "path result"))
+        _ = try f.store.runStagePass(owner: "test", at: at)
+        let found = try f.store.getTaskDetail("paths").suspiciousFiles
+        XCTAssertEqual(Set(found.map(\.path)), Set([textPath, binaryPath, untrackedPath]))
+        XCTAssertEqual(found.first(where: { $0.path == textPath })?.isText, true)
+        XCTAssertEqual(found.first(where: { $0.path == binaryPath })?.isText, false)
+        XCTAssertEqual(found.first(where: { $0.path == binaryPath })?.sizeBytes, 4)
+    }
+
+    func testAcceptanceRechecksLiveDiffBeforeRecordingTheShownSet() throws {
+        for mode in ["changed", "added", "removed", "strict"] {
+            let f = try fixture(pipeline(preset: mode == "strict" ? "strict" : "standard", maxFileMB: "1"))
+            let clone = try reach(f, "stale")
+            try "TOKEN=old\n".write(to: clone.appendingPathComponent(".env"), atomically: true, encoding: .utf8)
+            try git(clone, ["add", ".env"])
+            try git(clone, ["commit", "-m", "original"])
+            _ = try apply(f, "stale", .completeStage(try runId(f, "stale"), summary: "done"))
+            _ = try f.store.runStagePass(owner: "test", at: at)
+            let before = try f.store.getTaskDetail("stale")
+            XCTAssertEqual(before.task.state, .waitingHuman(.suspiciousFiles))
+            XCTAssertEqual(before.fileCheck?.includesUncommitted, mode == "strict")
+            XCTAssertEqual(before.fileCheck?.maxFileBytes, 1_048_576)
+            XCTAssertNotNil(before.fileCheck?.baseCommit)
+            XCTAssertEqual(before.fileCheck?.returnPipeline?.projectId, before.task.projectId)
+            XCTAssertEqual(before.fileCheck?.returnPipeline?.stages.first(where: { $0.id == "dev" })?.onSuccess, "test")
+            let shown = before.suspiciousFiles.map { FileBlobRef(path: $0.path, blob: $0.blob) }
+            if mode == "removed" {
+                try git(clone, ["rm", ".env"])
+            } else {
+                let path = mode == "added" ? ".env.new" : ".env"
+                try "TOKEN=new\n".write(to: clone.appendingPathComponent(path), atomically: true, encoding: .utf8)
+                if mode != "strict" { try git(clone, ["add", path]) }
+            }
+            if mode != "strict" { try git(clone, ["commit", "-m", "changed while shown"]) }
+            let envelope = CommandEnvelope(command: .acceptSuspiciousFiles(taskId: "stale", files: shown))
+            let reply = try f.store.execute(envelope, now: { self.at })
+            XCTAssertEqual(code(reply), CommandError.staleSuspiciousFilesCode, mode)
+            let refreshed = try f.store.getTaskDetail("stale")
+            XCTAssertTrue(refreshed.acceptedFiles.isEmpty, mode)
+            XCTAssertEqual(refreshed.task.state, .waitingHuman(.suspiciousFiles), mode)
+            XCTAssertEqual(refreshed.runs.count, before.runs.count, mode)
+            XCTAssertNotEqual(refreshed.suspiciousFiles.map(\.blob), before.suspiciousFiles.map(\.blob), mode)
+            guard code(reply) == CommandError.staleSuspiciousFilesCode else { continue }
+            XCTAssertEqual(try f.store.execute(envelope, now: { XCTFail("Replay read clock"); return self.at }), reply)
+            let current = refreshed.suspiciousFiles.map { FileBlobRef(path: $0.path, blob: $0.blob) }
+            XCTAssertEqual(try f.store.execute(.init(command: .acceptSuspiciousFiles(taskId: "stale", files: current)), now: { self.at }).result, .ok)
+            _ = try f.store.runStagePass(owner: "test", at: at)
+            XCTAssertEqual(try f.store.getTaskDetail("stale").runs.count, before.runs.count)
+        }
+    }
+
     func testAcceptExactSetContinuesWithoutANewRunAndAChangedBlobFiresAgain() throws {
         let f = try fixture(pipeline(preset: "standard"))
         let clone = try reach(f, "keep")
@@ -190,6 +255,11 @@ final class IncidentTests: XCTestCase {
         XCTAssertEqual(kept.tasks.first { $0.id == "refs" }?.state, .waitingHuman(.incident))
         guard case .incidents(let durable) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .open))).result else { return XCTFail() }
         XCTAssertEqual(durable.map(\.id), [opened])
+        let modelCommand = CommandEnvelope(command: .setModelOverride(taskId: "refs", stageId: "dev", model: nil))
+        XCTAssertEqual(try reopened.execute(modelCommand).result, .ok)
+        XCTAssertEqual(try reopened.getTaskDetail("refs").task.state, .waitingHuman(.incident))
+        XCTAssertEqual(try reopened.getSnapshot().openIncidentCount, 1)
+        XCTAssertFalse(try reopened.events().contains { if case .incidentResolved = $0.event { return true }; return false })
         let cancel = try reopened.execute(.init(command: .cancelTask(taskId: "refs", keepBranch: true)), now: { self.at })
         XCTAssertEqual(cancel.result, .ok)
         let resolved = try reopened.events().filter { $0.commandId == cancel.commandId }
@@ -198,6 +268,16 @@ final class IncidentTests: XCTestCase {
         XCTAssertEqual(try reopened.getSnapshot().openIncidentCount, 0)
         guard case .incidents(let all) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .all))).result else { return XCTFail() }
         XCTAssertEqual(all.first?.resolvedAt != nil, true)
+        XCTAssertEqual(all.first?.resolution, .init(command: "cancelTask", keepBranch: true, commandId: cancel.commandId))
+        let frozenDetail = try reopened.getTaskDetail("refs")
+        let frozen = frozenDetail.incidentPipeline
+        XCTAssertEqual(frozenDetail.fileCheck?.returnPipeline, frozen)
+        XCTAssertEqual(frozen?.projectId, snapshot.projects.first?.id)
+        XCTAssertEqual(frozen?.defaultReturnStage, "dev")
+        try reopened.discardJournal()
+        let afterRetention = try KabanStore(path: f.path)
+        guard case .incidents(let history) = try afterRetention.execute(.init(command: .listIncidents(projectIds: nil, state: .all))).result else { return XCTFail() }
+        XCTAssertEqual(history.first?.resolution, all.first?.resolution)
         guard case .incidents(let open) = try reopened.execute(.init(command: .listIncidents(projectIds: nil, state: .open))).result else { return XCTFail() }
         XCTAssertTrue(open.isEmpty)
 

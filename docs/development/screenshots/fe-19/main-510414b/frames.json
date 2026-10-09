@@ -1,0 +1,137 @@
+{
+  "sourceRevision": "1ba146d15bce98c727e0a4c4f219db9b8eca449f",
+  "frames": [
+    {
+      "file": "incident-empty-light-minimum.png",
+      "sha256": "8abd2ac6f81df676f511b9651e647872024089c761c639a510a26481cc0da798",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-refs-light.png",
+      "sha256": "53af05d69fe1a23a33bd0348ae44d6a2806372b83adbc29dd4e4682575b45082",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-tags-dark-minimum.png",
+      "sha256": "8685420a5e21abbb308f35b99b588e9d4e6221bcf313354d3444e4a16ee7d2d1",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-config-light.png",
+      "sha256": "fa933da953c24105ae99250d466550b87eae7f0f532361def708810473d108b5",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-long-kaban-dark-minimum.png",
+      "sha256": "128152abfb23dd5f1eaa4038f2b253e05333a3fb78610d1154b8e1f51e9852c8",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-long-controls-dark-minimum.png",
+      "sha256": "3d05f056455b920b4a4717c539fb219832b51887167dc9de872175b21773c2b0",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-foreign-light.png",
+      "sha256": "158e2ddff3fc6995f9413e957cf70d9f33721b862567711d5cb22c01069105eb",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-unknown-dark-minimum.png",
+      "sha256": "e7fa67d999801cbb5e2e120f840093a4b853304e3505e9e592e18601fb46367f",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-deleted-light.png",
+      "sha256": "ecce9fa7f264fc9bf8c1aecbae25f69f14029235e4413e17099b243465e37242",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-deleted-log-light.png",
+      "sha256": "070c79103ade2e50534908e6d228003ad404c926441f28021288f9325fa56050",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-hidden-dark-minimum.png",
+      "sha256": "2d47e04ef06231e9705b3ec8751bfcc1660519eeccd0d4024846e37bca8c7b0d",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-missing-log-light.png",
+      "sha256": "faa7b0e07e5875837a33809bd97dd1acc151791aa9de96e84d7ea1384c8ee8d8",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-disconnected-cache-dark-minimum.png",
+      "sha256": "375244ca1074abf197c88010caae4308a9264015dcc75c48e1761b61fd8795af",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-policy-draft-light.png",
+      "sha256": "72f4871c54c638714cc01ecdf83a4dff96a17e3111142cc48d2b1d418902239b",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-model-without-resume-dark.png",
+      "sha256": "b7318eae62e58a1a1c0dfd5d0b3f756b7543dc85d73c55594bd5eedb491e582e",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "incident-retention-light-minimum.png",
+      "sha256": "ee8328488f5d9c9afe0821e2c2043aba3fcb89fa8e9b4fe5cd59c8d9e736e11f",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-return-native-menu-dark-minimum.png",
+      "sha256": "2e89b10ee46f0b4db80d9ed7e1ff0c51ab99e195a6d9a4ade7b004d24a23cc93",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "incident-reopen-history-light.png",
+      "sha256": "c0dd9953c3f0b1a67918d54881a3838846cdd9042fd8c5fd4badbacb34828dcc",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-stale-light.png",
+      "sha256": "11b389dd8ea5ab5586167c9be2833920905e4c621e74d9807e735da2c2c3f367",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "files-gate-return-comment-dark-minimum.png",
+      "sha256": "246ab75ef368d38af641b71f6ed84e95256fa6e3f1b383aa0aee53df3a5273f0",
+      "width": 2080,
+      "height": 1280
+    },
+    {
+      "file": "git-preview-project-light.png",
+      "sha256": "3e13ba07ec85490a200ef8db42a6dff82026bd89db14222f5d1337a7c8a669c9",
+      "width": 2880,
+      "height": 1800
+    },
+    {
+      "file": "git-preview-stage-dark-minimum.png",
+      "sha256": "d744381907078ff019b7f82e77e8390bb0993eda09c513b1806ed14d0ae6318e",
+      "width": 2080,
+      "height": 1280
+    }
+  ]
+}

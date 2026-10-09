@@ -5,6 +5,24 @@
 Имена DTO и команд сверять с `Sources/KabanProtocol/`; числовые ссылки 3.x сохранены из исходного плана.
 Предложения фронта остаются предложениями. Макеты и токены — [design](../../design/README.md).
 
+## FE-19: durable incident decisions
+
+`Incident.kind` остаётся строкой на wire. `IncidentKind` сохраняет неизвестные
+значения через `rawValue`, чтобы одна новая разновидность не ломала историю.
+Числовой kind и отсутствие обязательных id/projectId/taskId/rolledBack/openedAt
+по-прежнему отклоняются. Изменение не делает другие raw enums открытыми.
+
+Optional `Incident.resolution` и `IncidentResolved.resolution` содержат выбранный
+command, commandId и optional target/keepBranch. Metadata сохраняется вместе с
+resolvedAt и journal/count в транзакции; listIncidents возвращает её после retention.
+Для старых resolved записей без metadata действие неизвестно. keepBranch описывает
+выбор человека, а не завершение внешнего архивирования/удаления ветки.
+
+Optional `TaskDetail.incidentPipeline` сообщает frozen pipeline задачи.
+Legacy nil оставляет возврат недоступным; frontend не подставляет текущую версию
+проекта. Точный context включает record/card/pipeline, замечание и target.
+Model/policy change не разрешает инцидент; `.ok` не снимает pending resolution.
+
 ## BE-01: transport/session и новые запросы
 
 Текущий дополнительный контракт — архитектура §5 и
@@ -132,3 +150,12 @@ Legacy detail без поля остаётся неизвестным; обяз�
 в replacement: полный snapshot новее этого retained cache. Live events с afterSeq
 раньше последнего model settings journal event отбрасываются в transport/session.
 [Проверки и native evidence FE-14](../development/frontend-fe-14-2026-10-08.md).
+
+`TaskDetail.fileCheck?` сообщает frozen maxFileBytes, includesUncommitted,
+baseCommit?, bounceLimitTotal? и returnPipeline? этой задачи. Последний
+содержит StageSummary/onFail/onConflict и writable return targets из её
+сохранённой версии, даже после изменения pipeline проекта. Отсутствие поля
+означает неизвестный порог; без returnPipeline специальный gate/merge return
+недоступен. Старые required поля TaskDetail остаются required. Проверки:
+RoundTripTests, IncidentTests и SuspiciousFilesTests;
+[native evidence FE-18](../development/frontend-fe-18-2026-10-09.md).

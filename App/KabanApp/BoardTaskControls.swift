@@ -39,6 +39,7 @@ extension BoardStore {
     func canControl(_ card: TaskCard, action: TaskControlRequest.Action) -> Bool {
         guard projection?.tasks[card.id] == card, session.pending(in: .task(card.id)) == nil,
               can(action.commandName) else { return false }
+        if card.state == .waitingHuman(.incident), action != .cancel { return false }
         switch action {
         case .pause: return TaskActions.canPause(card)
         case .resume: return TaskActions.canResume(card)
@@ -50,13 +51,13 @@ extension BoardStore {
         }
     }
     func beginControl(_ card: TaskCard, action: TaskControlRequest.Action) {
-        guard gitPermissions.preview == nil, modelOverrideRoute == nil, sheet == nil, projectSheet == nil, controlSheet == nil, reviewRoute == nil, overlapRoute == nil,
+        guard gitPermissions.preview == nil, modelOverrideRoute == nil, sheet == nil, projectSheet == nil, controlSheet == nil, reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil,
               logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, canControl(card, action: action) else { return }
         editorError = nil
         controlSheet = .init(store: self, card: card, action: action)
     }
     func canPerform(_ menuAction: TaskMenuAction) -> Bool {
-        guard gitPermissions.preview == nil, modelOverrideRoute == nil, sheet == nil, controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil,
+        guard gitPermissions.preview == nil, modelOverrideRoute == nil, sheet == nil, controlSheet == nil, projectSheet == nil, reviewRoute == nil, overlapRoute == nil, suspiciousReturnRoute == nil,
               logRunRoute == nil, materialTextRoute == nil, wipRestoreRoute == nil, let card = selectedCard else { return false }
         return canControl(card, action: menuAction.request(for: card))
     }
