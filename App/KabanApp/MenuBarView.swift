@@ -99,7 +99,7 @@ struct MenuBarView: View {
                 Text("Закрытие окна оставляет клиент в менюбаре. Завершение клиента не отключает установленную службу.")
                     .font(.caption).foregroundStyle(.secondary)
             }.padding(16)
-        }.frame(width: 420).frame(maxHeight: 620)
+        }.frame(width: 420, height: 620)
             .onAppear {
                 let open = openWindow
                 runtime.presentBoard = { [weak runtime] in runtime?.revealBoard { open(id: "board") } }

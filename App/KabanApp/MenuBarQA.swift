@@ -58,8 +58,22 @@ extension BoardQA {
             try JSONSerialization.data(withJSONObject: ["result": "functional_passed_popup_pending", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path + ".functional.json"))
         }
         let visibleWindows = NSApp.windows.filter(\.isVisible).map(\.windowNumber)
+        func statusButton(_ view: NSView) -> NSStatusBarButton? {
+            if let button = view as? NSStatusBarButton { return button }
+            for child in view.subviews { if let found = statusButton(child) { return found } }
+            return nil
+        }
+        if let button = NSApp.windows.compactMap({ $0.contentView.flatMap(statusButton) }).first,
+           let bitmap = button.bitmapImageRepForCachingDisplay(in: button.bounds),
+           let path = argument("--export-live-window") {
+            button.cacheDisplay(in: button.bounds, to: bitmap)
+            if let png = bitmap.representation(using: .png, properties: [:]) {
+                try png.write(to: URL(fileURLWithPath: path + ".status-item.png"))
+            }
+            checks["statusItemSize"] = ["width": button.bounds.width, "height": button.bounds.height]
+        }
         func openedPopup() -> NSWindow? {
-            NSApp.windows.first { $0.isVisible && !visibleWindows.contains($0.windowNumber) && $0.frame.width >= 400 && $0.frame.height > 100 }
+            NSApp.windows.first { $0.isVisible && !visibleWindows.contains($0.windowNumber) && $0.frame.width >= 400 }
         }
         if argument("--qa-menubar-manual") == "YES" {
             FileHandle.standardError.write(Data("Waiting for a manual click on the Kaban status item.\n".utf8))
@@ -68,11 +82,6 @@ extension BoardQA {
                 try await Task.sleep(for: .milliseconds(500))
             }
         } else {
-            func statusButton(_ view: NSView) -> NSStatusBarButton? {
-                if let button = view as? NSStatusBarButton { return button }
-                for child in view.subviews { if let found = statusButton(child) { return found } }
-                return nil
-            }
             guard let button = NSApp.windows.compactMap({ $0.contentView.flatMap(statusButton) }).first else { throw failure("AppKit exposes no NSStatusBarButton; popup acceptance remains unverified") }
             guard let down = NSEvent.mouseEvent(with: .leftMouseDown, location: .init(x: button.bounds.midX, y: button.bounds.midY), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: button.window?.windowNumber ?? 0, context: nil, eventNumber: 1, clickCount: 1, pressure: 1),
                   let up = NSEvent.mouseEvent(with: .leftMouseUp, location: .init(x: button.bounds.midX, y: button.bounds.midY), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime + 0.01, windowNumber: button.window?.windowNumber ?? 0, context: nil, eventNumber: 2, clickCount: 1, pressure: 0) else { throw failure("Status-button native events unavailable") }
@@ -101,6 +110,8 @@ extension BoardQA {
         view.layoutSubtreeIfNeeded(); view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("MenuBarExtra PNG unavailable") }
         try png.write(to: URL(fileURLWithPath: path + ".menubar.png"))
+        checks["menuBarPopupFrame"] = ["width": popup.frame.width, "height": popup.frame.height]
+        guard popup.frame.height > 100 else { throw failure("Actual MenuBarExtra popup collapsed: \(popup.frame). PNG saved to \(path).menubar.png") }
         checks["actualMenuBarExtraWindow"] = true
         return checks
     }

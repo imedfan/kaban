@@ -75,7 +75,10 @@ import KabanProtocol
         MenuBarExtra {
             MenuBarView(runtime: runtime).preferredColorScheme(qaTheme)
         } label: {
-            Label(runtime.store?.projection == nil ? "—" : "\(runtime.store?.waitingCount ?? 0)", systemImage: runtime.store?.projection?.ephemeral.schedulerFlags.isEmpty == false ? "exclamationmark.triangle" : "list.bullet.rectangle")
+            HStack(spacing: 4) {
+                Image(systemName: runtime.store?.projection?.ephemeral.schedulerFlags.isEmpty == false ? "exclamationmark.triangle" : "list.bullet.rectangle")
+                Text(runtime.store?.projection == nil ? "—" : "\(runtime.store?.waitingCount ?? 0)")
+            }
                 .accessibilityLabel(runtime.store?.projection == nil ? "Kaban. Нет данных о задачах" : "Kaban. Ждут человека: \(runtime.store?.waitingCount ?? 0)")
         }.menuBarExtraStyle(.window)
     }
