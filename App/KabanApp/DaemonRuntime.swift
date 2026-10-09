@@ -178,11 +178,6 @@ import KabanTransport
             }
         }
     }
-    func closeDeveloperSession() async {
-        guard developer else { return }
-        initialization?.cancel(); store?.stop()
-        await closeTransport?(); closeTransport = nil
-    }
     private func connectDeveloper() async {
         guard !busy else { return }; busy = true; defer { busy = false }
         store?.stop(); store = nil
