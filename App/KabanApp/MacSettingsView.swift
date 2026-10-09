@@ -64,7 +64,7 @@ struct MacSettingsView: View {
                 Toggle("Понимаю и соглашаюсь", isOn: Binding(get: { options.consent }, set: { value in var changed = options; changed.consent = value; if !value { changed.enabled = false }; editor.editOptions(changed) }))
                     .toggleStyle(.checkbox).disabled(editor.pending).accessibilityIdentifier("mac.quota.consent")
                 if let date = editor.settings?.quotaConsentedAt {
-                    Text("Согласие подтверждено: " + date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(theme.secondary)
+                    Text("Согласие подтверждено: " + date.formatted(.dateTime.locale(Locale(identifier: "ru_RU")).day().month(.abbreviated).year().hour().minute())).font(.caption).foregroundStyle(theme.secondary)
                     Button("Отозвать согласие") { var changed = options; changed.enabled = false; changed.consent = false; editor.editOptions(changed); Task { await editor.submit(.quota) } }
                         .disabled(editor.pending || editor.stale(.quota) || !store.can(.setQuotaOptions))
                 }
@@ -140,13 +140,14 @@ struct QuotaBarsView: View {
                             Text(view.percent.map { "\(Int($0))%" } ?? "—").font(.caption).monospacedDigit()
                         }
                         if view.percent == nil || view.message == "Исчерпан" { Text(view.message).font(.caption).foregroundStyle(theme.secondary) }
-                        if !compact, let reset = view.resetAt { Text("Сброс: " + reset.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(theme.secondary) }
+                        if let countdown = view.resetCountdown { Text(countdown).font(.caption).foregroundStyle(theme.secondary) }
+                        if !compact, let reset = view.resetAt { Text(reset.formatted(.dateTime.locale(Locale(identifier: "ru_RU")).day().month(.abbreviated).year().hour().minute())).font(.caption).foregroundStyle(theme.secondary) }
                     }.accessibilityElement(children: .combine)
                 }
                 if !compact {
                     Text("Чёрточка — доля календарного цикла, цветная метка — порог остатка.").font(.caption).foregroundStyle(theme.secondary)
                     if let date = store.projection?.ephemeral.quota?.fetchedAt {
-                        Text("Данные источника: " + date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(theme.secondary)
+                        Text("Данные источника: " + date.formatted(.dateTime.locale(Locale(identifier: "ru_RU")).day().month(.abbreviated).year().hour().minute())).font(.caption).foregroundStyle(theme.secondary)
                     }
                 }
             }

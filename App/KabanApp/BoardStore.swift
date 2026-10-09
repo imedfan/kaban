@@ -31,7 +31,7 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     var activeMacSettings: MacSettingsStore? {
         screen == .quota && sheet == nil && controlSheet == nil && projectSheet == nil && logRunRoute == nil
             && reviewRoute == nil && modelOverrideRoute == nil && gitPermissions.preview == nil
-            && suspiciousReturnRoute == nil && overlapRoute == nil && logRunRoute == nil
+            && suspiciousReturnRoute == nil && overlapRoute == nil
             && materialTextRoute == nil && wipRestoreRoute == nil ? macSettings : nil
     }
     var modelOverrideRoute: TaskModelOverrideStore?

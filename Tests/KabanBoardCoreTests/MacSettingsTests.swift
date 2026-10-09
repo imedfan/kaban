@@ -10,7 +10,7 @@ final class MacSettingsTests: XCTestCase {
         XCTAssertEqual(QuotaPresentation(pool: .om, quota: nilReading, options: options, flags: [], now: now).percent, 0)
         let stale = QuotaState(cm: 46, om: 93, billingCycleEnd: now.addingTimeInterval(100), fetchedAt: now.addingTimeInterval(-1801))
         let view = QuotaPresentation(pool: .cm, quota: stale, options: options, flags: [], now: now)
-        XCTAssertNil(view.percent); XCTAssertNil(view.thresholdUsed); XCTAssertNil(view.cycleFraction)
+        XCTAssertNil(view.percent); XCTAssertNil(view.thresholdUsed); XCTAssertNil(view.cycleFraction); XCTAssertNil(view.resetCountdown)
         XCTAssertTrue(view.message.contains("Нет свежих"))
         let disabled = QuotaPresentation(pool: .cm, quota: nilReading, options: .init(enabled: false, consent: false), flags: [], now: now)
         XCTAssertNil(disabled.percent); XCTAssertEqual(disabled.message, "Выключено")
@@ -29,6 +29,11 @@ final class MacSettingsTests: XCTestCase {
         let view = QuotaPresentation(pool: .cm, quota: quota, options: .init(enabled: true, consent: true, thresholdCm: 17), flags: [], now: now)
         XCTAssertEqual(try XCTUnwrap(view.cycleFraction), 14.5 / 31, accuracy: 0.00001)
         XCTAssertEqual(view.thresholdUsed, 83)
+        XCTAssertEqual(view.resetCountdown, "Сброс через 16 д")
+        let expired = QuotaPresentation(pool: .cm, quota: nil, options: .init(enabled: true, consent: true), flags: [.poolUsageExhausted(.cm, resetsAt: now)], now: now)
+        XCTAssertEqual(expired.resetCountdown, "Ожидаем обновления источника после сброса")
+        let disabled = QuotaPresentation(pool: .cm, quota: quota, options: .init(enabled: false, consent: false), flags: [.poolUsageExhausted(.cm, resetsAt: end)], now: now)
+        XCTAssertNil(disabled.resetCountdown)
     }
     func testAllFlagsHaveIndependentRoutesWithoutInventedReset() {
         let flags: [SchedulerFlag] = [.runnerUnavailable(.runnerAuth), .usageExhaustedUnknown(resetsAt: nil),

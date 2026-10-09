@@ -119,6 +119,7 @@ public struct QuotaPresentation: Equatable, Sendable {
     public let cycleFraction: Double?
     public let thresholdUsed: Double?
     public let resetAt: Date?
+    public let resetCountdown: String?
     public let fetchedAt: Date?
     public init(pool: ModelPool, quota: QuotaState?, options: QuotaOptions?, flags: [SchedulerFlag], now: Date) {
         let enabled = options?.enabled == true && options?.consent == true
@@ -133,7 +134,14 @@ public struct QuotaPresentation: Equatable, Sendable {
         message = !enabled ? "Выключено" : exhausted ? "Исчерпан" : !fresh && quota != nil
             ? "Нет свежих данных — работает реактивная схема" : percent == nil ? "Нет данных" : "Израсходовано"
         fetchedAt = enabled ? quota?.fetchedAt : nil
-        resetAt = exhausted ? reset : percent == nil ? nil : quota?.billingCycleEnd
+        resetAt = !enabled ? nil : exhausted ? reset : percent == nil ? nil : quota?.billingCycleEnd
+        if let resetAt {
+            let remaining = resetAt.timeIntervalSince(now)
+            if remaining <= 0 { resetCountdown = "Ожидаем обновления источника после сброса" }
+            else if remaining >= 86_400 { resetCountdown = "Сброс через \(Int(remaining / 86_400)) д" }
+            else if remaining >= 3_600 { resetCountdown = "Сброс через \(Int(remaining / 3_600)) ч" }
+            else { resetCountdown = "Сброс через \(max(1, Int(ceil(remaining / 60)))) мин" }
+        } else { resetCountdown = nil }
         if enabled, !exhausted, percent != nil, let quota, let start = quota.effectiveCycleStart(),
            let end = quota.billingCycleEnd, end > start {
             cycleFraction = min(1, max(0, now.timeIntervalSince(start) / end.timeIntervalSince(start)))
