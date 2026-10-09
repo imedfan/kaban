@@ -72,6 +72,15 @@ import KabanProtocol
 
             }
         }
+        MenuBarExtra {
+            MenuBarView(runtime: runtime).preferredColorScheme(qaTheme)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: runtime.store?.projection?.ephemeral.schedulerFlags.isEmpty == false ? "exclamationmark.triangle" : "list.bullet.rectangle")
+                Text(runtime.store?.projection == nil ? "—" : "\(runtime.store?.waitingCount ?? 0)")
+            }
+                .accessibilityLabel(runtime.store?.projection == nil ? "Kaban. Нет данных о задачах" : "Kaban. Ждут человека: \(runtime.store?.waitingCount ?? 0)")
+        }.menuBarExtraStyle(.window)
     }
 }
 
@@ -161,8 +170,17 @@ private struct ReviewQAWindowCommands: Commands {
         if menuItem.action == #selector(controlTask(_:)), let action = TaskMenuAction(rawValue: menuItem.tag) { return runtime?.store?.canPerform(action) == true }
         return true
     }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    func applicationWillTerminate(_ notification: Notification) {
+        runtime?.stopForTermination()
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Kaban", withExtension: "icns", subdirectory: "Resources"), let icon = NSImage(contentsOf: url) { NSApp.applicationIconImage = icon }
-        if BoardQA.isActive { NSApp.setActivationPolicy(.regular); NSApp.activate(); Task { await BoardQA.run() } }
+        if BoardQA.isActive {
+            if let theme = BoardQA.argument("--qa-theme") {
+                NSApp.appearance = NSAppearance(named: theme == "dark" ? .darkAqua : .aqua)
+            }
+            NSApp.setActivationPolicy(.regular); NSApp.activate(); Task { await BoardQA.run() }
+        }
     }
 }

@@ -16,6 +16,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     private let client: any KabanClient
     let runLog: RunLogStore
     let session: BoardSession
+    let attention: AttentionStore
+    let sourceKey: String
     let humanAnswers: HumanAnswerStore
     let incidents: IncidentsStore
     let incidentDecisions: IncidentDecisionStore
@@ -204,6 +206,8 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         self.dataSource = usesFixture ? "Демонстрация · данные в памяти" : dataSource
         self.dataSourceDetail = dataSourceDetail
         let sourceKey = usesFixture ? "client.commands.fixture" : commandStorageKey
+        self.sourceKey = sourceKey
+        attention = AttentionStore(storage: storage, key: sourceKey + ".attention")
         let session = BoardSession(client: client, storage: storage, key: sourceKey)
         self.session = session
         let incidents = IncidentsStore(client: client, session: session)

@@ -9,8 +9,8 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
-    static var needsExplicitWindow: Bool { argument("--mac-live-smoke") != nil || argument("--incident-live-smoke") != nil || argument("--files-live-smoke") != nil || argument("--git-live-smoke") != nil || argument("--mcp-live-smoke") != nil || argument("--settings-live-smoke") != nil || argument("--model-live-smoke") != nil || argument("--pipeline-live-smoke") != nil || argument("--review-live-smoke") != nil || argument("--merge-live-smoke") != nil }
+    static var isActive: Bool { ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { argument($0) != nil } }
+    static var needsExplicitWindow: Bool { argument("--menubar-live-smoke") != nil || argument("--mac-live-smoke") != nil || argument("--incident-live-smoke") != nil || argument("--files-live-smoke") != nil || argument("--git-live-smoke") != nil || argument("--mcp-live-smoke") != nil || argument("--settings-live-smoke") != nil || argument("--model-live-smoke") != nil || argument("--pipeline-live-smoke") != nil || argument("--review-live-smoke") != nil || argument("--merge-live-smoke") != nil }
     static func argument(_ name: String) -> String? {
         guard let index = CommandLine.arguments.firstIndex(of: name), CommandLine.arguments.count > index + 1 else { return nil }
         return CommandLine.arguments[index + 1]
@@ -41,7 +41,11 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = argument("--incident-live-smoke") {
+            if let path = argument("--menubar-live-smoke") {
+                let checks = try await menuBarLiveSmoke(store)
+                let result = argument("--qa-menubar-functional") == "YES" ? "functional_passed_popup_unverified" : "passed"
+                try JSONSerialization.data(withJSONObject: ["result": result, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = argument("--incident-live-smoke") {
                 let checks = try await incidentLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
             } else if let path = argument("--files-live-smoke") {
@@ -133,10 +137,14 @@ import Darwin
             if (argument("--merge-smoke") != nil || argument("--merge-live-smoke") != nil), argument("--export-live-window") != nil {
                 try await captureWindow()
             }
+            if argument("--menubar-live-smoke") != nil {
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+                return
+            }
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_SUCCESS)
         } catch {
-            if let path = ["--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
+            if let path = ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ argument($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }

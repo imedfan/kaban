@@ -158,6 +158,7 @@ struct SchedulerFlagsView: View {
     @Bindable var store: BoardStore
     let theme: ReferenceTheme
     var project: ProjectID?
+    var onNavigate: (() -> Void)? = nil
     private var flags: [SchedulerFlag] {
         (store.projection?.ephemeral.schedulerFlags ?? []).filter {
             let id = SchedulerFlagPresentation($0).project
@@ -175,7 +176,7 @@ struct SchedulerFlagsView: View {
                     if let action = row.action, let command = row.command {
                         Button(action) { Task { await store.models.send(command) } }.disabled(!store.models.can(command) || !supportsScope(command))
                     }
-                    if let project = row.project { Button("Настройки") { store.screen = .project(project) } }
+                    if let project = row.project { Button("Настройки") { store.screen = .project(project); onNavigate?() } }
                 }.padding(10).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
             }
             if project == nil {
@@ -186,7 +187,7 @@ struct SchedulerFlagsView: View {
                             if let fallback = flag.fallbackModel { Text("Cursor сообщает: " + fallback).font(.caption) }
                         }
                         Spacer()
-                        Button("Модели") { store.screen = .quota }
+                        Button("Модели") { store.screen = .quota; onNavigate?() }
                         Button("Снять флаг") { Task { await store.models.send(.clearModelFlag(modelId: flag.modelId)) } }.disabled(!store.models.can(.clearModelFlag(modelId: flag.modelId)))
                     }.padding(10).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                 }
