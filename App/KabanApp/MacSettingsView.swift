@@ -70,8 +70,7 @@ struct MacSettingsView: View {
                 }
                 Picker("Интервал", selection: Binding(get: { ["60", "300", "900", "1800"].contains(editor.interval) ? editor.interval : "custom" }, set: { if $0 != "custom" { editor.editInterval($0) } else { editor.editInterval("") } })) {
                     Text("1 мин").tag("60"); Text("5 мин").tag("300"); Text("15 мин").tag("900"); Text("30 мин").tag("1800"); Text("Свой").tag("custom")
-                }.pickerStyle(.segmented).disabled(editor.pending)
-                    .fixedSize(horizontal: false, vertical: true)
+                }.pickerStyle(.segmented).disabled(editor.pending).frame(height: 24)
                 HStack { Text("Интервал, секунд"); TextField("Положительное целое", text: Binding(get: { editor.interval }, set: editor.editInterval)).textFieldStyle(.roundedBorder).disabled(editor.pending) }
                 ForEach([ModelPool.cm, .om], id: \.self) { pool in
                     HStack {
