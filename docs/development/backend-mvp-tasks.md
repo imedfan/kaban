@@ -3,6 +3,8 @@
 Очередь поручена Артёмом 5 октября 2026 и перенесена из приложенного
 `backend-mvp-tasks.md`. Объём и зависимости BE-01–20 сохраняются.
 
+Очередь доработок рабочего MVP после BE-20 и FE-22 — [mvp-fix-tasks.md](mvp-fix-tasks.md); пояснения — [mvp-fix-explanations.md](mvp-fix-explanations.md).
+
 Срез 6 октября 2026, база `origin/main` `ea02f0c`: BE-01–04 приняты в main в PR #71–74.
 BE-05 выполнен и принят в main в [PR #76](https://github.com/imedfan/kaban/pull/76) (`ea02f0c`); границы — [исполнение эффектов](backend-effect-execution-2026-10-06.md).
 BE-06 выполнен в [PR #77](https://github.com/imedfan/kaban/pull/77), влитом в `codex/be-05-effect-execution` и ещё не принятом в main; границы — [клоны задач](backend-task-clones-2026-10-06.md).
