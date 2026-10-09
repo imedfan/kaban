@@ -56,6 +56,11 @@ struct PipelineEditorView: View {
                                     validationIssues
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .onChange(of: editor.issues) { _, _ in
+                                if BoardQA.isActive, BoardQA.argument("--qa-pipeline-mode") == "diagnostics" {
+                                    scroll.scrollTo("pipeline-validation", anchor: .bottom)
+                                }
+                            }
                             .task {
                                 if BoardQA.isActive, BoardQA.argument("--qa-policy-preview") == "yes" {
                                     try? await Task.sleep(for: .milliseconds(500))
@@ -382,7 +387,7 @@ struct PipelineEditorView: View {
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(fieldIssues(path).contains { $0.severity == .error } ? .orange : fieldIssues(path).isEmpty ? .clear : .yellow, lineWidth: 1))
             }
             if !editor.document.canEdit(path) { Text("Эта конструкция доступна в YAML").font(.caption).foregroundStyle(theme.secondary) }
-            ForEach(Array(fieldIssues(path).enumerated()), id: \.offset) { _, issue in Text(issueText(issue)).font(.caption).foregroundStyle(issue.severity == .error ? .orange : .yellow) }
+            ForEach(Array(fieldIssues(path).enumerated()), id: \.offset) { _, issue in Text(issueText(issue)).font(.caption).foregroundStyle(issue.severity == .error ? theme.status("incident").2 : theme.status("waiting").2) }
         }.font(.system(size: 12))
     }
     private func choice(_ label: String, _ path: String, _ values: [String]) -> some View {
@@ -401,12 +406,12 @@ struct PipelineEditorView: View {
             if editor.issues.isEmpty { Text("Нет сообщений для текущего черновика.").foregroundStyle(theme.secondary) }
             ForEach(Array(editor.issues.enumerated()), id: \.offset) { _, issue in
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(issueText(issue), systemImage: "exclamationmark.triangle").foregroundStyle(issue.severity == .error ? .orange : .yellow)
-                    Text(issue.path + " · " + issue.code + " · " + issue.severity.rawValue).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
+                    Label(issueText(issue), systemImage: "exclamationmark.triangle").foregroundStyle(issue.severity == .error ? theme.status("incident").2 : theme.status("waiting").2)
+                    Text(ValidationIssueText.displayPath(issue) + " · " + issue.code + " · " + issue.severity.rawValue).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
             Text("Ошибки блокируют применение. Предупреждения не блокируют.").font(.caption).foregroundStyle(theme.secondary)
-        }
+        }.id("pipeline-validation")
     }
     private func issueText(_ issue: ValidationIssue) -> String {
         ValidationIssueText.render(issue, stageName: editor.lastResolved?.stages.first { $0.id == issue.stageId }?.name)

@@ -347,8 +347,14 @@ struct BoardView: View {
                 MergeBlockNotice(store: store, project: lane.project.id)
             }
             if let pipeline = store.projection?.pipelines[lane.project.id], !pipeline.isValid {
-                Label("Пайплайн не запустится: \(pipeline.issues.first(where: { $0.severity == .error })?.message ?? "нужна настройка")", systemImage: "exclamationmark.triangle")
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(theme.status("waiting").2)
+                VStack(alignment: .leading, spacing: 4) {
+                    if let issue = pipeline.issues.first(where: { $0.severity == .error }) {
+                        Label("Пайплайн не запустится: " + ValidationIssueText.render(issue, stageName: pipeline.stages.first { $0.id == issue.stageId }?.name), systemImage: "exclamationmark.triangle")
+                        if !ValidationIssueText.knownCodes.contains(issue.code) {
+                            Text(issue.code).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                        }
+                    } else { Label("Пайплайн не запустится: нужна настройка", systemImage: "exclamationmark.triangle") }
+                }.font(.system(size: 11, weight: .medium)).foregroundStyle(theme.status("waiting").2)
                     .padding(8).frame(maxWidth: .infinity, alignment: .leading).background(theme.status("waiting").1, in: RoundedRectangle(cornerRadius: 8))
             }
             if displayed.isEmpty {
@@ -1161,8 +1167,8 @@ struct ProjectSettingsView: View {
                                 if pipeline.issues.isEmpty { Text("Служба не передала ошибок текущего пайплайна.").font(.system(size: 12)).foregroundStyle(theme.secondary) }
                                 ForEach(Array(pipeline.issues.enumerated()), id: \.offset) { _, issue in
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(issue.message).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-                                        Text(issue.code + " · " + issue.path).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
+                                        Text(ValidationIssueText.render(issue, stageName: pipeline.stages.first { $0.id == issue.stageId }?.name)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                                        Text(issue.code + " · " + ValidationIssueText.displayPath(issue)).font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
                                     }.frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 if pipeline.defaultReturnStage == nil { Text("Стадия возврата не передана. Возврат с комментарием недоступен.").font(.system(size: 11)).foregroundStyle(theme.secondary) }

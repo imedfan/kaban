@@ -85,7 +85,12 @@ struct GitPolicyPreviewSheet: View {
         case .unavailable(let message): Text(message).font(.system(size: 12)).foregroundStyle(.orange)
         case .checked(let result):
             ForEach(Array(result.issues.enumerated()), id: \.offset) { _, issue in
-                Text(issue.message).font(.system(size: 12)).foregroundStyle(issue.severity == .error ? Color.red : Color.orange).textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(ValidationIssueText.render(issue, stageName: preview.editor.lastResolved?.stages.first { $0.id == issue.stageId }?.name))
+                        .font(.system(size: 12)).foregroundStyle(issue.severity == .error ? theme.status("incident").2 : theme.status("waiting").2).textSelection(.enabled)
+                    Text(ValidationIssueText.displayPath(issue) + " · " + issue.code)
+                        .font(.system(size: 10, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled)
+                }
             }
         }
     }

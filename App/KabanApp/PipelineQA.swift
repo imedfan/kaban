@@ -33,6 +33,31 @@ extension BoardQA {
             }
         }
         let mode = argument("--qa-pipeline-mode") ?? "apply"
+        if mode == "diagnostics" {
+            let cases = [
+                ("root-type", "[]\n", "type_mismatch", "pipeline.yaml должен быть словарём верхнего уровня"),
+                ("invalid-id", exact.replacingOccurrences(of: "id: dev\n", with: "id: _dev\n"), "invalid_id", "Id стадии может содержать только строчные латинские буквы, цифры, «-» и «_»; первый символ — буква или цифра, длина до 64"),
+                ("git-warning", exact.replacingOccurrences(of: "allow: []", with: "allow: [rebsae]"), "git_unknown_command", "Неизвестная git-команда rebsae (только первое слово правила): проверьте написание")
+            ]
+            for (name, content, code, expected) in cases {
+                editor.edit(content, debounce: false); try await validateCurrentDraft()
+                guard let issue = editor.issues.first(where: { $0.code == code }),
+                      ValidationIssueText.render(issue) == expected else { throw failure("Production diagnostic differs for \(code): \(editor.issues)") }
+                if code == "type_mismatch" {
+                    guard issue.path.isEmpty else { throw failure("Root diagnostic has a field path") }
+                }
+                guard editor.canApply == (issue.severity == .warning) else { throw failure("Severity no longer controls Apply for \(code)") }
+                try await Task.sleep(for: .milliseconds(700))
+                try await captureWindow()
+                if let path = argument("--export-live-window") {
+                    let target = URL(fileURLWithPath: path + "." + name + ".png")
+                    try FileManager.default.moveItem(at: URL(fileURLWithPath: path), to: target)
+                }
+            }
+            guard editor.source?.workingContent == exact,
+                  try String(contentsOfFile: source.path, encoding: .utf8) == exact else { throw failure("Diagnostic preview wrote the repository") }
+            return ["actual WindowGroup and production stdio validation", "root type_mismatch, invalid_id and git warning use approved Russian messages", "error blocks Apply and warning permits Apply", "draft validation leaves committed and working source unchanged"]
+        }
         if mode == "reopen" {
             guard source.committedContent?.contains("# Native exact draft") == true,
                   source.baseVersionHash == store.projection?.pipelines[project.id]?.versionHash else { throw failure("Applied version not durable after restart") }
