@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-15",
+  "cliVersion": "2026.09.23-86fc751",
+  "modelStarts": 0,
+  "rawAccountOutputStored": false,
+  "statusHelp": {
+    "exitCode": 0,
+    "jsonFormatSupported": true
+  },
+  "statusJSON": {
+    "exitCode": 0,
+    "observedKeys": ["hasAccessToken", "hasRefreshToken", "isAuthenticated", "message", "status"],
+    "observedBooleanFields": {
+      "isAuthenticated": false,
+      "hasAccessToken": false,
+      "hasRefreshToken": false
+    }
+  },
+  "statusText": {
+    "exitCode": 0,
+    "recognizedLogout": true,
+    "recognizedPositiveLine": false
+  },
+  "catalog": {
+    "exitCode": 1,
+    "nonemptyLineCount": 1,
+    "tabSeparatedLineCount": 0,
+    "authenticatedCatalogVerified": false
+  },
+  "daemon": {
+    "sourceCommit": "f9fbae9",
+    "transport": "private stdio",
+    "syntheticCLI": false,
+    "configureDiscoveryVerified": true,
+    "correlatedEventVerified": true,
+    "restartPersistenceVerified": true,
+    "environmentReportVerified": true,
+    "authOK": false,
+    "runnerReason": "agent_not_logged_in"
+  },
+  "notVerified": ["authenticated live CLI", "installed launchd", "authenticated model catalog", "paid spike BE-22"]
+}
