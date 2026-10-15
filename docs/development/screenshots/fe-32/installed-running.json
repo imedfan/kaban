@@ -1,0 +1,14 @@
+{
+  "state": "running",
+  "pid": 57457,
+  "executable": "/Applications/Kaban.app/Contents/MacOS/KabanDaemon",
+  "runs": 1,
+  "matchingHelperPids": [
+    57457
+  ],
+  "transport": "installed XPC",
+  "connectedConfirmedBy": "Artyom: Подключилось after Service -> Restart service",
+  "signing": "ad-hoc",
+  "appSandbox": false,
+  "hardenedRuntime": true
+}
