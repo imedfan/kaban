@@ -73,6 +73,14 @@ apply/version/WIP и restart; снимает light/dark/minimum/long/absent ок
 Capture success не заменяет просмотра PNG. Signed helper registration, system
 permissions, VoiceOver и живой Cursor не проверяются; платные CLI не запускаются.
 
+## Тексты диагностик FE-25
+
+`check-pipeline-editor.py --validation-messages` проверяет root type_mismatch,
+invalid_id и git_unknown_command в настоящем WindowGroup, light/dark minimum.
+Серверные диагностики идут через production daemon/private stdio на synthetic
+YAML; error блокирует Apply, warning допускает Apply. Проверка не применяет
+черновик и сверяет неизменность исходного файла. [Отчёт FE-25](../docs/development/frontend-fe-25-2026-10-09.md).
+
 ## Инциденты FE-19
 
 `seed-incidents.swift` создаёт private Git/store fixture через production APIs.
@@ -95,10 +103,11 @@ producer-boundary quota/flags fixtures. `check-mac-settings.py` запускае
 Команды, source, кадры и открытая UC-21 приёмка — в
 [отчёте FE-20](../docs/development/frontend-fe-20-2026-10-09.md).
 
-## Тексты диагностик FE-25
+## Состав App FE-34
 
-`check-pipeline-editor.py --validation-messages` проверяет root type_mismatch,
-invalid_id и git_unknown_command в настоящем WindowGroup, light/dark minimum.
-Серверные диагностики идут через production daemon/private stdio на synthetic
-YAML; error блокирует Apply, warning допускает Apply. Проверка не применяет
-черновик и сверяет неизменность исходного файла. [Отчёт FE-25](../docs/development/frontend-fe-25-2026-10-09.md).
+`check-app-build-contents.py --app <Kaban.app>` проверяет реальные Mach-O символы
+production Release: демо и QA types отсутствуют, общие Kaban UI types присутствуют.
+С `--qa` проверка требует BoardQA, AppFixture и NativeWindowCapture; при наличии
+Debug dylib читает и его. Демо types запрещены в обеих конфигурациях.
+Debug включает KABAN_QA, Release по умолчанию не включает. CI собирает и проверяет
+оба варианта. [Приёмка FE-34](../docs/development/frontend-fe-34-2026-10-09.md).

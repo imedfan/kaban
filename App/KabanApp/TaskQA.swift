@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -6,9 +7,9 @@ extension BoardQA {
     static let taskBody = "# Markdown\r\n\r\n**Точный текст**  \r\n- [ ] Пункт\r\n\n## Критерии приёмки\n- [ ] Сохранить пробелы  \n"
     static let editedTaskBody = taskBody + "\n~~~swift\nlet value = 42\n~~~\n"
     static func taskSmoke(_ store: BoardStore) async throws -> [String] {
-        if argument("--task-projects") == "yes" { return try await taskProjectDraftSmoke(store) }
+        if AppArguments.value("--task-projects") == "yes" { return try await taskProjectDraftSmoke(store) }
         guard let project = store.projection?.projectOrder.first else { throw failure("Task smoke project missing") }
-        if argument("--task-smoke-reopen") == "yes" {
+        if AppArguments.value("--task-smoke-reopen") == "yes" {
             let tasks = store.projection?.tasks.values.filter { $0.title == "Edited task editor smoke" } ?? []
             guard tasks.count == 1, let card = tasks.first, card.priority == 42 else { throw failure("Task or priority not durable / duplicated") }
             await store.select(card.id)
@@ -124,7 +125,7 @@ extension BoardQA {
               sheet.performKeyEquivalent(with: event) else { throw failure("Native Return action unavailable") }
     }
     static func prepareTaskEditor(_ store: BoardStore) async throws -> Bool {
-        let state = argument("--qa-state") ?? ""
+        let state = AppArguments.value("--qa-state") ?? ""
         guard ["editor-long", "editor-preview", "editor-unknown", "editor-stale", "priority"].contains(state),
               let project = store.projection?.projectOrder.first else { return false }
         if state == "editor-long" || state == "editor-preview" {
@@ -145,3 +146,4 @@ extension BoardQA {
         return true
     }
 }
+#endif

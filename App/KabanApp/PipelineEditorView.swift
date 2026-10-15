@@ -8,7 +8,7 @@ struct PipelineEditorView: View {
     @Bindable var mcp: ProjectMCPStore
     let openMCP: () -> Void
     let projectName: String
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     let close: () -> Void
     var initialSection: String? = nil
     private var selectedStage: String? { get { editor.selectedStageID } nonmutating set { editor.selectedStageID = newValue } }
@@ -57,15 +57,15 @@ struct PipelineEditorView: View {
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .onChange(of: editor.issues) { _, _ in
-                                if BoardQA.isActive, BoardQA.argument("--qa-pipeline-mode") == "diagnostics" {
+                                if AppArguments.isQA, AppArguments.qaValue("--qa-pipeline-mode") == "diagnostics" {
                                     scroll.scrollTo("pipeline-validation", anchor: .bottom)
                                 }
                             }
                             .task {
-                                if BoardQA.isActive, BoardQA.argument("--qa-policy-preview") == "yes" {
+                                if AppArguments.isQA, AppArguments.qaValue("--qa-policy-preview") == "yes" {
                                     try? await Task.sleep(for: .milliseconds(500))
                                     scroll.scrollTo("git-effective", anchor: .top)
-                                } else if BoardQA.isActive, BoardQA.argument("--qa-mcp-mode") != nil {
+                                } else if AppArguments.isQA, AppArguments.qaValue("--qa-mcp-mode") != nil {
                                     try? await Task.sleep(for: .milliseconds(500))
                                     scroll.scrollTo("stage-mcp-selection", anchor: .center)
                                 }
@@ -86,10 +86,10 @@ struct PipelineEditorView: View {
             .task {
                 await editor.loadIfNeeded()
                 if let initialSection { selectedStage = initialSection }
-                if BoardQA.isActive {
-                    selectedStage = BoardQA.argument("--qa-pipeline-stage") ?? initialSection
-                    section = BoardQA.argument("--qa-pipeline-section") ?? "Основное"
-                    yaml = BoardQA.argument("--qa-pipeline-yaml") == "yes"
+                if AppArguments.isQA {
+                    selectedStage = AppArguments.qaValue("--qa-pipeline-stage") ?? initialSection
+                    section = AppArguments.qaValue("--qa-pipeline-section") ?? "Основное"
+                    yaml = AppArguments.qaValue("--qa-pipeline-yaml") == "yes"
                 }
             }
             .onChange(of: editor.connectionAvailable) { _, available in

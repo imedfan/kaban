@@ -7,7 +7,7 @@ struct StageMCPPicker: View {
     @Bindable var editor: PipelineEditorStore
     let stageID: String
     let path: String
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     let openMCP: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

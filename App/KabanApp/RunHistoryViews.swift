@@ -27,7 +27,7 @@ struct RunLogSheet: View {
     @State private var exporting = false
     @State private var exportDocument = RunLogDocument(data: Data())
     @State private var presentsExport = false
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var log: RunLogStore { store.runLog }
     private var history: [RunSummary] { store.history(for: initialRun.taskId) }
     private var run: RunSummary { history.first { $0.id == selectedRunID } ?? selectedRun }
@@ -235,7 +235,7 @@ struct WIPRestoreSheet: View {
     let route: WIPRestoreRoute
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var card: TaskCard { route.request.card }
     private var command: Command? {
         guard store.session.sessionGeneration == route.generation, store.session.pending(in: .task(card.id)) == nil else { return nil }

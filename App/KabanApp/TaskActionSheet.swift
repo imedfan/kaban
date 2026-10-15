@@ -34,7 +34,7 @@ struct TaskActionSheet: View {
     @State private var targetID: StageID?
     @FocusState private var titleFocused: Bool
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
 
     init(store: BoardStore, route: TaskSheetRoute) {
         self.store = store; self.route = route
@@ -43,8 +43,8 @@ struct TaskActionSheet: View {
         case .cancel(let card): _controlRoute = State(initialValue: .init(store: store, card: card, action: .cancel))
         default: _controlRoute = State(initialValue: nil)
         }
-        _preview = State(initialValue: BoardQA.argument("--qa-task-preview") == "yes")
-        _compareCurrent = State(initialValue: BoardQA.argument("--qa-compare-current") == "yes")
+        _preview = State(initialValue: AppArguments.qaValue("--qa-task-preview") == "yes")
+        _compareCurrent = State(initialValue: AppArguments.qaValue("--qa-compare-current") == "yes")
         let key: TaskDraftKey?
         switch route { case .create(let id): key = .create(id); case .edit(let card, _): key = .edit(card.id); case .priority(let card): key = .priority(card.id); default: key = nil }
         let saved = key.flatMap { store.session.drafts?.record(for: $0) }

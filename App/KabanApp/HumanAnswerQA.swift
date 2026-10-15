@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -54,7 +55,7 @@ import KabanBoardCore
 extension BoardQA {
     static var answerClient: QAHumanAnswerClient?
     static func prepareAnswer(_ store: BoardStore) async throws -> Bool {
-        guard let mode = argument("--qa-answer") else { return false }
+        guard let mode = AppArguments.value("--qa-answer") else { return false }
         await store.select("SHOP-31")
         if !["human", "gate", "merge", "running", "gating"].contains(mode) {
             let text = mode == "empty" ? "" : mode == "long" ? String(repeating: "Сначала проверь статус возврата. Сохрани результат проверки и объясни, что изменилось. 👋\n", count: 50) : mode == "suspicious" ? "Убери из ветки: .env.local" : "Сначала проверь состояние возврата. Повторяй запрос только если платёж ещё не возвращён."
@@ -95,11 +96,11 @@ extension BoardQA {
         await store.select(nil); await store.select("SHOP-31")
         guard store.detail?.feed.filter({ $0.kind == "answer" }).count == 1 else { throw failure("Reopening lost answer") }
         store.detailTab = "Лента"
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["real WindowGroup native answer TextEditor preserves CRLF and Unicode", "Cmd-Return sends one typed answer to its specific requestId", "stale refusal refreshes details and retains original text and question", "lost receipt reconciles the exact commandId without duplicate answer", "correlated taskUpdated queues the task; reopening retains the answer feed", "fixtures only; no Cursor process launched"]
     }
     static func answerLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--answer-live-fixture"),
+        guard let path = AppArguments.value("--answer-live-fixture"),
               let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: String],
               let question = metadata["question"], let stale = metadata["stale"], let files = metadata["files"], let old = metadata["oldRequest"] else { throw failure("Isolated answer metadata missing") }
         let text = "Check the refund status first.  \r\nContinue safely 👋", note = "Remove .env.local from the branch."
@@ -111,7 +112,7 @@ extension BoardQA {
             }
             guard store.detail?.acceptedFiles.isEmpty == true else { throw failure("Note accepted files on reopening") }
             store.detailTab = "Лента"
-            if argument("--export-live-window") != nil { try await captureWindow() }
+            if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
             return ["private bundled daemon restarted after journal deletion", "durable exact question answer and nil-request note read from getTaskDetail", "files remain unaccepted after restart", "Cursor not launched; tasks kept queued by pauseAll"]
         }
         await store.select(TaskID(rawValue: question))
@@ -139,7 +140,8 @@ extension BoardQA {
         guard store.detail?.task.state == .queued(nil), store.detail?.acceptedFiles == acceptedBefore,
               store.detail?.feed.filter({ $0.kind == "answer" && $0.text == note }).count == 1 else { throw failure("Live note accepted files or lost durable text") }
         store.detailTab = "Лента"
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["real bundled daemon over private stdio, isolated git repo/database", "specific requestId answer commits durable feed and correlated taskUpdated", "stale requestId rejected without feed entry or draft loss", "nil-request note queues same agent stage without adding accepted file blobs", "pauseAll keeps new starts stopped; no Cursor run initiated by acceptance"]
     }
 }
+#endif

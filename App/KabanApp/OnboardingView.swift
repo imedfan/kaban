@@ -40,13 +40,13 @@ struct OnboardingView: View {
     @Bindable var runtime: DaemonRuntime
     @Environment(\.colorScheme) private var scheme
     @Environment(\.scenePhase) private var scenePhase
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var system: OnboardingSystemState { runtime.onboardingSystem }
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    ReferenceWordmark().fill(theme.text).frame(width: 110, height: 30)
+                    KabanWordmark().fill(theme.text).frame(width: 110, height: 30)
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Подготовим Kaban к работе").font(.system(size: 25, weight: .semibold))
                         Text("Подключим локальную службу и проверим Cursor. Уведомления и автозапуск можно настроить позже.")
@@ -115,7 +115,7 @@ struct OnboardingView: View {
                     .keyboardShortcut(.defaultAction)
             }.padding(.horizontal, 32).padding(.vertical, 16).background(theme.card)
                 .overlay(alignment: .top) { theme.line.frame(height: 0.5) }
-        }.background(ReferenceBackdrop(theme: theme)).foregroundStyle(theme.text)
+        }.background(KabanBackdrop(theme: theme)).foregroundStyle(theme.text)
             .task { await system.refresh(fixture: runtime.fixture) }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await system.refresh(fixture: runtime.fixture) } } }
     }
@@ -148,7 +148,7 @@ struct OnboardingView: View {
 
 private struct OnboardingEnvironmentView: View {
     @Bindable var environment: RunnerEnvironmentStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {

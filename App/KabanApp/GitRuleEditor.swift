@@ -7,7 +7,7 @@ struct GitRuleEditor: View {
     let path: String
     let projectPolicy: EffectiveGitPolicy?
     let catalog: [String]
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var readOnly = false
     private var isStage: Bool { path.hasPrefix("stages[") }
     private var allowPath: String { path + (isStage ? ".extend" : ".allow") }

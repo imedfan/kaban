@@ -4,7 +4,7 @@ import KabanBoardCore
 
 struct ModelSettingsView: View {
     @Bindable var store: ModelSettingsStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @State private var query = ""
     @State private var expandedFamilies: Set<String> = ["Composer"]
     @State private var reviewOnly = false
@@ -74,7 +74,7 @@ struct ModelSettingsView: View {
             }
             Text("Новая модель без привязки получает «проверь пул». Её текущий пул приходит из backend. Снятие флага не гарантирует успешный следующий запуск.")
                 .font(.caption).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true)
-        }.padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12)).task { await store.loadIfNeeded(); if BoardQA.argument("--model-live-smoke") != nil { expandedFamilies = Set(store.catalog.map(ModelSelection.family)) } }
+        }.padding(18).background(theme.card, in: RoundedRectangle(cornerRadius: 12)).task { await store.loadIfNeeded(); if AppArguments.qaValue("--model-live-smoke") != nil { expandedFamilies = Set(store.catalog.map(ModelSelection.family)) } }
     }
     private func poolButton(_ model: ModelInfo, _ pool: ModelPool) -> some View {
         Button(pool == .cm ? "Cm" : "Om") { Task { await store.send(.setModelPoolRule(pattern: model.id.rawValue, pool: pool)) } }

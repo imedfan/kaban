@@ -58,6 +58,8 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath "$derived_data" \
             ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+          python3 tools/check-app-build-contents.py \
+            --app "$derived_data/Build/Products/Debug/Kaban.app" --qa
           smoke_result="$RUNNER_TEMP/kaban-native-smoke.json"
           smoke_log="$RUNNER_TEMP/kaban-native-smoke.log"
           rm -f "$smoke_result"
@@ -161,6 +163,16 @@ jobs:
           assert result["result"] == "passed", result
           print(json.dumps(result, ensure_ascii=False))
           PYQA
+
+      - name: Build and check production Release (unsigned)
+        run: |
+          release_data="$(mktemp -d "${RUNNER_TEMP}/kaban-release-derived-data.XXXXXX")"
+          trap 'rm -rf "$release_data"' EXIT
+          xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath "$release_data" \
+            ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+          python3 tools/check-app-build-contents.py \
+            --app "$release_data/Build/Products/Release/Kaban.app"
 
       - name: Test
         run: swift test

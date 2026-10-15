@@ -156,11 +156,18 @@ App build и 12 native сценариев прошли. [Отчёт FE-20](devel
 FE-21 опубликована в [draft PR #115](https://github.com/imedfan/kaban/pull/115):
 source `5a3dfda` прошёл все шесть CI jobs; manual popup/count исправлены,
 системная delivery/login приёмка и native dark popup ещё открыты.
-FE-25 подготовлена в `codex/fe-25-validation-texts`, source `3411f35`:
+FE-25 опубликована в [PR #116](https://github.com/imedfan/kaban/pull/116),
+реализация `3411f35`, HEAD `238f4ea` прошёл все шесть CI jobs:
 40 русских сообщений, truthful legacy fallback, root path и общие consumers.
 217 BoardCore tests, App build и два native diagnostics smoke прошли.
-[Отчёт FE-25](development/frontend-fe-25-2026-10-09.md). Дальше FE-23/24/26–34
+[Отчёт FE-25](https://github.com/imedfan/kaban/blob/238f4ea653803ad9a6e7abe62d960ba3b0d83677/docs/development/frontend-fe-25-2026-10-09.md). Дальше FE-23/24/26–34
 по зависимостям новой очереди; требования полного MVP сохраняются.
+FE-34 опубликована в [PR #117](https://github.com/imedfan/kaban/pull/117),
+source `bf6ef6d`: неиспользуемые
+демо-экраны удалены, общие Kaban-компоненты сохранены, fixtures и BoardQA только
+с KABAN_QA. Debug и Release builds и Mach-O checks прошли; 17 native сценариев
+и четыре actual WindowGroup кадра проверены. Strict control прошёл отдельным
+повтором на той же сборке после потери фокуса. CI проверяется отдельно. [Отчёт FE-34](development/frontend-fe-34-2026-10-09.md).
 Полный M1/MVP не принят.
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.

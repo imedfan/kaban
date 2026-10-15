@@ -1,13 +1,14 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func projectSettingsLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--settings-live-repository"), path.hasPrefix("/tmp/kaban-fe15-"),
-              argument("--developer-database")?.hasPrefix("/tmp/kaban-fe15-") == true,
+        guard let path = AppArguments.value("--settings-live-repository"), path.hasPrefix("/tmp/kaban-fe15-"),
+              AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe15-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private settings fixture or WindowGroup missing") }
-        window.setContentSize(argument("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         if !store.macPaused { _ = await store.session.send(.pauseAll) }
         try await waitUntil("Mac pause before configuration QA") { store.macPaused && store.canSend }
         if store.projection?.projects.values.contains(where: { $0.path == path }) != true {
@@ -17,7 +18,7 @@ extension BoardQA {
         guard let project = store.projection?.projects.values.first(where: { $0.path == path }) else { throw failure("Project missing") }
         store.selectedProjectID = project.id; store.screen = .project(project.id); store.showPipelineIssues = false
         let settings = store.settings(for: project.id)
-        let mode = argument("--qa-settings-mode") ?? "metadata"
+        let mode = AppArguments.value("--qa-settings-mode") ?? "metadata"
         var checks = ["real WindowGroup and private production daemon; Mac paused"]
         if mode == "flow" || mode == "identity-refusal" {
             let previousIdentity = settings.project?.identity
@@ -129,7 +130,8 @@ extension BoardQA {
                 checks.append("disconnected native editor keeps exact unsent settings draft")
             }
         }
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return checks
     }
 }
+#endif

@@ -1,16 +1,17 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func gitPermissionsLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard argument("--developer-database")?.hasPrefix("/tmp/kaban-fe17-") == true,
+        guard AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe17-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }), store.macPaused else {
             throw failure("Private git fixture, paused Mac or WindowGroup missing")
         }
-        window.setContentSize(argument("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
-        let mode = argument("--qa-git-mode") ?? "fresh"
+        let mode = AppArguments.value("--qa-git-mode") ?? "fresh"
         let name = ["flow", "reopen", "disconnected"].contains(mode) ? "fresh" : ["preview-project", "preview-stage", "policy"].contains(mode) ? "policy" : mode == "retry" ? "limit" : mode
         let id = TaskID(rawValue: "git-" + name)
         await store.select(id); store.detailTab = "Разрешения git"
@@ -109,3 +110,4 @@ extension BoardQA {
         return checks
     }
 }
+#endif

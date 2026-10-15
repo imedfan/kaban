@@ -8,7 +8,7 @@ struct MergeBlockNotice: View {
     @Bindable var store: BoardStore
     let project: ProjectID
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Label("Слияние ждёт: в main есть ваши правки", systemImage: "lock")
@@ -34,7 +34,7 @@ struct MergeProgressView: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var card: TaskCard { detail.task }
     private var pipeline: PipelineSummary? { store.projection?.pipelines[card.projectId] }
     private var stage: StageSummary? { pipeline?.stages.first { $0.id == card.stageId } }
@@ -110,7 +110,7 @@ struct OverlapSheet: View {
     let route: OverlapRoute
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var ids: [TaskID] { store.projection?.tasks[route.task]?.overlapsWith ?? [] }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
