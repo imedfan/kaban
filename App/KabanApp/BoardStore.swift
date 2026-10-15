@@ -38,7 +38,6 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
     }
     var modelOverrideRoute: TaskModelOverrideStore?
     let projects: ProjectLifecycleStore
-    let folderAccess: ProjectFolderAccess
     private var pipelineEditors: [ProjectID: PipelineEditorStore] = [:]
     private var projectSettings: [ProjectID: ProjectSettingsStore] = [:]
     private var projectMCPStores: [ProjectID: ProjectMCPStore] = [:]
@@ -219,7 +218,6 @@ final class DefaultsStorage: KeyValueStoring, @unchecked Sendable {
         gitPermissions = GitPermissionsStore(client: client, session: session)
         runLog = RunLogStore(client: client)
         projects = ProjectLifecycleStore(client: client, session: session, storage: storage, key: sourceKey + ".projectDrafts")
-        folderAccess = ProjectFolderAccess(storage: storage, key: sourceKey + ".folderBookmarks")
         environment = RunnerEnvironmentStore(client: client, session: session)
         models = ModelSettingsStore(client: client, session: session)
         macSettings = MacSettingsStore(session: session, storage: storage, key: sourceKey + ".macSettings")

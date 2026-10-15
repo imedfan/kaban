@@ -3,44 +3,6 @@ import Observation
 import KabanProtocol
 import KabanBoardCore
 
-/// These bookmarks grant the App access, never prove the helper's permissions.
-@MainActor @Observable final class ProjectFolderAccess {
-    private let storage: any KeyValueStoring
-    private let key: String
-    private var bookmarks: [String: Data] = [:]
-    private var active: [String: URL] = [:]
-    var error: String?
-    init(storage: any KeyValueStoring, key: String) {
-        self.storage = storage; self.key = key
-        do {
-            bookmarks = try storage.data(forKey: key).map { try JSONDecoder().decode([String: Data].self, from: $0) } ?? [:]
-            for (path, data) in bookmarks {
-                var stale = false
-                let url = try URL(resolvingBookmarkData: data, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale)
-                if stale { error = "Разрешение папки устарело. Выберите папку снова." }
-                else if url.startAccessingSecurityScopedResource() { active[path] = url }
-                else { error = "Не удалось восстановить разрешение папки. Выберите её снова." }
-            }
-        } catch { self.error = "Не удалось восстановить доступ к папке. Выберите её снова. " + error.localizedDescription }
-    }
-    isolated deinit { for url in active.values { url.stopAccessingSecurityScopedResource() } }
-    func remember(_ url: URL) {
-        let started = url.startAccessingSecurityScopedResource()
-        var retained = false
-        defer { if started && !retained { url.stopAccessingSecurityScopedResource() } }
-        do {
-            let data = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
-            bookmarks[url.path] = data
-            storage.set(try JSONEncoder().encode(bookmarks), forKey: key)
-            if started {
-                active[url.path]?.stopAccessingSecurityScopedResource()
-                active[url.path] = url; retained = true
-            }
-            error = nil
-        } catch { self.error = "Не удалось сохранить разрешение папки. Выберите её снова после перезапуска. " + error.localizedDescription }
-    }
-}
-
 enum ProjectSheetRoute: Identifiable {
     case add, relink(ProjectID), remove(ProjectID)
     var operation: ProjectOperation {
@@ -131,10 +93,9 @@ struct ProjectLifecycleSheet: View {
                     HStack(spacing: 8) {
                         TextField("/Users/…/project", text: Binding(get: { model.draft.path }, set: { model.editPath($0) }))
                             .textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced)).accessibilityLabel("Папка проекта")
-                        Button("Выбрать…") { chooseFolder() }.buttonStyle(KabanButtonStyle())
+                        Button("Выбрать…") { store.chooseProjectFolder() }.buttonStyle(KabanButtonStyle())
                     }
                     note("Папку и доступ к ней проверит локальная служба.")
-                    if let error = store.folderAccess.error { note(error) }
                 }
             }
             if route.operation == .add {
@@ -234,10 +195,13 @@ struct ProjectLifecycleSheet: View {
         }
     }
     private func note(_ value: String) -> some View { Text(value).font(.system(size: 12)).foregroundStyle(theme.secondary).fixedSize(horizontal: false, vertical: true).textSelection(.enabled) }
-    private func chooseFolder() {
-        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
+}
+
+extension BoardStore {
+    func chooseProjectFolder(using panel: NSOpenPanel = NSOpenPanel()) {
+        panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.allowsMultipleSelection = false; panel.prompt = "Выбрать"; panel.message = "Выберите папку git-репозитория. Служба проверит доступ и конфигурацию."
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        store.folderAccess.remember(url); model.editPath(url.path)
+        projects.editPath(url.path)
     }
 }

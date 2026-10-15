@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "full App/helper restart restores same project/task IDs",
+    "missing folder produces real daemon read refusal",
+    "entered folder path recovers access through correlated relink",
+    "Cursor opens actual local clone through NSWorkspace",
+    "native notification authorization status read (approval remains manual)",
+    "remove leaves repository intact"
+  ],
+  "result": "passed",
+  "configuration": "Debug KABAN_QA",
+  "signing": "ad-hoc",
+  "appSandbox": false,
+  "hardenedRuntime": true,
+  "folderSelection": "manual acceptance required; automation checks cancellation and entered paths",
+  "transport": "private stdio; actual bundled daemon",
+  "writerLeaseReleased": true
+}

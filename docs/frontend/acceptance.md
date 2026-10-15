@@ -5,6 +5,12 @@
 Имена DTO и команд сверять с `Sources/KabanProtocol/`; числовые ссылки 3.x сохранены из исходного плана.
 Предложения фронта остаются предложениями. Макеты и токены — [design](../../design/README.md).
 
+Начиная с FE-32, каждый новый отчёт приёмки указывает Debug/Release, конфигурацию
+подписи App/helper, App Sandbox, Hardened Runtime и транспорт. Для локального
+MVP используется ad-hoc подпись без App Sandbox. Подпись готового bundle проверяет
+`tools/check-local-app-signing.py`; unsigned build не подтверждает системную приёмку.
+Private stdio и fixtures не подтверждают installed XPC, TCC и системные разрешения.
+
 ## 4. Юзеркейсы v0.8.22 → экраны и компоненты
 
 | UC | Экраны | Компоненты и команды |

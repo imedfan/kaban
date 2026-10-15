@@ -183,6 +183,13 @@ source `bf6ef6d`: неиспользуемые
 
 ## Что есть в основном коде
 
+FE-32 реализуется в `codex/fe-32-local-client` от `f405a27`: удалены sandbox
+bookmarks клиента, Debug/Release и CI используют проверяемые ad-hoc подписи.
+Подготовлена установленная копия `/Applications/Kaban.app`.
+[Отчёт FE-32](development/frontend-fe-32-2026-10-15.md) разделяет private-daemon
+проверки и открытую ручную приёмку Артёма для NSOpenPanel, installed XPC, TCC
+и уведомлений. FE-04 #4 и полная FE-32 пока не закрыты.
+
 | Область | Реализовано | Граница |
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |

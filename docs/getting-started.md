@@ -68,16 +68,18 @@ xcodebuild -version
 xcodebuild -project Kaban.xcodeproj -scheme Kaban \
   -destination 'generic/platform=macOS' \
   -derivedDataPath /tmp/kaban-context-app \
-  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
-open /tmp/kaban-context-app/Build/Products/Debug/Kaban.app
+  ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- ENABLE_HARDENED_RUNTIME=YES build
+python3 tools/check-local-app-signing.py \
+  --app /tmp/kaban-context-app/Build/Products/Debug/Kaban.app
 ```
 
 Или открой Kaban.xcodeproj, выбери shared scheme Kaban и Run.
-Подпись не требуется для этой unsigned build. Текущий main использует MockKabanClient,
-не устанавливает daemon и не запускает Cursor. Проверяй основное окно и пользовательские
-действия отдельно от чистой BoardProjection. Подробности — [App](../App/README.md).
+Сборка подписана ad-hoc, без App Sandbox, с Hardened Runtime. Обычный запуск
+регистрирует helper через SMAppService и подключается по XPC. Для установки
+используй постоянное место и шаги ниже. MockKabanClient доступен только
+при явном QA-запуске Debug. Подробности — [App](../App/README.md).
 
-В CI macOS job optional. Для готовности App проверь её фактический conclusion
+В CI macOS job обязателен. Для готовности App проверь её фактический conclusion
 и шаг xcodebuild; успешная Linux suite не доказывает визуальное соответствие.
 
 ## Изоляция кэшей и ошибки среды
@@ -110,6 +112,25 @@ Normal App использует SMAppService. BE-21 отключает App Sandb
 Hardened Runtime; упаковка проверяет подписи и entitlements готового bundle.
 Системная приёмка и шаги одобрения описаны в
 [отчёте BE-21](development/backend-be-21-2026-10-09.md).
+
+1. Скопируй готовый Release bundle в `/Applications/Kaban.app`, затем открой его.
+   Если виден только значок менюбар, выбери **Открыть настройку Kaban…** в его меню.
+2. Если Kaban просит одобрить helper, нажми **Объекты входа…**.
+   В **Системные настройки → Основные → Объекты входа и расширения** разреши Kaban.
+   Вернись в приложение и повтори подключение. Дождись успешного подключения,
+   одного статуса `enabled` недостаточно.
+3. Если macOS блокирует открытие App, используй **Конфиденциальность и безопасность → Всё равно открыть**.
+4. В разделе уведомлений онбординга нажми **Разрешить…** и подтверди системный диалог.
+   При прежнем отказе открой **Системные настройки → Уведомления → Kaban**.
+   Разрешение необязательно для доски, его фактический статус виден в онбординге.
+5. Выбери тестовый git-репозиторий. При запросе доступа helper к Documents или
+   Desktop подтверди системный диалог. Повтори чтение проекта после перезапуска App/helper.
+6. Проверь relink после перемещения папки, **Открыть в Cursor** и **Показать в Finder**.
+   Запиши результат и системные разрешения в [отчёт FE-32](development/frontend-fe-32-2026-10-15.md).
+
+Основная база находится в `~/Library/Application Support/Kaban/store.sqlite`,
+клоны в `~/Library/Application Support/Kaban/Workspaces`, лог в
+`~/Library/Logs/Kaban/daemon.log`. Эти файлы сохраняются при закрытии App.
 
 Developer mode: запустить готовый App с `--developer`. Встроенный daemon использует
 private stdio и отдельные Development data; системная служба не устанавливается.

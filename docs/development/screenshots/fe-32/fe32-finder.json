@@ -1,0 +1,7 @@
+{
+  "checks" : [
+    "real WindowGroup and production private daemon; suspicious set produced by actual Git branch-diff result check",
+    "bounded binary path validated with no symlink traversal and revealed through NSWorkspace Finder"
+  ],
+  "result" : "passed"
+}

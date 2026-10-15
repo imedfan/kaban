@@ -27,7 +27,9 @@ types. The explicit developer database option works in both configurations.
 ```sh
 xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-release \
-  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+  ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- ENABLE_HARDENED_RUNTIME=YES build
+python3 tools/check-local-app-signing.py \
+  --app /tmp/kaban-release/Build/Products/Release/Kaban.app
 python3 tools/check-app-build-contents.py \
   --app /tmp/kaban-release/Build/Products/Release/Kaban.app
 ```
@@ -37,7 +39,9 @@ present. It rejects demo types in every configuration and QA types in a
 production build. For a QA build, pass `--qa`; the checker also requires
 BoardQA, AppFixture, native capture, and the shared product components.
 CI checks Debug QA and production Release and runs the existing native smoke.
-Unsigned verification does not confirm installed helper or login permissions.
+Both configurations use ad-hoc signatures without App Sandbox, with Hardened
+Runtime. Installed helper, TCC, and notification approvals require separate
+system acceptance. See [FE-32](../docs/development/frontend-fe-32-2026-10-15.md).
 
 ## Run native QA
 
@@ -49,7 +53,9 @@ repository and daemon database and describe that transport in their reports.
 ```sh
 xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Debug \
   -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-qa \
-  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+  ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- ENABLE_HARDENED_RUNTIME=YES build
+python3 tools/check-local-app-signing.py \
+  --app /tmp/kaban-qa/Build/Products/Debug/Kaban.app
 python3 tools/check-app-build-contents.py \
   --app /tmp/kaban-qa/Build/Products/Debug/Kaban.app --qa
 open -n -W /tmp/kaban-qa/Build/Products/Debug/Kaban.app --args \
@@ -65,3 +71,12 @@ and native menu shortcuts. AppKit view caching captures layout and does not
 prove compositor fidelity, VoiceOver, or every accessibility setting.
 [FE-34 verification](../docs/development/frontend-fe-34-2026-10-09.md) records
 build conditions, native results, and open checks.
+
+With Cursor installed, run `python3 tools/check-local-client.py --app
+/tmp/kaban-qa/Build/Products/Debug/Kaban.app` to check folder-picker cancellation, relink,
+full App restart, lost-path recovery, and opening a local clone. The driver
+uses a private daemon database and retains its evidence in `/tmp/kaban-fe32-*`.
+Successful selection in NSOpenPanel remains a manual acceptance step.
+Every new frontend acceptance report must record configuration, signature,
+App Sandbox, Hardened Runtime, and transport. Fixture or private stdio checks
+do not confirm installed XPC or system permissions.
