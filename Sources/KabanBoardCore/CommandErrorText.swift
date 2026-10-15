@@ -60,7 +60,7 @@ public enum CommandErrorText {
 /// (клиент его не вычисляет из YAML), остальные ключи — из `params`. Не хватает ключа — `message`.
 public enum ValidationIssueText {
     public static let labels = [
-        "bounce_limit_total": "Общий лимит возвратов", "returns_to.limit": "Лимит возвратов у пары",
+        "bounce_limit_total": "Общий лимит возвратов", "returns_to.limit": "Лимит возвратов",
         "on_fail.limit": "Лимит возвратов при красном гейте", "on_conflict.limit": "Лимит возвратов при конфликте",
         "max_waiting_human": "Лимит задач в ожидании человека", "max_runs_per_task": "Лимит запусков на задачу",
         "max_file_mb": "Максимальный размер файла, МБ", "stall": "Таймаут зависания",
@@ -71,6 +71,10 @@ public enum ValidationIssueText {
               !value.dropLast().isEmpty, value.dropLast().allSatisfy({ $0.isASCII && $0.isNumber }) else { return value }
         return String(value.dropLast()) + " " + name
     }
+    public static let knownCodes = Set(templates.keys)
+    public static func displayPath(_ issue: ValidationIssue) -> String {
+        issue.path.isEmpty ? "pipeline.yaml" : issue.path
+    }
     public static func render(_ issue: ValidationIssue, stageName: String? = nil) -> String {
         var issue = issue
         if let label = issue.params["label"] { issue.params["label"] = labels[label] ?? label }
@@ -78,25 +82,31 @@ public enum ValidationIssueText {
             for key in ["min", "max"] { if let value = issue.params[key] { issue.params[key] = duration(value) } }
         }
         let template: String
-        if issue.code == "no_return_target" { template = issue.stageId == nil ? "Некуда вернуть: нет стадии, которая правит код" : "Вернуть можно только на агентскую стадию, которая правит код" }
+        if issue.code == "type_mismatch", issue.path.isEmpty { template = "pipeline.yaml должен быть словарём верхнего уровня" }
+        else if issue.code == "no_return_target" { template = issue.stageId == nil ? "Некуда вернуть: нет стадии, которая правит код" : "Вернуть можно только на агентскую стадию, которая правит код" }
         else if issue.code == "duplicate_id" { template = issue.path.contains("returns_to") ? "Возврат в «{id}» указан дважды" : "Id «{id}» уже занят другой стадией" }
         else if let known = templates[issue.code] { template = known }
         else { return issue.message }
         return render(issue, template: template, stageName: stageName)
     }
     private static let templates: [String: String] = [
+        "pipeline_missing": "В базовой ветке нет закоммиченного пайплайна",
+        "pipeline_invalid": "Файл пайплайна не в UTF-8 или больше 1 МиБ",
+        "git_policy_rule_not_allowed": "В выбранной области правило должно разрешать команду",
+        "no_return_target": "Некуда вернуть: нет стадии, которая правит код",
+        "duplicate_id": "Id «{id}» уже занят другой стадией",
         "yaml_syntax": "Ошибка в YAML, строка {line}", "version_unsupported": "Версия пайплайна {n} не поддерживается, нужна 1",
         "type_mismatch": "Неверный формат поля {path}", "missing_field": "Не заполнено обязательное поле {path}",
         "invalid_value": "Недопустимое значение {value} в {path}", "unknown_key": "Неизвестный ключ {key} (строка {line}), он будет проигнорирован",
-        "no_stages": "В пайплайне нет стадий", "id_invalid": "Id «{id}» недопустим",
+        "no_stages": "В пайплайне нет стадий", "invalid_id": "Id стадии может содержать только строчные латинские буквы, цифры, «-» и «_»; первый символ — буква или цифра, длина до 64",
         "unknown_stage": "Стадии «{id}» нет в пайплайне", "queue_count": "Нужна ровно одна стадия Backlog, сейчас {n}",
         "merge_count": "Нужна ровно одна стадия Merge, сейчас {n}", "terminal_missing": "Нет стадии Done",
-        "terminal_has_on_success": "Done последняя стадия, «Дальше» у неё не задаётся",
+        "terminal_has_on_success": "Done — последняя стадия, «Дальше» у неё не задаётся",
         "on_success_missing": "Не указано, куда задача идёт после «{stage}»",
         "on_success_cycle": "Стадии идут по кругу: задача никогда не дойдёт до Done",
         "terminal_unreachable": "Из «{stage}» задача не дойдёт до Done",
         "field_not_allowed_for_kind": "Поле {field} не используется у стадий типа {kind}",
-        "returns_not_allowed": "Возвраты через returns_to есть только у агентских стадий; у проверки «Если не прошло», у Merge «При конфликте»",
+        "returns_not_allowed": "Возвраты через returns_to есть только у агентских стадий; у проверки — «Если не прошло», у Merge — «При конфликте»",
         "returns_forward": "Вернуть можно только на более раннюю стадию",
         "agent_missing": "У стадии «{stage}» не настроен агент", "model_missing": "У стадии «{stage}» не выбрана модель",
         "model_auto_forbidden": "Модель auto не подходит: выберите модель явно", "harness_unsupported": "Исполнитель {harness} не поддерживается",
@@ -107,7 +117,7 @@ public enum ValidationIssueText {
         "mcp_not_allowlisted": "MCP-сервер «{name}» выключен и в запусках будет недоступен",
         "git_hard_invariant": "Это ограничение git отключить нельзя",
         "git_condition_invalid": "Условие {when} не поддерживается: допустимо только return_reason == <причина>",
-        "git_unknown_command": "Неизвестная git-команда {cmd}: проверьте написание",
+        "git_unknown_command": "Неизвестная git-команда {cmd} (только первое слово правила): проверьте написание",
         "git_readonly_extend": "Стадия «{stage}» только читает: {cmd} разрешить нельзя",
         "stage_has_active_tasks": "В «{stage}» есть задачи: сначала перенесите их"
     ]

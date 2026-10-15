@@ -35,6 +35,7 @@ stages:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path, default=Path("/tmp/kaban-context-app/Build/Products/Debug/Kaban.app"))
+    parser.add_argument("--validation-messages", action="store_true", help="Check approved diagnostic text in actual light/dark minimum windows")
     args = parser.parse_args()
     executable = args.app.resolve() / "Contents/MacOS/Kaban"
     if not executable.is_file():
@@ -67,6 +68,12 @@ def main():
         if completed.returncode != 0 or report.get("result") != "passed":
             raise RuntimeError(f"{name}: {report}")
         print(f"{name}: passed", flush=True)
+
+    if args.validation_messages:
+        run("validation-light-minimum", mode="diagnostics", minimum=True)
+        run("validation-dark-minimum", mode="diagnostics", theme="dark", minimum=True)
+        print("Synthetic diagnostic fixture and evidence retained at " + str(root), flush=True)
+        return
 
     run("apply-light", mode="apply")
     run("reopen-dark-minimum", mode="reopen", theme="dark", minimum=True)
