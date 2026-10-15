@@ -49,8 +49,9 @@ invalid/missing YAML сохраняет identity committed assets. Для исп
 остаётся обязательным полем старого draft. `uncommittedIssues` отделены от issues
 committed main и не делают его невалидным. Новые поля проверены отдельными
 compatibility tests; старые golden fixtures сохранены, malformed известные поля
-отклоняются. Старые validate/update декодируются. Для restoreWIP и Cursor configuration
-есть типы, но действия недоступны до соответствующих BE-задач; сервер явно отказывает.
+отклоняются. Старые validate/update декодируются. RestoreWIP подключён в BE-19.
+BE-23 поддерживает Cursor environment queries и configureCursor с correlated
+cursorEnvironmentChanged. Наличие этих команд не подтверждает живой login под launchd.
 
 FE-13 добавляет capability `getPipelineSource(projectId)` → `pipelineSource`:
 `PipelineSourceContent` переносит path, committed/working UTF-8, nullable valid

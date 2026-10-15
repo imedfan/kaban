@@ -30,7 +30,7 @@ struct DaemonMain {
                 --merge-pass: rebase one approved task onto main and fast-forward that ref, then reprint those lines. It does not launch Cursor.
                 --log-pass: reprint one stored log page per run through the same reader as readLog. It does not launch Cursor.
                 --cursor-agent PATH: absolute executable checked with version, status and --list-models every 5 minutes and on recheck runner.
-                It does not start a model prompt. Without this flag the daemon does not probe Cursor.
+                It does not start a model prompt. Normal hosts use saved Cursor configuration or login-shell discovery.
                 """)
                 return
             }
@@ -145,7 +145,10 @@ struct DaemonMain {
                 let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
                 _ = try store.recoverProduction(passId: UUID(), at: Date(), workspaceRoot: root)
             }
-            if let cursorAgent { try store.setRunnerExecutable(cursorAgent) }
+            if let cursorAgent {
+                let reply = try store.execute(.init(command: .configureCursor(environment: .init(executablePath: cursorAgent))))
+                if case .error(let error) = reply.result { throw error }
+            } else if initialize && !diagnosticPass { try store.initializeCursorEnvironment(at: Date()) }
             if processPass {
                 let root = workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path
                 let lines = try store.runProcessPass(owner: "daemon", at: Date(), workspaceRoot: root, runner: runner, runnerArguments: runnerArguments)

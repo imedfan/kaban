@@ -114,6 +114,24 @@ final class CursorDriverTests: XCTestCase {
         XCTAssertEqual(CursorRunner.assess(executable: auth.path, environment: ["PATH": "/bin:/usr/bin"]).reason, .runnerAuth)
     }
 
+    func testSuccessfulUnknownStatusDoesNotConfirmAuthentication() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-cursor-auth-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for status in ["Usage: status [options]", "Cannot determine whether logged in", "Not yet logged in"] {
+            let script = try executable(root, """
+            #!/bin/sh
+            if [ "$1" = "--version" ]; then echo fixture-1; exit 0; fi
+            if [ "$1" = "status" ]; then echo '\(status)'; exit 0; fi
+            printf 'fixture-model\\tFixture Model\\n'
+            """)
+            let assessment = CursorRunner.assess(executable: script.path, environment: ["PATH": "/usr/bin:/bin"])
+            XCTAssertFalse(assessment.authOK, status)
+            XCTAssertEqual(assessment.reason, .agentNotRunnable, status)
+            XCTAssertEqual(assessment.version, "fixture-1")
+        }
+    }
+
     private func executable(_ root: URL, _ text: String) throws -> URL {
         let url = root.appendingPathComponent(UUID().uuidString + ".sh")
         try text.write(to: url, atomically: true, encoding: .utf8)

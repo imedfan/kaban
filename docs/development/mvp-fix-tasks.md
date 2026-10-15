@@ -132,7 +132,7 @@
 
 ### BE-21. Убрать App Sandbox и проверить штатную установку helper
 
-**Ход работы 9.10:** код в `codex/be-21-unsandboxed-helper`; ad-hoc Release/Debug, signing policy и native smoke проверены. Первый register/unregister прошёл; финальный installed XPC, системное одобрение и reboot остаются открытыми. [Отчёт](backend-be-21-2026-10-09.md).
+**Ход работы 15.10:** код принят в main `f405a27` через PR #118. Ad-hoc Release/Debug, signing policy и native smoke проверены на исходном инкременте. Первый register/unregister прошёл; финальный installed XPC, системное одобрение и reboot остаются открытыми. [Отчёт](backend-be-21-2026-10-09.md).
 - **Приоритет:** P0
 - **Зависимости:** нет (параллельно с BE-22). Блокирует FE-32, FE-21 (автозапуск), FE-22, DOC-03.
 - **Требования:** арх. §13 «Hardened runtime, Developer ID, без App Sandbox»; арх. §1; UC-12; критерии BE-20 (`backend-mvp-tasks.md:593-595`). **Ответ Артёма 9.10:** сертификата Apple нет, работа локально, ad-hoc подпись; одобрение в настройках macOS делает Артём.
@@ -199,6 +199,8 @@
   - [ ] Классификатор `CursorLimitClassifier` и парсер stream проходят тесты на новых фикстурах (тесты добавляются в BE-25).
 
 ### BE-23. Окружение Cursor в штатном демоне
+
+**Ход работы 15.10:** независимая от BE-22 часть реализована в `codex/be-23-daemon-environment`, source `f9fbae9`: durable CLI/PATH/toolchains, discovery, три wire-команды, startup/recheck и каталог. Пройдены проверки на синтетическом CLI через production daemon/private stdio. Дополнительно бесплатными пробами живого CLI проверены discovery, report, restart и agent_not_logged_in. Положительный login, авторизованный каталог и installed launchd остаются открытыми. [Отчёт](backend-be-23-2026-10-15.md).
 - **Приоритет:** P0
 - **Зависимости:** BE-22 — **только** для `authOK` и `agent_not_logged_in` (команда проверки входа). Остальное (хранение environment, discovery, wire-команды, `agent_missing`/`agent_not_runnable`, обновление каталога) делается сразу (сверка п. A1). Блокирует BE-24, FE-23 и FE-20 (баннер runner).
 - **Требования:** UC-20; UC-01 п.2; §1.6 («список моделей… при старте демона и раз в сутки»); арх. §6.2, §5 (`checkEnvironment`, `getCursorEnvironment`/`configureCursor`, `recheck(.runner)`), §3.2 таблица флагов.
@@ -219,11 +221,11 @@
 - **Вне объёма:** `CURSOR_API_KEY` из Keychain (только если спайк 1 покажет, что auth под launchd не работает, тогда отдельная правка в BE-24).
 - **Критерии приёмки:**
   - [ ] Given новая БД без пути, When демон стартует в `--launch-agent`, Then в снимке есть `runner_unavailable(agent_missing)`, scheduler не резервирует запуски (задачи остаются `queued`, а не `running`).
-  - [ ] `configureCursor(nil)` на Маке с установленным CLI находит путь через login shell, событие `cursorEnvironmentChanged`, путь переживает рестарт демона.
-  - [ ] `configureCursor("/нет/такого")` → флаг `agent_missing`; неисполняемый файл → `agent_not_runnable`; разлогиненный CLI → `agent_not_logged_in`.
+  - [x] `configureCursor(nil)` на Маке с установленным CLI находит путь через login shell, событие `cursorEnvironmentChanged`, путь переживает рестарт демона.
+  - [x] `configureCursor("/нет/такого")` → флаг `agent_missing`; неисполняемый файл → `agent_not_runnable`; разлогиненный CLI → `agent_not_logged_in`.
   - [ ] После успешной настройки `listModels()` непустой без перезапуска демона.
-  - [ ] Capabilities: три команды `supported`; fixtures запроса, ответа, события и отказа добавлены (правило BE-01).
-  - [ ] Тесты DaemonCore: discovery (фейковый login shell), сохранение, флаги по причинам, отсутствие резервирования при флаге.
+  - [x] Capabilities: три команды `supported`; fixtures запроса, ответа, события и отказа добавлены (правило BE-01).
+  - [x] Тесты DaemonCore: discovery (фейковый login shell), сохранение, флаги по причинам, отсутствие резервирования при флаге.
 
 ### BE-24. `CursorCLIDriver` в штатном запуске: argv, модель, промпт
 - **Приоритет:** P0

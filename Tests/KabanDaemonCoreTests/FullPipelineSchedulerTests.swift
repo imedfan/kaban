@@ -212,6 +212,25 @@ final class FullPipelineSchedulerTests: XCTestCase {
         XCTAssertEqual(try tick(f.store, at: at.addingTimeInterval(61)).transitions.last?.task.machine.state, .running)
         XCTAssertTrue(try f.store.getSnapshot().schedulerFlags.isEmpty)
     }
+    func testConfiguredMissingCursorLeavesProductionTaskQueuedWithoutAReservation() throws {
+        let f = try fixture()
+        try create(f, "runner-blocked", stage: "dev")
+        let missing = f.root.appendingPathComponent("absent-cursor-agent").path
+        XCTAssertEqual(try f.store.execute(.init(command: .configureCursor(environment: .init(executablePath: missing))), now: { at }).result, .ok)
+        try f.store.initializeCursorEnvironment(at: at)
+        _ = try f.store.runSchedulerPass(at: at)
+        XCTAssertEqual(try f.store.getTaskDetail("runner-blocked").task.state.status, .queued)
+        XCTAssertEqual(try f.store.getTaskDetail("runner-blocked").runs, [])
+        XCTAssertEqual(try f.store.getSnapshot().stageLoad.first { $0.stageId == "dev" }?.wipUsed, 0)
+        XCTAssertTrue(try f.store.pendingEffectItems().isEmpty)
+        let runner = f.root.appendingPathComponent("cursor-agent")
+        try "#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-1;;\nstatus) echo ready;;\n--list-models) printf 'explicit\\tExplicit\\ncomposer-fast\\tComposer Fast\\n';;\nesac\n".write(to: runner, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: runner.path)
+        XCTAssertEqual(try f.store.execute(.init(command: .configureCursor(environment: .init(executablePath: runner.path))), now: { at }).result, .ok)
+        _ = try f.store.runSchedulerPass(at: at)
+        XCTAssertEqual(try f.store.getTaskDetail("runner-blocked").task.state, .running)
+        XCTAssertEqual(try f.store.getSnapshot().stageLoad.first { $0.stageId == "dev" }?.wipUsed, 1)
+    }
     func testQuotaReserveCustomPoolAndUnknownOrStaleValues() throws {
         let f = try fixture(); try configure(f.store, max: 3, quota: true)
         try create(f, "live", stage: "dev"); _ = try start(f, "live")

@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import tempfile
+import uuid
 
 import importlib.util
 
@@ -31,8 +32,17 @@ def main():
     database = root / "store.sqlite"
     print(root, flush=True)
 
+    def configure_runner(path):
+        configuration = {"protocolVersion": 1, "commandId": str(uuid.uuid4()),
+                         "command": {"configureCursor": {"environment": {"executablePath": str(path)}}}}
+        request = {"protocolVersion": 1, "operation": {"command": {"_0": configuration}}}
+        configured = subprocess.run([str(executable.with_name("KabanDaemon")), "--stdio", "--database", str(database)],
+                                    input=json.dumps(request) + "\n", capture_output=True, text=True, timeout=15, check=True)
+        reply = json.loads(configured.stdout)["result"]["command"]["_0"]
+        assert reply["result"] == {"ok": {}}, reply
+
     def run(name, mode, theme="light", minimum=False, extra=()):
-        command = [str(executable), "--developer", "--developer-database", str(database),
+        command = [str(executable), "-ApplePersistenceIgnoreState", "YES", "--developer", "--developer-database", str(database),
                    "--model-live-repository", str(repo), "--model-live-smoke", str(root / (name + ".json")),
                    "--qa-model-mode", mode, "--qa-theme", theme, "--export-live-window", str(root / (name + ".png")),
                    "--qa-pipeline-stage", "dev", "--qa-pipeline-section", "Исполнитель"]
@@ -45,6 +55,7 @@ def main():
             raise RuntimeError(f"{name}: {report}")
         print(name + ": passed", flush=True)
 
+    configure_runner(root / "not-installed")
     run("empty-light-minimum", "bootstrap", minimum=True)
     models_file = root / "models.txt"
     rows = "explicit\tExplicit QA\ncomposer-qa\tComposer QA\ngpt-qa\tGPT QA\nunavailable-qa\tUnavailable QA\nauto\tAuto\n"
@@ -52,10 +63,7 @@ def main():
     runner = root / "cursor-fixture"
     runner.write_text("#!/bin/sh\ncase \"$1\" in\n--version) echo 'model-qa 1' ;;\nstatus) echo 'Logged in' ;;\n--list-models) cat '" + str(models_file) + "' ;;\n*) echo 'Prompt invocation forbidden in model QA' >&2; exit 1 ;;\nesac\n")
     runner.chmod(0o755)
-    with sqlite3.connect(database) as db:
-        state = json.loads(db.execute("SELECT payload FROM runner_check WHERE id=1").fetchone()[0])
-        state["executable"] = str(runner)
-        db.execute("UPDATE runner_check SET payload=? WHERE id=1", (json.dumps(state).encode(),))
+    configure_runner(runner)
     run("commands-light", "flow")
     models_file.write_text(rows.replace("unavailable-qa\tUnavailable QA\n", ""))
     run("settings-light", "settings")

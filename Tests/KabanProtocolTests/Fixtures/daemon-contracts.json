@@ -1193,7 +1193,7 @@
             "result" : {
               "error" : {
                 "_0" : {
-                  "code" : "unsupported_command",
+                  "code" : "protocol_mismatch",
                   "message" : "Операция отклонена",
                   "params" : {
 
@@ -1240,6 +1240,68 @@
     }
   },
   {
+    "name" : "checkEnvironment",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "protocol_mismatch",
+                  "message" : "Операция отклонена",
+                  "params" : {
+
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "checkEnvironment" : {
+
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "environment" : {
+                "_0" : {
+                  "authOK" : false,
+                  "cursorAgentPath" : "/tools/cursor-agent",
+                  "gitVersion" : "git version fixture",
+                  "notificationsAuthorized" : false,
+                  "sandboxOK" : true,
+                  "version" : "fixture-1.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
     "journal" : {
       "at" : "2026-10-04T08:00:00.000Z",
       "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
@@ -1261,7 +1323,7 @@
             "result" : {
               "error" : {
                 "_0" : {
-                  "code" : "unsupported_command",
+                  "code" : "cursor_environment_invalid",
                   "message" : "Операция отклонена",
                   "params" : {
 

@@ -57,6 +57,18 @@ FORMAT M1-BOUNCE-01.json: missing final newline
 Проверены good input, missing directory, malformed YAML/JSON, duplicate JSON id
 и ключ, missing mandatory shape, strict-format exit; hash source до/после совпал.
 
+## Окружение Cursor BE-23
+
+После `swift build` запустите `python3 tools/check-cursor-environment.py --bin-dir "$(swift build --show-bin-path)"`.
+Скрипт проверяет настоящий daemon/private stdio и SQLite на синтетическом CLI:
+startup flags, capabilities, настройку и событие, replay, каталог, report,
+перезапуск и причины недоступности. CLI-fixture допускает только бесплатные
+пробы. Новые данные и результат остаются в `/tmp/kaban-be23-*`.
+Discovery login shell, атомарность и отсутствие резервирования проверяются
+DaemonCore tests. Положительный login, авторизованный каталог и installed helper
+остаются в BE-22 и отдельной системной приёмке.
+[Отчёт BE-23](../docs/development/backend-be-23-2026-10-15.md).
+
 ## Нативный редактор pipeline
 
 После сборки Kaban.app:

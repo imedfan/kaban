@@ -9,8 +9,10 @@ public final class KabanStore: Sendable {
     let database: DatabaseQueue
     let projectOperations = NSRecursiveLock()
     let personalMCPConfig: URL
+    let cursorEnvironmentProbe: CursorEnvironmentProbe
 
-    public init(path: String, personalMCPConfig: URL? = nil) throws {
+    public init(path: String, personalMCPConfig: URL? = nil, cursorEnvironmentProbe: CursorEnvironmentProbe = .init()) throws {
+        self.cursorEnvironmentProbe = cursorEnvironmentProbe
         self.personalMCPConfig = personalMCPConfig ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cursor/mcp.json")
         var configuration = Configuration()
         configuration.foreignKeysEnabled = true
@@ -49,6 +51,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("mcp_diagnostic_v21") { db in
             try db.execute(sql: "ALTER TABLE mcp_preflight ADD COLUMN kind TEXT NOT NULL DEFAULT 'unresolvable'")
         }
+        migrator.registerMigration("cursor_environment_v22", migrate: Self.migrateCursorEnvironment)
         try migrator.migrate(database)
     }
 

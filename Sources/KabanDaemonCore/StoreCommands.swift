@@ -11,6 +11,11 @@ extension KabanStore {
                         makeTaskID: () -> TaskID = { TaskID(rawValue: UUID().uuidString.lowercased()) }) throws -> CommandReply {
         projectOperations.lock(); defer { projectOperations.unlock() }
         switch envelope.command {
+        case .getCursorEnvironment, .configureCursor, .checkEnvironment:
+            return try executeCursorEnvironment(envelope, now: now)
+        default: break
+        }
+        switch envelope.command {
         case .listProjectMcpServers, .setProjectMcpAllowlist: return try executeMCPCommand(envelope, at: now())
         default: break
         }

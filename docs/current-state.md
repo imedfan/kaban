@@ -1,13 +1,14 @@
 # Kaban: текущее состояние
 
-Срез 9 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 15 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`ec20437` (FE-20, архитектура v0.11.27, рабочая очередь MVP и спека v0.8.26, PR #111–114).
+`f405a27` (FE-21, FE-25 и BE-21 приняты через PR #115, #116 и #118;
+FE-34 — в `d94487e`, архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -153,16 +154,17 @@ App build и 12 native сценариев прошли. [Отчёт FE-20](devel
 Полная UC-21 приёмка остаётся открытой из-за отсутствующего quota reader/poller
 и polling/error status. По принятой v0.11.27 проактивная квота вне рабочего MVP.
 Все шесть CI jobs `2d0df81` прошли, включая native smoke.
-FE-21 опубликована в [draft PR #115](https://github.com/imedfan/kaban/pull/115):
-source `5a3dfda` прошёл все шесть CI jobs; manual popup/count исправлены,
+FE-21 принята в main `9287797` через [PR #115](https://github.com/imedfan/kaban/pull/115).
+Source `561b680` после интеграции main прошёл 691 test, Debug/Release,
+Mach-O checks и два native functional smoke. Manual popup/count исправлены;
 системная delivery/login приёмка и native dark popup ещё открыты.
-FE-25 опубликована в [PR #116](https://github.com/imedfan/kaban/pull/116),
-реализация `3411f35`, HEAD `238f4ea` прошёл все шесть CI jobs:
+FE-25 принята в main `c72471c` через [PR #116](https://github.com/imedfan/kaban/pull/116),
+реализация `3411f35`, source интеграции `8230055`:
 40 русских сообщений, truthful legacy fallback, root path и общие consumers.
 217 BoardCore tests, App build и два native diagnostics smoke прошли.
 [Отчёт FE-25](https://github.com/imedfan/kaban/blob/238f4ea653803ad9a6e7abe62d960ba3b0d83677/docs/development/frontend-fe-25-2026-10-09.md). Дальше FE-23/24/26–34
 по зависимостям новой очереди; требования полного MVP сохраняются.
-FE-34 опубликована в [PR #117](https://github.com/imedfan/kaban/pull/117),
+FE-34 принята в main `d94487e` через [PR #117](https://github.com/imedfan/kaban/pull/117),
 source `bf6ef6d`: неиспользуемые
 демо-экраны удалены, общие Kaban-компоненты сохранены, fixtures и BoardQA только
 с KABAN_QA. Debug и Release builds и Mach-O checks прошли; 17 native сценариев
@@ -174,12 +176,28 @@ source `bf6ef6d`: неиспользуемые
 
 ## BE-21: локальная установка без App Sandbox
 
-В отдельной ветке BE-21 отключён App Sandbox у App в Debug/Release,
+BE-21 принята в main `f405a27` через [PR #118](https://github.com/imedfan/kaban/pull/118).
+Отключён App Sandbox у App в Debug/Release,
 удалены sandbox entitlements, Hardened Runtime сохранён. Упаковка проверяет
 готовые подписи App/helper, identifiers, runtime и отсутствие Sandbox.
 Это реализация утверждённой архитектуры §13 и решения Артёма 9 октября.
 [Проверки и открытые системные критерии](development/backend-be-21-2026-10-09.md).
 До ручной приёмки installed XPC/reboot прежние ограничения BE-20 сохраняются.
+
+## BE-23: окружение Cursor
+
+В `codex/be-23-daemon-environment`, source `f9fbae9`, поддержаны
+getCursorEnvironment, configureCursor и checkEnvironment. Additive v22 хранит
+CLI path, PATH и разрешённые пути тулчейнов. Startup для launch-agent и
+developer App, проверка раз в пять минут, catalog refresh, flags и correlated
+journal используют этот конфиг. Неизвестный status не подтверждает authOK.
+Queries остаются свежими, настройка и её journal/receipt атомарны.
+Независимая от BE-22 часть проверена на синтетическом CLI через настоящий
+daemon/private stdio: 707 tests без failures/skips, Debug App build и 11 native
+model-settings сценариев прошли. Бесплатные пробы живого CLI подтвердили discovery,
+restart и agent_not_logged_in. Положительный login, авторизованный каталог
+и installed launchd остаются открытыми.
+[Доказательства и ограничения BE-23](development/backend-be-23-2026-10-15.md).
 
 ## Что есть в основном коде
 
@@ -189,8 +207,8 @@ source `bf6ef6d`: неиспользуемые
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
 | DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
-| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 в main; AttentionStore FE-21 в PR #115; ValidationIssueText FE-25 в отдельной ветке | Core зависит только от Protocol; FE-01–20 в main; source/apply и настройки проверены с production store |
-| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 в main; MenuBarExtra/NativeNotifications FE-21 в PR #115; русские diagnostics FE-25 в отдельной ветке | FE-01–20 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
+| BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 в main; AttentionStore FE-21 в main; ValidationIssueText FE-25 в main | Core зависит только от Protocol; FE-01–20 в main; source/apply и настройки проверены с production store |
+| Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 в main; MenuBarExtra/NativeNotifications FE-21 в main; русские diagnostics FE-25 в main | FE-01–20 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
 | Design | Оригиналы токенов и исходников, 28 уникальных PNG, бренд и mascot kit | Наличие макетов не означает визуальную приёмку приложения |
 
 В normal/developer режиме задачи хранятся у daemon. Только явные fixture QA задачи живут в памяти текущего запуска. Набор видимых проектов сохраняется

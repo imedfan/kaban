@@ -10,6 +10,7 @@ public struct RunnerCheckState: Codable, Equatable, Sendable {
     public var checkedAt: Date?
     public var nextCheckAt: Date?
     public var limitsNote: String?
+    public var authOK: Bool?
     public init() {}
 }
 
@@ -35,22 +36,27 @@ extension KabanStore {
 
     /// Records the absolute executable. It does not clear `runner_unavailable` until a real probe says the runner is available.
     public func setRunnerExecutable(_ path: String) throws {
-        guard path.hasPrefix("/"), !path.contains("\0"), !path.contains("\n") else { throw StoreError.settingsInvalid }
+        guard CursorEnvironmentProbe.validPath(path) else { throw StoreError.settingsInvalid }
         projectOperations.lock(); defer { projectOperations.unlock() }
         try database.write { db in
             var state = try Self.runnerState(db)
             state.executable = path
             state.nextCheckAt = nil
             try Self.saveRunner(state, db)
+            if var configuration = try Self.cursorEnvironment(db) {
+                configuration.configuration.executablePath = path
+                try Self.saveCursorEnvironment(configuration, db: db)
+            }
         }
     }
 
-    /// Probes only when an executable is configured and `nextCheckAt` is due. No path means no process.
-    public func refreshRunnerIfDue(at: Date) throws {
+    /// An initialized discovery with no executable also raises agent_missing and can discover a later install.
+    public func refreshRunnerIfDue(at: Date, force: Bool = false) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
         let state = try database.read { try Self.runnerState($0) }
-        guard let executable = state.executable, !executable.isEmpty else { return }
-        if let next = state.nextCheckAt, next > at { return }
+        let initialized = try database.read { try Self.cursorEnvironment($0) != nil }
+        guard state.executable != nil || initialized else { return }
+        if !force, let next = state.nextCheckAt, next > at { return }
         _ = try commitRunnerCheck(commandId: CommandID(), at: at, request: nil, journalAlways: false)
     }
 
@@ -73,32 +79,25 @@ extension KabanStore {
     }
 
     private func commitRunnerCheck(commandId: CommandID, at: Date, request: Data?, journalAlways: Bool) throws -> CommandReply {
-        let state = try database.read { try Self.runnerState($0) }
-        let assessment = CursorRunner.assess(executable: state.executable, environment: ProcessInfo.processInfo.environment)
+        let current = try currentCursorEnvironment()
+        let configured = current.configuration.executablePath == nil ? cursorEnvironmentProbe.resolve(current.configuration) : current
+        let assessment = CursorRunner.assess(executable: configured.configuration.executablePath,
+            environment: configured.processEnvironment(inheriting: cursorEnvironmentProbe.environment))
         return try database.write { db in
             if let request, let reply = try Self.wireReplay(commandId, request: request, db: db) { return reply }
-            var stored = try Self.runnerState(db)
-            stored.version = assessment.version
-            stored.reason = assessment.reason
-            stored.checkedAt = at
-            stored.nextCheckAt = at.addingTimeInterval(CursorRunner.recheckInterval)
-            stored.limitsNote = assessment.limitsNote
-            try Self.saveRunner(stored, db)
-            var inputs = try Self.schedulerInputs(db)
-            if let index = inputs.flags.firstIndex(where: { if case .runnerUnavailable = $0 { true } else { false } }) {
-                if let reason = assessment.reason { inputs.flags[index] = .runnerUnavailable(reason) }
-                else { inputs.flags.remove(at: index) }
-            } else if let reason = assessment.reason {
-                inputs.flags.append(.runnerUnavailable(reason))
+            let previous = try Self.runnerState(db)
+            var seq = try Self.saveRunnerAssessment(assessment, executable: configured.configuration.executablePath,
+                commandId: commandId, at: at, journalAlways: journalAlways, db: db)
+            if assessment.reason == nil, let catalog = assessment.catalog,
+               previous.reason != nil || configured != current {
+                try Self.mergeCatalog(catalog, at: at, db: db)
+                seq = try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_catalog", value: "refreshed", db: db)),
+                                       projectId: nil, commandId: commandId, at: at, db: db)
             }
-            let previous = try Self.schedulerFlags(db)
-            try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
-            let flags = try Self.schedulerFlags(db)
-            let seq: Seq
-            if journalAlways || flags != previous {
-                seq = try Self.journal(.settingsChanged(.init(key: "scheduler", value: "updated", schedulerFlags: flags)), projectId: nil, commandId: commandId, at: at, db: db)
-            } else {
-                seq = try Self.seq(db)
+            if configured != current {
+                try Self.saveCursorEnvironment(configured, db: db)
+                seq = try Self.journal(.cursorEnvironmentChanged(configured.configuration), projectId: nil,
+                                       commandId: commandId, at: at, db: db)
             }
             let reply = CommandReply(commandId: commandId, seq: seq, result: .ok)
             if let request {
@@ -106,5 +105,35 @@ extension KabanStore {
             }
             return reply
         }
+    }
+
+    static func saveRunnerAssessment(_ assessment: CursorRunnerAssessment, executable: String?, commandId: CommandID,
+                                     at: Date, journalAlways: Bool, db: Database) throws -> Seq {
+        var stored = try runnerState(db)
+        stored.executable = executable
+        stored.version = assessment.version
+        stored.reason = assessment.reason
+        stored.checkedAt = at
+        stored.nextCheckAt = at.addingTimeInterval(CursorRunner.recheckInterval)
+        stored.limitsNote = assessment.limitsNote
+        stored.authOK = assessment.authOK
+        try Self.saveRunner(stored, db)
+        var inputs = try Self.schedulerInputs(db)
+        if let index = inputs.flags.firstIndex(where: { if case .runnerUnavailable = $0 { true } else { false } }) {
+            if let reason = assessment.reason { inputs.flags[index] = .runnerUnavailable(reason) }
+            else { inputs.flags.remove(at: index) }
+        } else if let reason = assessment.reason {
+            inputs.flags.append(.runnerUnavailable(reason))
+        }
+        let previous = try Self.schedulerFlags(db)
+        try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
+        let flags = try Self.schedulerFlags(db)
+        let seq: Seq
+        if journalAlways || flags != previous {
+            seq = try Self.journal(.settingsChanged(.init(key: "scheduler", value: "updated", schedulerFlags: flags)), projectId: nil, commandId: commandId, at: at, db: db)
+        } else {
+            seq = try Self.seq(db)
+        }
+        return seq
     }
 }

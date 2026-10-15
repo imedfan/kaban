@@ -411,7 +411,8 @@ signature; private stdio является явным development transport. По
   executablePath=nil — discovery, иначе абсолютный путь executable; credentials,
   argv и произвольный env не передаются. Query reply — cursorEnvironment,
   применённая настройка подтверждается journal cursorEnvironmentChanged.
-  Проверка runner — BE-07. Настройка пути через `configureCursor`, discovery и login под launchd остаются BE-20 и сейчас unsupported_command.
+  BE-23 добавляет сохранение пути/PATH/тулчейнов, discovery и поддержанные
+  команды настройки. Проверка живого login под launchd остаётся приёмкой BE-22.
 - `restoreWIP(taskId, runId, wipRef)` адресует сохранённый run/ref задачи, без пути
   или разрешения на произвольный git ref. Сервер обязан проверить ownership,
   актуальное состояние и WIP metadata; событие wipRestored несёт тот же набор
@@ -479,7 +480,8 @@ commandId. Подробные границы — [wire contract](development/bac
 - Проекты: `addProject(path, createTemplate, identity?, baseBranch?, gates?)` (без автора — `identity_required`, §8.2). `baseBranch` — базовая ветка проекта: от неё делаются клоны и ветки задач, из `<baseBranch>:.kaban/` читается пайплайн, в неё идут rebase и fast-forward, с ней сравнивается проверка результата; `nil` = `main` (поведение старого клиента); ветка должна существовать локально, иначе `CommandError base_branch_missing` с `params.branch`; хранится у демона и отдаётся в `ProjectSummary.baseBranch` (`nil` только у старого демона); смены базы у существующего проекта в MVP нет. Везде ниже, где сказано `main` проекта, имеется в виду его базовая ветка. `gates: [String]?` действует только с `createTemplate = true` (команды вписываются в шаблон, см. 3.1); с `createTemplate = false` и непустым `gates` → `invalid`. `setProjectIdentity(projectId, identity)`, `removeProject`, `relinkProject(id, path)`, `listBranches(projectId)`, `detectGates(projectId)` (предложить гейты по файлам сборки), `setMascot`, `setProjectWeight(weight, maxRuns?)`.
   BE-02 реализует локальный lifecycle: [транзакционные границы и removal/history](development/backend-project-lifecycle-2026-10-05.md).
   Capability может содержать optional `scopes`; для `recheck` поддержаны `project` и `runner`.
-  `recheck(runner)` проверяет заданный абсолютный путь и ставит `runner_unavailable`; `configureCursor` остаётся unsupported.
+  `recheck(runner)` проверяет сохранённый абсолютный путь и ставит `runner_unavailable`.
+  BE-23 поддерживает `configureCursor`, discovery и повторный поиск отсутствующего CLI.
   Шаблон требует checkout main и отсутствия конфликтующих `.kaban/` файлов; другие ветки не переключаются.
 
 - Пайплайн и политика: `updatePipeline(projectId, contentHash) -> PipelineVersion | [ValidationIssue]`, `validatePipeline(projectId, content)` (без записи, для живой проверки в настройках).
