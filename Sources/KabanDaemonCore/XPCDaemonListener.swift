@@ -10,7 +10,7 @@ public final class XPCDaemonListener {
 
     /// Bundled Apple signatures use same-team + ID. Personal builds pin the peer hash.
     public init(service: DaemonService, name: String = DaemonWire.machService) throws {
-        let executable = URL(fileURLWithPath: CommandLine.arguments[0])
+        guard let executable = Bundle.main.executableURL else { throw BundledDaemonIdentity.Failure.notBundled }
         let bundle = try BundledDaemonIdentity.appBundle(containing: executable)
         let requirement = try BundledDaemonIdentity.requirement(appBundle: bundle, forHelper: false)
         listener = try XPCListener(service: name, requirement: requirement) { request in

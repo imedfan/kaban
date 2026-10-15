@@ -126,3 +126,18 @@ Apple certificate/Team ID отсутствует; программа нужна 
 Подготовлена ad-hoc сборка с реальными signing IDs и pinning code-directory hashes.
 Team ID не выдумывается. Это не подтверждает Apple same-team/reboot acceptance.
 Расхождение App Sandbox с архитектурой §13 остаётся открытым до отдельного согласования.
+
+
+## 2026-10-09 — BE-21: App Sandbox и личная установка
+
+Решение Артёма от 9 октября, закреплённое в архитектуре v0.11.27 §13
+и очереди MVP BE-21, закрывает согласование от 6 октября: App и helper
+работают без App Sandbox, с Hardened Runtime и локальной ad-hoc подписью.
+Из App удалены sandbox entitlements, Debug и Release отключают Sandbox.
+Упаковка проверяет entitlements, runtime и signing IDs готовых бинарей.
+
+Сертификата Apple нет; Developer ID, нотаризация и проверка другого Team ID
+не входят в MVP. Проверка signing ID и code-directory hashes сохраняется.
+Ручное одобрение helper в «Объектах входа», TCC и перезагрузку Мака
+выполняет Артём. Изменение build settings само по себе не подтверждает
+эти шаги или успешное подключение через установленный XPC.

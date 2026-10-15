@@ -106,8 +106,10 @@ KABAN_SCENARIOS=Scenarios/M1 swift test --scratch-path "$kaban_check_dir/build" 
 
 `tools/package-local-app.sh` собирает ad-hoc Release bundle в `/tmp/kaban-local-app`
 без вымышленного Team ID. Копируйте готовый bundle в постоянное место перед установкой.
-Normal App использует SMAppService; текущая приёмка установки блокируется Sandbox,
-см. [отчёт BE-20](development/backend-launch-agent-2026-10-06.md).
+Normal App использует SMAppService. BE-21 отключает App Sandbox, сохраняя
+Hardened Runtime; упаковка проверяет подписи и entitlements готового bundle.
+Системная приёмка и шаги одобрения описаны в
+[отчёте BE-21](development/backend-be-21-2026-10-09.md).
 
 Developer mode: запустить готовый App с `--developer`. Встроенный daemon использует
 private stdio и отдельные Development data; системная служба не устанавливается.

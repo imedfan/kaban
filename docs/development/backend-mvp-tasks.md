@@ -571,7 +571,7 @@ BE-18 принят в main через [PR #89](https://github.com/imedfan/kaban/
 
 ## BE-20. Упаковать демон и реализовать lifecycle LaunchAgent
 
-**Статус:** [draft PR #91](https://github.com/imedfan/kaban/pull/91); приёмка установки блокируется App Sandbox. [Проверки и границы](backend-launch-agent-2026-10-06.md).
+**Статус:** принят в [PR #91](https://github.com/imedfan/kaban/pull/91); системная приёмка продолжается в BE-21 новой очереди MVP. [Проверки и границы](backend-launch-agent-2026-10-06.md).
 
 **Приоритет:** P1
 
@@ -593,5 +593,5 @@ BE-18 принят в main через [PR #89](https://github.com/imedfan/kaban/
 ### Критерии приёмки
 
 - [ ] register/requiresApproval/denied/unregister имеют наблюдаемые результаты; после reboot daemon поднимается один раз и восстанавливает очередь.
-- [ ] Подписанный клиент с другим Team ID отвергается; тест private endpoint не заменяет эту проверку.
+- Не для MVP: проверка клиента с другим Team ID. Сертификата Apple нет, решение Артёма 2026-10-09; локальная сборка использует signing ID и code-directory hashes.
 - [ ] Приложение не требует ручного запуска daemon для штатной работы.
