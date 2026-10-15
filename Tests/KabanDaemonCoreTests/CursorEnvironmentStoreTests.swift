@@ -154,6 +154,37 @@ final class CursorEnvironmentStoreTests: XCTestCase {
         XCTAssertEqual(try store.getSnapshot().schedulerFlags, [.runnerUnavailable(.agentMissing)])
     }
 
+    func testSuccessfulRunnerRecheckRefreshesCatalogAfterLogin() throws {
+        let root = try scratch()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let mode = root.appendingPathComponent("mode")
+        try "out".write(to: mode, atomically: true, encoding: .utf8)
+        let runner = root.appendingPathComponent("cursor-agent")
+        try executable(runner, text: """
+        #!/bin/sh
+        if [ "$1" = "--version" ]; then echo fixture-1; exit 0; fi
+        if [ "$(/bin/cat '\(mode.path)')" != ready ]; then
+          if [ "$1" = status ]; then echo 'not logged in'; fi
+          exit 1
+        fi
+        if [ "$1" = status ]; then echo 'Logged in'; else printf 'after-login\\tAfter Login\\n'; fi
+        """)
+        let store = try KabanStore(path: root.appendingPathComponent("store.sqlite").path)
+        _ = try store.execute(.init(command: .configureCursor(environment: .init(executablePath: runner.path))), now: { at })
+        try store.refreshCatalogIfDue(at: at.addingTimeInterval(1))
+        XCTAssertEqual(try store.modelCatalog(), [])
+        XCTAssertEqual(try store.getSnapshot().schedulerFlags, [.runnerUnavailable(.agentNotLoggedIn)])
+        try "ready".write(to: mode, atomically: true, encoding: .utf8)
+        let request = CommandEnvelope(command: .recheck(scope: .runner))
+        _ = try store.execute(request, now: { at.addingTimeInterval(2) })
+        XCTAssertEqual(try store.getSnapshot().schedulerFlags, [])
+        XCTAssertEqual(try store.modelCatalog().map(\.id), [ModelID(rawValue: "after-login")])
+        XCTAssertTrue(try store.journalPage(after: 0).events.contains { event in
+            guard event.commandId == request.commandId, case .settingsChanged(let value) = event.event else { return false }
+            return value.modelCatalog?.map(\.id) == [ModelID(rawValue: "after-login")]
+        })
+    }
+
     func testMigrationKeepsLegacyRunnerWithoutRequiringNewAuthField() throws {
         let root = try scratch()
         defer { try? FileManager.default.removeItem(at: root) }

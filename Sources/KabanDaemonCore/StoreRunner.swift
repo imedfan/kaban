@@ -85,8 +85,15 @@ extension KabanStore {
             environment: configured.processEnvironment(inheriting: cursorEnvironmentProbe.environment))
         return try database.write { db in
             if let request, let reply = try Self.wireReplay(commandId, request: request, db: db) { return reply }
+            let previous = try Self.runnerState(db)
             var seq = try Self.saveRunnerAssessment(assessment, executable: configured.configuration.executablePath,
                 commandId: commandId, at: at, journalAlways: journalAlways, db: db)
+            if assessment.reason == nil, let catalog = assessment.catalog,
+               previous.reason != nil || configured != current {
+                try Self.mergeCatalog(catalog, at: at, db: db)
+                seq = try Self.journal(.settingsChanged(try Self.modelSettingsChange(key: "model_catalog", value: "refreshed", db: db)),
+                                       projectId: nil, commandId: commandId, at: at, db: db)
+            }
             if configured != current {
                 try Self.saveCursorEnvironment(configured, db: db)
                 seq = try Self.journal(.cursorEnvironmentChanged(configured.configuration), projectId: nil,

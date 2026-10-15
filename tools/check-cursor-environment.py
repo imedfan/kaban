@@ -32,16 +32,18 @@ case "$1" in
   --version) printf 'fixture-be23-1.0\\n' ;;
   status)
     if [ "$(/bin/cat "$dir/mode")" = ready ]; then printf 'ready\\n'; else printf 'not logged in\\n'; exit 1; fi ;;
-  --list-models) printf 'fixture-model\\tFixture Model\\n' ;;
+  --list-models)
+    [ "$(/bin/cat "$dir/mode")" = ready ] || exit 1
+    printf 'fixture-model\\tFixture Model\\n' ;;
   *) exit 99 ;;
 esac
 """)
     runner.chmod(0o755)
 
     @contextmanager
-    def host(name, extra=()):
+    def host(name, extra=(), database_path=database):
         with (root / (name + ".log")).open("w") as log:
-            process = subprocess.Popen([str(daemon), "--stdio", "--initialize", "--database", str(database), *extra],
+            process = subprocess.Popen([str(daemon), "--stdio", "--initialize", "--database", str(database_path), *extra],
                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
 
             def request(operation):
@@ -109,13 +111,23 @@ esac
         flags = request({"snapshot": {}})["snapshot"]["_0"]["schedulerFlags"]
         assert {"level": "mac", "flag": "runner_unavailable", "reason": "agent_not_runnable"} in flags, flags
 
+    runner.chmod(0o755)
+    mode.write_text("logged-out")
+    with host("after-login", ["--cursor-agent", str(runner)], root / "after-login.sqlite") as (request, send):
+        assert send("listModels")["result"]["models"]["_0"] == []
+        mode.write_text("ready")
+        assert send("recheck", {"scope": {"runner": {}}})["result"] == {"ok": {}}
+        models = send("listModels")["result"]["models"]["_0"]
+        assert [row["id"] for row in models] == ["fixture-model"], models
+
     with sqlite3.connect(database) as connection:
         saved = json.loads(connection.execute("SELECT payload FROM cursor_environment WHERE id = 1").fetchone()[0])
     assert saved["configuration"]["executablePath"] == str(runner)
     assert set((root / "calls").read_text().splitlines()) <= {"--version", "status", "--list-models"}
     result = {"result": "passed", "source": "real daemon/private stdio; synthetic CLI; no launchd or model starts",
               "checks": ["startup missing flag", "capabilities", "configure event", "replay without another probe",
-                         "environment report", "immediate catalog", "restart persistence", "logged-out and non-executable flags"],
+                         "environment report", "immediate catalog", "restart persistence", "logged-out and non-executable flags",
+                         "catalog immediately after runner recovery"],
               "evidence": str(root)}
     (root / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result))
