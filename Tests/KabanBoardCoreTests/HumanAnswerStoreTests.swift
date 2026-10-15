@@ -113,6 +113,25 @@ final class HumanAnswerStoreTests: XCTestCase {
         XCTAssertTrue(detail.acceptedFiles.isEmpty, "Clearing the current pending set does not accept its blobs")
         XCTAssertEqual(detail.feed.filter { $0.kind == "answer" }.map(\.text), ["Убери .env"])
     }
+    @MainActor func testNotificationReplyCannotRetargetOrReplaceDraftAndWaitsForEvent() async throws {
+        let client = AnswerTestClient(detail: detail()), storage = MemoryKeyValueStore()
+        let session = BoardSession(client: client, storage: storage, key: "notification")
+        let loop = Task { await session.run() }; defer { loop.cancel() }
+        try await wait { session.canSend }; await session.select("t")
+        let answers = HumanAnswerStore(session: session, storage: storage, key: "answers")
+        XCTAssertNotNil(answers.prepareNotificationReply("Reply", for: "t", requestID: "old"))
+        XCTAssertTrue(client.answers.isEmpty); XCTAssertEqual(answers.draft(for: "t")?.text, "")
+        answers.setText("Panel draft", for: "t")
+        XCTAssertNotNil(answers.prepareNotificationReply("Reply", for: "t", requestID: "q1"))
+        XCTAssertEqual(answers.draft(for: "t")?.text, "Panel draft")
+        answers.setText("", for: "t")
+        XCTAssertNil(answers.prepareNotificationReply("Reply", for: "t", requestID: "q1"))
+        let sent = await answers.submit("t"); XCTAssertTrue(sent)
+        XCTAssertEqual(client.answers.first?.command, .answerHuman(taskId: "t", text: "Reply", requestId: "q1"))
+        XCTAssertNotNil(answers.prepareNotificationReply("Duplicate", for: "t", requestID: "q1"))
+        XCTAssertEqual(client.answers.count, 1); XCTAssertEqual(answers.draft(for: "t")?.text, "Reply")
+        XCTAssertEqual(answers.receipt(for: "t")?.phase, .awaitingEvent)
+    }
     @MainActor func testCorruptDraftStorageBlocksSendingWithoutOverwritingIt() {
         let storage = MemoryKeyValueStore(); storage.set(Data("bad".utf8), forKey: "answers")
         let session = BoardSession(client: AnswerTestClient(detail: detail()), storage: storage, key: "test")

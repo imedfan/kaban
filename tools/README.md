@@ -95,6 +95,20 @@ producer-boundary quota/flags fixtures. `check-mac-settings.py` запускае
 Команды, source, кадры и открытая UC-21 приёмка — в
 [отчёте FE-20](../docs/development/frontend-fe-20-2026-10-09.md).
 
+## Менюбар и уведомления FE-21
+
+`check-menubar.py` использует private fixture `seed-human-answers.swift` и
+проверяет closed-window live updates, reopen, exact/stale/deleted notification
+routes и настоящий Quit. `--functional-only` возвращает отдельный частичный
+статус и не проверяет popup. `--manual-popup` ждёт ручного клика до пяти минут,
+сохраняет настоящий popup и status item, затем оставляет App открытой ещё минуту
+перед проверкой Quit. QA проверяет фактическую native appearance по `--theme`.
+Без открытого MenuBarExtra строгий сценарий завершается ошибкой. Схлопнутый
+popup также считается ошибкой, но его PNG сохраняется для диагностики.
+Ни один режим не запрашивает permission, не доставляет
+OS notifications и не регистрирует mainApp/helper. Команды и ограничения —
+[отчёт FE-21](../docs/development/frontend-fe-21-2026-10-09.md).
+
 ## Состав App FE-34
 
 `check-app-build-contents.py --app <Kaban.app>` проверяет реальные Mach-O символы

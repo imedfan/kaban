@@ -1037,6 +1037,14 @@ Installed helper и физическая приёмка сохраняются �
 
 ## FE-21. Реализовать менюбар, уведомления и переходы в задачу
 
+Клиентская реализация и private functional smoke сохранены в
+[отчёте FE-21](frontend-fe-21-2026-10-09.md). 691 tests, App build и light/dark
+closed-window/reply/Quit прошли. Автоматический клик недоступен при
+eventAccess=false; ручное открытие подтвердило исправление схлопнутого popup
+420×620 pt и счётчик 2. Обе темы сверяются после QA appearance fix;
+system notifications и login/installed приёмка остаются открытыми.
+Критерии полной FE-21 пока не отмечены.
+
 **Приоритет:** P1
 
 **Зависимости:** FE-02, FE-03, FE-05, FE-10, FE-11, FE-19, FE-20.
