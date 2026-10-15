@@ -7,7 +7,7 @@ enum DesignSystem {
     static let cardRadius: CGFloat = 10
     static let panelRadius: CGFloat = 14
     static func color(_ tone: CardPresentation.Tone) -> Color {
-        ReferenceTheme(dark: false).status(tone.rawValue).0
+        KabanTheme(dark: false).status(tone.rawValue).0
     }
     static func projectCount(_ count: Int) -> String {
         let last = count % 10, pair = count % 100
@@ -25,7 +25,7 @@ enum DesignSystem {
         case .terminal: return "checkmark.circle"
         }
     }
-    static func stageColor(_ stage: StageSummary, theme: ReferenceTheme) -> Color {
+    static func stageColor(_ stage: StageSummary, theme: KabanTheme) -> Color {
         switch stage.display.color?.lowercased() {
         case "blue": return theme.status("running").0
         case "teal", "cyan": return theme.status("review").0
@@ -55,7 +55,7 @@ struct KabanButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
     func makeBody(configuration: Configuration) -> some View {
-        let theme = ReferenceTheme(dark: scheme == .dark)
+        let theme = KabanTheme(dark: scheme == .dark)
         configuration.label
             .font(.system(size: compact ? 11 : 12, weight: .semibold))
             .padding(.horizontal, compact ? 9 : 12)
@@ -78,7 +78,7 @@ struct KabanIconButton: View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 12, weight: .medium))
                 .frame(width: 28, height: 28)
-                .background(ReferenceTheme(dark: scheme == .dark).control, in: RoundedRectangle(cornerRadius: 8))
+                .background(KabanTheme(dark: scheme == .dark).control, in: RoundedRectangle(cornerRadius: 8))
                 .contentShape(RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain).help(help).accessibilityLabel(help)
     }
@@ -90,7 +90,7 @@ struct KabanSegments<Selection: Hashable>: View {
     var equalWidths = true
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        let theme = ReferenceTheme(dark: scheme == .dark)
+        let theme = KabanTheme(dark: scheme == .dark)
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { option in
                 Button { selection = option.0 } label: {
@@ -138,7 +138,7 @@ struct TaskMarkdownView: View {
         return result
     }
     var body: some View {
-        let theme = ReferenceTheme(dark: scheme == .dark)
+        let theme = KabanTheme(dark: scheme == .dark)
         VStack(alignment: .leading, spacing: 8) {
             ForEach(blocks) { block in
                 if block.code {

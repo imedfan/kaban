@@ -1,0 +1,261 @@
+{
+  "sourceRevision": "bf6ef6d0310bc11fbda1459005e97bbd245b69bd",
+  "buildConfiguration": {
+    "Debug": "KABAN_QA; unsigned",
+    "Release": "no KABAN_QA; unsigned"
+  },
+  "releaseContents": {
+    "result": "passed",
+    "qaEnabled": false,
+    "demoTypes": [],
+    "qaTypes": [],
+    "requiredTypes": [
+      "KabanBackdrop",
+      "KabanChip",
+      "KabanMascot",
+      "KabanTheme",
+      "KabanWordmark"
+    ]
+  },
+  "debugContents": {
+    "result": "passed",
+    "qaEnabled": true,
+    "demoTypes": [],
+    "qaTypes": [
+      "AppFixture",
+      "BoardQA",
+      "NativeWindowCapture",
+      "QADeferredControlClient",
+      "QADetailClient",
+      "QAEnvironmentClient",
+      "QAHumanAnswerClient",
+      "QAHumanReviewClient",
+      "QAIncompatibleTransport",
+      "QAMergeClient",
+      "QAProjectClient",
+      "QAReplyLossTransport",
+      "QARunHistoryClient"
+    ],
+    "requiredTypes": [
+      "AppFixture",
+      "BoardQA",
+      "KabanBackdrop",
+      "KabanChip",
+      "KabanMascot",
+      "KabanTheme",
+      "KabanWordmark",
+      "NativeWindowCapture"
+    ]
+  },
+  "fixture": {
+    "answer": {
+      "checks": [
+        "real WindowGroup native answer TextEditor preserves CRLF and Unicode",
+        "Cmd-Return sends one typed answer to its specific requestId",
+        "stale refusal refreshes details and retains original text and question",
+        "lost receipt reconciles the exact commandId without duplicate answer",
+        "correlated taskUpdated queues the task; reopening retains the answer feed",
+        "fixtures only; no Cursor process launched"
+      ],
+      "result": "passed"
+    },
+    "control-routing": {
+      "checks": [
+        "AppKit key-equivalent routing without OS foreground activation; physical keyboard/focus unverified",
+        "Cmd-Shift-P and Return pause/resume Human Review through the native menu and correlated task events",
+        "Mac/project pause updates authoritative flags and clears its own pending without changing current task cards",
+        "Typed drop handler opens a confirmation without optimistic movement; stale and cross-project payloads send nothing",
+        "Cmd-Shift-R and Return submit a typed retry in an allowed waiting state",
+        "Move menu is a keyboard alternative to drag; Escape sends nothing; Down arrow selects an allowed target and Return sends it explicitly",
+        "Cmd-Shift-Delete uses the shared cancellation sheet with keepBranch=false by default"
+      ],
+      "result": "passed"
+    },
+    "control": {
+      "error": "Timed out waiting for native task control sheet; projection=true, pendingCreate=nil, created=nil, sheet=nil, search=0; runtime=Подключение службы Kaban…, failure=nil, board=nil, connection=Optional(KabanProtocol.DaemonConnectionState.connected), active=false, windows=[\"AppKitWindow title=Kaban, visible=true, key=false, canKey=true, main=false, canMain=true, frame=(363.0, 395.0, 1040.0, 640.0)\"]",
+      "result": "failed"
+    },
+    "details": {
+      "checks": [
+        "actual WindowGroup inspector and four tabs",
+        "question event refreshes progress and gate output without reopening",
+        "detail_too_large keeps exact body and has separate history/log reads",
+        "unknown material/feed kinds and nil clonePath remain readable",
+        "full readonly source text and native Escape sheet dismissal"
+      ],
+      "result": "passed"
+    },
+    "log": {
+      "checks": [
+        "native WindowGroup readonly TextKit2 and find bar",
+        "tool output expands with full Unicode source and native copy",
+        "oversized records use separate exact read and chunked native TextKit2 source; foreground find and Escape",
+        "old tail cancelled on run change and modal close",
+        "exact WIP confirmation; OK remains awaitingEffect without local card mutation",
+        "correlated WIP event confirms outcome through BoardSession"
+      ],
+      "result": "passed"
+    },
+    "merge": {
+      "checks": [
+        "actual minimum WindowGroup and native TextEditor",
+        "merge conflict limit cannot approve",
+        "one exact explicit decision; any reconciliation replays use the same commandId",
+        "correlated dev queue",
+        "native overlap sheet and link reveals hidden project"
+      ],
+      "result": "passed"
+    },
+    "review": {
+      "checks": [
+        "real WindowGroup native comment editor retains exact CRLF/Unicode",
+        "stale refusal refreshes result and retains comment inline",
+        "coding target follows on_success and excludes read-only stages",
+        "Cmd-Return unavailable behind decision sheet; current review uses approve",
+        "OK remains pending; double decision does not send a new envelope",
+        "correlated update enters merge queue, never local Done",
+        "lost return receipt reconciles exact commandId/comment/explicit target once; reopen retains feed"
+      ],
+      "result": "passed"
+    },
+    "ui-dark-minimum": {
+      "checks": [
+        "real application WindowGroup is mounted",
+        "create selects task after correlated event and preserves Markdown",
+        "edit, move and cancel resolve through typed commands and journal projection",
+        "pause and resume use the client; resume returns queued",
+        "search and attention filters read the same projection",
+        "Cmd-N and Cmd-F invoke the real application menu commands"
+      ],
+      "result": "passed"
+    },
+    "ui-light-minimum": {
+      "checks": [
+        "real application WindowGroup is mounted",
+        "create selects task after correlated event and preserves Markdown",
+        "edit, move and cancel resolve through typed commands and journal projection",
+        "pause and resume use the client; resume returns queued",
+        "search and attention filters read the same projection",
+        "Cmd-N and Cmd-F invoke the real application menu commands"
+      ],
+      "result": "passed"
+    },
+    "control-retry": {
+      "checks": [
+        "Cmd-Shift-P and Return pause/resume Human Review through the native menu and correlated task events",
+        "Mac/project pause updates authoritative flags and clears its own pending without changing current task cards",
+        "Typed drop handler opens a confirmation without optimistic movement; stale and cross-project payloads send nothing",
+        "Cmd-Shift-R and Return submit a typed retry in an allowed waiting state",
+        "Move menu is a keyboard alternative to drag; Escape sends nothing; Down arrow selects an allowed target and Return sends it explicitly",
+        "Cmd-Shift-Delete uses the shared cancellation sheet with keepBranch=false by default"
+      ],
+      "result": "passed"
+    }
+  },
+  "pipeline": {
+    "absent-light-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    },
+    "apply-light": {
+      "checks": [
+        "real private stdio daemon and actual WindowGroup",
+        "project switch preserves separate unsent drafts and native command owner",
+        "native field edit preserves exact source and unknown fields/comments",
+        "broken YAML and Auto blocked; warnings allow apply",
+        "external write retains draft and requires explicit new base",
+        "native Cmd-Return applies exact text via correlated pipelineApplied",
+        "WIP and version agree with snapshot; daemon commits .kaban/"
+      ],
+      "result": "passed"
+    },
+    "executor-dark": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    },
+    "forms-light-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    },
+    "invalid-light-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    },
+    "long-dark-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    },
+    "reopen-dark-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "restart restores exact committed text and authoritative version"
+      ],
+      "result": "passed"
+    },
+    "yaml-dark-minimum": {
+      "checks": [
+        "real WindowGroup and daemon source",
+        "native forms and server validation"
+      ],
+      "result": "passed"
+    }
+  },
+  "frames": [
+    {
+      "file": "board-light-minimum.png",
+      "localDirectory": "/tmp/kaban-fe34-native",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "3ccf18adf73790dd9f548b7b7ed7f8fd6070f11e89f285b6295bd2b0c1c7977c",
+      "viewed": true,
+      "data": "synthetic AppFixture DTOs",
+      "surface": "actual WindowGroup"
+    },
+    {
+      "file": "board-dark-minimum.png",
+      "localDirectory": "/tmp/kaban-fe34-native",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c8c5a87b82b94612697538e498081ab834b6080416c6c52d2f8418ea994cb529",
+      "viewed": true,
+      "data": "synthetic AppFixture DTOs",
+      "surface": "actual WindowGroup"
+    },
+    {
+      "file": "long-light-minimum.png",
+      "localDirectory": "/tmp/kaban-fe34-native",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "c9e19e613a61194715741ad269e50f234f35b2a4bf5d2669900a05ae97a8ea0a",
+      "viewed": true,
+      "data": "synthetic AppFixture DTOs",
+      "surface": "actual WindowGroup"
+    },
+    {
+      "file": "empty-dark-minimum.png",
+      "localDirectory": "/tmp/kaban-fe34-native",
+      "width": 2080,
+      "height": 1280,
+      "sha256": "b2e23a2a1dd68d10787bf757e56835f8849da508e52a5cafa0c01728fdd1e7f1",
+      "viewed": true,
+      "data": "synthetic AppFixture DTOs",
+      "surface": "actual WindowGroup"
+    }
+  ],
+  "systemAcceptance": false
+}

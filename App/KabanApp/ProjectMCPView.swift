@@ -6,7 +6,7 @@ import KabanBoardCore
 struct ProjectMCPView: View {
     @Bindable var settings: ProjectMCPStore
     @Bindable var board: BoardStore
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     let close: () -> Void
     let editStage: (StageID) -> Void
     @State private var width: CGFloat = 0

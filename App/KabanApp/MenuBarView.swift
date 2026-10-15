@@ -8,7 +8,7 @@ struct MenuBarView: View {
     @Bindable var runtime: DaemonRuntime
     @Environment(\.openWindow) private var openWindow
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var waiting: [TaskCard] {
         (runtime.store?.projection?.tasks.values.filter { $0.state.status == .waitingHuman } ?? []).sorted {
             if $0.projectId != $1.projectId { return $0.projectId.rawValue < $1.projectId.rawValue }
@@ -73,12 +73,12 @@ struct MenuBarView: View {
                     if status == .denied { Text("macOS запретила уведомления. Задачи и менюбар продолжают работать.").font(.caption).foregroundStyle(.secondary) }
                     else if status == .notDetermined {
                         Button("Разрешить уведомления…") { Task { await runtime.onboardingSystem.requestNotifications() } }
-                            .disabled(runtime.onboardingSystem.busy || BoardQA.isActive)
+                            .disabled(runtime.onboardingSystem.busy || AppArguments.isQA)
                     }
                 }
                 if let loginStatus = runtime.onboardingSystem.loginStatus {
                     Toggle("Открывать Kaban при входе", isOn: Binding(get: { loginStatus == .enabled }, set: { value in Task { await runtime.onboardingSystem.setAutoLaunch(value) } }))
-                        .disabled(runtime.onboardingSystem.busy || runtime.developer || runtime.fixture || BoardQA.isActive || loginStatus == .requiresApproval)
+                        .disabled(runtime.onboardingSystem.busy || runtime.developer || runtime.fixture || AppArguments.isQA || loginStatus == .requiresApproval)
                     if loginStatus == .requiresApproval {
                         Text("Разрешите автозапуск Kaban в «Объектах входа».").font(.caption).foregroundStyle(.secondary)
                         Button("Объекты входа…") { runtime.openSettings() }
@@ -103,7 +103,7 @@ struct MenuBarView: View {
             .onAppear {
                 let open = openWindow
                 runtime.presentBoard = { [weak runtime] in runtime?.revealBoard { open(id: "board") } }
-                Task { await runtime.onboardingSystem.refresh(fixture: BoardQA.isActive) }
+                Task { await runtime.onboardingSystem.refresh(fixture: AppArguments.isQA) }
             }
     }
     private func showBoard() { runtime.revealBoard { openWindow(id: "board") } }

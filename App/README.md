@@ -1,52 +1,67 @@
-# Kaban.app — native SwiftUI client
+# Kaban.app: native SwiftUI client
 
 Open `Kaban.xcodeproj`, select **Kaban**, and run on macOS 26+ with a full Xcode.
-The main WindowGroup uses `BoardView`, `BoardStore`, `KabanClient` and
-`BoardProjection`. `AppFixture` supplies Protocol DTOs through `MockKabanClient`;
-the views do not implement a second task state machine.
+The main WindowGroup uses `DaemonRuntime`, `BoardView`, `BoardStore`, and the
+Protocol-based `KabanClient` and `BoardProjection`. Normal launches connect to
+the installed daemon. `--developer` uses the bundled daemon over private stdio.
+Tasks and history belong to the daemon database.
 
-The board, project sidebar, task cards, detail overlay and action sheets follow
+The board, project sidebar, task cards, detail overlay, and action sheets follow
 the composition and light/dark tokens pinned in [design](../design/README.md).
-The macOS window keeps system traffic lights; product controls retain visible
-text at a stable size. The board scrolls horizontally when its columns cannot
-fit. Details overlay the board without squeezing columns.
+`KabanTheme`, `KabanMascot`, `KabanChip`, `KabanBackdrop`, and `KabanWordmark`
+are shared product components. The unused `ReferenceDemo` screens and
+`NativeShell` have been removed. Original design sources remain in `design/`.
 
-Create, edit, move, cancel and task pause/resume use typed commands. Selection,
-status and pending operations resolve through correlated journal events.
-Cmd-N creates a task; Cmd-F focuses search; Escape closes details. Project
-visibility persists in UserDefaults. Task data remains in memory for this launch.
+Commands use typed DTOs. Status and pending operations resolve through
+correlated journal events. Missing quota and policy values display as unknown.
+See [current state](../docs/current-state.md) for supported flows and open
+backend and installation requirements.
 
-Project settings display the values supplied by the current snapshot. Settings
-editing, global/project pause, quota, Human Review decisions and file acceptance
-still need client/backend support. Missing quota and policy values display as
-unknown. No daemon, Cursor process or system registration is started.
+## Build and check application contents
+
+Debug enables the compile condition `KABAN_QA`. Release does not enable it.
+`AppFixture`, BoardQA, native capture, and the QA clients compile only with that
+condition. An ordinary Release ignores QA arguments and contains none of those
+types. The explicit developer database option works in both configurations.
 
 ```sh
-xcodebuild -project Kaban.xcodeproj -scheme Kaban \
-  -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-polish-app \
+xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Release \
+  -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-release \
   ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
-/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban
+python3 tools/check-app-build-contents.py \
+  --app /tmp/kaban-release/Build/Products/Release/Kaban.app
 ```
 
-Opt-in QA uses the **actual application WindowGroup** with isolated in-memory
-board preferences. These arguments are inactive during an ordinary launch:
+The checker reads actual Mach-O symbols, including `Kaban.debug.dylib` when
+present. It rejects demo types in every configuration and QA types in a
+production build. For a QA build, pass `--qa`; the checker also requires
+BoardQA, AppFixture, native capture, and the shared product components.
+CI checks Debug QA and production Release and runs the existing native smoke.
+Unsigned verification does not confirm installed helper or login permissions.
+
+## Run native QA
+
+Build Debug before using the opt-in QA arguments. The fixture path supplies
+Protocol DTOs through `MockKabanClient` with isolated board preferences.
+It does not connect to the installed daemon. Live drivers use a new private
+repository and daemon database and describe that transport in their reports.
 
 ```sh
-/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
+xcodebuild -project Kaban.xcodeproj -scheme Kaban -configuration Debug \
+  -destination 'generic/platform=macOS' -derivedDataPath /tmp/kaban-qa \
+  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
+python3 tools/check-app-build-contents.py \
+  --app /tmp/kaban-qa/Build/Products/Debug/Kaban.app --qa
+open -n -W /tmp/kaban-qa/Build/Products/Debug/Kaban.app --args \
   --export-live-window /tmp/kaban-board.png --qa-theme light
-/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
-  --export-live-window /tmp/kaban-details.png --qa-state details --qa-theme dark
-/tmp/kaban-polish-app/Build/Products/Debug/Kaban.app/Contents/MacOS/Kaban \
+open -n -W /tmp/kaban-qa/Build/Products/Debug/Kaban.app --args \
   --ui-smoke /tmp/kaban-ui-smoke.json
 ```
 
-Other QA states: `minimum`, `long`, `empty`, `hidden`, `search`, `no-results`,
-`project`, `quota`, `review`, `create`, `edit`, `move`, `cancel`, `error`.
-The smoke checks the mounted window, typed action/event flow and real menu
-shortcuts. AppKit view caching captures layout but does not prove compositor
-fidelity, VoiceOver, manual pointer interactions or every accessibility setting.
-
-The older `Reference*` views remain comparison tools. Their gallery captures
-and separate `ReferenceDemo` fixtures are not the main application runtime and
-are not evidence of main-window acceptance. Historical reports in
-`docs/development/frontend-design-parity-2026-10-04.md` describe earlier revisions.
+Other QA states include `minimum`, `long`, `empty`, `hidden`, `search`,
+`no-results`, `project`, `review`, `create`, `edit`, `move`, `cancel`, and `error`.
+BoardQA checks the actual application WindowGroup, typed actions and events,
+and native menu shortcuts. AppKit view caching captures layout and does not
+prove compositor fidelity, VoiceOver, or every accessibility setting.
+[FE-34 verification](../docs/development/frontend-fe-34-2026-10-09.md) records
+build conditions, native results, and open checks.

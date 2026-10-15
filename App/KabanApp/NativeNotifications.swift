@@ -23,14 +23,14 @@ import KabanProtocol
     private(set) var inbox: Inbox?
     private(set) var message: String?
     override init() {
-        storage = BoardQA.isActive ? MemoryKeyValueStore() : DefaultsStorage()
+        storage = AppArguments.isQA ? MemoryKeyValueStore() : DefaultsStorage()
         super.init()
         do { inbox = try storage.data(forKey: inboxKey).map { try KabanCoding.makeDecoder().decode(Inbox.self, from: $0) } }
         catch { message = "Не удалось прочитать сохранённый ответ из уведомления." }
     }
     func configure(_ runtime: DaemonRuntime) {
         self.runtime = runtime
-        guard !BoardQA.isActive else { return }
+        guard !AppArguments.isQA else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let reply = UNTextInputNotificationAction(identifier: "kaban.reply", title: "Ответить", options: [.foreground], textInputButtonTitle: "Отправить", textInputPlaceholder: "Ответ на вопрос")
@@ -52,7 +52,7 @@ import KabanProtocol
     }
     func setEnabled(_ value: Bool) { store?.attention.setEnabled(value) }
     private func deliver(_ notice: AttentionNotice, store: BoardStore) {
-        guard !BoardQA.isActive, !store.usesFixture else { return }
+        guard !AppArguments.isQA, !store.usesFixture else { return }
         let token = attachment, id = UUID(), source = store.sourceKey
         deliveries[id] = Task { [weak self, weak store] in
             defer { self?.deliveries[id] = nil }

@@ -58,7 +58,7 @@ struct ProjectLifecycleSheet: View {
     @Environment(\.colorScheme) private var scheme
     @FocusState private var identityFocus: IdentityField?
     private var model: ProjectLifecycleStore { store.projects }
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var removing: Bool { if case .remove = route { true } else { false } }
     private var title: String {
         switch route { case .add: "Добавить проект"; case .relink: "Переподключить проект"; case .remove: "Удалить проект из Kaban?" }

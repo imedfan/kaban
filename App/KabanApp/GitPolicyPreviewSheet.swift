@@ -6,7 +6,7 @@ struct GitPolicyPreviewSheet: View {
     @Bindable var board: BoardStore
     @Bindable var preview: GitPolicyPreviewStore
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {

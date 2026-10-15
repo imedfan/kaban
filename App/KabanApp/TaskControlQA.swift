@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import SwiftUI
 import KabanProtocol
@@ -11,7 +12,7 @@ extension BoardQA {
         var checks: [String] = []
         func mark(_ text: String) {
             checks.append(text)
-            if let path = argument("--control-smoke") ?? argument("--control-routing-smoke") {
+            if let path = AppArguments.value("--control-smoke") ?? AppArguments.value("--control-routing-smoke") {
                 try? checks.joined(separator: "\n").write(toFile: path + ".progress", atomically: true, encoding: .utf8)
             }
         }
@@ -161,7 +162,7 @@ extension BoardQA {
 
 extension BoardQA {
     static func controlLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard !store.usesFixture, let repository = argument("--control-live-repository"),
+        guard !store.usesFixture, let repository = AppArguments.value("--control-live-repository"),
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private live control environment missing") }
         window.setContentSize(.init(width: 1040, height: 640))
         store.projects.open(.add); store.projects.editPath(repository); store.projects.setCreateTemplate(false)
@@ -218,3 +219,4 @@ extension BoardQA {
                 "scheduler remains paused; no paid Cursor run or installed helper registration"]
     }
 }
+#endif

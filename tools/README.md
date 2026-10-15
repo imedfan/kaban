@@ -108,3 +108,12 @@ popup также считается ошибкой, но его PNG сохран
 Ни один режим не запрашивает permission, не доставляет
 OS notifications и не регистрирует mainApp/helper. Команды и ограничения —
 [отчёт FE-21](../docs/development/frontend-fe-21-2026-10-09.md).
+
+## Состав App FE-34
+
+`check-app-build-contents.py --app <Kaban.app>` проверяет реальные Mach-O символы
+production Release: демо и QA types отсутствуют, общие Kaban UI types присутствуют.
+С `--qa` проверка требует BoardQA, AppFixture и NativeWindowCapture; при наличии
+Debug dylib читает и его. Демо types запрещены в обеих конфигурациях.
+Debug включает KABAN_QA, Release по умолчанию не включает. CI собирает и проверяет
+оба варианта. [Приёмка FE-34](../docs/development/frontend-fe-34-2026-10-09.md).

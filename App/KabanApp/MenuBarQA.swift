@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import CoreGraphics
 import KabanProtocol
@@ -5,7 +6,7 @@ import KabanBoardCore
 
 extension BoardQA {
     static func menuBarLiveSmoke(_ store: BoardStore) async throws -> [String: Any] {
-        guard argument("--developer-database")?.hasPrefix("/tmp/kaban-fe21-") == true,
+        guard AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe21-") == true,
               let runtime, NSApp.windows.contains(where: { $0.styleMask.contains(.titled) }),
               let project = store.projection?.projectOrder.first else { throw failure("Private FE-21 WindowGroup required") }
         var checks: [String: Any] = ["source": "private stdio daemon; no system notification delivery or registration"]
@@ -49,12 +50,12 @@ extension BoardQA {
         guard NSApp.windows.filter({ $0.styleMask.contains(.titled) && $0.canBecomeMain && $0.isVisible }).count == 1 else { throw failure("Notification routes opened duplicate board windows: " + NSApp.windows.filter { $0.styleMask.contains(.titled) }.map { "title=\($0.title), visible=\($0.isVisible), main=\($0.canBecomeMain)" }.joined(separator: "; ")) }
         checks["notificationRoutesReuseBoardWindow"] = true
         try await captureWindow()
-        if argument("--qa-menubar-functional") == "YES" {
+        if AppArguments.value("--qa-menubar-functional") == "YES" {
             checks["actualMenuBarExtraWindow"] = false
             checks["menuBarInspectionGap"] = "Functional run only. Popup, system notification delivery and login acceptance remain unverified."
             return checks
         }
-        if let path = argument("--menubar-live-smoke") {
+        if let path = AppArguments.value("--menubar-live-smoke") {
             try JSONSerialization.data(withJSONObject: ["result": "functional_passed_popup_pending", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path + ".functional.json"))
         }
         let visibleWindows = NSApp.windows.filter(\.isVisible).map(\.windowNumber)
@@ -65,7 +66,7 @@ extension BoardQA {
         }
         if let button = NSApp.windows.compactMap({ $0.contentView.flatMap(statusButton) }).first,
            let bitmap = button.bitmapImageRepForCachingDisplay(in: button.bounds),
-           let path = argument("--export-live-window") {
+           let path = AppArguments.value("--export-live-window") {
             button.cacheDisplay(in: button.bounds, to: bitmap)
             if let png = bitmap.representation(using: .png, properties: [:]) {
                 try png.write(to: URL(fileURLWithPath: path + ".status-item.png"))
@@ -75,7 +76,7 @@ extension BoardQA {
         func openedPopup() -> NSWindow? {
             NSApp.windows.first { $0.isVisible && !visibleWindows.contains($0.windowNumber) && $0.frame.width >= 400 }
         }
-        if argument("--qa-menubar-manual") == "YES" {
+        if AppArguments.value("--qa-menubar-manual") == "YES" {
             FileHandle.standardError.write(Data("Waiting for a manual click on the Kaban status item.\n".utf8))
             for _ in 0..<600 {
                 if openedPopup() != nil { break }
@@ -106,24 +107,25 @@ extension BoardQA {
         try await Task.sleep(for: .milliseconds(700))
         guard let popup = openedPopup(), let view = popup.contentView,
               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds),
-              let path = argument("--export-live-window") else { throw failure("Actual MenuBarExtra popup not opened or capture unavailable") }
+              let path = AppArguments.value("--export-live-window") else { throw failure("Actual MenuBarExtra popup not opened or capture unavailable") }
         view.layoutSubtreeIfNeeded(); view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("MenuBarExtra PNG unavailable") }
         try png.write(to: URL(fileURLWithPath: path + ".menubar.png"))
         checks["menuBarPopupFrame"] = ["width": popup.frame.width, "height": popup.frame.height]
         let appearance = popup.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
         checks["menuBarPopupAppearance"] = appearance?.rawValue ?? "unknown"
-        if let theme = argument("--qa-theme") {
+        if let theme = AppArguments.value("--qa-theme") {
             guard appearance == (theme == "dark" ? .darkAqua : .aqua) else {
                 throw failure("Actual MenuBarExtra appearance \(String(describing: appearance)) differs from requested \(theme). PNG saved to \(path).menubar.png")
             }
         }
         guard popup.frame.height > 100 else { throw failure("Actual MenuBarExtra popup collapsed: \(popup.frame). PNG saved to \(path).menubar.png") }
         checks["actualMenuBarExtraWindow"] = true
-        if argument("--qa-menubar-manual") == "YES" {
+        if AppArguments.value("--qa-menubar-manual") == "YES" {
             FileHandle.standardError.write(Data("MenuBarExtra captured. Leaving the QA app open for 60 seconds before Quit.\n".utf8))
             try await Task.sleep(for: .seconds(60))
         }
         return checks
     }
 }
+#endif

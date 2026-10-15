@@ -9,14 +9,14 @@ struct BoardView: View {
     @Bindable var store: BoardStore
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
+    private var reduceMotion: Bool { systemReduceMotion || AppArguments.qaValue("--qa-reduce-motion") == "yes" }
     @State private var sidebarVisible = true
     @State private var collapsed: Set<ProjectID> = []
     @State private var dropTarget: ProjectID?
     @State private var endDropTarget = false
     @State private var stageCollapsed: [BoardStageKey: Bool] = [:]
     @FocusState private var searchFocused: Bool
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var lanes: [BoardLane] { store.projection?.lanes(orderedBy: store.visibleIDs) ?? [] }
     private var title: String {
         switch store.screen { case .board: store.filter.rawValue; case .project: "Настройки проекта"; case .quota: "Этот Мак"; case .incidents: "Инциденты" }
@@ -47,7 +47,7 @@ struct BoardView: View {
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(ReferenceBackdrop(theme: theme))
+            .background(KabanBackdrop(theme: theme))
         }
         .foregroundStyle(theme.text)
         .task { store.incidents.scheduleRefresh() }
@@ -102,7 +102,7 @@ struct BoardView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Text("🐗").font(.system(size: 24))
-                ReferenceWordmark().fill(theme.text).frame(width: 80, height: 24)
+                KabanWordmark().fill(theme.text).frame(width: 80, height: 24)
                 Spacer()
             }.padding(.horizontal, 20).frame(height: 60)
             VStack(spacing: 3) {
@@ -154,7 +154,7 @@ struct BoardView: View {
             store.filter = .all; store.focusProject(id)
         } label: {
             HStack(spacing: 10) {
-                ReferenceMascot(emoji: store.mascot(id).emoji, theme: theme, state: store.projectStatus(id), size: 28, completionTrigger: store.completionTrigger(id))
+                KabanMascot(emoji: store.mascot(id).emoji, theme: theme, state: store.projectStatus(id), size: 28, completionTrigger: store.completionTrigger(id))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(project.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
                     Text(store.projectCaption(id)).font(.system(size: 10.5)).foregroundStyle(theme.secondary).lineLimit(1)
@@ -300,14 +300,14 @@ struct BoardView: View {
             } label: { Image(systemName: collapsed.contains(lane.project.id) ? "chevron.right" : "chevron.down").frame(width: 16, height: 28) }
                 .buttonStyle(.plain).foregroundStyle(theme.faint).help("Свернуть или раскрыть проект")
             Button { store.mascotProjectID = lane.project.id } label: {
-                ReferenceMascot(emoji: store.mascot(lane.project.id).emoji, theme: theme, state: store.projectStatus(lane.project.id), size: 24, completionTrigger: store.completionTrigger(lane.project.id))
+                KabanMascot(emoji: store.mascot(lane.project.id).emoji, theme: theme, state: store.projectStatus(lane.project.id), size: 24, completionTrigger: store.completionTrigger(lane.project.id))
             }.buttonStyle(.plain).disabled(!store.can(.setMascot)).help("Выбрать маскота")
             Text(lane.project.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-            ReferenceChip(title: "⑂ " + lane.project.baseBranch, theme: theme, mono: true)
+            KabanChip(title: "⑂ " + lane.project.baseBranch, theme: theme, mono: true)
             Text(store.projectCaption(lane.project.id)).font(.system(size: 11)).foregroundStyle(theme.faint).lineLimit(1)
             Spacer(minLength: 0)
             if width > 1080 {
-                ReferenceChip(title: "вес \(lane.project.weight)", theme: theme)
+                KabanChip(title: "вес \(lane.project.weight)", theme: theme)
                 Text("Процессы —").font(.system(size: 10)).foregroundStyle(theme.faint).help("Служба не сообщает подтверждённые агентские процессы.")
             }
             if lane.project.openIncidentCount > 0 {
@@ -559,9 +559,9 @@ struct TaskCardView: View {
     var overlaps: (() -> Void)? = nil
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    private var reduceMotion: Bool { systemReduceMotion || BoardQA.argument("--qa-reduce-motion") == "yes" }
+    private var reduceMotion: Bool { systemReduceMotion || AppArguments.qaValue("--qa-reduce-motion") == "yes" }
     @State private var visible = false
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var presentation: CardPresentation {
         .init(card: card, stage: pipeline?.stages.first { $0.id == card.stageId }, hasCurrentProgress: progress != nil)
     }
@@ -668,7 +668,7 @@ struct MascotPickerView: View {
     @State private var selection: Int?
     @State private var texture: EdgeTexture?
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var current: MascotPick { store.mascot(projectID) }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -742,7 +742,7 @@ struct TaskDetailView: View {
     @Bindable var store: BoardStore
     let openSheet: (TaskSheetRoute) -> Void
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var tab: String { store.detailTab }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -792,17 +792,17 @@ struct TaskDetailView: View {
                 }.onChange(of: store.detailScrollTarget) { _, target in
                     if let target { proxy.scrollTo(target, anchor: .top); store.detailScrollTarget = nil }
                 }.task(id: store.detail?.task.id) {
-                    if BoardQA.argument("--qa-incident-scroll") == "bottom" {
+                    if AppArguments.qaValue("--qa-incident-scroll") == "bottom" {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo("incident-decision", anchor: .bottom)
                     }
-                    if let source = BoardQA.argument("--qa-review-artifact") {
+                    if let source = AppArguments.qaValue("--qa-review-artifact") {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo(source, anchor: .top)
                     }
                 }
                 .task(id: store.detail?.gitGrants.first?.grant.grantId) {
-                    if BoardQA.argument("--qa-git-history") == "yes", let grant = store.detail?.gitGrants.first {
+                    if AppArguments.qaValue("--qa-git-history") == "yes", let grant = store.detail?.gitGrants.first {
                         try? await Task.sleep(for: .milliseconds(350))
                         proxy.scrollTo(grant.grant.grantId, anchor: .top)
                     }
@@ -866,7 +866,7 @@ struct TaskDetailView: View {
             }
             Text(task.title).font(.system(size: 18, weight: .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true).help(task.title)
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 7) { status(presentation); attempt(task); if let model = task.model { ReferenceChip(title: model.rawValue, theme: theme, mono: true) } }
+                HStack(spacing: 7) { status(presentation); attempt(task); if let model = task.model { KabanChip(title: model.rawValue, theme: theme, mono: true) } }
                 VStack(alignment: .leading, spacing: 5) { status(presentation); HStack { attempt(task); if let model = task.model { Text(model.rawValue).font(.system(size: 10, design: .monospaced)).lineLimit(1).help(model.rawValue) } } }
             }
             if let branch = task.branch { Label(branch, systemImage: "arrow.triangle.branch").font(.system(size: 10.5, design: .monospaced)).foregroundStyle(theme.secondary).lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(branch) }
@@ -1103,7 +1103,7 @@ struct TaskDetailView: View {
 struct ProjectSettingsView: View {
     @Bindable var store: BoardStore
     let projectID: ProjectID
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @State private var selectedStage: StageID?
     @State private var editingPipeline = false
     @State private var pipelineEditor: PipelineEditorStore?
@@ -1140,7 +1140,7 @@ struct ProjectSettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 if let project = store.projection?.projects[projectID] {
                     HStack(spacing: 12) {
-                        ReferenceMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
+                        KabanMascot(emoji: store.mascot(projectID).emoji, theme: theme, state: store.projectStatus(projectID), size: 40)
                         VStack(alignment: .leading, spacing: 4) { Text(project.name).font(.system(size: 22, weight: .bold)); Text(project.path).font(.system(size: 11, design: .monospaced)).foregroundStyle(theme.secondary).textSelection(.enabled) }
                     }
                     HStack {

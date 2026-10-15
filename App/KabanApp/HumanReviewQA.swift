@@ -1,3 +1,4 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
@@ -53,7 +54,7 @@ import KabanBoardCore
         if case .taskDetail(var detail) = reply.result, detail.task.id == "SHOP-31" {
             let at = Date(timeIntervalSince1970: 1_791_100_000)
             let run = RunSummary(id: "review-qa-run", taskId: detail.task.id, stageId: "dev", number: 1, status: .succeeded, requestedModel: "explicit", actualModelName: "Explicit model", countsTowardLimits: true, startedAt: at, endedAt: at.addingTimeInterval(180))
-            detail.runs = [run]; detail.clonePath = BoardQA.argument("--qa-review-clone")
+            detail.runs = [run]; detail.clonePath = AppArguments.value("--qa-review-clone")
             let result = materialChanged ? "Новый результат: изменён алгоритм проверки состояния возврата." : "Объединение по SKU. Гостевая корзина переносится при входе; повторный webhook не создаёт второй платёж."
             detail.artifacts = [
                 .init(id: "review-summary", taskId: detail.task.id, runId: run.id, stageId: "dev", kind: "summary", text: mode == "long" ? String(repeating: result + " 👋\n", count: 2500) : result, createdAt: at),
@@ -74,7 +75,7 @@ import KabanBoardCore
 extension BoardQA {
     static var reviewClient: QAHumanReviewClient?
     static func prepareReview(_ store: BoardStore) async throws -> Bool {
-        guard let mode = argument("--qa-review") else { return false }
+        guard let mode = AppArguments.value("--qa-review") else { return false }
         await store.select("SHOP-31"); store.detailTab = "Сводка"
         if ["changes", "stale", "error", "pending", "offline", "long-comment"].contains(mode) {
             store.humanReview.edit("SHOP-31", comments: mode == "long-comment" ? String(repeating: "Проверь состояние возврата. Сохрани результат проверки. 👋\n", count: 100) : "Проверь повторную доставку: второй платёж не должен создаваться.")
@@ -94,7 +95,7 @@ extension BoardQA {
     }
     static func reviewSmoke(_ store: BoardStore) async throws -> [String] {
         guard let client = reviewClient, let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Review WindowGroup missing") }
-        if argument("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
+        if AppArguments.value("--qa-size") == "minimum" { window.setContentSize(.init(width: 1040, height: 640)) }
         await store.select("SHOP-31"); store.detailTab = "Сводка"
         guard store.humanReview.currentContext(for: "SHOP-31")?.targets.map(\.id) == ["dev", "test"] else { throw failure("Review target filter includes read-only or missing coding stages") }
         store.beginReview(.requestChanges, task: "SHOP-31")
@@ -137,13 +138,13 @@ extension BoardQA {
         await store.select(nil); await store.select("KBN-10")
         guard store.detail?.feed.filter({ $0.kind == "review_comment" && $0.text == text }).count == 1 else { throw failure("Reopen lost review comment") }
         store.detailTab = "Лента"
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["real WindowGroup native comment editor retains exact CRLF/Unicode", "stale refusal refreshes result and retains comment inline", "coding target follows on_success and excludes read-only stages", "Cmd-Return unavailable behind decision sheet; current review uses approve", "OK remains pending; double decision does not send a new envelope", "correlated update enters merge queue, never local Done", "lost return receipt reconciles exact commandId/comment/explicit target once; reopen retains feed"]
     }
     static func reviewLiveSmoke(_ store: BoardStore) async throws -> [String] {
-        guard let path = argument("--review-live-fixture"), path.hasPrefix("/tmp/kaban-fe11-"),
+        guard let path = AppArguments.value("--review-live-fixture"), path.hasPrefix("/tmp/kaban-fe11-"),
               let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: String],
-              metadata["database"] == argument("--developer-database"), let origin = metadata["origin"], origin.hasPrefix("/tmp/kaban-fe11-") else { throw failure("Private review fixture missing") }
+              metadata["database"] == AppArguments.value("--developer-database"), let origin = metadata["origin"], origin.hasPrefix("/tmp/kaban-fe11-") else { throw failure("Private review fixture missing") }
         func id(_ name: String) throws -> TaskID { guard let value = metadata[name] else { throw failure("Fixture task missing: " + name) }; return TaskID(rawValue: value) }
         func git(_ arguments: [String]) throws -> (Int32, String) {
             let process = Process(), pipe = Pipe(); process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
@@ -152,7 +153,7 @@ extension BoardQA {
             return (process.terminationStatus, String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines))
         }
         let text = "Check the current status first.  \r\nKeep the result 👋"
-        if argument("--qa-size") == "minimum" { NSApp.windows.first { $0.styleMask.contains(.titled) }?.setContentSize(.init(width: 1040, height: 640)) }
+        if AppArguments.value("--qa-size") == "minimum" { NSApp.windows.first { $0.styleMask.contains(.titled) }?.setContentSize(.init(width: 1040, height: 640)) }
         let approve = try id("approve"), changes = try id("changes"), returned = try id("reject-stage"), kept = try id("reject-keep"), deleted = try id("reject-delete"), stale = try id("stale")
         if CommandLine.arguments.contains("--review-live-reopen") {
             for (task, stage, state) in [(approve, StageID(rawValue: "merge"), TaskState.queued(nil)), (changes, StageID(rawValue: "dev"), .queued(nil)), (returned, StageID(rawValue: "dev"), .queued(nil)), (kept, StageID(rawValue: "review"), .cancelled), (deleted, StageID(rawValue: "review"), .cancelled)] {
@@ -164,7 +165,7 @@ extension BoardQA {
                   try git(["show-ref", "--verify", "refs/kaban/archive/" + deleted.rawValue]).0 != 0,
                   try git(["rev-parse", "refs/heads/main"]).1 == metadata["main"] else { throw failure("Archived result or main changed after restart") }
             await store.select(changes); store.detailTab = "Лента"
-            if argument("--export-live-window") != nil { try await captureWindow() }
+            if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
             return ["private daemon restarted after journal deletion", "approve remains queued for merge; both returns remain queued at explicit dev", "exact comment remains once in durable getTaskDetail feed", "keepBranch archive retains actual result commit; deleted branch absent; main unchanged"]
         }
         await store.select(approve)
@@ -176,10 +177,10 @@ extension BoardQA {
         if CommandLine.arguments.contains("--review-live-open-cursor") {
             guard await store.openClone(detail.clonePath) else { throw failure("NSWorkspace did not open actual clone in Cursor") }
         }
-        if let before = argument("--review-live-before") {
+        if let before = AppArguments.value("--review-live-before") {
             store.detailTab = "Сводка"
             try await Task.sleep(for: .milliseconds(500))
-            let bitmap = try await ReferenceExport.captureLiveWindow()
+            let bitmap = try await NativeWindowCapture.capture()
             guard let data = bitmap.representation(using: .png, properties: [:]) else { throw failure("Review before PNG missing") }
             try data.write(to: URL(fileURLWithPath: before))
         }
@@ -219,7 +220,8 @@ extension BoardQA {
         try await waitUntil("current refused decision detail") { store.session.detailReadState == .loaded && store.detail?.task == store.projection?.tasks[stale] }
         guard store.detail?.task.stageId == "merge", store.detail?.feed.contains(where: { $0.text == "Old review decision" }) == false else { throw failure("Refused decision changed details") }
         await store.select(changes); store.detailTab = "Лента"
-        if argument("--export-live-window") != nil { try await captureWindow() }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         return ["real bundled daemon over private stdio and real git/gates/materials", "actual clone opened with NSWorkspace when requested; no Cursor CLI run", "approve queues merge after correlated event", "explicit requestChanges and reject-stage queue dev without bounce increment", "reject cancel cleans clones; keepBranch archives actual result commit and file; no-keep leaves no archive; main unchanged", "real invalid_state refresh preserves comment and adds no refused decision to durable feed"]
     }
 }
+#endif

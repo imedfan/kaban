@@ -8,7 +8,7 @@ struct ReviewMaterialsView: View {
     @Bindable var store: BoardStore
     let detail: TaskDetail
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var artifacts: [TaskArtifact] { TaskDetailPresentation.summaryArtifacts(detail) }
     private var summaries: [TaskArtifact] {
         let stages = store.projection?.pipelines[detail.task.projectId]?.stages ?? []
@@ -146,7 +146,7 @@ struct ReviewMaterialsView: View {
 
 private struct GateOutputReviewView: View {
     let text: String
-    @State private var expanded = BoardQA.argument("--qa-review") == "gates"
+    @State private var expanded = AppArguments.qaValue("--qa-review") == "gates"
     var body: some View {
         DisclosureGroup("Показать вывод проверки", isExpanded: $expanded) {
             Text(text).font(.system(size: 11, design: .monospaced)).lineLimit(8).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)

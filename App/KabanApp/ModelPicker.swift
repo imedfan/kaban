@@ -5,7 +5,7 @@ import KabanBoardCore
 struct ModelPicker: View {
     @Bindable var store: ModelSettingsStore
     @Binding var selection: String
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     @State private var open = false
     @State private var query = ""
     private var current: ModelInfo? { store.catalog.first { $0.id.rawValue == selection } }
@@ -54,7 +54,7 @@ struct ModelPicker: View {
             } else if let current, !ModelSelection.selectable(current, flags: store.flags) {
                 Text("Модель недоступна. Текущий ID сохранён; выберите другую модель.").font(.caption).foregroundStyle(.orange)
             }
-        }.task { await store.loadIfNeeded(); if BoardQA.argument("--qa-model-picker") == "yes" { query = BoardQA.argument("--qa-model-query") ?? ""; open = true } }
+        }.task { await store.loadIfNeeded(); if AppArguments.qaValue("--qa-model-picker") == "yes" { query = AppArguments.qaValue("--qa-model-query") ?? ""; open = true } }
     }
     private func modelButton(_ model: ModelInfo) -> some View {
         Button {

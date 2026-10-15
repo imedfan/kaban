@@ -1,10 +1,11 @@
+#if KABAN_QA
 import AppKit
 import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
     static func incidentLiveSmoke(_ store: BoardStore) async throws -> [String: Any] {
-        let mode = argument("--qa-incident-mode") ?? "refs"
+        let mode = AppArguments.value("--qa-incident-mode") ?? "refs"
         store.screen = .incidents; store.incidents.scheduleRefresh()
         try await waitUntil("durable incident list") { store.incidents.isCurrent }
         guard let projection = store.projection,
@@ -14,7 +15,7 @@ extension BoardQA {
             guard store.incidents.records.isEmpty, projection.openIncidentCount == 0 else { throw failure("Nonempty empty fixture") }
             try await captureWindow(); checks["empty"] = true; return checks
         }
-        guard let database = argument("--developer-database") else { throw failure("Private database missing") }
+        guard let database = AppArguments.value("--developer-database") else { throw failure("Private database missing") }
         let root = URL(fileURLWithPath: database).deletingLastPathComponent()
         let metadata = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: root.appendingPathComponent("seed.json")))
         let name = mode == "deleted-log" ? "deleted" : ["hidden", "model", "return", "reopen", "missing-log", "retention", "disconnected", "policy"].contains(mode) ? "refs" : mode
@@ -115,3 +116,4 @@ extension BoardQA {
         return checks
     }
 }
+#endif

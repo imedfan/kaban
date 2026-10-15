@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ReferenceTheme {
+struct KabanTheme {
     let dark: Bool
     var content: Color { Color(hex: dark ? 0x141417 : 0xeef0f4) }
     var window: Color { Color(hex: dark ? 0x1c1c1f : 0xf3f3f6) }
@@ -38,32 +38,9 @@ struct ReferenceTheme {
 extension Color {
     init(hex: UInt32) { self.init(red: Double(hex >> 16 & 255) / 255, green: Double(hex >> 8 & 255) / 255, blue: Double(hex & 255) / 255) }
 }
-
-struct ReferenceButton: View {
+struct KabanChip: View {
     let title: String
-    var icon: String? = nil
-    var primary = false
-    var small = false
-    let theme: ReferenceTheme
-    var action: () -> Void = {}
-    @ViewBuilder var body: some View {
-        if primary {
-            button.buttonStyle(.borderedProminent).controlSize(small ? .small : .regular)
-        } else {
-            button.buttonStyle(.bordered).controlSize(small ? .small : .regular)
-        }
-    }
-    private var button: some View {
-        Button(action: action) {
-            if let icon { Label(title, systemImage: icon) }
-            else { Text(title) }
-        }
-    }
-}
-
-struct ReferenceChip: View {
-    let title: String
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var tone: String? = nil
     var mono = false
     var body: some View {
@@ -73,9 +50,8 @@ struct ReferenceChip: View {
             .background(tone.map { theme.status($0).1 } ?? theme.control, in: RoundedRectangle(cornerRadius: 5))
     }
 }
-
-struct ReferenceBackdrop: View {
-    let theme: ReferenceTheme
+struct KabanBackdrop: View {
+    let theme: KabanTheme
     var body: some View {
         Canvas { context, size in
             context.fill(Path(CGRect(origin:.zero,size:size)),with:.color(theme.content))
@@ -89,21 +65,8 @@ struct ReferenceBackdrop: View {
         }.background(theme.content).clipped()
     }
 }
-
-struct ReferenceBox<Content: View>: View {
-    let title: String
-    let theme: ReferenceTheme
-    @ViewBuilder var content: () -> Content
-    var body: some View {
-        GroupBox(title) {
-            VStack(alignment: .leading, spacing: 8) { content() }
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
 // Original outlined Onest wordmark, from supplied brand SVG (no font installation).
-struct ReferenceWordmark: Shape {
+struct KabanWordmark: Shape {
  func path(in rect:CGRect)->Path {
  var p=Path()
 p.move(to:CGPoint(x:15.00009765625,y:148.0))
@@ -269,23 +232,3 @@ return p.applying(CGAffineTransform(translationX:0,y:2).concatenating(CGAffineTr
 }
 
 /// Native wrapping layout for metadata chips and small controls.
-struct ReferenceFlow: Layout {
-    var spacing: CGFloat = 6
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        positions(width: proposal.width ?? 600, subviews: subviews).size
-    }
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let layout = positions(width: bounds.width, subviews: subviews)
-        for (index, view) in subviews.enumerated() { view.place(at: CGPoint(x: bounds.minX + layout.points[index].x, y: bounds.minY + layout.points[index].y), anchor: .topLeading, proposal: .unspecified) }
-    }
-    private func positions(width: CGFloat, subviews: Subviews) -> (size: CGSize, points: [CGPoint]) {
-        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
-        var points: [CGPoint] = []
-        for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
-            if x > 0 && x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
-            points.append(CGPoint(x: x, y: y)); x += size.width + spacing; rowHeight = max(rowHeight, size.height)
-        }
-        return (CGSize(width: width, height: y + rowHeight), points)
-    }
-}

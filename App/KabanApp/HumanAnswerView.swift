@@ -7,7 +7,7 @@ struct HumanAnswerView: View {
     @Bindable var store: BoardStore
     let card: TaskCard
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     private var answers: HumanAnswerStore { store.humanAnswers }
     private var draft: HumanAnswerStore.Draft? { answers.draft(for: card.id) }
     private var receipt: ClientCommandJournal.Record? { answers.receipt(for: card.id) }

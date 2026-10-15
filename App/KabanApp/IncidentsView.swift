@@ -5,7 +5,7 @@ import KabanBoardCore
 struct IncidentsView: View {
     @Bindable var store: BoardStore
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
@@ -76,7 +76,7 @@ private struct IncidentReadNotice: View {
 struct IncidentRow: View {
     @Bindable var store: BoardStore
     let incident: Incident
-    let theme: ReferenceTheme
+    let theme: KabanTheme
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .top) {
@@ -103,7 +103,7 @@ struct IncidentDetailBlock: View {
     @Bindable var store: BoardStore
     let incident: Incident
     @Environment(\.colorScheme) private var scheme
-    private var theme: ReferenceTheme { .init(dark: scheme == .dark) }
+    private var theme: KabanTheme { .init(dark: scheme == .dark) }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(incident.kind.title, systemImage: "light.beacon.max").font(.headline).foregroundStyle(theme.status("incident").2)
