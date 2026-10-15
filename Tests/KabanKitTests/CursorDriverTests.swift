@@ -118,16 +118,18 @@ final class CursorDriverTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-cursor-auth-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let script = try executable(root, """
-        #!/bin/sh
-        if [ "$1" = "--version" ]; then echo fixture-1; exit 0; fi
-        if [ "$1" = "status" ]; then echo 'Usage: status [options]'; exit 0; fi
-        printf 'fixture-model\\tFixture Model\\n'
-        """)
-        let assessment = CursorRunner.assess(executable: script.path, environment: ["PATH": "/usr/bin:/bin"])
-        XCTAssertFalse(assessment.authOK)
-        XCTAssertEqual(assessment.reason, .agentNotRunnable)
-        XCTAssertEqual(assessment.version, "fixture-1")
+        for status in ["Usage: status [options]", "Cannot determine whether logged in", "Not yet logged in"] {
+            let script = try executable(root, """
+            #!/bin/sh
+            if [ "$1" = "--version" ]; then echo fixture-1; exit 0; fi
+            if [ "$1" = "status" ]; then echo '\(status)'; exit 0; fi
+            printf 'fixture-model\\tFixture Model\\n'
+            """)
+            let assessment = CursorRunner.assess(executable: script.path, environment: ["PATH": "/usr/bin:/bin"])
+            XCTAssertFalse(assessment.authOK, status)
+            XCTAssertEqual(assessment.reason, .agentNotRunnable, status)
+            XCTAssertEqual(assessment.version, "fixture-1")
+        }
     }
 
     private func executable(_ root: URL, _ text: String) throws -> URL {

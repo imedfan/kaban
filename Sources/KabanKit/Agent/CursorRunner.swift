@@ -58,8 +58,11 @@ public enum CursorRunner {
             let status = invoke(path, ["status"], environment)
             let models = invoke(path, ["--list-models"], environment)
             let statusText = status.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let confirmed = status.code == 0 && (statusText == "ready" ||
-                ["logged in", "signed in", "authenticated successfully"].contains { statusText.contains($0) })
+            let confirmed = status.code == 0 && statusText.split(separator: "\n").contains { line in
+                let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                return value == "ready" || value == "logged in" || value.hasPrefix("logged in as ") ||
+                    value == "signed in" || value.hasPrefix("signed in as ") || value == "authenticated successfully"
+            }
             let reason = loginFailure(in: status.text) ?? (confirmed ? nil : .agentNotRunnable)
             return CursorRunnerAssessment(version: versionLine(version.text), reason: reason,
                 limitsNote: limitsNote(from: models.text), authOK: reason == nil && confirmed,
