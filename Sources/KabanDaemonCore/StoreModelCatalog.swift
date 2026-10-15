@@ -114,17 +114,17 @@ extension KabanStore {
         try saveCatalog(record, db)
     }
 
-    func refreshCatalogIfDue(at: Date) throws {
+    func refreshCatalogIfDue(at: Date, force: Bool = false) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
         let due = try database.read { db -> Bool in
             let record = try Self.catalogRecord(db)
             let executable = try Self.runnerState(db).executable
             guard let executable, !executable.isEmpty else { return false }
-            return record.nextRefreshAt.map { $0 <= at } ?? true
+            return force || (record.nextRefreshAt.map { $0 <= at } ?? true)
         }
         guard due else { return }
         let executable = try database.read { try Self.runnerState($0).executable }
-        let text = CursorRunner.listModelsText(executable: executable, environment: ProcessInfo.processInfo.environment) ?? ""
+        let text = CursorRunner.listModelsText(executable: executable, environment: try cursorProcessEnvironment()) ?? ""
         guard let parsed = ModelCatalogMatcher.parseListModels(text) else {
             try database.write { db in
                 var record = try Self.catalogRecord(db)
@@ -300,7 +300,7 @@ extension KabanStore {
             return try commitModelCommand(envelope, at: at) { _ in throw StoreError.incompleteProjection }
         }
         let executable = try database.read { try Self.runnerState($0).executable }
-        let text = CursorRunner.listModelsText(executable: executable, environment: ProcessInfo.processInfo.environment) ?? ""
+        let text = CursorRunner.listModelsText(executable: executable, environment: try cursorProcessEnvironment()) ?? ""
         return try commitModelCommand(envelope, at: at) { db in
             guard let parsed = ModelCatalogMatcher.parseListModels(text) else {
                 throw StoreError.rejected(.init(code: "model_catalog_refresh_failed",

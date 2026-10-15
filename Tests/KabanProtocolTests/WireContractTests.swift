@@ -85,8 +85,10 @@ enum WireContractExamples {
                 live: .pipelineDraftValidated(validation), error: CommandError.stalePipelineDraftCode),
         command("updatePipeline", .updatePipeline(projectId: Samples.project, contentHash: draft.contentHash, draft: draft),
                 result: .pipelineVersion(hash: draft.contentHash), journal: .pipelineApplied(appliedPipeline), error: CommandError.pipelineHashMismatchCode),
-        command("getCursorEnvironment", .getCursorEnvironment, result: .cursorEnvironment(environment)),
-        command("configureCursor", .configureCursor(environment: environment), result: .ok, journal: .cursorEnvironmentChanged(environment)),
+        command("getCursorEnvironment", .getCursorEnvironment, result: .cursorEnvironment(environment), error: CommandError.protocolMismatchCode),
+        command("checkEnvironment", .checkEnvironment, result: .environment(.init(cursorAgentPath: "/tools/cursor-agent", version: "fixture-1.0", authOK: false,
+            gitVersion: "git version fixture", sandboxOK: true, notificationsAuthorized: false)), error: CommandError.protocolMismatchCode),
+        command("configureCursor", .configureCursor(environment: environment), result: .ok, journal: .cursorEnvironmentChanged(environment), error: "cursor_environment_invalid"),
         command("restoreWIP", .restoreWIP(taskId: restore.taskId, runId: restore.runId, wipRef: restore.wipRef), result: .ok, journal: .wipRestored(restore))
     ]
 }

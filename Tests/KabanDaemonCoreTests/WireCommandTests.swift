@@ -91,7 +91,7 @@ final class WireCommandTests: XCTestCase {
         XCTAssertEqual(try reopened.execute(missing, now: { XCTFail("Refusal replay read clock"); return at }), refusal)
         XCTAssertEqual(try reopened.getSnapshot(), before)
         XCTAssertEqual(try send(.pauseTask(taskId: "later"), to: reopened).result, .ok)
-        XCTAssertEqual(errorCode(try send(.checkEnvironment, to: reopened)), "unsupported_command")
+        XCTAssertEqual(try send(.getCursorEnvironment, to: reopened).result, .cursorEnvironment(.init(executablePath: nil)))
         var incompatible = CommandEnvelope(command: .pauseAll); incompatible.protocolVersion += 1
         XCTAssertEqual(errorCode(try reopened.execute(incompatible)), CommandError.protocolMismatchCode)
         incompatible.protocolVersion = KabanCoding.protocolVersion

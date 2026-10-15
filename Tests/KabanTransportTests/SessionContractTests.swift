@@ -20,21 +20,29 @@ final class SessionContractTests: XCTestCase {
         XCTAssertEqual(capabilities.commands.first { $0.name == "createTask" }?.support, .supported)
         XCTAssertEqual(capabilities.commands.first { $0.name == "recheck" }?.scopes, ["project", "runner"])
         XCTAssertEqual(capabilities.commands.first { $0.name == "restoreWIP" }?.support, .supported)
-        XCTAssertEqual(capabilities.commands.first { $0.name == "configureCursor" }?.support, .unsupported)
+        for name in ["configureCursor", "getCursorEnvironment", "checkEnvironment"] {
+            XCTAssertEqual(capabilities.commands.first { $0.name == name }?.support, .supported)
+        }
         XCTAssertEqual(capabilities.operations.first { $0.name == "readLog" }?.supported, true)
         do { _ = try await client.readLog(runId: "r", fromOffset: 0); XCTFail("Empty success hid a missing log") }
         catch { XCTAssertEqual((error as? CommandError)?.code, CommandError.logUnavailableCode) }
-        for command in [Command.checkEnvironment,
-                        .configureCursor(environment: .init(executablePath: "/tool")), .getCursorEnvironment] {
-            let envelope = CommandEnvelope(command: command)
-            let reply = try await client.send(envelope)
-            guard case .error(let error) = reply.result else { return XCTFail("Unavailable command succeeded") }
-            XCTAssertEqual(error.code, CommandError.unsupportedCommandCode)
-            XCTAssertEqual(error.params["command"], command.name.rawValue)
-            let replay = try await client.send(envelope)
-            XCTAssertEqual(replay, reply)
-        }
         XCTAssertEqual(try service.store.getSnapshot().seq, 0)
+        let query = CommandEnvelope(command: .getCursorEnvironment)
+        let initial = try await client.send(query)
+        XCTAssertEqual(initial.result, .cursorEnvironment(.init(executablePath: nil)))
+        let envelope = CommandEnvelope(command: .configureCursor(environment: .init(executablePath: "/kaban-fixture-missing-cursor-agent")))
+        let configured = try await client.send(envelope)
+        XCTAssertEqual(configured.result, .ok)
+        let replay = try await client.send(envelope)
+        XCTAssertEqual(replay, configured)
+        let fresh = try await client.send(query)
+        XCTAssertEqual(fresh.result, .cursorEnvironment(.init(executablePath: "/kaban-fixture-missing-cursor-agent")))
+        guard case .environment(let report) = try await client.send(.init(command: .checkEnvironment)).result else { return XCTFail("Environment report missing") }
+        XCTAssertEqual(report.cursorAgentPath, "/kaban-fixture-missing-cursor-agent")
+        XCTAssertNil(report.version)
+        XCTAssertFalse(report.authOK)
+        let page = try await client.subscribe(fromSeq: 0)
+        XCTAssertTrue(page.events.contains { $0.commandId == envelope.commandId && $0.event == .cursorEnvironmentChanged(.init(executablePath: "/kaban-fixture-missing-cursor-agent")) })
     }
     func testReplacementCapturesCurrentValuesAndVolatileEventsAllocateNoSeq() async throws {
         let service = try service(), client = DaemonClient(transport: SessionLocalTransport(service: service))

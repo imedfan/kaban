@@ -5,10 +5,14 @@ public struct CursorRunnerAssessment: Equatable, Sendable {
     public var version: String?
     public var reason: RunnerUnavailableReason?
     public var limitsNote: String?
-    public init(version: String?, reason: RunnerUnavailableReason?, limitsNote: String?) {
+    public var authOK: Bool
+    public var catalog: [ModelInfo]?
+    public init(version: String?, reason: RunnerUnavailableReason?, limitsNote: String?, authOK: Bool = false, catalog: [ModelInfo]? = nil) {
         self.version = version
         self.reason = reason
         self.limitsNote = limitsNote
+        self.authOK = authOK
+        self.catalog = catalog
     }
 }
 
@@ -48,12 +52,18 @@ public enum CursorRunner {
             return CursorRunnerAssessment(version: nil, reason: .agentNotRunnable, limitsNote: nil)
         case .runnable:
             let version = invoke(path, ["--version"], environment)
-            let status = invoke(path, ["status"], environment)
-            let models = invoke(path, ["--list-models"], environment)
-            if !version.spawned && !status.spawned {
+            if version.code != 0 || versionLine(version.text) == nil {
                 return CursorRunnerAssessment(version: nil, reason: .agentNotRunnable, limitsNote: nil)
             }
-            return CursorRunnerAssessment(version: versionLine(version.text), reason: loginFailure(in: status.text), limitsNote: limitsNote(from: models.text))
+            let status = invoke(path, ["status"], environment)
+            let models = invoke(path, ["--list-models"], environment)
+            let statusText = status.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let confirmed = status.code == 0 && (statusText == "ready" ||
+                ["logged in", "signed in", "authenticated successfully"].contains { statusText.contains($0) })
+            let reason = loginFailure(in: status.text) ?? (confirmed ? nil : .agentNotRunnable)
+            return CursorRunnerAssessment(version: versionLine(version.text), reason: reason,
+                limitsNote: limitsNote(from: models.text), authOK: reason == nil && confirmed,
+                catalog: models.code == 0 ? ModelCatalogMatcher.parseListModels(models.text) : nil)
         }
     }
 
@@ -61,7 +71,20 @@ public enum CursorRunner {
     public static func listModelsText(executable path: String?, environment: [String: String]) -> String? {
         guard let path, !path.isEmpty, executableState(path) == .runnable else { return nil }
         let models = invoke(path, ["--list-models"], environment)
-        return models.spawned ? models.text : nil
+        return models.code == 0 ? models.text : nil
+    }
+
+    public static func environmentReport(executable: String?, environment: [String: String], notificationsAuthorized: Bool) -> EnvironmentReport {
+        let runner = assess(executable: executable, environment: environment)
+        let git = invoke("/usr/bin/git", ["--version"], environment)
+        #if os(macOS)
+        let sandbox = invoke("/usr/bin/sandbox-exec", ["-p", "(version 1) (allow default)", "/usr/bin/true"], environment).code == 0
+        #else
+        let sandbox = false
+        #endif
+        return .init(cursorAgentPath: executable, version: runner.version, authOK: runner.authOK,
+                     gitVersion: git.code == 0 ? versionLine(git.text) : nil,
+                     sandboxOK: sandbox, notificationsAuthorized: notificationsAuthorized)
     }
 
     public static func versionLine(_ text: String) -> String? {
@@ -80,24 +103,30 @@ public enum CursorRunner {
         return joined.isEmpty ? nil : String(joined.prefix(500))
     }
 
-    private struct Invocation {
-        var text: String
-        var spawned: Bool
+    struct Invocation {
+        var stdout: String
+        var stderr: String
+        var code: Int32?
+        var text: String { stdout + stderr }
     }
 
-    private static func invoke(_ executable: String, _ arguments: [String], _ environment: [String: String]) -> Invocation {
+    static func invoke(_ executable: String, _ arguments: [String], _ environment: [String: String]) -> Invocation {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-cursor-probe-" + UUID().uuidString)
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             defer { try? FileManager.default.removeItem(at: directory) }
             let output = directory.appendingPathComponent("out").path
             let error = directory.appendingPathComponent("err").path
-            _ = FileManager.default.createFile(atPath: output, contents: Data())
-            _ = FileManager.default.createFile(atPath: error, contents: Data())
+            _ = FileManager.default.createFile(atPath: output, contents: Data(), attributes: [.posixPermissions: 0o600])
+            _ = FileManager.default.createFile(atPath: error, contents: Data(), attributes: [.posixPermissions: 0o600])
             let handle = try ProcessGroup.spawn(executable: executable, arguments: arguments, workingDirectory: directory.path, environment: environment, standardOutput: output, standardError: error)
-            let deadline = Date().addingTimeInterval(15)
+            let deadline = Date().addingTimeInterval(2)
             var code = ProcessGroup.poll(handle.pid)
             while code == nil && Date() < deadline {
+                let size = [output, error].reduce(UInt64(0)) { size, path in
+                    size + (((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? NSNumber)?.uint64Value ?? 0)
+                }
+                if size > 65_536 { break }
                 Thread.sleep(forTimeInterval: 0.02)
                 code = ProcessGroup.poll(handle.pid)
             }
@@ -109,11 +138,14 @@ public enum CursorRunner {
                     code = ProcessGroup.poll(handle.pid)
                 }
             }
-            let stdout = (try? String(contentsOfFile: output, encoding: .utf8)) ?? ""
-            let stderr = (try? String(contentsOfFile: error, encoding: .utf8)) ?? ""
-            return Invocation(text: stdout + stderr, spawned: true)
+            func text(_ path: String) -> String {
+                guard let file = FileHandle(forReadingAtPath: path) else { return "" }
+                defer { try? file.close() }
+                return String(data: (try? file.read(upToCount: 65_536)) ?? Data(), encoding: .utf8) ?? ""
+            }
+            return Invocation(stdout: text(output), stderr: text(error), code: code)
         } catch {
-            return Invocation(text: "", spawned: false)
+            return Invocation(stdout: "", stderr: "", code: nil)
         }
     }
 }
