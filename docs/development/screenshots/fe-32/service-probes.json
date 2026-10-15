@@ -1,0 +1,26 @@
+[
+  {
+    "after": 0,
+    "before": 3,
+    "bundle": "/Applications/Kaban-FE32-SigningProbe.app",
+    "helperExecuted": true,
+    "registered": 1,
+    "case": "base"
+  },
+  {
+    "after": 0,
+    "before": 3,
+    "bundle": "/Applications/Kaban-FE32-SigningProbe-noversion.app",
+    "helperExecuted": true,
+    "registered": 1,
+    "case": "noversion"
+  },
+  {
+    "after": 0,
+    "before": 3,
+    "bundle": "/Applications/Kaban-FE32-SigningProbe-actualhelper.app",
+    "helperExecuted": true,
+    "registered": 1,
+    "case": "actualhelper"
+  }
+]
