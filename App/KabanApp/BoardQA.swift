@@ -11,7 +11,7 @@ import Darwin
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
     static var isActive: Bool { ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
-    static var needsExplicitWindow: Bool { AppArguments.value("--menubar-live-smoke") != nil || AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
+    static var needsExplicitWindow: Bool { AppArguments.value("--project-smoke") != nil || AppArguments.value("--menubar-live-smoke") != nil || AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
     static func run() async {
         do {
             if needsExplicitWindow {
@@ -141,6 +141,10 @@ import Darwin
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_SUCCESS)
         } catch {
+            if let path = AppArguments.value("--project-smoke"),
+               let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: URL(fileURLWithPath: path))
+            }
             if let path = ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
@@ -250,6 +254,9 @@ import Darwin
         return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
     private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
+        if let metadata = AppArguments.value("--project-smoke-reopen") {
+            return try await reopenedProjectSmoke(initial, metadata: metadata)
+        }
         guard !initial.usesFixture, let repository = AppArguments.value("--project-smoke-repository"), let relocated = AppArguments.value("--project-smoke-relink"), let runtime else { throw failure("Real project smoke configuration missing") }
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Project WindowGroup missing") }
         let before = initial.projection?.projects.count ?? 0
@@ -274,6 +281,11 @@ import Darwin
             let identity = GitIdentity(name: "Kaban Project QA", email: "project-qa@example.test")
             enteredIdentity = identity
             initial.projects.editIdentity(.name, value: identity.name); initial.projects.editIdentity(.email, value: identity.email)
+        } else if AppArguments.value("--project-smoke-picker") == "YES" {
+            initial.projects.editPath("preserved draft")
+            cancelProjectFolderPicker(initial, path: repository)
+            guard initial.projects.draft.path == "preserved draft" else { throw failure("Cancelled folder picker changed draft") }
+            initial.projects.editPath(repository)
         } else { initial.projects.editPath(repository) }
         _ = await initial.projects.submit()
         try await waitUntil("correlated project registration") { initial.projects.observeOutcome(); return initial.projects.phase == .applied && initial.projects.connectedProjectID != nil && initial.canSend }
@@ -309,20 +321,75 @@ import Darwin
         try await waitUntil("closed task sheet") { window.attachedSheet == nil }
         await runtime.retry()
         try await waitUntil("reopened project database") { runtime.store !== initial && runtime.store?.canSend == true }
-        guard let store = runtime.store, store.projection?.projects[id]?.path == repository, store.projection?.tasks[taskID]?.projectId == id else { throw failure("Project or task lost on reopen") }
+        guard var store = runtime.store, store.projection?.projects[id]?.path == repository, store.projection?.tasks[taskID]?.projectId == id else { throw failure("Project or task lost on reopen") }
         store.beginProjectFlow(.relink(id))
         try await waitUntil("actual relink sheet") { window.attachedSheet != nil }
-        store.projects.editPath(relocated); _ = await store.projects.submit()
+        store.projects.editPath(relocated)
+        _ = await store.projects.submit()
         try await waitUntil("correlated project relink") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id]?.path == relocated && store.canSend }
         guard store.projection?.tasks[taskID]?.projectId == id else { throw failure("Relink changed task identity") }
         store.projectSheet = nil; store.screen = .project(id)
         try await waitUntil("closed relink sheet") { window.attachedSheet == nil }
+        if let metadata = AppArguments.value("--project-smoke-retain") {
+            await runtime.retry()
+            try await waitUntil("helper restart after relink") { runtime.store !== store && runtime.store?.canSend == true }
+            guard let reopened = runtime.store, reopened.projection?.projects[id]?.path == relocated,
+                  reopened.projection?.tasks[taskID]?.projectId == id else { throw failure("Relink lost after helper restart") }
+            store = reopened
+            store.beginProjectFlow(.relink(id))
+            await store.projects.refreshDiagnostics()
+            guard store.projects.branches?.contains("main") == true else { throw failure("Helper lost folder access after restart") }
+            try JSONSerialization.data(withJSONObject: ["project": id.rawValue, "task": taskID.rawValue, "path": relocated], options: [.sortedKeys]).write(to: URL(fileURLWithPath: metadata))
+            return ["native folder picker cancels without losing draft; successful selection requires manual acceptance", "real private daemon adds project by entered path and Backlog task", "relink retains project/task IDs", "helper restarts before and after relink and reads repository branches"]
+        }
         store.beginProjectFlow(.remove(id))
         try await waitUntil("actual removal confirmation") { window.attachedSheet != nil }
         _ = await store.projects.submit()
         try await waitUntil("correlated project removal") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projection?.projects[id] == nil && store.canSend && store.screen == .board }
         guard !store.visibleIDs.contains(id), FileManager.default.fileExists(atPath: repository + "/.git"), FileManager.default.fileExists(atPath: relocated + "/.git") else { throw failure("Removal changed user repository or left lane") }
         return ["actual WindowGroup and Add/Relink/Remove sheets", "project appears after correlated event or covered receipt and gets one lane", "server branch/gates reads and unknown environment", "Backlog task with invalid/missing pipeline", "real private DB reopens with project and task IDs", "relink keeps project/task IDs", "remove updates selection and leaves both repositories on disk"]
+    }
+    private static func cancelProjectFolderPicker(_ store: BoardStore, path: String) {
+        let panel = NSOpenPanel()
+        let directory = URL(fileURLWithPath: path, isDirectory: true)
+        panel.directoryURL = directory
+        let action = Timer(timeInterval: 1, repeats: false) { _ in
+            MainActor.assumeIsolated {
+                panel.cancel(nil)
+            }
+        }
+        RunLoop.main.add(action, forMode: .modalPanel)
+        defer { action.invalidate() }
+        store.chooseProjectFolder(using: panel)
+    }
+    private static func reopenedProjectSmoke(_ store: BoardStore, metadata: String) async throws -> [String] {
+        let values = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: URL(fileURLWithPath: metadata)))
+        guard !store.usesFixture, let project = values["project"], let task = values["task"], let oldPath = values["path"],
+              let recoveredPath = AppArguments.value("--project-smoke-relink"), let clone = AppArguments.value("--project-smoke-clone"), let runtime,
+              let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Restart fixture missing") }
+        let id = ProjectID(rawValue: project), taskID = TaskID(rawValue: task)
+        guard store.projection?.projects[id]?.path == oldPath, store.projection?.tasks[taskID]?.projectId == id,
+              !FileManager.default.fileExists(atPath: oldPath) else { throw failure("App restart lost project/task or repository was not moved") }
+        store.beginProjectFlow(.relink(id))
+        try await waitUntil("relink sheet after App restart") { window.attachedSheet != nil }
+        await store.projects.refreshDiagnostics()
+        guard store.projects.branches == nil, store.projects.branchesError != nil else { throw failure("Missing repository was reported accessible") }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
+        store.projects.editPath(recoveredPath)
+        _ = await store.projects.submit()
+        try await waitUntil("recovered path event") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.canSend && store.projection?.projects[id]?.path == recoveredPath }
+        await store.projects.refreshDiagnostics()
+        try await waitUntil("recovered repository diagnostics") { !store.projects.isReading && store.projects.branches?.contains("main") == true }
+        guard store.projects.branches?.contains("main") == true, store.projection?.tasks[taskID]?.projectId == id else { throw failure("Folder recovery lost access or task") }
+        guard await store.openClone(clone) else { throw failure("Cursor open failed: \(store.cloneOpeningError ?? "unknown")") }
+        await runtime.onboardingSystem.refresh(fixture: false)
+        guard runtime.onboardingSystem.notifications != nil else { throw failure("Native notification settings unavailable") }
+        store.projectSheet = nil
+        try await waitUntil("closed recovered relink sheet") { window.attachedSheet == nil }
+        store.beginProjectFlow(.remove(id)); _ = await store.projects.submit()
+        try await waitUntil("remove recovered project") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.canSend && store.projection?.projects[id] == nil }
+        guard FileManager.default.fileExists(atPath: recoveredPath + "/.git") else { throw failure("Removal deleted repository") }
+        return ["full App/helper restart restores same project/task IDs", "missing folder produces real daemon read refusal", "entered folder path recovers access through correlated relink", "Cursor opens actual local clone through NSWorkspace", "native notification authorization status read (approval remains manual)", "remove leaves repository intact"]
     }
     private static func prepare(_ store: BoardStore) async throws {
         if try await prepareMerge(store) { return }

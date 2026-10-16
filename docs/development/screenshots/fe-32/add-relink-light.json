@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "native folder picker cancels without losing draft; successful selection requires manual acceptance",
+    "real private daemon adds project by entered path and Backlog task",
+    "relink retains project/task IDs",
+    "helper restarts before and after relink and reads repository branches"
+  ],
+  "result": "passed",
+  "configuration": "Debug KABAN_QA",
+  "signing": "ad-hoc",
+  "appSandbox": false,
+  "hardenedRuntime": true,
+  "folderSelection": "manual acceptance required; automation checks cancellation and entered paths",
+  "transport": "private stdio; actual bundled daemon",
+  "writerLeaseReleased": true
+}

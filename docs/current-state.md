@@ -201,6 +201,24 @@ restart и agent_not_logged_in. Положительный login, авториз
 
 ## Что есть в основном коде
 
+FE-32 реализуется в `codex/fe-32-local-client` от `f405a27`: удалены sandbox
+bookmarks клиента, Debug/Release и CI используют проверяемые ad-hoc подписи.
+Подготовлена установленная копия `/Applications/Kaban.app`.
+[Отчёт FE-32](development/frontend-fe-32-2026-10-15.md) разделяет private-daemon
+проверки и ручную приёмку: через NSOpenPanel подключён отдельный
+репозиторий в Documents, установленный helper прочитал ветку `main`.
+После restart App/helper тот же проект и `main` сохранились; уведомления
+разрешены пользователем. FE-04 #4 и критерии FE-32 отмечены; полный M1/MVP не принят.
+Есть отдельный таймаут native control smoke в PR CI; соответствующий push
+и локальный strict smoke прошли этот шаг. Статус CI и границы записаны в отчёте.
+После ручного одобрения фоновой работы installed helper сначала не запускался:
+`launchd` возвращал `EX_CONFIG (78)` при разрешении `BundleProgram`.
+**Служба → Перезапустить службу** восстановила регистрацию: Артём подтвердил
+installed XPC, проверен один живой KabanDaemon из `/Applications/Kaban.app`,
+launchd `running`, `runs = 1`. Причина потери прежней системной привязки
+не установлена; восстановление через unregister/register подтверждено.
+Доказательства записаны в отчёте FE-32.
+
 | Область | Реализовано | Граница |
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |

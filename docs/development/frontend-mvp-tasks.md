@@ -247,8 +247,9 @@ Unit/wire tests и screenshots не подменяют эти проверки.
 **Статус:** реализация подготовлена в `codex/fe-04-project-lifecycle` от main
 `ff04e05`, с локальной зависимостью FE-03 (#94). Native Add/Backlog/reopen/relink/remove,
 реальные non-git/identity отказы и keyboard проверены; [отчёт FE-04](frontend-fe-04-2026-10-07.md).
-Отдельный PR в main публикуется после принятия #94. Folder permissions штатного
-App/helper после restart остаются открытыми; FE-04 не объявлена полностью принятой.
+Реализация принята в main через #95. Проверка доступа штатного App/helper
+после restart завершена в FE-32 на ad-hoc сборке без App Sandbox;
+[отчёт FE-32](frontend-fe-32-2026-10-15.md) указывает границы installed/private проверок.
 
 **Приоритет:** P0
 
@@ -279,7 +280,7 @@ App/helper после restart остаются открытыми; FE-04 не о
 - [x] Invalid identity/non-git не добавляют фиктивную дорожку; ошибка сохраняет введённые данные.
 - [x] Новый проект появляется после event и может хранить Backlog при невалидном pipeline.
 - [x] Relink сохраняет projectId/задачи; remove обновляет выбор и доску по authoritative events.
-- [ ] Разрешения App/helper на папку проверены после restart; применимые bookmarks восстанавливаются, утраченный доступ исправляется выбором папки.
+- [x] Разрешения App/helper на папку проверены после restart; применимые bookmarks восстанавливаются, утраченный доступ исправляется выбором папки. FE-32: signed ad-hoc без Sandbox, installed XPC/Documents restart подтверждён пользователем; утраченный путь/relink проверен с private daemon, bookmarks не применяются. [Отчёт](frontend-fe-32-2026-10-15.md).
 
 ## FE-05. Завершить живую доску, набор проектов и карточки всех состояний
 
