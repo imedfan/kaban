@@ -30,7 +30,7 @@ Kaban — основной проект. Текущий код содержит 
 
 ## Проверка
 
-Из корня, Swift 6.1+ (на Linux нужны SQLite headers):
+Из корня, Swift 6.1+ (на Linux нужны SQLite headers, python3 и curl для проверок):
 
 ```sh
 python3 tools/check-project-context.py
