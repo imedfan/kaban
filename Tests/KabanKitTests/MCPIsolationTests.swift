@@ -65,6 +65,20 @@ final class MCPIsolationTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(".cursor/mcp.json"), encoding: .utf8), original)
     }
 
+    func testExistingUntrackedConfigIsAlsoExcludedFromAgentCommits() throws {
+        let root = try gitRepo()
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".cursor"), withIntermediateDirectories: true)
+        let file = root.appendingPathComponent(".cursor/mcp.json")
+        let original = "{\"mcpServers\":{}}\n"
+        try Data(original.utf8).write(to: file)
+        let installed = try MCPConfigFile.install(cloneRoot: root, generated: "{\"mcpServers\":{\"kaban\":{\"url\":\"http://127.0.0.1:9/mcp\"}}}")
+        _ = try git(["add", "-A"], root)
+        XCTAssertEqual(try git(["diff", "--cached", "--name-only"], root), "")
+        try MCPConfigFile.restore(cloneRoot: root, installed: installed)
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), original)
+        XCTAssertFalse(try String(contentsOf: root.appendingPathComponent(".git/info/exclude"), encoding: .utf8).contains(".cursor/mcp.json"))
+    }
+
     func testGeneratedFileIsNotLeftBehind() throws {
         let root = try gitRepo()
         let installed = try MCPConfigFile.install(cloneRoot: root, generated: "{\"mcpServers\":{\"kaban\":{\"url\":\"\(board)\"}}}")

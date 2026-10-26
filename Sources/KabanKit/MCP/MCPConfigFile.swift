@@ -43,7 +43,7 @@ public enum MCPConfigFile {
         let previous = FileManager.default.fileExists(atPath: file.path) ? try Data(contentsOf: file) : nil
         let exclude = cloneRoot.appendingPathComponent(".git/info/exclude")
         let lines = ((try? String(contentsOf: exclude, encoding: .utf8)) ?? "").split(separator: "\n")
-        return MCPInstalledFile(previous: previous, excludeAdded: previous == nil && !lines.contains(Substring(excludeLine)))
+        return MCPInstalledFile(previous: previous, excludeAdded: !isTracked(cloneRoot) && !lines.contains(Substring(excludeLine)))
     }
 
     /// A tracked file is marked skip-worktree, so `git add -A` and `commit -a` in the clone leave the swap out of the branch.
@@ -54,7 +54,7 @@ public enum MCPConfigFile {
         try FileManager.default.createDirectory(at: cursor, withIntermediateDirectories: true)
         if isTracked(cloneRoot) { try git(["update-index", "--skip-worktree", "--", relativePath], cloneRoot) }
         try Data(generated.utf8).write(to: cursor.appendingPathComponent("mcp.json"), options: .atomic)
-        let added = captured.previous == nil && addExclude(cloneRoot)
+        let added = captured.excludeAdded && addExclude(cloneRoot)
         return MCPInstalledFile(previous: captured.previous, excludeAdded: added)
     }
 
