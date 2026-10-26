@@ -195,6 +195,7 @@ extension KabanStore {
                 _ = try commitEffectResult(effectId: lease.effectId, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: lease.effectId + "/gates", phase: .finished, outcome: .gatesFailed(output: "clone is not ready")), at: at, diagnostic: "BE-11 gate has no clone")
                 return true
             }
+            _ = try restoreInstalledMCPConfigs(taskId: item.taskId)
             try insertWork(id: workId, taskId: item.taskId.rawValue, entry: entry, stageId: task.machine.stageId.rawValue, kind: "gate", command: commands.joined(separator: "\n"), effectId: lease.effectId)
             try database.write { db in
                 try db.execute(sql: "UPDATE stage_work SET status = 'running' WHERE id = ?", arguments: [workId])
@@ -245,6 +246,8 @@ extension KabanStore {
     func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool, ignoringMainMove: Bool = false) throws -> (outcome: RealEffectOutcome, label: String) {
         guard let clone else { return (.clean, "clean") }
         let snapshot = try database.read { db in try Self.protectionSnapshot(task.card.projectId, db: db) }
+        // The run config goes back to the bytes captured before the swap before anything is compared or committed.
+        _ = try restoreInstalledMCPConfigs(taskId: task.card.id)
         try TaskClone.restoreBoardMCP(clone: clone.clonePath, origin: clone.projectPath, identity: identity)
         let base = clone.baseCommit ?? ""
         if let snapshot, let found = try TaskClone.protectionDrift(clone.projectPath, snapshot: snapshot, identity: identity) {

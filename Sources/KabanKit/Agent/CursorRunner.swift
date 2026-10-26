@@ -77,6 +77,16 @@ public enum CursorRunner {
         return models.code == 0 ? models.text : nil
     }
 
+    public static let mcpListTimeout: TimeInterval = 20
+
+    /// `mcp list` in the run's working directory and environment. It does not start a model prompt.
+    /// A missing executable, a timeout, or a crash returns a nil code, which the preflight reads as unreadable.
+    public static func listMCP(executable path: String?, environment: [String: String], workingDirectory: String) -> (text: String, code: Int32?) {
+        guard let path, !path.isEmpty, executableState(path) == .runnable else { return ("", nil) }
+        let result = invoke(path, ["mcp", "list"], environment, workingDirectory: workingDirectory, timeout: mcpListTimeout)
+        return (result.stdout, result.code)
+    }
+
     public static func environmentReport(executable: String?, environment: [String: String], notificationsAuthorized: Bool) -> EnvironmentReport {
         let runner = assess(executable: executable, environment: environment)
         let git = invoke("/usr/bin/git", ["--version"], environment)
@@ -113,7 +123,7 @@ public enum CursorRunner {
         var text: String { stdout + stderr }
     }
 
-    static func invoke(_ executable: String, _ arguments: [String], _ environment: [String: String]) -> Invocation {
+    static func invoke(_ executable: String, _ arguments: [String], _ environment: [String: String], workingDirectory: String? = nil, timeout: TimeInterval = 2) -> Invocation {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-cursor-probe-" + UUID().uuidString)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -122,8 +132,8 @@ public enum CursorRunner {
             let error = directory.appendingPathComponent("err").path
             _ = FileManager.default.createFile(atPath: output, contents: Data(), attributes: [.posixPermissions: 0o600])
             _ = FileManager.default.createFile(atPath: error, contents: Data(), attributes: [.posixPermissions: 0o600])
-            let handle = try ProcessGroup.spawn(executable: executable, arguments: arguments, workingDirectory: directory.path, environment: environment, standardOutput: output, standardError: error)
-            let deadline = Date().addingTimeInterval(2)
+            let handle = try ProcessGroup.spawn(executable: executable, arguments: arguments, workingDirectory: workingDirectory ?? directory.path, environment: environment, standardOutput: output, standardError: error)
+            let deadline = Date().addingTimeInterval(timeout)
             var code = ProcessGroup.poll(handle.pid)
             while code == nil && Date() < deadline {
                 let size = [output, error].reduce(UInt64(0)) { size, path in
@@ -146,7 +156,10 @@ public enum CursorRunner {
                 defer { try? file.close() }
                 return String(data: (try? file.read(upToCount: 65_536)) ?? Data(), encoding: .utf8) ?? ""
             }
-            return Invocation(stdout: text(output), stderr: text(error), code: code)
+            let bytes = [output, error].reduce(UInt64(0)) { size, path in
+                size + (((try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? NSNumber)?.uint64Value ?? 0)
+            }
+            return Invocation(stdout: text(output), stderr: text(error), code: bytes > 65_536 ? nil : code)
         } catch {
             return Invocation(stdout: "", stderr: "", code: nil)
         }

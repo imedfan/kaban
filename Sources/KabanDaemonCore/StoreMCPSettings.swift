@@ -86,11 +86,18 @@ extension KabanStore {
     }
 
     private func readMCPCatalog(projectPath: String) throws -> [McpServerRef] {
+        try readMCPDefinitions(projectPath: projectPath).compactMap { definition in
+            McpServerRef.Source(rawValue: definition.source).map { McpServerRef(name: definition.name, source: $0) }
+        }
+    }
+
+    /// Project and personal MCP definitions with endpoints. The run config takes allowlisted endpoints from here.
+    func readMCPDefinitions(projectPath: String) throws -> [MCPServerDefinition] {
         var directory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: projectPath, isDirectory: &directory), directory.boolValue else {
             throw CommandError(code: "project_missing", message: "Папка проекта недоступна; список MCP прочитать нельзя.")
         }
-        var servers: [McpServerRef] = []
+        var servers: [MCPServerDefinition] = []
         for (file, source) in [(URL(fileURLWithPath: projectPath).appendingPathComponent(MCPConfigFile.relativePath), McpServerRef.Source.project), (personalMCPConfig, .personal)] {
             do {
                 for url in [file.deletingLastPathComponent(), file] {
@@ -105,7 +112,7 @@ extension KabanStore {
                 guard data.count <= DaemonWire.maxPipelineBytes else { throw MCPConfigError.unreadable }
                 let definitions = try MCPConfigFile.definitions(json: data, source: source.rawValue)
                 guard definitions.count <= 1_024, definitions.allSatisfy({ !$0.name.isEmpty && $0.name.utf8.count <= 256 && !$0.name.contains(where: { $0 == "\0" || $0 == "\n" || $0 == "\r" }) }) else { throw MCPConfigError.unreadable }
-                servers += definitions.map { .init(name: $0.name, source: source) }
+                servers += definitions
             } catch {
                 throw CommandError(code: "mcp_config_unreadable", message: source == .project ? "Не удалось прочитать MCP проекта. Проверьте .cursor/mcp.json." : "Не удалось прочитать личные MCP. Проверьте ~/.cursor/mcp.json.", params: ["source": source.rawValue])
             }

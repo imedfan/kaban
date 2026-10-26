@@ -164,12 +164,14 @@ public enum RunFailure: Codable, Hashable, Sendable {
     case usageExhausted(ModelPool?)
     /// `resource_exhausted` / not in the slow pool → model flag `unavailable`.
     case modelUnavailable
+    /// MCP preflight blocked the process before it was spawned (§9 fail closed). The task waits in `queued`.
+    case mcpPreflightBlocked
 
     /// Charges an attempt and counts toward `max_runs_per_task` (§3.2, decisions log).
     public var charges: Bool {
         switch self {
         case .crash, .stallTimeout, .wallTimeout, .noFinalCall: true
-        case .rateLimit, .runnerAuth, .silentExit, .usageExhausted, .modelUnavailable: false
+        case .rateLimit, .runnerAuth, .silentExit, .usageExhausted, .modelUnavailable, .mcpPreflightBlocked: false
         }
     }
 }

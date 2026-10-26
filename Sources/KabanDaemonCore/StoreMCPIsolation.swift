@@ -41,30 +41,11 @@ extension KabanStore {
     public func applyMCPPreflight(taskId: TaskID, definitions: [MCPServerDefinition], boardURL: String, listOutput: String, listExit: Int32, at: Date) throws -> MCPPreflightDecision {
         projectOperations.lock(); defer { projectOperations.unlock() }
         return try database.write { db in
-            let flags = try Self.schedulerFlags(db), commandId = UUID()
             let task = try Self.task(taskId, db: db)
             let stageServers = task.pipeline.stage(task.machine.stageId)?.agent?.mcp ?? [AgentConfig.boardMcpServer]
-            let allow = try Set(String.fetchAll(db, sql: "SELECT name FROM project_mcp_allow WHERE project_id = ?", arguments: [task.card.projectId.rawValue]))
+            let allow = try Self.mcpAllowlist(task.card.projectId, db: db)
             let decision = MCPPreflight.decide(stageServers: stageServers, allowlist: allow, definitions: definitions, boardURL: boardURL, listOutput: listOutput, listExit: listExit)
-            let detail: String
-            let kind: String
-            switch decision.block {
-            case .unexpected(let name): detail = name; kind = "unexpected"
-            case .unresolvable(let name): detail = name; kind = "unresolvable"
-            case nil: detail = ""; kind = "unresolvable"
-            }
-            try db.execute(sql: """
-            INSERT INTO mcp_preflight(project_id, blocked, detail, warnings, config_json, kind) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(project_id) DO UPDATE SET blocked = excluded.blocked, detail = excluded.detail, warnings = excluded.warnings, config_json = excluded.config_json, kind = excluded.kind
-            """, arguments: [task.card.projectId.rawValue, decision.block == nil ? 0 : 1, detail, decision.warnings.joined(separator: "\n"), decision.configJSON, kind])
-            var record = try Self.project(task.card.projectId, db: db)
-            if decision.block != nil {
-                if record.production != nil { record.production?.unavailableReason = .mcpUnexpected }
-            } else if record.production?.unavailableReason == .mcpUnexpected {
-                record.production?.unavailableReason = nil
-            }
-            _ = try Self.saveUpdatedProject(record, commandId: commandId, at: at, db: db)
-            try Self.recordChangedSchedulerFlags(from: flags, commandId: commandId, at: at, db: db)
+            try Self.recordMCPPreflight(decision, projectId: task.card.projectId, commandId: UUID(), at: at, db: db)
             return decision
         }
     }
@@ -81,8 +62,11 @@ extension KabanStore {
         _ = try MCPConfigFile.install(cloneRoot: cloneRoot, generated: generated)
     }
 
-    func restoreInstalledMCPConfigs() throws -> [String] {
-        let rows = try database.read { db in try Row.fetchAll(db, sql: "SELECT task_id, clone_path, previous, had_file, exclude_added FROM mcp_config_swap ORDER BY task_id") }
+    /// Puts back the bytes captured before the swap. `taskId` limits it to one clone (result check, blocked preflight).
+    func restoreInstalledMCPConfigs(taskId: TaskID? = nil) throws -> [String] {
+        let rows = try database.read { db in
+            try Row.fetchAll(db, sql: "SELECT task_id, clone_path, previous, had_file, exclude_added FROM mcp_config_swap WHERE ? IS NULL OR task_id = ? ORDER BY task_id", arguments: [taskId?.rawValue, taskId?.rawValue])
+        }
         var lines: [String] = []
         var restored: [String] = []
         for row in rows {

@@ -4,10 +4,12 @@ public struct MCPServerDefinition: Equatable, Sendable {
     public var name: String
     public var source: String
     public var endpoint: String
-    public init(name: String, source: String, endpoint: String) {
+    public var configurationJSON: String?
+    public init(name: String, source: String, endpoint: String, configurationJSON: String? = nil) {
         self.name = name
         self.source = source
         self.endpoint = endpoint
+        self.configurationJSON = configurationJSON
     }
 }
 
@@ -21,6 +23,12 @@ public struct MCPPreflightDecision: Equatable, Sendable {
     public var configJSON: String
     public var warnings: [String]
     public var block: MCPPreflightBlock?
+    public init(names: [String], configJSON: String, warnings: [String], block: MCPPreflightBlock?) {
+        self.names = names
+        self.configJSON = configJSON
+        self.warnings = warnings
+        self.block = block
+    }
 }
 
 public enum MCPPreflight {
@@ -31,9 +39,9 @@ public enum MCPPreflight {
         }
     }
 
-    /// Builds the run config from the stage selection and the allowlist. A bad `mcp list` blocks the run.
-    /// The result never contains `--approve-mcps` and never copies a raw token.
-    public static func decide(stageServers: [String], allowlist: Set<String>, definitions: [MCPServerDefinition], boardURL: String, listOutput: String, listExit: Int32) -> MCPPreflightDecision {
+    /// The run config before `mcp list`: the board server with `${env:KABAN_RUN_TOKEN}` plus selected, allowlisted servers.
+    /// `block` is set only for a config that cannot be built. The raw token is never copied.
+    public static func plan(stageServers: [String], allowlist: Set<String>, definitions: [MCPServerDefinition], boardURL: String) -> MCPPreflightDecision {
         let names = allowedNames(stageServers: stageServers, allowlist: allowlist)
         var warnings: [String] = []
         var block: MCPPreflightBlock?
@@ -50,24 +58,41 @@ public enum MCPPreflight {
             block = .unresolvable(AgentConfig.boardMcpServer)
         }
         for name in names where name != AgentConfig.boardMcpServer {
-            let endpoints = Set(definitions.filter { $0.name == name }.map(\.endpoint))
-            guard endpoints.count == 1, let endpoint = endpoints.first, !endpoint.isEmpty else {
+            let matches = definitions.filter { $0.name == name }
+            let bodies = Set(matches.map { $0.configurationJSON ?? $0.endpoint })
+            guard bodies.count == 1, let definition = matches.first, !definition.endpoint.isEmpty else {
                 block = block ?? .unresolvable(name)
                 continue
             }
-            servers[name] = endpoint.contains("://") ? ["url": endpoint] : ["command": endpoint]
+            if let json = definition.configurationJSON,
+               let body = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] {
+                servers[name] = body
+            } else {
+                servers[name] = definition.endpoint.contains("://") ? ["url": definition.endpoint] : ["command": definition.endpoint]
+            }
         }
-        let config = (try? JSONSerialization.data(withJSONObject: ["mcpServers": servers])) ?? Data("{}".utf8)
-        let json = String(decoding: config, as: UTF8.self)
+        let config = (try? JSONSerialization.data(withJSONObject: ["mcpServers": servers], options: [.sortedKeys])) ?? Data("{}".utf8)
+        return MCPPreflightDecision(names: names, configJSON: String(decoding: config, as: UTF8.self), warnings: warnings, block: block)
+    }
+
+    /// Compares what the CLI lists with the planned names. An extra name wins over every other block.
+    public static func check(_ plan: MCPPreflightDecision, listOutput: String, listExit: Int32) -> MCPPreflightDecision {
+        var decision = plan
         if let listed = parseList(listOutput, exit: listExit) {
-            let extra = listed.subtracting(names).sorted()
-            let missing = Set(names).subtracting(listed).sorted()
-            if let name = extra.first { block = .unexpected(name) }
-            else if let name = missing.first { block = block ?? .unresolvable("missing:\(name)") }
+            let extra = listed.subtracting(plan.names).sorted()
+            let missing = Set(plan.names).subtracting(listed).sorted()
+            if let name = extra.first { decision.block = .unexpected(name) }
+            else if let name = missing.first { decision.block = decision.block ?? .unresolvable("missing:\(name)") }
         } else {
-            block = block ?? .unresolvable("mcp list")
+            decision.block = decision.block ?? .unresolvable("mcp list")
         }
-        return MCPPreflightDecision(names: names, configJSON: json, warnings: warnings, block: block)
+        return decision
+    }
+
+    /// Builds the run config from the stage selection and the allowlist. A bad `mcp list` blocks the run.
+    /// The result never contains `--approve-mcps` and never copies a raw token.
+    public static func decide(stageServers: [String], allowlist: Set<String>, definitions: [MCPServerDefinition], boardURL: String, listOutput: String, listExit: Int32) -> MCPPreflightDecision {
+        check(plan(stageServers: stageServers, allowlist: allowlist, definitions: definitions, boardURL: boardURL), listOutput: listOutput, listExit: listExit)
     }
 
     /// `name<TAB>source` lines only. Any other text is unreadable and must not be treated as an empty allow.

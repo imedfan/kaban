@@ -54,9 +54,13 @@ final class MCPIsolationTests: XCTestCase {
         _ = try git(["commit", "-m", "config"], root)
         let generated = "{\"mcpServers\":{\"kaban\":{\"url\":\"\(board)\",\"headers\":{\"Authorization\":\"Bearer ${env:KABAN_RUN_TOKEN}\"}}}}"
         let installed = try MCPConfigFile.install(cloneRoot: root, generated: generated)
-        XCTAssertFalse(try git(["diff", "--", ".cursor/mcp.json"], root).isEmpty)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(".cursor/mcp.json"), encoding: .utf8), generated)
+        XCTAssertEqual(try git(["status", "--porcelain"], root), "")
+        _ = try git(["commit", "-a", "--allow-empty", "-m", "agent"], root)
+        XCTAssertEqual(try git(["diff", "HEAD~1", "HEAD", "--name-only"], root), "")
         try MCPConfigFile.restore(cloneRoot: root, installed: installed)
         XCTAssertEqual(try git(["diff", "--", ".cursor/mcp.json"], root), "")
+        XCTAssertEqual(try git(["ls-files", "-v", ".cursor/mcp.json"], root), "H .cursor/mcp.json\n")
         XCTAssertEqual(try git(["status", "--porcelain"], root), "")
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(".cursor/mcp.json"), encoding: .utf8), original)
     }
@@ -123,6 +127,22 @@ final class MCPIsolationTests: XCTestCase {
         let openGit = process(["/usr/bin/git", "-C", clone.path, "config", "user.email", "other@example.com"])
         XCTAssertEqual(openGit.status, 0, openGit.error)
         XCTAssertNotEqual(try Data(contentsOf: config), before)
+    }
+
+    func testSelectedServersRetainArgsEnvironmentAndHeaders() throws {
+        let data = Data(#"{"mcpServers":{"local":{"command":"node","args":["server.js"],"env":{"MODE":"read"}},"remote":{"url":"https://example.test/mcp","headers":{"X-Mode":"read"}}}}"#.utf8)
+        let definitions = try MCPConfigFile.definitions(json: data, source: "project")
+        let plan = MCPPreflight.plan(stageServers: ["local", "remote"], allowlist: ["local", "remote"], definitions: definitions, boardURL: board)
+        XCTAssertNil(plan.block)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(plan.configJSON.utf8)) as? [String: Any])
+        let servers = try XCTUnwrap(object["mcpServers"] as? [String: [String: Any]])
+        XCTAssertEqual(servers.keys.sorted(), ["kaban", "local", "remote"])
+        XCTAssertEqual(servers["local"]?["args"] as? [String], ["server.js"])
+        XCTAssertEqual(servers["local"]?["env"] as? [String: String], ["MODE": "read"])
+        XCTAssertEqual(servers["remote"]?["headers"] as? [String: String], ["X-Mode": "read"])
+        let conflicting = try MCPConfigFile.definitions(json: Data(#"{"mcpServers":{"local":{"command":"node","args":["other.js"]}}}"#.utf8), source: "personal")
+        let ambiguous = MCPPreflight.plan(stageServers: ["local"], allowlist: ["local"], definitions: definitions + conflicting, boardURL: board)
+        XCTAssertEqual(ambiguous.block, .unresolvable("local"))
     }
 
     private func physical(_ path: String) -> String {

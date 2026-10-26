@@ -23,11 +23,13 @@ public enum MCPConfigFile {
               let servers = object["mcpServers"] as? [String: Any] else { throw MCPConfigError.unreadable }
         return try servers.keys.sorted().map { name in
             guard let body = servers[name] as? [String: Any] else { throw MCPConfigError.unreadable }
+            let encoded = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
+            let configuration = String(decoding: encoded, as: UTF8.self)
             if let url = body["url"] as? String, !url.isEmpty {
-                return MCPServerDefinition(name: name, source: source, endpoint: url)
+                return MCPServerDefinition(name: name, source: source, endpoint: url, configurationJSON: configuration)
             }
             if let command = body["command"] as? String, !command.isEmpty {
-                return MCPServerDefinition(name: name, source: source, endpoint: command)
+                return MCPServerDefinition(name: name, source: source, endpoint: command, configurationJSON: configuration)
             }
             throw MCPConfigError.unreadable
         }
@@ -44,10 +46,13 @@ public enum MCPConfigFile {
         return MCPInstalledFile(previous: previous, excludeAdded: previous == nil && !lines.contains(Substring(excludeLine)))
     }
 
+    /// A tracked file is marked skip-worktree, so `git add -A` and `commit -a` in the clone leave the swap out of the branch.
+    /// A new file is listed in `info/exclude` for the same reason.
     public static func install(cloneRoot: URL, generated: String) throws -> MCPInstalledFile {
         let captured = try capture(cloneRoot: cloneRoot)
         let cursor = cloneRoot.appendingPathComponent(".cursor", isDirectory: true)
         try FileManager.default.createDirectory(at: cursor, withIntermediateDirectories: true)
+        if isTracked(cloneRoot) { try git(["update-index", "--skip-worktree", "--", relativePath], cloneRoot) }
         try Data(generated.utf8).write(to: cursor.appendingPathComponent("mcp.json"), options: .atomic)
         let added = captured.previous == nil && addExclude(cloneRoot)
         return MCPInstalledFile(previous: captured.previous, excludeAdded: added)
@@ -61,7 +66,30 @@ public enum MCPConfigFile {
         } else if FileManager.default.fileExists(atPath: file.path) {
             try FileManager.default.removeItem(at: file)
         }
+        if isTracked(cloneRoot) { try git(["update-index", "--no-skip-worktree", "--", relativePath], cloneRoot) }
         if installed.excludeAdded { removeExclude(cloneRoot) }
+    }
+
+    private static func isTracked(_ root: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent(".git").path) else { return false }
+        return (try? git(["ls-files", "--error-unmatch", "--", relativePath], root)) != nil
+    }
+
+    @discardableResult
+    private static func git(_ command: [String], _ root: URL) throws -> Data {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: DaemonGit.executable)
+        process.arguments = try DaemonGit.arguments(command, in: root.path)
+        process.environment = DaemonGit.processEnvironment
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        try process.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw MCPConfigError.unreadable }
+        return data
     }
 
     private static func isSymlink(_ url: URL) -> Bool {

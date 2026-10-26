@@ -121,9 +121,14 @@ extension KabanStore {
                         source = nil; edits = observed.projectedPipeline.hasUncommittedEdits; sourceError = error
                     }
                 } else { source = nil; edits = observed.projectedPipeline.hasUncommittedEdits; sourceError = nil }
+                let mcpPipeline = try source.flatMap { source in
+                    try database.read { try Self.sourceValidation(source, projectId: id, db: $0).config }
+                }
+                let mcpDecision = availability == .available && sourceError == nil ? try recheckMCPDecision(id, pipeline: mcpPipeline) : nil
                 return try database.write { db in
                     let previousFlags = try Self.schedulerFlags(db)
                     let previousLoads = try Self.stageLoads(db)
+                    if let mcpDecision { try Self.storeMCPPreflight(mcpDecision, projectId: id, db: db) }
                     var record = try Self.project(id, db: db)
                     guard record.summary.path == observed.summary.path else { throw CommandError(code: "project_changed", message: "Путь изменился; повторите проверку.") }
                     record.summary.availability = availability

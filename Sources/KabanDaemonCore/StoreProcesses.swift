@@ -55,6 +55,12 @@ extension KabanStore {
             let stall = stage?.timeouts.stallSeconds ?? 600
             let wall = stage?.timeouts.wallSeconds ?? 3600
             let cwd = try workingDirectory(taskId: item.taskId, workspaceRoot: workspaceRoot)
+            let environment = try environmentForAgentRun(taskId: item.taskId, at: at)
+            // §9 fail closed: the CLI must see exactly the run config, in this directory and environment, or nothing starts.
+            if try preflightRun(taskId: item.taskId, workingDirectory: cwd, environment: environment, at: at) != nil {
+                _ = try apply(.runFailed(request.runId, .mcpPreflightBlocked), taskId: item.taskId, commandId: UUID(), at: at)
+                continue
+            }
             let logs = try logDirectory(taskId: item.taskId, workspaceRoot: workspaceRoot)
             let stdout = logs + "/" + safe(request.runId.rawValue) + ".out"
             let stderr = logs + "/" + safe(request.runId.rawValue) + ".err"
@@ -64,7 +70,7 @@ extension KabanStore {
             // launcher times out without running user tools after a crash before saveProcess.
             let gate = logs + "/" + lease.leaseId + ".start"
             let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
-            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + arguments, workingDirectory: cwd, environment: try environmentForAgentRun(taskId: item.taskId, at: at), standardOutput: stdout, standardError: stderr)
+            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + arguments, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
             let record = AgentProcessRecord(runId: request.runId.rawValue, taskId: item.taskId.rawValue, startId: lease.leaseId, pid: handle.pid,
                                             processGroup: handle.processGroup, birthSeconds: handle.birth.seconds, birthMicroseconds: handle.birth.microseconds,
                                             state: "running", startedAt: at, lastActivityAt: at, stallDeadline: at.addingTimeInterval(TimeInterval(stall)),
@@ -206,6 +212,7 @@ extension KabanStore {
                 record.passLines.append("process group \(record.runId) stopped")
                 try saveProcess(record)
             }
+            _ = try restoreInstalledMCPConfigs(taskId: item.taskId)
             _ = try commitEffectResult(effectId: item.id, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: item.id + "/process-stop", phase: .finished, outcome: .acknowledged), at: at, diagnostic: "BE-08 process stop; a late exit is not a result")
         }
     }
@@ -215,6 +222,7 @@ extension KabanStore {
             guard case .saveWipAndRollback(let runId) = item.effect else { continue }
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }
             let task = try database.read { db in try Self.task(item.taskId, db: db) }
+            _ = try restoreInstalledMCPConfigs(taskId: item.taskId)
             if let clone = try database.read({ db in try Self.cloneRecord(item.taskId, db: db) }), clone.phase == "ready" {
                 let project = try database.read { db in try Self.project(task.card.projectId, db: db) }
                 if let ref = try TaskClone.saveWipAndReset(clone: clone.clonePath, runId: runId, recorded: clone.clonePath, workspaceRoot: clone.workspaceRoot, origin: clone.projectPath, identity: project.summary.identity) {

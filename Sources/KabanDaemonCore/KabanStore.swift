@@ -10,6 +10,7 @@ public final class KabanStore: Sendable {
     let projectOperations = NSRecursiveLock()
     let personalMCPConfig: URL
     let cursorEnvironmentProbe: CursorEnvironmentProbe
+    let mcpHost = MCPHostState()
 
     public init(path: String, personalMCPConfig: URL? = nil, cursorEnvironmentProbe: CursorEnvironmentProbe = .init()) throws {
         self.cursorEnvironmentProbe = cursorEnvironmentProbe
@@ -52,6 +53,9 @@ public final class KabanStore: Sendable {
             try db.execute(sql: "ALTER TABLE mcp_preflight ADD COLUMN kind TEXT NOT NULL DEFAULT 'unresolvable'")
         }
         migrator.registerMigration("cursor_environment_v22", migrate: Self.migrateCursorEnvironment)
+        migrator.registerMigration("mcp_final_call_v23") { db in
+            try db.execute(sql: "CREATE TABLE mcp_final_call (token_hash TEXT PRIMARY KEY NOT NULL, tool TEXT NOT NULL, response BLOB NOT NULL)")
+        }
         try migrator.migrate(database)
     }
 
