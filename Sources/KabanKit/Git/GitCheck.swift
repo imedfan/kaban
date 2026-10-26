@@ -5,7 +5,7 @@ import KabanProtocol
 /// Configurable denies stay out of cursor-agent rules: those rules run before the shim,
 /// so a later one-shot grant would never be asked.
 public enum GitCheck {
-    public static let deniedMessage = "команда запрещена политикой проекта, запрос отправлен человеку; продолжай без неё или жди разрешения"
+    public static let deniedMessage = "команда запрещена политикой проекта, запрос отправлен человеку; продолжай без неё или дождись разрешения"
 
     /// Command names that may be placed in cursor-agent deny rules. Not a project or stage deny.
     public static let cursorHardDenyCommands = ["push", "remote", "config", "tag", "update-ref", "symbolic-ref", "filter-branch"]

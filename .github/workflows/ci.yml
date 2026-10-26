@@ -39,6 +39,7 @@ jobs:
         run: |
           kaban_bin_dir="$(swift build --show-bin-path)"
           python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"
+          python3 tools/check-git-shim.py --shim "$kaban_bin_dir/KabanGitShim"
 
   macos:
     name: macOS (native app)
@@ -61,6 +62,7 @@ jobs:
             ENABLE_HARDENED_RUNTIME=YES build
           python3 tools/check-local-app-signing.py \
             --app "$derived_data/Build/Products/Debug/Kaban.app"
+          python3 tools/check-git-shim.py --shim "$derived_data/Build/Products/Debug/Kaban.app/Contents/MacOS/KabanGitShim"
           python3 tools/check-app-build-contents.py \
             --app "$derived_data/Build/Products/Debug/Kaban.app" --qa
           smoke_result="$RUNNER_TEMP/kaban-native-smoke.json"
@@ -177,6 +179,7 @@ jobs:
             ENABLE_HARDENED_RUNTIME=YES build
           python3 tools/check-local-app-signing.py \
             --app "$release_data/Build/Products/Release/Kaban.app"
+          python3 tools/check-git-shim.py --shim "$release_data/Build/Products/Release/Kaban.app/Contents/MacOS/KabanGitShim"
           python3 tools/check-app-build-contents.py \
             --app "$release_data/Build/Products/Release/Kaban.app"
 
@@ -189,3 +192,4 @@ jobs:
         run: |
           kaban_bin_dir="$(swift build --show-bin-path)"
           python3 tools/smoke-daemon-transport.py --bin-dir "$kaban_bin_dir"
+          python3 tools/check-git-shim.py --shim "$kaban_bin_dir/KabanGitShim"

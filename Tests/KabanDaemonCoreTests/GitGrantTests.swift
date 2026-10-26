@@ -362,7 +362,7 @@ final class GitGrantTests: XCTestCase {
         let marker = markerURL.appendingPathComponent("real-git")
         try "#!/bin/sh\nprintf ran > \"$MARKER\"\nexit 0\n".write(to: marker, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: marker.path)
-        try KabanGitShim.install(at: shimURL)
+        try KabanGitShim.install(at: shimURL, executable: URL(fileURLWithPath: ProcessInfo.processInfo.environment["KABAN_GIT_SHIM"] ?? ".build/debug/KabanGitShim"))
         var closedEnv = ProcessInfo.processInfo.environment
         closedEnv.removeValue(forKey: "KABAN_GIT_CHECK_URL")
         closedEnv["KABAN_GIT_BIN"] = marker.path
@@ -388,6 +388,39 @@ final class GitGrantTests: XCTestCase {
         let allowed = try runShim(shimURL, ["status"], env: denyEnv)
         XCTAssertEqual(allowed.status, 0, allowed.stderr)
         XCTAssertEqual(try String(contentsOf: markerFlag, encoding: .utf8), "ran")
+    }
+
+    func testExecutableShimDenialGrantConsumptionAndFiveDenialStop() throws {
+        let f = try fixture(pipeline(preset: "standard"))
+        _ = try launch(f, "shim-grant")
+        let server = try MCPBoardServer(store: f.store, now: { self.at })
+        defer { server.stop() }
+        let shim = URL(fileURLWithPath: ProcessInfo.processInfo.environment["KABAN_GIT_SHIM"] ?? ".build/debug/KabanGitShim")
+        let marker = f.root.appendingPathComponent("real-git")
+        let flag = f.root.appendingPathComponent("executed")
+        try "#!/bin/sh\nprintf ran >> \"$MARKER\"\n".write(to: marker, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: marker.path)
+        var env = ProcessInfo.processInfo.environment
+        env["KABAN_GIT_CHECK_URL"] = "http://127.0.0.1:\(server.port)/git/check"
+        env["KABAN_RUN_TOKEN"] = try f.store.issueRunToken(taskId: "shim-grant", at: at)
+        env["KABAN_GIT_BIN"] = marker.path
+        env["MARKER"] = flag.path
+        let argv = ["rebase", "feature with spaces\nand \"quotes\""]
+        let denied = try runShim(shim, argv, env: env)
+        XCTAssertEqual(denied.status, 1)
+        XCTAssertEqual(denied.stderr, "команда запрещена политикой проекта, запрос отправлен человеку; продолжай без неё или дождись разрешения\n")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: flag.path))
+        let denial = try XCTUnwrap(try f.store.getTaskDetail("shim-grant").gitDenials.first)
+        XCTAssertEqual(denial.denial.argv, argv)
+        XCTAssertEqual(try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)), now: { self.at }).result, .ok)
+        XCTAssertEqual(try runShim(shim, argv, env: env).status, 0)
+        XCTAssertEqual(try String(contentsOf: flag, encoding: .utf8), "ran")
+        XCTAssertNotNil(try f.store.getTaskDetail("shim-grant").gitGrants.first?.consumption)
+        for _ in 0..<4 { XCTAssertEqual(try runShim(shim, argv, env: env).status, 1) }
+        XCTAssertEqual(try task(f, "shim-grant").machine.state, .waitingHuman(.gitDenials))
+        XCTAssertEqual(try f.store.getTaskDetail("shim-grant").gitDenials.count, 5)
+        XCTAssertEqual(try String(contentsOf: flag, encoding: .utf8), "ran")
+        XCTAssertEqual(try f.store.events(after: 0).filter { if case .gitDenied = $0.event { return true }; return false }.count, 5)
     }
 
     func testMissingTokenIsADenial() throws {
