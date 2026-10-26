@@ -24,6 +24,7 @@ struct DaemonMain {
                 --clone-pass: create reserved task clones and clean recorded clone paths. It does not start Cursor.
                 --process-pass: run --runner in its own process group, stop that group, and classify a technical exit.
                 It does not launch Cursor. Without --runner, pending starts stay pending. Timeout checks do not wait.
+                Without a pass flag the host also serves the board MCP and POST /git/check on 127.0.0.1 and logs the URL to stderr.
                 --mcp-pass: one board complete_stage for a running task through the loopback MCP server, then reprint that line.
                 --mcp-isolation-pass: restore each swapped .cursor/mcp.json and reprint that line. It does not launch Cursor.
                 --stage-pass: run pending gates, hooks, result checks, and one stage commit, then reprint those lines. It does not launch Cursor.
@@ -170,6 +171,13 @@ struct DaemonMain {
                 }
             }
             let runtimeRoot = diagnosticPass ? nil : (workspaces ?? URL(fileURLWithPath: path).deletingLastPathComponent().path)
+            // The host owns the board MCP server for its whole life: agent runs get its URLs, `/git/check` shares the port.
+            let boardServer: MCPBoardServer? = runtimeRoot == nil ? nil : try MCPBoardServer(store: store)
+            if let boardServer, let runtimeRoot {
+                store.attachMCPHost(MCPHostEndpoint(port: boardServer.port, workspaceRoot: runtimeRoot))
+                try FileHandle.standardError.write(contentsOf: Data("KabanDaemon: board MCP http://\(boardServer.host):\(boardServer.port)/mcp\n".utf8))
+            }
+            defer { boardServer?.stop() }
             let scheduler = DaemonScheduler(store: store, workspaceRoot: runtimeRoot, runner: runner, runnerArguments: runnerArguments) { error in
                 try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: scheduler pass failed: \(error)\n".utf8))
             }
@@ -212,7 +220,7 @@ struct DaemonMain {
                 let termination = DispatchSource.makeSignalSource(signal: SIGTERM, queue: DispatchQueue(label: "app.kaban.termination"))
                 signal(SIGTERM, SIG_IGN)
                 termination.setEventHandler {
-                    listener.cancel(); observer.cancel(); scheduler.stop()
+                    listener.cancel(); observer.cancel(); scheduler.stop(); boardServer?.stop()
                     if launchAgent, let runtimeRoot {
                         do { _ = try store.recoverProduction(passId: UUID(), at: Date(), workspaceRoot: runtimeRoot) }
                         catch { try? FileHandle.standardError.write(contentsOf: Data("KabanDaemon: shutdown recovery failed: \(error)\n".utf8)) }
@@ -220,7 +228,7 @@ struct DaemonMain {
                     exit(0)
                 }
                 termination.resume()
-                withExtendedLifetime((lease, listener, observer, scheduler, termination)) { dispatchMain() }
+                withExtendedLifetime((lease, listener, observer, scheduler, termination, boardServer)) { dispatchMain() }
             } else { throw HostError.platform }
             #else
             throw HostError.platform

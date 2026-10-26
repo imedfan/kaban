@@ -15,6 +15,7 @@ public final class MCPBoardServer: @unchecked Sendable {
     private let lock = NSLock()
     private var listenFD: Int32
     private var stopped = false
+    private let connections = DispatchSemaphore(value: 16)
 
     public init(store: KabanStore, now: @escaping () -> Date = Date.init) throws {
         self.store = store
@@ -35,7 +36,10 @@ public final class MCPBoardServer: @unchecked Sendable {
         let fd = listenFD
         listenFD = -1
         lock.unlock()
-        if fd >= 0 { close(fd) }
+        if fd >= 0 {
+            _ = shutdown(fd, Int32(SHUT_RDWR))
+            close(fd)
+        }
     }
 
     func roundTrip(token: String, method: String, params: [String: Any]) throws -> (status: Int, json: [String: Any]) {
@@ -74,10 +78,33 @@ public final class MCPBoardServer: @unchecked Sendable {
             let client = withUnsafeMutablePointer(to: &address) { pointer in
                 pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { accept(fd, $0, &length) }
             }
-            if client < 0 { return }
-            handle(client)
-            close(client)
+            if client < 0 {
+                // The host keeps this endpoint for its whole life: a dropped or interrupted connection does not close it.
+                if errno == EINTR || errno == ECONNABORTED { continue }
+                return
+            }
+            connections.wait()
+            Self.prepareClient(client)
+            // One thread per connection: a tool call waiting for the store lock does not stall `mcp list` probes or other runs.
+            Thread.detachNewThread { [self] in
+                self.handle(client)
+                close(client)
+                self.connections.signal()
+            }
         }
+    }
+
+    /// A client that stops reading or writing gets EPIPE and a read timeout instead of killing or hanging the host.
+    private static func prepareClient(_ fd: Int32) {
+        _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
+        var one: Int32 = 1
+        #if canImport(Darwin)
+        _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+        #endif
+        _ = one
+        var timeout = timeval(tv_sec: 10, tv_usec: 0)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
     }
 
     private func handle(_ client: Int32) {
@@ -114,6 +141,11 @@ public final class MCPBoardServer: @unchecked Sendable {
             return
         }
         do {
+            if method == "notifications/initialized" {
+                try store.requireBoardToken(token)
+                Self.writeHTTP(client, status: "202 Accepted", body: Data())
+                return
+            }
             if method == "initialize" || method == "tools/list" {
                 try store.requireBoardToken(token)
                 let result: [String: Any] = method == "initialize"
@@ -162,7 +194,7 @@ public final class MCPBoardServer: @unchecked Sendable {
             reply = GitCheckReply(allow: false, message: GitCheck.deniedMessage, rule: token == nil ? "unauthorized" : "invalid")
         }
         let payload: [String: Any] = ["allow": reply.allow, "message": reply.message, "rule": reply.rule]
-        Self.writeHTTP(client, status: "200 OK", body: (try? JSONSerialization.data(withJSONObject: payload)) ?? Data("{}".utf8))
+        Self.writeHTTP(client, status: reply.rule == "unauthorized" ? "401 Unauthorized" : "200 OK", body: (try? JSONSerialization.data(withJSONObject: payload)) ?? Data("{}".utf8))
     }
 
     private static func bearer(_ head: String) -> String? {
@@ -179,9 +211,20 @@ public final class MCPBoardServer: @unchecked Sendable {
     }
 
     private static func tools() -> [[String: Any]] {
-        ["get_task_context", "report_progress", "complete_stage", "return_to_stage", "request_human"].map {
-            ["name": $0, "inputSchema": ["type": "object"]]
+        let string: [String: Any] = ["type": "string", "maxLength": 4096]
+        let strings: [String: Any] = ["type": "array", "items": string, "maxItems": 20]
+        func tool(_ name: String, _ description: String, _ properties: [String: Any], _ required: [String]) -> [String: Any] {
+            ["name": name, "description": description,
+             "inputSchema": ["type": "object", "properties": properties, "required": required]]
         }
+        return [
+            tool("get_task_context", "Read the task, stage and run context.", [:], []),
+            tool("report_progress", "Report progress without changing task state.", ["text": string], ["text"]),
+            tool("complete_stage", "Finish this run and start stage gates.", ["summary": string,
+                "artifacts": ["type": "array", "maxItems": 20, "items": ["type": "object", "properties": ["kind": string, "text": string], "required": ["kind", "text"]]]], ["summary"]),
+            tool("return_to_stage", "Return to an allowed prior stage with issues.", ["target": string, "issues": strings], ["target", "issues"]),
+            tool("request_human", "Stop this run and ask the user a question.", ["question": string], ["question"]),
+        ]
     }
 
     private static func resultBody(id: Any, result: [String: Any]) throws -> Data {
@@ -209,6 +252,7 @@ public final class MCPBoardServer: @unchecked Sendable {
     private static func bindLoopback() throws -> (fd: Int32, host: String, port: UInt16) {
         let fd = socket(AF_INET, inetStream, 0)
         guard fd >= 0 else { throw BoardFailure.invalid("Сокет MCP не открылся.") }
+        guard fcntl(fd, F_SETFD, FD_CLOEXEC) == 0 else { close(fd); throw POSIXError(.EIO) }
         var address = sockaddr_in()
         #if os(macOS)
         address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -238,6 +282,7 @@ public final class MCPBoardServer: @unchecked Sendable {
     private static func connectLoopback(port: UInt16) throws -> Int32 {
         let fd = socket(AF_INET, inetStream, 0)
         guard fd >= 0 else { throw BoardFailure.invalid("Клиент MCP не открылся.") }
+        prepareClient(fd)
         var address = sockaddr_in()
         #if os(macOS)
         address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -304,7 +349,8 @@ public final class MCPBoardServer: @unchecked Sendable {
         for line in head.split(separator: "\r\n") {
             let text = String(line)
             if text.lowercased().hasPrefix("content-length:") {
-                return Int(text.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces))
+                guard let length = Int(text.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)), (0...65_536).contains(length) else { return nil }
+                return length
             }
         }
         return nil

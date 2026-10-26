@@ -9,7 +9,7 @@ enum BoardFailure: Error, Equatable {
     case invalid(String)
 }
 
-struct BoardToolResponse: Equatable {
+struct BoardToolResponse: Codable, Equatable {
     var message: String
     var notices: [String]
     var taskId: String
@@ -44,9 +44,17 @@ extension KabanStore {
     }
 
     /// Environment for one agent process. `KABAN_RUN_TOKEN` is not copied into the process record.
+    /// In the host the board and `/git/check` URLs of its server come along; the token itself stays out of every file.
     public func environmentForAgentRun(taskId: TaskID, at: Date) throws -> [String: String] {
-        var env = Self.minimalEnvironment()
+        var env = try cursorProcessEnvironment()
         env["KABAN_RUN_TOKEN"] = try issueRunToken(taskId: taskId, at: at)
+        if let endpoint = mcpHost.endpoint {
+            env["KABAN_MCP_URL"] = endpoint.boardURL
+            env["KABAN_GIT_CHECK_URL"] = endpoint.gitCheckURL
+            let task = try database.read { try Self.task(taskId, db: $0) }
+            guard let run = task.machine.currentRunId else { throw StoreError.incompleteProjection }
+            env = try isolatedMCPEnvironment(env, endpoint: endpoint, key: run.rawValue)
+        }
         return env
     }
 
@@ -61,10 +69,16 @@ extension KabanStore {
         }
     }
 
+    /// A read only. It does not wait for `projectOperations`, so a CLI that probes the board during `mcp list` is not stuck behind the pass that runs it.
     func requireBoardToken(_ token: String) throws {
-        projectOperations.lock(); defer { projectOperations.unlock() }
         try database.read { db in
-            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM mcp_run_token WHERE token_hash = ? AND restart_revoked = 0)", arguments: [SHA256Digest.hex(token)]) == true else {
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM mcp_run_token WHERE token_hash = ? AND restart_revoked = 0 AND revoked = 0)", arguments: [SHA256Digest.hex(token)]) == true,
+                  let row = try Self.tokenRow(SHA256Digest.hex(token), db: db) else {
+                throw BoardFailure.unauthorized("Токен не подходит к этому запуску.")
+            }
+            let task = try Self.task(TaskID(rawValue: row.taskId), db: db)
+            guard task.machine.state == .running, task.machine.currentRunId?.rawValue == row.runId,
+                  task.machine.stageId.rawValue == row.stageId else {
                 throw BoardFailure.unauthorized("Токен не подходит к этому запуску.")
             }
         }
@@ -128,6 +142,11 @@ extension KabanStore {
         if row.projectId != task.card.projectId.rawValue {
             throw BoardFailure.unauthorized("Токен не подходит к этому запуску.")
         }
+        if let data = try Data.fetchOne(db, sql: "SELECT response FROM mcp_final_call WHERE token_hash = ? AND tool = ?", arguments: [row.tokenHash, name]) {
+            var cached = try decode(BoardToolResponse.self, data)
+            if name == "complete_stage" { cached.message = "complete_stage already recorded" }
+            return cached
+        }
         let live = task.machine.state == .running && task.machine.currentRunId?.rawValue == row.runId && task.machine.stageId.rawValue == row.stageId
         if name == "complete_stage", row.completeCommandId != nil || completedRun(row, task) {
             let notices = try consumeNotices(taskId: taskId, runId: row.runId, at: at, db: db)
@@ -159,7 +178,7 @@ extension KabanStore {
             try db.execute(sql: "UPDATE mcp_run_token SET revoked = 1, complete_command_id = ? WHERE token_hash = ?", arguments: [commandId.uuidString, row.tokenHash])
             try appendArtifacts(artifacts, taskId: taskId, runId: run, stageId: StageID(rawValue: row.stageId), commandId: commandId, at: at, db: db)
             let notices = try consumeNotices(taskId: taskId, runId: row.runId, at: at, db: db)
-            return try response(try self.task(taskId, db: db), runId: row.runId, message: summary, notices: notices, db: db)
+            return try recordFinalResponse(try response(try self.task(taskId, db: db), runId: row.runId, message: summary, notices: notices, db: db), tokenHash: row.tokenHash, tool: name, db: db)
         case "return_to_stage":
             let target = try bounded(arguments["target"] as? String, field: "target")
             let issues = try issueTexts(arguments["issues"])
@@ -172,17 +191,22 @@ extension KabanStore {
                 throw error
             }
             let notices = try consumeNotices(taskId: taskId, runId: row.runId, at: at, db: db)
-            return try response(try self.task(taskId, db: db), runId: row.runId, message: issues.joined(separator: "\n"), notices: notices, db: db)
+            return try recordFinalResponse(try response(try self.task(taskId, db: db), runId: row.runId, message: issues.joined(separator: "\n"), notices: notices, db: db), tokenHash: row.tokenHash, tool: name, db: db)
         case "request_human":
             let question = try bounded(arguments["question"] as? String, field: "question")
             let run = RunID(rawValue: row.runId)
             let command = DurableTaskCommand.requestHuman(run, question: question)
             _ = try apply(command, taskId: taskId, commandId: UUID(), at: at, request: try encode(Request(kind: "transition", taskId: taskId, body: encode(command))), db: db)
             let notices = try consumeNotices(taskId: taskId, runId: row.runId, at: at, db: db)
-            return try response(try self.task(taskId, db: db), runId: row.runId, message: question, notices: notices, db: db)
+            return try recordFinalResponse(try response(try self.task(taskId, db: db), runId: row.runId, message: question, notices: notices, db: db), tokenHash: row.tokenHash, tool: name, db: db)
         default:
             throw BoardFailure.invalid("Неизвестный инструмент \(name).")
         }
+    }
+
+    private static func recordFinalResponse(_ response: BoardToolResponse, tokenHash: String, tool: String, db: Database) throws -> BoardToolResponse {
+        try db.execute(sql: "INSERT INTO mcp_final_call(token_hash, tool, response) VALUES (?, ?, ?)", arguments: [tokenHash, tool, try encode(response)])
+        return response
     }
 
     struct TokenRow {

@@ -396,7 +396,7 @@ final class GitGrantTests: XCTestCase {
         let server = try MCPBoardServer(store: f.store, now: { self.at })
         defer { server.stop() }
         let missing = try server.postGit(token: "", argv: ["status"], cwd: "/tmp")
-        XCTAssertEqual(missing.status, 200)
+        XCTAssertEqual(missing.status, 401)
         XCTAssertEqual(missing.json["allow"] as? Bool, false)
         let bad = try server.postGit(token: "not-a-run-token", argv: ["status"], cwd: "/tmp")
         XCTAssertEqual(bad.json["allow"] as? Bool, false)

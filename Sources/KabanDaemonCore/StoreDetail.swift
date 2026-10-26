@@ -162,7 +162,7 @@ extension KabanStore {
         case .rateLimit: .rateLimit
         case .runnerAuth: .runnerAuth
         case .silentExit: .silentExit
-        case .usageExhausted, .modelUnavailable: nil
+        case .usageExhausted, .modelUnavailable, .mcpPreflightBlocked: nil
         }
     }
 }

@@ -71,8 +71,7 @@ final class MCPServerTests: XCTestCase {
         XCTAssertEqual(detail.artifacts.first { $0.kind == "summary" }?.text, "stage ready")
         XCTAssertEqual(detail.artifacts.first { $0.kind == "note" }?.text, "diffstat")
         let listed = try post(server, token: token, method: "tools/list", params: [:])
-        let names = ((listed.json["result"] as? [String: Any])?["tools"] as? [Any])?.compactMap { ($0 as? [String: Any])?["name"] as? String }
-        XCTAssertEqual(names, ["get_task_context", "report_progress", "complete_stage", "return_to_stage", "request_human"])
+        XCTAssertEqual(listed.status, 401)
     }
 
     func testIllegalReturnFreesTheSlotOnlyForAHumanQuestion() throws {
@@ -179,6 +178,59 @@ final class MCPServerTests: XCTestCase {
             try first.stderr.write(to: root.appendingPathComponent("be-09-launch-1.log"), atomically: true, encoding: .utf8)
             try second.stderr.write(to: root.appendingPathComponent("be-09-launch-2.log"), atomically: true, encoding: .utf8)
         }
+    }
+
+    func testFinalReplyFailureRollsBackQuestionAndCanRetry() throws {
+        let fixture = try store()
+        try running("a", fixture.store)
+        let server = try MCPBoardServer(store: fixture.store, now: { self.at })
+        defer { server.stop() }
+        let token = try fixture.store.issueRunToken(taskId: "a", at: at)
+        let seq = try fixture.store.getSnapshot().seq
+        try fixture.store.database.write { db in
+            try db.execute(sql: "CREATE TRIGGER reject_final_reply BEFORE INSERT ON mcp_final_call BEGIN SELECT RAISE(ABORT, 'rollback'); END")
+        }
+        let params: [String: Any] = ["name": "request_human", "arguments": ["question": "choose a file"]]
+        XCTAssertEqual(try post(server, token: token, method: "tools/call", params: params).status, 500)
+        XCTAssertEqual(try task("a", fixture.store).machine.state, .running)
+        XCTAssertEqual(try fixture.store.getSnapshot().seq, seq)
+        XCTAssertTrue(try fixture.store.getTaskDetail("a").humanRequests.isEmpty)
+        try fixture.store.database.write { try $0.execute(sql: "DROP TRIGGER reject_final_reply") }
+        XCTAssertEqual(try post(server, token: token, method: "tools/call", params: params).status, 200)
+        XCTAssertEqual(try task("a", fixture.store).machine.state, .waitingHuman(.question))
+        XCTAssertEqual(try fixture.store.getTaskDetail("a").humanRequests.map(\.question), ["choose a file"])
+    }
+
+    func testHandshakeSchemasRotationAndFinalReplayAfterReopen() throws {
+        let fixture = try store()
+        try running("a", fixture.store)
+        let server = try MCPBoardServer(store: fixture.store, now: { self.at })
+        defer { server.stop() }
+        let old = try fixture.store.issueRunToken(taskId: "a", at: at)
+        XCTAssertEqual(try post(server, token: old, method: "initialize", params: [:]).status, 200)
+        XCTAssertEqual(try post(server, token: old, method: "notifications/initialized", params: [:]).status, 202)
+        let listed = try post(server, token: old, method: "tools/list", params: [:])
+        let tools = try XCTUnwrap((listed.json["result"] as? [String: Any])?["tools"] as? [[String: Any]])
+        let complete = try XCTUnwrap(tools.first { $0["name"] as? String == "complete_stage" })
+        XCTAssertEqual((complete["inputSchema"] as? [String: Any])?["required"] as? [String], ["summary"])
+        let token = try fixture.store.issueRunToken(taskId: "a", at: at)
+        XCTAssertNotEqual(old, token)
+        XCTAssertEqual(try post(server, token: old, method: "initialize", params: [:]).status, 401)
+        XCTAssertEqual(try server.postGit(token: old, argv: ["status"], cwd: "/tmp").status, 401)
+        let first = try post(server, token: token, method: "tools/call", params: ["name": "request_human", "arguments": ["question": "choose a file"]])
+        XCTAssertEqual(first.status, 200)
+        XCTAssertNil(first.json["error"])
+        let seq = try fixture.store.getSnapshot().seq
+        let reopened = try KabanStore(path: fixture.path)
+        let replayServer = try MCPBoardServer(store: reopened, now: { self.at })
+        defer { replayServer.stop() }
+        let replay = try post(replayServer, token: token, method: "tools/call", params: ["name": "request_human", "arguments": ["question": "duplicate"]])
+        XCTAssertEqual(replay.status, 200)
+        XCTAssertNil(replay.json["error"])
+        XCTAssertEqual(try reopened.getSnapshot().seq, seq)
+        XCTAssertEqual(try reopened.getTaskDetail("a").humanRequests.map(\.question), ["choose a file"])
+        XCTAssertEqual(try post(replayServer, token: token, method: "tools/list", params: [:]).status, 401)
+        XCTAssertEqual(try post(replayServer, token: token, method: "tools/call", params: ["name": "report_progress", "arguments": ["text": "late"]]).status, 401)
     }
 
     private func store() throws -> (path: String, store: KabanStore) {

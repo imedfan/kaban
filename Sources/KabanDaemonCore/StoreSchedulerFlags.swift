@@ -20,7 +20,9 @@ extension KabanStore {
             if project.summary.availability == .missing {
                 flags.append(.projectUnavailable(id, .projectMissing, detail: nil))
             } else if let reason = project.production?.unavailableReason {
-                flags.append(.projectUnavailable(id, reason, detail: project.projectedPipeline.issues.first(where: { $0.severity == .error })?.message))
+                // `mcp_unexpected` names the server that blocked the run; the other reasons point at the first pipeline error.
+                let detail = reason == .mcpUnexpected ? try mcpBlockDetail(id, db: db) : nil
+                flags.append(.projectUnavailable(id, reason, detail: detail ?? project.projectedPipeline.issues.first(where: { $0.severity == .error })?.message))
             }
             if pauses.contains(pauseScope(id)) { flags.append(.projectPaused(id)) }
             let waiting = tasks.filter { $0.card.projectId == id && $0.machine.state.status == .waitingHuman && $0.machine.state != .waitingHuman(.review) }.count

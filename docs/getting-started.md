@@ -6,7 +6,8 @@
 ## Окружение
 
 SwiftPM требует Swift 6.1+; библиотеки собираются на Linux и macOS 15+.
-GRDB 7.11.1 уже подключён. Для Linux нужны SQLite development headers.
+GRDB 7.11.1 уже подключён. Для Linux нужны SQLite development headers;
+интеграционные проверки daemon/HTTP также используют python3 и curl.
 SwiftUI-приложение требует macOS 26+ и полный Xcode с SDK macOS 26 или новее.
 Доступный хост аудита: Xcode 27 / Apple Swift 6.4; это не проверка runtime на macOS 26.
 
@@ -30,11 +31,11 @@ Team2 в именах старых тестов — историческое и�
 
 ## Linux
 
-CI использует контейнер swift:6.1, устанавливает libsqlite3-dev и выполняет
+CI использует контейнер swift:6.1, устанавливает libsqlite3-dev, python3 и curl и выполняет
 swift build/test. При уже установленном Docker эквивалентная проверка:
 
 ```sh
-docker run --rm -v "$PWD":/src -w /src swift:6.1 bash -lc 'apt-get update && apt-get install -y libsqlite3-dev && swift build --scratch-path .build-linux && KABAN_SCENARIOS=Scenarios/M1 swift test --scratch-path .build-linux'
+docker run --rm -v "$PWD":/src -w /src swift:6.1 bash -lc 'apt-get update && apt-get install -y libsqlite3-dev python3 curl && swift build --scratch-path .build-linux && KABAN_SCENARIOS=Scenarios/M1 swift test --scratch-path .build-linux'
 ```
 
 Контейнерная проверка не является запуском macOS-приложения.

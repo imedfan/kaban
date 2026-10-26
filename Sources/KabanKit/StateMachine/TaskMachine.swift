@@ -250,6 +250,10 @@ private struct Machine {
             refundRun()
             set(.queued(.modelFlag))
             if let model { effects.append(.raiseModelFlag(ModelFlagRequest(modelId: model, reason: .unavailable))) }
+        case .mcpPreflightBlocked:
+            // No process ran: no attempt, no run toward the limits, no rollback. The project flag holds admission.
+            refundRun()
+            set(.queued(nil))
         }
     }
 
