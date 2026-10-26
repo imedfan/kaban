@@ -199,6 +199,26 @@ restart и agent_not_logged_in. Положительный login, авториз
 и installed launchd остаются открытыми.
 [Доказательства и ограничения BE-23](development/backend-be-23-2026-10-15.md).
 
+## BE-26: MCP в штатном host
+
+В `codex/be-26-mcp-runtime` от `origin/main` `27f83d4`, source `04b2081`,
+штатный host до scheduler поднимает один loopback-сервер MCP и `/git/check`.
+Каждый run получает его URL и новый токен в env; `.cursor/mcp.json` содержит
+только `${env:KABAN_RUN_TOKEN}`, обязательный kaban и разрешённый выбор стадии.
+Preflight запускает `mcp list` с cwd/env run, сохраняет имя лишнего сервера,
+возвращает задачу в очередь без расхода попытки и счётчика runs.
+`recheck(project)` выполняет свежую проверку и снимает блок после исправления.
+Конфиг восстанавливается до gates/result check и при stop/recovery;
+tracked-файл исключён из обычного `git add -A` на время run.
+Additive v23 сохраняет ответы финальных MCP-вызовов атомарно с переходом:
+повторы complete/return/question не создают второй эффект, после host restart
+старые токены отклоняются. Полные args/env/headers выбранных MCP сохраняются.
+[Проверки и ограничения](development/backend-be-26-2026-10-26.md).
+Live-критерий BE-26/BE-10 и полная FE-16 приёмка остаются открытыми:
+формат реального `mcp list`, auth с отдельным HOME и вызов через настоящий
+Cursor требуют BE-22/BE-24. Production Cursor prompt/stream, shim и Seatbelt
+не входят в этот инкремент; обычный host без `--runner` не запускает модель.
+
 ## Что есть в основном коде
 
 FE-32 реализуется в `codex/fe-32-local-client` от `f405a27`: удалены sandbox
@@ -223,7 +243,7 @@ launchd `running`, `runs = 1`. Причина потери прежней сис
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor/MCP lifetime, часть wire/read/producers и критериев изоляции остаются открыты |
+| DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor launch/stream, часть wire/read/producers и критериев изоляции остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 в main; AttentionStore FE-21 в main; ValidationIssueText FE-25 в main | Core зависит только от Protocol; FE-01–20 в main; source/apply и настройки проверены с production store |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 в main; MenuBarExtra/NativeNotifications FE-21 в main; русские diagnostics FE-25 в main | FE-01–20 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
@@ -296,7 +316,8 @@ Lifecycle проектов и редактор задач приняты в FE-0
   Runner path сейчас задаётся аргументом `--cursor-agent`, не формой App.
 - Обычный loop исполняет ручные process/git effects, gates/hooks/merge/cleanup;
   без явно заданного `--runner` agent start остаётся pending. Production Cursor
-  prompt, живой stream/model init и постоянный MCP lifetime к этому loop не подключены.
+  prompt и живой stream/model init к этому loop не подключены. MCP lifetime и
+  per-run preflight подключены в BE-26 (раздел выше).
   `.running` и RunSummary.startedAt сами по себе не доказывают запуск Cursor.
 - Числовой quota producer отсутствует; SchedulerInputs хранит факты internal
   producer. Поддержка setQuotaOptions не означает работающий опрос.
@@ -314,8 +335,9 @@ Lifecycle проектов и редактор задач приняты в FE-0
   и signed App/helper права остаются дальнейшей интеграцией.
 - В FE-16 `listProjectMcpServers` и `setProjectMcpAllowlist` поддержаны;
   catalog возвращает только имена/source, permissions и preflight diagnostics
-  приходят в snapshot/journal. `recheck(project)` не выполняет свежий MCP list
-  и сохраняет блок до успешного preflight producer. Полный live критерий открыт.
+  приходят в snapshot/journal. В BE-26 `recheck(project)` выполняет свежий
+  MCP list при доступных host/CLI и снимает блок только после успешного preflight.
+  Без producer сохранённый блок остаётся. Полный live критерий открыт.
 - Main daemon на чистой БД не инициализирует GlobalSettings: snapshot.settings
   может быть nil, изменение ceiling требует сохранённых settings. В принятом #91 добавлена
   инициализация для `--launch-agent`/`--initialize`. Обычный запуск без этих
