@@ -13,7 +13,7 @@ extension KabanStore {
             guard record.production != nil else {
                 throw CommandError(code: CommandError.unsupportedCommandCode, message: "Исходный YAML доступен для локальных проектов.")
             }
-            let repository = try LocalGitRepository(path: record.summary.path)
+            let repository = try LocalGitRepository(path: record.summary.path, baseBranch: record.summary.baseBranch)
             guard repository.repositoryID == record.production?.repositoryID else {
                 throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.")
             }

@@ -58,8 +58,8 @@ extension KabanStore {
         let task = try Self.task(taskId, db: db); let d = try Self.detail(taskId, db: db)
         let detail = TaskDetail(seq: try Self.seq(db), task: try Self.projectedCard(task, db: db), feed: d.feed, runs: d.runs, humanRequests: d.questions.map(\.request),
                                 suspiciousFiles: task.machine.suspiciousFiles, acceptedFiles: try Self.acceptedFileRows(taskId, db: db), clonePath: d.clonePath,
-                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: d.gitDenials.map { denial in
-                                    var denial = denial; denial.context = Self.gitDenialContext(denial, task: task, detail: d); return denial
+                                artifacts: d.artifacts, gitGrants: d.gitGrants, gitDenials: try d.gitDenials.map { denial in
+                                    var denial = denial; denial.context = try Self.gitDenialContext(denial, task: task, detail: d, db: db); return denial
                                 }, body: d.body, wipRestoreOperations: try Self.wipRestoreOperations(taskId, db: db), modelStages: try Self.taskModelStages(task, db: db),
                                 fileCheck: .init(maxFileBytes: task.pipeline.suspiciousFiles.maxFileBytes,
                                                  includesUncommitted: task.pipeline.git.preset == .strict,

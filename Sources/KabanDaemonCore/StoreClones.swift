@@ -43,10 +43,10 @@ extension KabanStore {
     /// Creates the reserved clone outside the SQLite transaction. A partial directory is removed only after the path check and is never replaced with a second path.
     public func prepareTaskClone(taskId: TaskID, at: Date, workspaceRoot: String) throws -> TaskCloneSnapshot {
         let reserved = try reserveTaskClone(taskId: taskId, at: at, workspaceRoot: workspaceRoot)
-        let context = try database.read { db -> (TaskCloneRecord, GitIdentity?) in
+        let context = try database.read { db -> (TaskCloneRecord, GitIdentity?, String) in
             let record = try Self.cloneRecord(taskId, db: db)!
             let project = try Self.project(try Self.task(taskId, db: db).card.projectId, db: db)
-            return (record, project.summary.identity)
+            return (record, project.summary.identity, project.summary.baseBranch)
         }
         var record = context.0
         let plan = record.plan
@@ -57,10 +57,10 @@ extension KabanStore {
             try TaskClone.removeAuthorized(plan.clonePath, recorded: plan.clonePath, workspaceRoot: record.workspaceRoot, origin: record.projectPath)
         }
         if !TaskClone.taskReady(plan, identity: context.1) {
-            try TaskClone.materialize(plan, origin: record.projectPath, workspaceRoot: record.workspaceRoot, identity: context.1, fresh: false)
+            try TaskClone.materialize(plan, origin: record.projectPath, baseBranch: context.2, workspaceRoot: record.workspaceRoot, identity: context.1, fresh: false)
         }
         if plan.freshPath != nil, !TaskClone.freshReady(plan, identity: context.1) {
-            try TaskClone.materialize(plan, origin: record.projectPath, workspaceRoot: record.workspaceRoot, identity: context.1, fresh: true)
+            try TaskClone.materialize(plan, origin: record.projectPath, baseBranch: context.2, workspaceRoot: record.workspaceRoot, identity: context.1, fresh: true)
         }
         let base = try TaskClone.head(plan.clonePath, identity: context.1)
         let protection = try TaskClone.captureProtection(record.projectPath, identity: context.1)

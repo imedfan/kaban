@@ -209,7 +209,7 @@ final class Team2CompatTests: XCTestCase {
     }
     func testEveryCommandPayloadAndOptionalAssociatedValues() throws {
         let values: [Command] = [
-            .addProject(path: "/synthetic", createTemplate: true, identity: GitIdentity(name: "T", email: "t@example.com")),
+            .addProject(path: "/synthetic", createTemplate: true, identity: GitIdentity(name: "T", email: "t@example.com"), baseBranch: "master"),
             .setProjectIdentity(projectId: "p", identity: GitIdentity(name: "T", email: "t@example.com")),
             .removeProject(projectId: "p"), .relinkProject(projectId: "p", path: "/synthetic"), .listBranches(projectId: "p"),
             .detectGates(projectId: "p"), .setMascot(projectId: "p", seed: "s"), .setProjectWeight(projectId: "p", weight: 1, maxRuns: 2),
@@ -227,11 +227,11 @@ final class Team2CompatTests: XCTestCase {
             .setProjectMcpAllowlist(projectId: "p", servers: []), .getRunHistory(taskId: "t"), .listIncidents(projectIds: ["p"], state: .all)
         ]
         XCTAssertEqual(values.count, 46)
-        for value in values { try extra(value); try payload(value, optional: ["identity", "maxRuns", "title", "body", "grantAttempts", "model", "requestId", "target", "projectIds"].filter { key in
+        for value in values { try extra(value); try payload(value, optional: ["identity", "baseBranch", "maxRuns", "title", "body", "grantAttempts", "model", "requestId", "target", "projectIds"].filter { key in
             // title/body are optional only for editTask; target only for requestChanges.
             if key == "title" || key == "body" { if case .editTask = value { return true }; return false }
             if key == "target" { if case .requestChanges = value { return true }; return false }
-            if key == "identity" { if case .addProject = value { return true }; return false }
+            if key == "identity" || key == "baseBranch" { if case .addProject = value { return true }; return false }
             return true
         }.reduce(into: Set<String>()) { $0.insert($1) }) }
         try payload(AgentEvent.usage(inputTokens: 1, outputTokens: 2), optional: ["inputTokens", "outputTokens"])

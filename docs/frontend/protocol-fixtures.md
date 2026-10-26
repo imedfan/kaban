@@ -160,3 +160,12 @@ baseCommit?, bounceLimitTotal? и returnPipeline? этой задачи. Пос�
 недоступен. Старые required поля TaskDetail остаются required. Проверки:
 RoundTripTests, IncidentTests и SuspiciousFilesTests;
 [native evidence FE-18](../development/frontend-fe-18-2026-10-09.md).
+
+## BE-31: выбранная базовая ветка
+
+`addProject.baseBranch` — optional String: отсутствующее/null поле означает
+`main`; неверный тип отклоняется. Успешный `projectAdded` и snapshot содержат
+выбранное `ProjectSummary.baseBranch`. Фикстура
+`Tests/KabanProtocolTests/Fixtures/base-branch.json` содержит request, response,
+journal и отказ `base_branch_missing` с `params.branch`. Старые command fixtures
+сохранены. FE-27 добавляет выбор ветки в форму; BE-31 меняет backend и контракт.

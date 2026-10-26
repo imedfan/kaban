@@ -7,6 +7,32 @@ import KabanProtocol
 final class GitGrantTests: XCTestCase {
     let at = Date(timeIntervalSince1970: 1_700_000_000)
 
+    func testSelectedBaseHardDenialsCannotBeGrantedOrAddedToPolicy() throws {
+        let f = try fixture(pipeline(preset: "permissive"), baseBranch: "release/stable")
+        _ = try launch(f, "base-protection")
+        let token = try f.store.issueRunToken(taskId: "base-protection", at: at)
+        XCTAssertTrue(try f.store.checkGit(token: token, argv: ["status"], at: at).allow)
+        let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
+        guard case .pipelineSource(let source) = try f.store.execute(.init(command: .getPipelineSource(projectId: project))).result else { return XCTFail("Expected pipeline source") }
+        for argv in [["switch", "release/stable"], ["rebase", "--onto=refs/heads/release/stable", "HEAD~1"],
+                     ["fetch", "origin", "release/stable"], ["checkout", "origin/release/stable~1"]] {
+            let reply = try f.store.checkGit(token: token, argv: argv, at: at)
+            XCTAssertFalse(reply.allow)
+            XCTAssertEqual(reply.rule, "foreign_refs")
+            let denial = try XCTUnwrap(f.store.getTaskDetail("base-protection").gitDenials.last)
+            XCTAssertEqual(denial.context?.restriction?.code, "git_hard_invariant")
+            XCTAssertEqual(code(try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)))), "git_hard_invariant")
+            let yaml = pipeline(preset: "permissive").replacingOccurrences(of: "git: {preset: permissive}",
+                with: "git: {preset: permissive, allow: [\"" + argv.joined(separator: " ") + "\"]}")
+            let draft = PipelineDraft(projectId: project, baseVersionHash: source.baseVersionHash, content: yaml, baseSourceHash: source.baseSourceHash)
+            XCTAssertEqual(code(try f.store.execute(.init(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .project, draft: draft)))), "git_hard_invariant")
+        }
+        XCTAssertEqual(try f.store.execute(.init(command: .removeProject(projectId: project))).result, .ok)
+        let retained = try f.store.getTaskDetail("base-protection")
+        XCTAssertEqual(retained.task.state, .cancelled)
+        XCTAssertEqual(retained.gitDenials.last?.context?.restriction?.code, "git_hard_invariant")
+    }
+
     func testGrantIsSingleUseAndDoesNotWidenOrOverrideHardRules() throws {
         let f = try fixture(pipeline(preset: "standard"))
         let run = try launch(f, "once")
@@ -477,7 +503,7 @@ final class GitGrantTests: XCTestCase {
         """
     }
 
-    private func fixture(_ yaml: String) throws -> Fixture {
+    private func fixture(_ yaml: String, baseBranch: String = "main") throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-git-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -485,14 +511,14 @@ final class GitGrantTests: XCTestCase {
         try FileManager.default.createDirectory(at: repo.appendingPathComponent(".kaban"), withIntermediateDirectories: true)
         try yaml.write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
         try "skill".write(to: repo.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
-        try git(repo, ["init", "-b", "main"])
+        try git(repo, ["init", "-b", baseBranch])
         try git(repo, ["config", "user.name", "Git Test"])
         try git(repo, ["config", "user.email", "git@example.test"])
         try git(repo, ["add", "."])
         try git(repo, ["commit", "-m", "Pipeline"])
         let path = root.appendingPathComponent("store.sqlite").path
         let store = try KabanStore(path: path)
-        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false))).result, .ok)
+        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false, baseBranch: baseBranch))).result, .ok)
         _ = try store.setSettings(.init(maxConcurrentRuns: 4, quotaOptions: .init(enabled: false, consent: false)), commandId: UUID(), at: at)
         return Fixture(root: root, workspace: root.appendingPathComponent("workspaces").path, path: path, store: store)
     }

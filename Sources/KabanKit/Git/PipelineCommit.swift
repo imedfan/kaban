@@ -30,15 +30,15 @@ public extension LocalGitRepository {
                 files[name] = file
             }
         }
-        return .init(commit: try mainCommit(), files: files)
+        return .init(commit: try baseCommit(), files: files)
     }
 
     /// Prepare immutable objects, leaving all refs, working files and the user's index unchanged.
     /// Caller validates candidate YAML and persists this plan before publishing the commit.
     func preparePipeline(content: String, source: PipelineSource, identity: GitIdentity, commandId: CommandID,
                          requiresExactWorkingContent: Bool = false) throws -> PipelineCommit {
-        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == "refs/heads/main" else {
-            throw Self.error("pipeline_checkout_required", "Для применения пайплайна откройте main.", ["baseBranch": "main"])
+        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else {
+            throw Self.error("pipeline_checkout_required", "Для применения пайплайна откройте \(baseBranch).", ["baseBranch": baseBranch])
         }
         guard content.utf8.count <= DaemonWire.maxPipelineBytes else { throw Self.error("invalid_request", "Черновик пайплайна превышает лимит размера.") }
         let working = try workingPipelineSource(), previous = try workingPipelineFile()
@@ -74,24 +74,24 @@ public extension LocalGitRepository {
     }
 
     /// Ref compare-and-swap and conditional repairs make the persisted plan replayable. Edits
-    /// made after preparation/restart survive; a newer descendant main is never rewound.
+    /// made after preparation/restart survive; a newer descendant base is never rewound.
     func finishPipeline(_ plan: PipelineCommit) throws {
-        let current = try mainCommit()
+        let current = try baseCommit()
         if current != plan.commit {
             if current == plan.base {
-                guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == "refs/heads/main" else {
+                guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else {
                     throw Self.error("pipeline_checkout_required", "Checkout изменился до применения пайплайна.")
                 }
-                let update = try git(["update-ref", "-m", "Kaban pipeline", "refs/heads/main", plan.commit, plan.base], allowedFailure: true)
-                guard update.status == 0 else { throw Self.error("git_race", "main изменился; обновите черновик и повторите новой командой.") }
+                let update = try git(["update-ref", "-m", "Kaban pipeline", baseRef, plan.commit, plan.base], allowedFailure: true)
+                guard update.status == 0 else { throw Self.error("git_race", "Базовая ветка изменилась; обновите черновик и повторите новой командой.") }
             } else {
                 guard try git(["merge-base", "--is-ancestor", plan.commit, current], allowedFailure: true).status == 0 else {
-                    throw Self.error("git_race", "main изменился; обновите черновик и повторите новой командой.")
+                    throw Self.error("git_race", "Базовая ветка изменилась; обновите черновик и повторите новой командой.")
                 }
                 return
             }
         }
-        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == "refs/heads/main" else { return }
+        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else { return }
         try installPipelineYAML(plan)
         try reconcilePipelineIndex(plan)
     }

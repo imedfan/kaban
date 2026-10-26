@@ -19,7 +19,7 @@ extension ProcessControlTests {
         let f = try fixture()
         let (run, clone, ref) = try savedWIP(f, id: "restore")
         XCTAssertEqual(try f.store.execute(.init(command: .pauseTask(taskId: "restore"))).result, .ok)
-        let main = try TaskClone.mainCommit(f.origin, identity: nil)
+        let main = try TaskClone.baseCommit(f.origin, baseBranch: "main", identity: nil)
         let head = try TaskClone.head(clone.clonePath, identity: nil)
         let history = try f.store.getTaskDetail("restore").runs
         try "backup me".write(toFile: clone.clonePath + "/local.txt", atomically: true, encoding: .utf8)
@@ -33,7 +33,7 @@ extension ProcessControlTests {
         _ = try f.store.runWIPRestorePass(owner: "test", at: at)
         XCTAssertEqual(try String(contentsOfFile: clone.clonePath + "/draft.txt", encoding: .utf8), "selected snapshot")
         XCTAssertEqual(try TaskClone.head(clone.clonePath, identity: nil), head)
-        XCTAssertEqual(try TaskClone.mainCommit(f.origin, identity: nil), main)
+        XCTAssertEqual(try TaskClone.baseCommit(f.origin, baseBranch: "main", identity: nil), main)
         XCTAssertEqual(try f.store.getTaskDetail("restore").runs, history)
         XCTAssertEqual(try task(f, "restore").machine.state, .paused)
         let events = try f.store.events().filter { $0.commandId == command.commandId }
