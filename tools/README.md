@@ -143,6 +143,16 @@ Debug включает KABAN_QA, Release по умолчанию не включ
 
 `package-local-app.sh` собирает ad-hoc Release с Hardened Runtime и запускает
 `check-local-app-signing.py --app <bundle>`. Проверка читает подписи настоящих
-App/helper, требует `app.kaban.desktop` / `app.kaban.agent`, runtime и отсутствие
+App/helper/shim, требует `app.kaban.desktop` / `app.kaban.agent` /
+`app.kaban.git-shim`, runtime и отсутствие
 `com.apple.security.app-sandbox`. Она не регистрирует службу и не заменяет
 проверку SMAppService, одобрение macOS или reboot.
+
+### Проверка git shim (BE-27)
+
+`python3 tools/check-git-shim.py --shim <абсолютный путь к KabanGitShim>`
+проверяет собранный executable через временный loopback HTTP-сервер: exact
+argv/cwd, stdin/streams/exit code настоящего executable, отказ политики,
+неверный JSON/HTTP, redirect, таймаут, отсутствующие env и недоступный демон.
+Cursor и системный LaunchAgent не запускаются. Можно передать shim из
+`.build/debug/` или `Kaban.app/Contents/MacOS/`; обе формы проверяет CI.
