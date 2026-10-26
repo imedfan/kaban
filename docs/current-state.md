@@ -7,7 +7,7 @@
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`27f83d4` (FE-21, FE-25 и BE-21 приняты через PR #115, #116 и #118;
+`f2c082d` (BE-26 принята через PR #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
 BE-23 — #119, FE-32 — #120; FE-34 — в `d94487e`,
 архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
@@ -202,7 +202,8 @@ restart и agent_not_logged_in. Положительный login, авториз
 
 ## BE-26: MCP в штатном host
 
-В `codex/be-26-mcp-runtime` от `origin/main` `27f83d4`, source `04b2081`,
+BE-26 принята в main `f2c082d` через [PR #121](https://github.com/imedfan/kaban/pull/121).
+Исходный source `04b2081` от `origin/main` `27f83d4`;
 штатный host до scheduler поднимает один loopback-сервер MCP и `/git/check`.
 Каждый run получает его URL и новый токен в env; `.cursor/mcp.json` содержит
 только `${env:KABAN_RUN_TOKEN}`, обязательный kaban и разрешённый выбор стадии.
@@ -230,8 +231,9 @@ Cursor требуют BE-22/BE-24. Production Cursor prompt/stream, shim и Seat
 при изолированном HOME. Только HTTP 200 с JSON `allow: true` приводит к exec;
 ошибки, таймаут и redirect дают немедленный отказ по тексту UC-17.
 [Проверки и ограничения](development/backend-be-27-2026-10-26.md).
-BE-26 [#121](https://github.com/imedfan/kaban/pull/121) остаётся зависимостью
-этой ветки. Настоящий Cursor commit и формат CLI deny rules требуют BE-22/BE-24;
+BE-26 [#121](https://github.com/imedfan/kaban/pull/121) принята в main `f2c082d`;
+ветка BE-27 интегрирована с этой базой. Настоящий Cursor commit и формат
+CLI deny rules требуют BE-22/BE-24;
 файловая граница относится к BE-28. Полный MVP не принят.
 
 ## Что есть в основном коде
