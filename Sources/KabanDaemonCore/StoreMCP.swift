@@ -51,9 +51,23 @@ extension KabanStore {
         if let endpoint = mcpHost.endpoint {
             env["KABAN_MCP_URL"] = endpoint.boardURL
             env["KABAN_GIT_CHECK_URL"] = endpoint.gitCheckURL
-            let task = try database.read { try Self.task(taskId, db: $0) }
+            let (task, identity) = try database.read { db in
+                let task = try Self.task(taskId, db: db)
+                return (task, try Self.project(task.card.projectId, db: db).summary.identity)
+            }
+            // The isolated HOME has no user's gitconfig; use the project's confirmed author for agent commits too.
+            if let identity {
+                env["GIT_AUTHOR_NAME"] = identity.name
+                env["GIT_AUTHOR_EMAIL"] = identity.email
+                env["GIT_COMMITTER_NAME"] = identity.name
+                env["GIT_COMMITTER_EMAIL"] = identity.email
+            }
             guard let run = task.machine.currentRunId else { throw StoreError.incompleteProjection }
             env = try isolatedMCPEnvironment(env, endpoint: endpoint, key: run.rawValue)
+            let shim = URL(fileURLWithPath: env["HOME"]!).appendingPathComponent("git-bin/git")
+            try KabanGitShim.install(at: shim, executable: URL(fileURLWithPath: endpoint.gitShimExecutable))
+            env["PATH"] = shim.deletingLastPathComponent().path + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+            env["KABAN_GIT_BIN"] = "/usr/bin/git"
         }
         return env
     }

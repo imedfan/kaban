@@ -8,9 +8,11 @@ import KabanProtocol
 public struct MCPHostEndpoint: Equatable, Sendable {
     public var port: UInt16
     public var workspaceRoot: String
-    public init(port: UInt16, workspaceRoot: String) {
+    public var gitShimExecutable: String
+    public init(port: UInt16, workspaceRoot: String, gitShimExecutable: String = KabanGitShim.bundledExecutable.path) {
         self.port = port
         self.workspaceRoot = workspaceRoot
+        self.gitShimExecutable = gitShimExecutable
     }
     public var boardURL: String { "http://127.0.0.1:\(port)/mcp" }
     public var gitCheckURL: String { "http://127.0.0.1:\(port)/git/check" }

@@ -1,14 +1,15 @@
 # Kaban: текущее состояние
 
-Срез 15 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 26 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`f405a27` (FE-21, FE-25 и BE-21 приняты через PR #115, #116 и #118;
-FE-34 — в `d94487e`, архитектура v0.11.27 и спека v0.8.26).
+`f2c082d` (BE-26 принята через PR #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
+BE-23 — #119, FE-32 — #120; FE-34 — в `d94487e`,
+архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
 принёс BE-18 и зависимую цепочку BE-06–17, [PR #90](https://github.com/imedfan/kaban/pull/90)
 принёс BE-19. Предыдущий срез `ea02f0c` и статусы stacked-веток устарели.
@@ -201,7 +202,8 @@ restart и agent_not_logged_in. Положительный login, авториз
 
 ## BE-26: MCP в штатном host
 
-В `codex/be-26-mcp-runtime` от `origin/main` `27f83d4`, source `04b2081`,
+BE-26 принята в main `f2c082d` через [PR #121](https://github.com/imedfan/kaban/pull/121).
+Исходный source `04b2081` от `origin/main` `27f83d4`;
 штатный host до scheduler поднимает один loopback-сервер MCP и `/git/check`.
 Каждый run получает его URL и новый токен в env; `.cursor/mcp.json` содержит
 только `${env:KABAN_RUN_TOKEN}`, обязательный kaban и разрешённый выбор стадии.
@@ -218,6 +220,21 @@ Live-критерий BE-26/BE-10 и полная FE-16 приёмка оста�
 формат реального `mcp list`, auth с отдельным HOME и вызов через настоящий
 Cursor требуют BE-22/BE-24. Production Cursor prompt/stream, shim и Seatbelt
 не входят в этот инкремент; обычный host без `--runner` не запускает модель.
+
+## BE-27: executable git shim
+
+В `codex/be-27-git-shim`, source `0051a22`, поверх BE-26 `cccf843`,
+`KabanGitShim` собирается отдельным SwiftPM/Xcode executable и подписывается
+в bundle рядом с helper. Каждый host run получает первым в PATH свой
+`git-bin/git`, ссылающийся на shim, URL `/git/check`, токен и абсолютный
+`/usr/bin/git`. Подтверждённый автор проекта передаётся в env для commit
+при изолированном HOME. Только HTTP 200 с JSON `allow: true` приводит к exec;
+ошибки, таймаут и redirect дают немедленный отказ по тексту UC-17.
+[Проверки и ограничения](development/backend-be-27-2026-10-26.md).
+BE-26 [#121](https://github.com/imedfan/kaban/pull/121) принята в main `f2c082d`;
+ветка BE-27 интегрирована с этой базой. Настоящий Cursor commit и формат
+CLI deny rules требуют BE-22/BE-24;
+файловая граница относится к BE-28. Полный MVP не принят.
 
 ## Что есть в основном коде
 

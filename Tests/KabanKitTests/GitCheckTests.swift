@@ -21,9 +21,5 @@ final class GitCheckTests: XCTestCase {
         XCTAssertEqual(rules, GitCheck.cursorHardDenyCommands)
         XCTAssertFalse(rules.contains("commit"))
         XCTAssertFalse(rules.contains("rebase"))
-        XCTAssertFalse(KabanGitShim.script.contains("rebase"))
-        XCTAssertFalse(KabanGitShim.script.contains("commit"))
-        XCTAssertTrue(KabanGitShim.script.contains(KabanGitShim.defaultCheckURL))
-        XCTAssertTrue(KabanGitShim.script.contains("\"allow\":true") || KabanGitShim.script.contains("allow") )
     }
 }

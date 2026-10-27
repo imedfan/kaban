@@ -16,6 +16,7 @@ def main():
     for path, identifier in (
         (args.app, 'app.kaban.desktop'),
         (args.app / 'Contents/MacOS/KabanDaemon', 'app.kaban.agent'),
+        (args.app / 'Contents/MacOS/KabanGitShim', 'app.kaban.git-shim'),
     ):
         subprocess.run(['codesign', '--verify', '--strict', str(path)], check=True)
         details = subprocess.run(['codesign', '-d', '--verbose=4', str(path)],

@@ -7,6 +7,33 @@ import KabanProtocol
 final class MCPHostTests: XCTestCase {
     private let at = Date(timeIntervalSince1970: 1_700_000_000)
 
+    func testAgentFindsCompiledShimFirstInPATHAndCommitsThroughIt() throws {
+        let f = try fixture()
+        let prefix = """
+        command -v git > '\(f.root.path)/which-git'
+        printf '%s' "$KABAN_GIT_BIN" > '\(f.root.path)/git-bin'
+        printf '%s' "$KABAN_GIT_CHECK_URL" > '\(f.root.path)/git-url'
+        printf change > shim-feature.txt
+        git add shim-feature.txt || exit 91
+        git commit -m 'Commit through shim' || exit 92
+
+        """
+        try (prefix + agentScript(f.root)).write(to: URL(fileURLWithPath: f.agent), atomically: true, encoding: .utf8)
+        try Data().write(to: f.root.appendingPathComponent("ask"))
+        try create(f, "shim")
+        let stopped = try drive(f, "shim") { $0.machine.state == .waitingHuman(.question) }
+        XCTAssertEqual(stopped.machine.state, .waitingHuman(.question))
+        let path = try read(f, "which-git").trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertEqual(URL(fileURLWithPath: path).resolvingSymlinksInPath().lastPathComponent, "KabanGitShim")
+        XCTAssertTrue(path.hasSuffix("/git-bin/git"), path)
+        XCTAssertEqual(try read(f, "git-bin"), "/usr/bin/git")
+        XCTAssertEqual(try read(f, "git-url"), "http://127.0.0.1:\(f.server.port)/git/check")
+        let clone = try XCTUnwrap(try f.store.getTaskDetail("shim").clonePath)
+        XCTAssertEqual(try git(clone, ["log", "-1", "--format=%s"]).trimmingCharacters(in: .whitespacesAndNewlines), "Commit through shim")
+        XCTAssertEqual(try git(clone, ["show", "HEAD:shim-feature.txt"]), "change")
+        XCTAssertEqual(try git(clone, ["log", "-1", "--format=%an <%ae> / %cn <%ce>"]), "Host Test <host@example.test> / Host Test <host@example.test>")
+    }
+
     func testFakeAgentCompletesReturnsAndHitsTheLimitThroughTheHostServer() throws {
         let f = try fixture()
         try create(f, "flow")
@@ -110,7 +137,10 @@ final class MCPHostTests: XCTestCase {
         XCTAssertFalse(try f.store.getSnapshot().schedulerFlags.contains { if case .projectUnavailable(project, _, _) = $0 { return true }; return false })
         try create(f, "changed")
         _ = try drive(f, "changed") { $0.machine.stageId.rawValue == "test" }
-        XCTAssertEqual(try runCount(f), 1)
+        // The scheduler may already start the next stage in the same pass. Check the dev run and its actual config.
+        XCTAssertEqual(try f.store.getTaskDetail("changed").runs.filter { $0.stageId.rawValue == "dev" }.count, 1)
+        let config = try JSONSerialization.jsonObject(with: Data(read(f, "mcp-1.json").utf8)) as? [String: Any]
+        XCTAssertEqual(Set((config?["mcpServers"] as? [String: Any] ?? [:]).keys), ["kaban"])
     }
 
     func testDaemonHostServesTheBoardAndRejectsTokensFromBeforeTheRestart() throws {
@@ -241,7 +271,7 @@ final class MCPHostTests: XCTestCase {
         let workspace = root.appendingPathComponent("workspaces")
         let server = try MCPBoardServer(store: store)
         addTeardownBlock { server.stop() }
-        store.attachMCPHost(MCPHostEndpoint(port: server.port, workspaceRoot: workspace.path))
+        store.attachMCPHost(MCPHostEndpoint(port: server.port, workspaceRoot: workspace.path, gitShimExecutable: URL(fileURLWithPath: ProcessInfo.processInfo.environment["KABAN_GIT_SHIM"] ?? ".build/debug/KabanGitShim").path))
         return Fixture(root: root, origin: origin, workspace: workspace.path, store: store, server: server, agent: agent.path)
     }
 
@@ -277,6 +307,7 @@ final class MCPHostTests: XCTestCase {
         R='\(root.path)'
         n=$(( $(cat "$R/count" 2>/dev/null || echo 0) + 1 ))
         echo "$n" > "$R/count"
+        trap 'printf done > "$R/finished-$n"' EXIT
         pwd -P > "$R/cwd-$n"
         printf '%s' "$HOME" > "$R/home-$n"
         cp .cursor/mcp.json "$R/mcp-$n.json"
@@ -311,6 +342,16 @@ final class MCPHostTests: XCTestCase {
     }
 
     private func pass(_ f: Fixture) throws {
+        // These finite fake agents replay their final HTTP call before exiting. Wait for their acknowledgement
+        // before the next scheduler pass can execute the final call's stop effect.
+        let processes = try f.store.agentProcesses()
+        if processes.contains(where: { $0.state == "running" }) {
+            let finished = f.root.appendingPathComponent("finished-\(processes.count)")
+            let deadline = Date().addingTimeInterval(5)
+            while !FileManager.default.fileExists(atPath: finished.path), Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+        }
         try f.store.runRuntimePass(at: Date(), workspaceRoot: f.workspace, runner: "/bin/sh", runnerArguments: [f.agent])
     }
 
