@@ -41,6 +41,15 @@ enum WireContractExamples {
     static let snapshot = Snapshot(seq: Samples.snapshot.seq, projects: [Samples.snapshot.projects[0]],
                                    pipelines: [Samples.pipeline], tasks: [Samples.tasks[0]])
     static let environment = CursorEnvironment(executablePath: "/usr/local/bin/cursor-agent")
+    static let selectedBase: WireContractExample = {
+        var project = Samples.snapshot.projects[0]
+        project.baseBranch = "master"
+        var example = command("addProjectSelectedBase", .addProject(path: project.path, createTemplate: true, baseBranch: "master"),
+                              result: .ok, journal: .projectAdded(project))
+        example.refusal = .init(.command(.init(commandId: Samples.cmd, seq: nil, result: .error(.init(
+            code: CommandError.baseBranchMissingCode, message: "Локальной ветки «master» нет в этом репозитории", params: ["branch": "master"])))))
+        return example
+    }()
     static let restore = WIPRestore(taskId: "t-1", runId: "r-11", wipRef: "refs/kaban/wip/r-11")
     static let validation: PipelineDraftValidation = {
         var resolved = appliedPipeline; resolved.versionHash = nil
@@ -65,6 +74,7 @@ enum WireContractExamples {
               refusal: .init(.command(.init(commandId: Samples.cmd, seq: nil, result: .error(.init(code: error, message: "Операция отклонена"))))))
     }
     static let values: [WireContractExample] = [
+        selectedBase,
         .init(name: "capabilities", request: .init(.capabilities),
               response: .init(.capabilities(.init(operations: [.init(name: "readLog", supported: false)],
                  commands: [.init(name: "createTask", support: .managedFakeOnly), .init(name: "restoreWIP", support: .unsupported)]))),
@@ -94,6 +104,17 @@ enum WireContractExamples {
 }
 
 final class WireContractTests: XCTestCase {
+    func testLegacyAddProjectDefaultsAndRejectsMalformedBase() throws {
+        for field in ["", #", "baseBranch": null"#] {
+            let data = Data("{\"addProject\":{\"path\":\"/repo\",\"createTemplate\":false\(field)}}".utf8)
+            XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: data), .addProject(path: "/repo", createTemplate: false))
+        }
+        let selected = Data(#"{"addProject":{"path":"/repo","createTemplate":false,"baseBranch":"release/stable"}}"#.utf8)
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: selected),
+                       .addProject(path: "/repo", createTemplate: false, baseBranch: "release/stable"))
+        let malformed = Data(#"{"addProject":{"path":"/repo","createTemplate":false,"baseBranch":7}}"#.utf8)
+        XCTAssertThrowsError(try KabanCoding.makeDecoder().decode(Command.self, from: malformed))
+    }
     func testLegacyUpdateHasNoDraftAndKnownMalformedDraftIsRejected() throws {
         let data = Data(#"{"updatePipeline":{"projectId":"p","contentHash":"h","future":true}}"#.utf8)
         XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: data), .updatePipeline(projectId: "p", contentHash: "h"))

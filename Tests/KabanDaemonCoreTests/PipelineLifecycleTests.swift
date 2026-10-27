@@ -31,12 +31,12 @@ final class PipelineLifecycleTests: XCTestCase {
 
     """
     struct Fixture { let root: URL; let repo: URL; let store: KabanStore; let database: String; let project: ProjectID }
-    func fixture(content: String? = nil, template: Bool = false) throws -> Fixture {
+    func fixture(content: String? = nil, template: Bool = false, baseBranch: String = "main") throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let repo = root.appendingPathComponent("Repo")
         try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
-        _ = try git(repo, ["init", "-b", "main"])
+        _ = try git(repo, ["init", "-b", baseBranch])
         _ = try git(repo, ["config", "user.name", identity.name]); _ = try git(repo, ["config", "user.email", identity.email])
         try "initial\n".write(to: repo.appendingPathComponent("tracked"), atomically: true, encoding: .utf8)
         if let content {
@@ -46,7 +46,7 @@ final class PipelineLifecycleTests: XCTestCase {
         }
         _ = try git(repo, ["add", "."]); _ = try git(repo, ["commit", "-m", "Initial"])
         let database = root.appendingPathComponent("store.sqlite").path, store = try KabanStore(path: database)
-        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: template, identity: identity))).result, .ok)
+        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: template, identity: identity, baseBranch: baseBranch))).result, .ok)
         return Fixture(root: root, repo: repo, store: store, database: database, project: try XCTUnwrap(store.getSnapshot().projects.first?.id))
     }
     @discardableResult func git(_ repo: URL, _ args: [String]) throws -> Data {
@@ -69,6 +69,33 @@ final class PipelineLifecycleTests: XCTestCase {
     }
     func changed(_ f: Fixture, _ name: String, _ content: String) throws {
         try content.write(to: f.repo.appendingPathComponent(name), atomically: true, encoding: .utf8)
+    }
+    func testSelectedBaseRemainsConfigurationSourceAcrossCheckoutAndApply() throws {
+        let f = try fixture(content: yaml, baseBranch: "release/stable")
+        let original = try summary(f)
+        _ = try git(f.repo, ["switch", "-c", "main"])
+        try changed(f, ".kaban/pipeline.yaml", yaml + "# other branch\n")
+        _ = try git(f.repo, ["add", ".kaban"]); _ = try git(f.repo, ["commit", "-m", "Other configuration"])
+        let otherTip = try git(f.repo, ["rev-parse", "HEAD"])
+        try f.store.refreshPipelines()
+        XCTAssertEqual(try summary(f).versionHash, original.versionHash)
+        XCTAssertTrue(try summary(f).hasUncommittedEdits)
+        let source = try f.store.execute(.init(command: .getPipelineSource(projectId: f.project)))
+        guard case .pipelineSource(let value) = source.result else { return XCTFail("Missing pipeline source") }
+        XCTAssertEqual(value.committedContent, yaml)
+        XCTAssertEqual(value.workingContent, yaml + "# other branch\n")
+        XCTAssertEqual(try refusal(f.store.execute(envelope(f, yaml + "# saved\n"))).code, "pipeline_checkout_required")
+        XCTAssertEqual(try git(f.repo, ["rev-parse", "main"]), otherTip)
+        _ = try git(f.repo, ["switch", "release/stable"])
+        let content = yaml + "# saved\n"
+        let reply = try f.store.execute(envelope(f, content))
+        guard case .pipelineVersion = reply.result else { return XCTFail("Apply failed: \(reply)") }
+        XCTAssertEqual(String(decoding: try git(f.repo, ["show", "release/stable:.kaban/pipeline.yaml"]), as: UTF8.self), content)
+        XCTAssertEqual(try git(f.repo, ["rev-parse", "main"]), otherTip)
+        let reopened = try KabanStore(path: f.database)
+        XCTAssertEqual(try reopened.execute(.init(command: .recheck(scope: .project(projectId: f.project)))).result, .ok)
+        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "release/stable")
+        XCTAssertTrue(try XCTUnwrap(reopened.getSnapshot().pipelines.first).isValid)
     }
     func create(_ f: Fixture, id: TaskID = "task") throws {
         XCTAssertEqual(try f.store.execute(.init(command: .createTask(projectId: f.project, title: "Task", body: "## Acceptance\n- [ ] Ready")), makeTaskID: { id }).result, .taskCreated(id))
@@ -188,7 +215,7 @@ final class PipelineLifecycleTests: XCTestCase {
     }
 
     func testDatabaseFailureAfterGitCommitRecoversOnceAndPreservesLaterEdits() throws {
-        let f = try fixture(content: yaml), request = try envelope(f, yaml + "# save\n")
+        let f = try fixture(content: yaml, baseBranch: "release/stable"), request = try envelope(f, yaml + "# save\n")
         let initial = try f.store.getSnapshot()
         try f.store.database.write { try $0.execute(sql: "CREATE TRIGGER fail_pipeline_receipt BEFORE INSERT ON wire_command BEGIN SELECT RAISE(ABORT, 'injected'); END") }
         XCTAssertThrowsError(try f.store.execute(request))
@@ -200,6 +227,7 @@ final class PipelineLifecycleTests: XCTestCase {
         try f.store.database.write { try $0.execute(sql: "DROP TRIGGER fail_pipeline_receipt") }
         let reopened = try KabanStore(path: f.database)
         try reopened.recoverPipelineOperations()
+        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "release/stable")
         let reply = try reopened.execute(request, now: { XCTFail("Recovery replay read clock"); return self.at })
         guard case .pipelineVersion = reply.result else { return XCTFail("Recovery failed") }
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), commit)

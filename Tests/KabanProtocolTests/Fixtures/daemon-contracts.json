@@ -1,5 +1,86 @@
 [
   {
+    "journal" : {
+      "at" : "2026-10-04T08:00:00.000Z",
+      "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+      "event" : {
+        "data" : {
+          "availability" : "available",
+          "baseBranch" : "master",
+          "id" : "p-kaban",
+          "identity" : {
+            "email" : "artem@example.com",
+            "name" : "Artem Palkin"
+          },
+          "mascotSeed" : "p-kaban",
+          "name" : "kaban",
+          "openIncidentCount" : 1,
+          "path" : "/Users/artem/dev/kaban",
+          "weight" : 1
+        },
+        "type" : "projectAdded"
+      },
+      "projectId" : "p-kaban",
+      "seq" : 1043
+    },
+    "name" : "addProjectSelectedBase",
+    "refusal" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "error" : {
+                "_0" : {
+                  "code" : "base_branch_missing",
+                  "message" : "Локальной ветки «master» нет в этом репозитории",
+                  "params" : {
+                    "branch" : "master"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request" : {
+      "operation" : {
+        "command" : {
+          "_0" : {
+            "command" : {
+              "addProject" : {
+                "baseBranch" : "master",
+                "createTemplate" : true,
+                "path" : "/Users/artem/dev/kaban"
+              }
+            },
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "protocolVersion" : 1
+          }
+        }
+      },
+      "protocolVersion" : 1
+    },
+    "response" : {
+      "protocolVersion" : 1,
+      "result" : {
+        "command" : {
+          "_0" : {
+            "commandId" : "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01",
+            "result" : {
+              "ok" : {
+
+              }
+            },
+            "seq" : 1043
+          }
+        }
+      }
+    }
+  },
+  {
     "name" : "capabilities",
     "refusal" : {
       "protocolVersion" : 1,

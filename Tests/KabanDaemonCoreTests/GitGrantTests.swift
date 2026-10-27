@@ -7,6 +7,19 @@ import KabanProtocol
 final class GitGrantTests: XCTestCase {
     let at = Date(timeIntervalSince1970: 1_700_000_000)
 
+    func testSelectedBaseCannotBeGrantedOrAllowedByPermissivePolicy() throws {
+        let f = try fixture(pipeline(preset: "permissive"), baseBranch: "release/stable")
+        _ = try launch(f, "base")
+        let token = try f.store.issueRunToken(taskId: "base", at: at)
+        let blocked = try f.store.checkGit(token: token, argv: ["rebase", "origin/release/stable"], at: at)
+        XCTAssertFalse(blocked.allow)
+        XCTAssertEqual(blocked.rule, "foreign_refs")
+        let denial = try XCTUnwrap(f.store.getTaskDetail("base").gitDenials.last)
+        XCTAssertEqual(denial.context?.restriction?.code, "git_hard_invariant")
+        XCTAssertEqual(code(try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)))), "git_hard_invariant")
+        XCTAssertTrue(try f.store.checkGit(token: token, argv: ["rebase", "topic"], at: at).allow)
+    }
+
     func testGrantIsSingleUseAndDoesNotWidenOrOverrideHardRules() throws {
         let f = try fixture(pipeline(preset: "standard"))
         let run = try launch(f, "once")
@@ -510,7 +523,7 @@ final class GitGrantTests: XCTestCase {
         """
     }
 
-    private func fixture(_ yaml: String) throws -> Fixture {
+    private func fixture(_ yaml: String, baseBranch: String = "main") throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-git-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -518,14 +531,14 @@ final class GitGrantTests: XCTestCase {
         try FileManager.default.createDirectory(at: repo.appendingPathComponent(".kaban"), withIntermediateDirectories: true)
         try yaml.write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
         try "skill".write(to: repo.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
-        try git(repo, ["init", "-b", "main"])
+        try git(repo, ["init", "-b", baseBranch])
         try git(repo, ["config", "user.name", "Git Test"])
         try git(repo, ["config", "user.email", "git@example.test"])
         try git(repo, ["add", "."])
         try git(repo, ["commit", "-m", "Pipeline"])
         let path = root.appendingPathComponent("store.sqlite").path
         let store = try KabanStore(path: path)
-        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false))).result, .ok)
+        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false, baseBranch: baseBranch))).result, .ok)
         _ = try store.setSettings(.init(maxConcurrentRuns: 4, quotaOptions: .init(enabled: false, consent: false)), commandId: UUID(), at: at)
         return Fixture(root: root, workspace: root.appendingPathComponent("workspaces").path, path: path, store: store)
     }

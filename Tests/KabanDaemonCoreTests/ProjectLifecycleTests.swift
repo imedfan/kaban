@@ -130,13 +130,53 @@ final class ProjectLifecycleTests: XCTestCase {
     func testLocalMainAndTemplateCheckoutDiagnostics() throws {
         let f = try fixture()
         _ = try git(f.repo, ["branch", "-m", "main", "master"])
-        XCTAssertEqual(try refusal(send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store)).code, "base_branch_required")
+        XCTAssertEqual(try refusal(send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store)).code, CommandError.baseBranchMissingCode)
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
         _ = try git(f.repo, ["branch", "main"])
         XCTAssertEqual(try refusal(send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store)).code, "template_checkout_required")
         XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
         _ = try add(f)
         XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
+    }
+    func testSelectedBaseBranchCreatesTemplateAndSurvivesRestart() throws {
+        let f = try fixture()
+        _ = try git(f.repo, ["branch", "-m", "main", "master"])
+        let command = try KabanCoding.makeDecoder().decode(Command.self, from: JSONSerialization.data(withJSONObject: [
+            "addProject": ["path": f.repo.path, "createTemplate": true, "baseBranch": "master"]
+        ]))
+        let reply = try send(command, f.store)
+        XCTAssertEqual(reply.result, .ok)
+        let project = try XCTUnwrap(f.store.getSnapshot().projects.first)
+        XCTAssertEqual(project.baseBranch, "master")
+        XCTAssertEqual(try KabanStore(path: f.database).getSnapshot().projects.first?.baseBranch, "master")
+        XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
+        XCTAssertFalse(text(try git(f.repo, ["show", "master:.kaban/pipeline.yaml"])).isEmpty)
+        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", "master"])), "2")
+        XCTAssertEqual(text(try git(f.repo, ["status", "--porcelain"])), "")
+        let moved = f.root.appendingPathComponent("Moved")
+        try FileManager.default.moveItem(at: f.repo, to: moved)
+        let reopened = try KabanStore(path: f.database)
+        XCTAssertEqual(try send(.relinkProject(projectId: project.id, path: moved.path), reopened).result, .ok)
+        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "master")
+        XCTAssertEqual(try reopened.getSnapshot().projects.first?.id, project.id)
+    }
+    func testMissingBaseRefusesBeforeTemplateAndReplaysWithExactBranch() throws {
+        let f = try fixture()
+        _ = try git(f.repo, ["tag", "tag-only"])
+        _ = try git(f.repo, ["update-ref", "refs/remotes/origin/remote-only", "HEAD"])
+        for branch in ["missing", "tag-only", "remote-only", "../main", "--help", "main^{commit}", "bad\0branch", ""] {
+            let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: branch))
+            let reply = try f.store.execute(envelope)
+            let error = try refusal(reply)
+            XCTAssertEqual(error.code, CommandError.baseBranchMissingCode)
+            XCTAssertEqual(error.params["branch"], branch)
+            XCTAssertEqual(CommandErrorText.render(error), "Локальной ветки «\(branch)» нет в этом репозитории")
+            XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban"))
+            XCTAssertEqual(try f.store.execute(envelope, now: { XCTFail("Refusal replay read clock"); return at }), reply)
+        }
+        let project = try add(f)
+        XCTAssertEqual(project.baseBranch, "main")
     }
     func testBranchesAndGatesReadCommittedMainAndRemainFreshQueries() throws {
         let f = try fixture()
@@ -196,8 +236,9 @@ final class ProjectLifecycleTests: XCTestCase {
     }
     func testDatabaseFailureAfterGitCommitRecoversWithoutDuplicateOrOverwritingEdits() throws {
         let f = try fixture()
+        _ = try git(f.repo, ["branch", "-m", "main", "master"])
         try f.store.database.write { db in try db.execute(sql: "CREATE TRIGGER fail_project_reply BEFORE INSERT ON wire_command BEGIN SELECT RAISE(ABORT, 'injected'); END") }
-        let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity))
+        let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: "master"))
         XCTAssertThrowsError(try f.store.execute(envelope))
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
         XCTAssertEqual(try f.store.database.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM project_operation") }, 1)
@@ -210,6 +251,7 @@ final class ProjectLifecycleTests: XCTestCase {
         let reopened = try KabanStore(path: f.database)
         try reopened.recoverProjectOperations()
         XCTAssertEqual(try reopened.getSnapshot().projects.count, 1)
+        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "master")
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), commit)
         XCTAssertEqual(try git(f.repo, ["diff", "--cached", "--binary"]), staged)
         XCTAssertEqual(try String(contentsOf: userSkill, encoding: .utf8), "user edit\n")

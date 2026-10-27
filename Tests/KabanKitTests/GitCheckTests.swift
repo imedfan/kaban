@@ -2,6 +2,18 @@ import XCTest
 import KabanKit
 
 final class GitCheckTests: XCTestCase {
+    func testSelectedBaseAliasesAreProtectedWhileTaskRefsRemainUsable() {
+        for branch in ["master", "release/stable"] {
+            for words in [["switch", branch], ["checkout", "refs/heads/" + branch],
+                          ["rebase", "origin/" + branch + "~2"], ["rebase", "--onto=" + branch, "topic"],
+                          ["fetch", "origin", "refs/heads/" + branch], ["worktree", "add", "/tmp/clone", branch]] {
+                XCTAssertEqual(GitCheck.blocked(words, baseBranch: branch), "foreign_refs", "\(words)")
+            }
+            XCTAssertNil(GitCheck.blocked(["rebase", "topic"], baseBranch: branch))
+            XCTAssertNil(GitCheck.blocked(["show", branch], baseBranch: branch))
+            XCTAssertNil(GitCheck.blocked(["checkout", "--", branch], baseBranch: branch))
+        }
+    }
     func testNormalizationCollapsesGitGlobalsOntoConfig() {
         XCTAssertEqual(GitCheck.normalize(argv: ["git", "status"]), ["status"])
         XCTAssertEqual(GitCheck.normalize(argv: ["/usr/bin/git", "--no-pager", "status"]), ["status"])

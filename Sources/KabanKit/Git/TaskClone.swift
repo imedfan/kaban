@@ -68,7 +68,7 @@ public enum TaskClone {
         guard isInside(candidatePath, root) else { throw Failure.outsideWorkspace }
     }
 
-    public static func materialize(_ plan: Plan, origin: String, workspaceRoot: String, identity: GitIdentity?, fresh: Bool) throws {
+    public static func materialize(_ plan: Plan, origin: String, baseBranch: String, workspaceRoot: String, identity: GitIdentity?, fresh: Bool) throws {
         let source = fresh ? plan.clonePath : origin
         let destination = fresh ? plan.freshPath! : plan.clonePath
         try authorizeDeletion(candidate: destination, recorded: destination, workspaceRoot: workspaceRoot, origin: origin)
@@ -81,7 +81,8 @@ public enum TaskClone {
         try run(["config", "core.fsmonitor", "false"], in: destination, identity: identity)
         try run(["remote", "set-url", "--push", "origin", "kaban-no-push"], in: destination, identity: identity)
         if !fresh {
-            try run(["switch", "-c", plan.branch, "refs/heads/main"], in: destination, identity: identity)
+            try importBase(origin: origin, baseBranch: baseBranch, into: destination, identity: identity)
+            try run(["switch", "-c", plan.branch, "refs/kaban/base"], in: destination, identity: identity)
             try FileManager.default.createDirectory(atPath: plan.derivedDataPath, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: plan.tempPath, withIntermediateDirectories: true)
         }
@@ -108,8 +109,8 @@ public enum TaskClone {
         try text(["rev-parse", "--verify", "HEAD"], in: repository, identity: identity)
     }
 
-    public static func mainCommit(_ repository: String, identity: GitIdentity?) throws -> String {
-        try text(["rev-parse", "--verify", "refs/heads/main"], in: repository, identity: identity)
+    public static func baseCommit(_ repository: String, baseBranch: String, identity: GitIdentity?) throws -> String {
+        try text(["rev-parse", "--verify", "refs/heads/" + baseBranch], in: repository, identity: identity)
     }
 
     public static func checkedOutBranch(_ repository: String, identity: GitIdentity?) throws -> String {
@@ -153,10 +154,10 @@ public enum TaskClone {
         public var conflicts: [String]
     }
 
-    /// Rebases the task branch onto `origin`'s `main` inside a temporary clone under `workspaceRoot`.
+    /// Rebases the task branch onto `origin`'s selected base inside a temporary clone under `workspaceRoot`.
     /// A conflict aborts that temporary clone. The user's checkout is not reset. A clean rebase
     /// `reset --hard`s only the task clone so the result check sees the rebased tree.
-    public static func rebaseOntoMain(origin: String, clone: String, branch: String, workspaceRoot: String, taskId: TaskID, identity: GitIdentity?) throws -> MergeRebase {
+    public static func rebaseOntoBase(origin: String, baseBranch: String, clone: String, branch: String, workspaceRoot: String, taskId: TaskID, identity: GitIdentity?) throws -> MergeRebase {
         let task = try component(taskId.rawValue)
         let root = standardize(workspaceRoot)
         let directory = root + "/merge/" + task
@@ -170,7 +171,8 @@ public enum TaskClone {
         try run(["config", "core.fsmonitor", "false"], in: directory, identity: identity)
         try run(["fetch", clone, "\(branch):refs/heads/\(branch)"], in: directory, identity: identity)
         try run(["switch", branch], in: directory, identity: identity)
-        let rebase = try output(["rebase", "refs/heads/main"], in: directory, identity: identity, ok: [0, 1])
+        try importBase(origin: origin, baseBranch: baseBranch, into: directory, identity: identity)
+        let rebase = try output(["rebase", "refs/kaban/base"], in: directory, identity: identity, ok: [0, 1])
         if rebase.status != 0 {
             let names = (try? output(["diff", "--name-only", "--diff-filter=U"], in: directory, identity: identity, ok: [0, 1]).text) ?? ""
             _ = try? run(["rebase", "--abort"], in: directory, identity: identity)
@@ -179,25 +181,30 @@ public enum TaskClone {
             return MergeRebase(base: "", tip: "", conflicts: files)
         }
         let tip = try text(["rev-parse", "--verify", "HEAD"], in: directory, identity: identity)
-        let base = try text(["rev-parse", "--verify", "refs/heads/main"], in: directory, identity: identity)
+        let base = try text(["rev-parse", "--verify", "refs/kaban/base"], in: directory, identity: identity)
         try run(["fetch", directory, branch], in: clone, identity: identity)
         try run(["reset", "--hard", "FETCH_HEAD"], in: clone, identity: identity)
         return MergeRebase(base: base, tip: tip, conflicts: [])
     }
 
-    /// Fast-forwards `refs/heads/main` to `tip`. A checkout of `main` uses `merge --ff-only`. Any other
+    /// Fast-forwards the selected base to `tip`. A checkout of that branch uses `merge --ff-only`. Any other
     /// checkout updates the ref only, leaving the worktree and index alone. The caller must already
     /// have refused a dirty overlap and a moved base.
-    public static func fastForwardMain(origin: String, clone: String, branch: String, tip: String, taskId: TaskID, identity: GitIdentity?) throws {
+    public static func fastForwardBase(origin: String, baseBranch: String, expectedBase: String, clone: String, branch: String, tip: String, taskId: TaskID, identity: GitIdentity?) throws {
         let incoming = "refs/kaban/incoming/" + (try component(taskId.rawValue))
         try run(["fetch", clone, "\(branch):\(incoming)"], in: origin, identity: identity)
         let head = try checkedOutBranch(origin, identity: identity)
-        if head == "main" {
+        if head == baseBranch {
             try run(["merge", "--ff-only", tip], in: origin, identity: identity)
         } else {
-            try run(["update-ref", "refs/heads/main", tip], in: origin, identity: identity)
+            try run(["update-ref", "refs/heads/" + baseBranch, tip, expectedBase], in: origin, identity: identity)
         }
-        guard try mainCommit(origin, identity: identity) == tip else { throw Failure.gitFailed }
+        guard try baseCommit(origin, baseBranch: baseBranch, identity: identity) == tip else { throw Failure.gitFailed }
+    }
+
+    private static func importBase(origin: String, baseBranch: String, into repository: String, identity: GitIdentity?) throws {
+        try run(["fetch", "--no-tags", "--no-write-fetch-head", "--no-recurse-submodules", "--", origin,
+                 "refs/heads/" + baseBranch + ":refs/kaban/base"], in: repository, identity: identity)
     }
 
     public static func gitDirectory(_ repository: String, identity: GitIdentity?) throws -> String {
@@ -351,10 +358,10 @@ public enum TaskClone {
         return ProtectionSnapshot(heads: try refMap(origin, "refs/heads", identity), tags: try refMap(origin, "refs/tags", identity), config: config)
     }
 
-    /// Restores `.cursor/mcp.json` to the `main` blob. The caller still excludes that path from the diff.
-    public static func restoreBoardMCP(clone: String, origin: String, identity: GitIdentity?) throws {
+    /// Restores `.cursor/mcp.json` to the selected base blob. The caller still excludes that path from the diff.
+    public static func restoreBoardMCP(clone: String, origin: String, baseBranch: String, identity: GitIdentity?) throws {
         let destination = clone + "/.cursor/mcp.json"
-        let shown = try output(["show", "refs/heads/main:.cursor/mcp.json"], in: origin, identity: identity, ok: [0, 128], trim: false)
+        let shown = try output(["show", "refs/heads/" + baseBranch + ":.cursor/mcp.json"], in: origin, identity: identity, ok: [0, 128], trim: false)
         if shown.status == 0 {
             try FileManager.default.createDirectory(atPath: (destination as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
             try shown.text.write(toFile: destination, atomically: true, encoding: .utf8)

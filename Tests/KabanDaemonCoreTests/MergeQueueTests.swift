@@ -7,6 +7,53 @@ import KabanProtocol
 final class MergeQueueTests: XCTestCase {
     let at = Date(timeIntervalSince1970: 1_700_000_000)
 
+    func testSelectedBaseReachesDoneWithAnotherBranchCheckedOut() throws {
+        for (base, otherCheckout) in [("master", false), ("release/stable", true)] {
+            let f = try fixture(baseBranch: base)
+            try FileManager.default.createDirectory(atPath: f.origin + "/.cursor", withIntermediateDirectories: true)
+            let mcp = "{\"mcpServers\":{}}\n"
+            try mcp.write(toFile: f.origin + "/.cursor/mcp.json", atomically: true, encoding: .utf8)
+            try git(f, ["add", ".cursor"]); try git(f, ["commit", "-m", "Base MCP"])
+            let before = try sha(f, ["rev-parse", "refs/heads/" + base])
+            var otherTip: String?
+            if otherCheckout {
+                try git(f, ["switch", "-c", "main"])
+                try "user-only\n".write(toFile: f.origin + "/owner.txt", atomically: true, encoding: .utf8)
+                try "{\"mcpServers\":{\"other\":{\"command\":\"fixture\"}}}\n".write(toFile: f.origin + "/.cursor/mcp.json", atomically: true, encoding: .utf8)
+                try git(f, ["add", "owner.txt", ".cursor"]); try git(f, ["commit", "-m", "User branch"])
+                otherTip = try sha(f, ["rev-parse", "HEAD"])
+            }
+            let clone = try enqueue(f, "selected", "result.txt", "chosen-base\n")
+            XCTAssertEqual(clone.baseCommit, before)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: clone.clonePath + "/owner.txt"))
+            XCTAssertEqual(try text(clone.clonePath, ".cursor/mcp.json"), mcp)
+            if !otherCheckout {
+                try "new base\n".write(toFile: f.origin + "/new-base.txt", atomically: true, encoding: .utf8)
+                try git(f, ["add", "new-base.txt"]); try git(f, ["commit", "-m", "Base advances"])
+            }
+            try approve(f, "selected"); _ = try tick(f, "merge-selected")
+            _ = try f.store.runMergePass(owner: "test", at: at, workspaceRoot: f.workspace)
+            let detail = try f.store.getTaskDetail("selected")
+            XCTAssertEqual(detail.task.state, .done)
+            let tip = try sha(f, ["rev-parse", "refs/heads/" + base])
+            XCTAssertNotEqual(tip, before)
+            XCTAssertEqual(try gitText(f, ["show", "refs/heads/" + base + ":result.txt"]), "chosen-base\n")
+            let artifact = try XCTUnwrap(detail.artifacts.first { $0.kind == "merge_result" })
+            let result = try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(artifact.text.utf8))
+            XCTAssertEqual(result.ref, "refs/heads/" + base)
+            XCTAssertEqual(result.commit, tip)
+            if let otherTip {
+                XCTAssertEqual(try sha(f, ["rev-parse", "HEAD"]), otherTip)
+                XCTAssertFalse(FileManager.default.fileExists(atPath: f.origin + "/result.txt"))
+                XCTAssertEqual(try text(f.origin, "owner.txt"), "user-only\n")
+            } else {
+                XCTAssertEqual(try text(f.origin, "result.txt"), "chosen-base\n")
+                XCTAssertEqual(try text(f.origin, "new-base.txt"), "new base\n")
+            }
+            XCTAssertEqual(try gitText(f, ["status", "--porcelain"]), "")
+        }
+    }
+
     func testTwoApprovedTasksDoNotWriteMainTogether() throws {
         let f = try fixture()
         let first = try enqueue(f, "alpha", "a.txt", "alpha\n")
@@ -216,7 +263,7 @@ final class MergeQueueTests: XCTestCase {
         let binary = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/KabanDaemon")
         let executable = ProcessInfo.processInfo.environment["KABAN_DAEMON"].map { URL(fileURLWithPath: $0) } ?? binary
         guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw XCTSkip("Build KabanDaemon before the merge launch") }
-        let f = try fixture()
+        let f = try fixture(baseBranch: "master")
         _ = try enqueue(f, "once", "once.txt", "once\n")
         try approve(f, "once")
         _ = try tick(f, "merge-once")
@@ -226,7 +273,7 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(first.exit, 0, first.stderr)
         XCTAssertEqual(second.exit, 0, second.stderr)
         XCTAssertEqual(first.stderr, second.stderr)
-        let tip = try sha(f, ["rev-parse", "refs/heads/main"])
+        let tip = try sha(f, ["rev-parse", "refs/heads/master"])
         XCTAssertTrue(first.stderr.contains("merge once ff \(tip)"))
         XCTAssertEqual(try text(f.origin, "once.txt"), "once\n")
         XCTAssertEqual(try task(f, "once").machine.state, .done)
@@ -238,7 +285,7 @@ final class MergeQueueTests: XCTestCase {
     }
 
     func testFullStartupRecoveryAfterFastForwardBeforeFactIsStable() throws {
-        let f = try fixture()
+        let f = try fixture(baseBranch: "master")
         _ = try enqueue(f, "startup", "startup.txt", "once\n")
         try approve(f, "startup")
         _ = try tick(f, "startup-merge")
@@ -253,16 +300,18 @@ final class MergeQueueTests: XCTestCase {
         // Crash in the smaller gap: external git is visible but no fact has reached SQLite.
         try f.store.database.write { db in try db.execute(sql: "UPDATE effect SET external_fact = NULL WHERE id = ?", arguments: [item.id]) }
         let commits = try count(f)
-        let main = try sha(f, ["rev-parse", "refs/heads/main"])
+        let main = try sha(f, ["rev-parse", "refs/heads/master"])
         let reopened = try KabanStore(path: f.path)
         _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
         XCTAssertEqual(try reopened.snapshot().tasks.first { $0.card.id == "startup" }?.machine.state, .done)
         let result = try XCTUnwrap(reopened.getTaskDetail("startup").artifacts.first { $0.kind == "merge_result" })
-        XCTAssertEqual(try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(result.text.utf8)).commit, main)
+        let merge = try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(result.text.utf8))
+        XCTAssertEqual(merge.commit, main)
+        XCTAssertEqual(merge.ref, "refs/heads/master")
         try reopened.discardJournal()
         XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("startup").artifacts.filter { $0.kind == "merge_result" }, [result])
         XCTAssertEqual(try count(f), commits)
-        XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/main"]), main)
+        XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/master"]), main)
         let seq = try reopened.snapshot().seq
         _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
         XCTAssertEqual(try reopened.snapshot().seq, seq)
@@ -296,7 +345,7 @@ final class MergeQueueTests: XCTestCase {
         """
     }
 
-    private func fixture(mergeGate: String? = nil) throws -> Fixture {
+    private func fixture(mergeGate: String? = nil, baseBranch: String = "main") throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-merge-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -305,14 +354,14 @@ final class MergeQueueTests: XCTestCase {
         try pipeline(mergeGate: mergeGate).write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
         try "skill".write(to: repo.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
         try "base\n".write(to: repo.appendingPathComponent("shared.txt"), atomically: true, encoding: .utf8)
-        try git(repo, ["init", "-b", "main"])
+        try git(repo, ["init", "-b", baseBranch])
         try git(repo, ["config", "user.name", "Merge Test"])
         try git(repo, ["config", "user.email", "merge@example.test"])
         try git(repo, ["add", "."])
         try git(repo, ["commit", "-m", "Pipeline"])
         let path = root.appendingPathComponent("store.sqlite").path
         let store = try KabanStore(path: path)
-        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false))).result, .ok)
+        XCTAssertEqual(try store.execute(.init(command: .addProject(path: repo.path, createTemplate: false, baseBranch: baseBranch))).result, .ok)
         _ = try store.setSettings(.init(maxConcurrentRuns: 4, quotaOptions: .init(enabled: false, consent: false)), commandId: UUID(), at: at)
         return Fixture(root: root, workspace: root.appendingPathComponent("workspaces").path, path: path, store: store, origin: repo.path)
     }
@@ -371,7 +420,8 @@ final class MergeQueueTests: XCTestCase {
     }
 
     private func count(_ f: Fixture) throws -> Int {
-        Int(try sha(f, ["rev-list", "--count", "refs/heads/main"])) ?? -1
+        let base = try XCTUnwrap(f.store.getSnapshot().projects.first?.baseBranch)
+        return Int(try sha(f, ["rev-list", "--count", "refs/heads/" + base])) ?? -1
     }
 
     @discardableResult

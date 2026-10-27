@@ -139,7 +139,7 @@ extension KabanStore {
         }
         if case .merged = command,
            let row = try Row.fetchOne(db, sql: "SELECT base_sha, tip_sha FROM merge_intent WHERE task_id = ?", arguments: [task.card.id.rawValue]) {
-            let result = LocalMergeResult(baseCommit: row["base_sha"], commit: row["tip_sha"], ref: "refs/heads/main")
+            let result = LocalMergeResult(baseCommit: row["base_sha"], commit: row["tip_sha"], ref: "refs/heads/" + (try Self.project(task.card.projectId, db: db).summary.baseBranch))
             let id = commandId.uuidString.lowercased() + "/merged"
             let text = String(decoding: try KabanCoding.makeEncoder().encode(result), as: UTF8.self)
             d.artifacts.append(TaskArtifact(id: ArtifactID(rawValue: id), taskId: task.card.id, stageId: before.stageId,

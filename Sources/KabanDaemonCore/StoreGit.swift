@@ -41,7 +41,7 @@ extension KabanStore {
         let command = words.joined(separator: " ")
         guard !command.isEmpty else { return denied("invalid") }
         guard let stage = task.pipeline.stage(task.machine.stageId) else { return try deny(task, run: run, argv: argv, rule: "policy", at: at, db: db) }
-        if let id = GitCheck.blocked(words) {
+        if let id = GitCheck.blocked(words, baseBranch: try project(task.card.projectId, db: db).summary.baseBranch) {
             return try deny(task, run: run, argv: argv, rule: id, at: at, db: db)
         }
         let policy = GitPolicyResolver.resolve(project: task.pipeline.git, stage: stage)
@@ -205,7 +205,8 @@ extension KabanStore {
         let words = GitCheck.normalize(argv: denial.denial.argv)
         let stage = detail.runs.first { $0.id == denial.denial.runId }?.stageId
         let restriction: CommandError?
-        if let id = GitCheck.blocked(words) {
+        // The recorded invariant also covers the project's selected base, which need not be main.
+        if let id = GitCheck.blocked(words) ?? (HardInvariant.all.contains(denial.denial.rule) ? denial.denial.rule : nil) {
             restriction = .init(code: "git_hard_invariant", message: "Жёсткий инвариант нельзя разрешить.", params: ["rule": id])
         } else if words.isEmpty {
             restriction = .init(code: "invalid_request", message: "В отказе нет команды.")

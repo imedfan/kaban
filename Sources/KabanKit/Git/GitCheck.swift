@@ -38,14 +38,23 @@ public enum GitCheck {
     }
 
     /// Hard invariant id for a normalized command, including `.kaban/` writes and call-time
-    /// `notes` / `fetch` / `worktree` targets that name `main`.
-    public static func blocked(_ words: [String]) -> String? {
+    /// `notes` / `fetch` / `worktree` targets that name a protected base.
+    public static func blocked(_ words: [String], baseBranch: String = "main") -> String? {
         let command = words.joined(separator: " ")
         if let id = GitPolicyResolver.hardInvariant(for: command) { return id }
         if writesKaban(words) { return HardInvariant.kabanDir }
-        if let cmd = words.first, ["notes", "fetch", "worktree"].contains(cmd),
-           words.dropFirst().contains(where: namesMain) {
-            return HardInvariant.foreignRefs
+        if let cmd = words.first, ["notes", "fetch", "worktree", "checkout", "switch", "rebase"].contains(cmd) {
+            let targets = ["notes", "fetch", "worktree"].contains(cmd) ? Array(words.dropFirst()) : GitPolicyResolver.optionArgs(words)
+            if targets.contains(where: { word in
+                var target = word
+                if cmd == "rebase", let equal = word.firstIndex(of: "="),
+                   GitPolicyResolver.longOption(String(word[..<equal]), abbreviates: "--onto", minimum: "--on") {
+                    target = String(word[word.index(after: equal)...])
+                }
+                return namesBase(target, branch: "main") || namesBase(target, branch: baseBranch)
+            }) {
+                return HardInvariant.foreignRefs
+            }
         }
         return nil
     }
@@ -81,9 +90,9 @@ public enum GitCheck {
         return word.split(separator: "/", omittingEmptySubsequences: false).contains { $0 == ".kaban" }
     }
 
-    private static func namesMain(_ word: String) -> Bool {
+    private static func namesBase(_ word: String, branch: String) -> Bool {
         var w = Substring(word)
         if let cut = w.firstIndex(where: { "~^@".contains($0) }) { w = w[..<cut] }
-        return w == "main" || w.hasSuffix("/main")
+        return w == Substring(branch) || w.hasSuffix("/" + branch)
     }
 }

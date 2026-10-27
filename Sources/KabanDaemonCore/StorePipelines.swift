@@ -95,9 +95,9 @@ extension KabanStore {
             var edits = observed.projectedPipeline.hasUncommittedEdits
             var workingFile: PipelineSource.File?, workingError: CommandError?
             do {
-                let repository = try LocalGitRepository(path: observed.summary.path)
+                let repository = try LocalGitRepository(path: observed.summary.path, baseBranch: observed.summary.baseBranch)
                 guard repository.repositoryID == observed.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
-                let commit = try repository.mainCommit()
+                let commit = try repository.baseCommit()
                 source = observed.production?.source?.commit == commit ? observed.production?.source : try repository.pipelineSource()
                 edits = try repository.hasConfigurationEdits(); sourceError = nil
                 if edits {
@@ -175,7 +175,7 @@ extension KabanStore {
                     return try savePipelineReply(.init(commandId: envelope.commandId, seq: nil, result: .validationIssues(validation.issues + issues)), request: request)
                 }
             }
-            let repository = try LocalGitRepository(path: record.summary.path)
+            let repository = try LocalGitRepository(path: record.summary.path, baseBranch: record.summary.baseBranch)
             guard repository.repositoryID == record.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
             let source = try repository.pipelineSource()
             try draft.checkSourceBinding(currentSourceHash: source.versionHash(), emptySourceHash: source.files.isEmpty ? source.versionHash() : nil)
@@ -226,7 +226,8 @@ extension KabanStore {
         }
     }
     private func finishPipelineOperation(_ operation: PipelineOperation) throws -> CommandReply {
-        let repository = try LocalGitRepository(path: operation.path)
+        let project = try database.read { try Self.project(operation.projectId, db: $0) }
+        let repository = try LocalGitRepository(path: operation.path, baseBranch: project.summary.baseBranch)
         guard repository.repositoryID == operation.repositoryID else { throw CommandError(code: "repository_changed", message: "Репозиторий ожидающей операции изменился.") }
         do { try repository.finishPipeline(operation.plan) }
         catch let error as CommandError where ["git_race", "pipeline_checkout_required"].contains(error.code) {
