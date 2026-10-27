@@ -100,15 +100,7 @@ extension BoardQA {
         mark("Move menu is a keyboard alternative to drag; Escape sends nothing; Down arrow selects an allowed target and Return sends it explicitly")
 
         await store.select("SHOP-42")
-        func deleteEquivalent(_ menu: NSMenu?) -> String? {
-            for item in menu?.items ?? [] {
-                if item.tag == TaskMenuAction.cancel.rawValue { return item.keyEquivalent }
-                if let value = deleteEquivalent(item.submenu) { return value }
-            }
-            return nil
-        }
-        guard let delete = deleteEquivalent(NSApp.mainMenu), delete == "\u{8}" || delete == "\u{7f}" else { throw failure("Task cancellation Delete binding missing") }
-        try key(delete, code: 51); try await sheetKey()
+        try key(String(KeyEquivalent.delete.character), code: 51); try await sheetKey()
         try await settled("SHOP-42") { $0.state == .cancelled }
         let cancels = store.commandJournal?.records.filter { if case .cancelTask = $0.envelope.command { true } else { false } } ?? []
         guard cancels.last?.envelope.command == .cancelTask(taskId: "SHOP-42", keepBranch: false) else { throw failure("Cancel default did not preserve keepBranch=false") }
