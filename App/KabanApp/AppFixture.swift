@@ -214,7 +214,7 @@ import KabanBoardCore
         return value
     }
     func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
-        guard case .addProject(_, _, let identity) = envelope.command else { return try await base.send(envelope) }
+        guard case .addProject(_, _, let identity, _) = envelope.command else { return try await base.send(envelope) }
         let result: CommandResult
         if state == "pending" { result = .ok }
         else if state == "non-git" { result = .error(.init(code: "not_git_repository", message: "Выбранная папка не является git-репозиторием. Выберите корень репозитория и повторите добавление.")) }

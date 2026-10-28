@@ -30,7 +30,7 @@ extension KabanStore {
                   let leaseId: String = row["lease_id"], let intent = try mergeIntent(item.taskId),
                   let clone = try readyClone(item.taskId) else { continue }
             let task = try database.read { db in try Self.task(item.taskId, db: db) }
-            if try TaskClone.mainCommit(clone.projectPath, identity: projectIdentity(task)) == intent.tip {
+            if try TaskClone.baseCommit(clone.projectPath, baseBranch: projectBaseBranch(task), identity: projectIdentity(task)) == intent.tip {
                 let fact = ExternalEffectFact(actionId: item.id + "/merge", phase: .finished, outcome: .merged)
                 _ = try commitEffectResult(effectId: item.id, leaseId: leaseId, fact: fact, at: at)
             }

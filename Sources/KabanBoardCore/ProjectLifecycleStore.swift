@@ -72,7 +72,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
         if let pending = session.journal?.records.last(where: { $0.isPending && matches($0.envelope.command) }) {
             draft.commandID = pending.envelope.commandId
             switch pending.envelope.command {
-            case .addProject(let path, let template, let identity):
+            case .addProject(let path, let template, let identity, _):
                 draft.path = path; draft.createTemplate = template; draft.showsIdentity = identity != nil
                 if let identity { draft.identity = .init(identity: identity) }
             case .relinkProject(_, let path): draft.path = path
@@ -115,7 +115,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
         switch record.phase {
         case .rejected(let error):
             handledOutcome = record.envelope.commandId; draft.handledCommandID = record.envelope.commandId; formError = error.code == CommandError.identityRequiredCode ? IdentityDraft.generalText : CommandErrorText.render(error)
-            if error.code == CommandError.identityRequiredCode, case .addProject(_, _, let submitted) = record.envelope.command {
+            if error.code == CommandError.identityRequiredCode, case .addProject(_, _, let submitted, _) = record.envelope.command {
                 draft.showsIdentity = true; draft.identity = draft.identity.refusing(error, submitted: submitted)
             }
             // This form owns the refusal; do not show a second board-wide alert.
@@ -126,7 +126,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
             handledOutcome = record.envelope.commandId; formError = nil
             if operation == .add {
                 connectedProjectID = record.createdProjectID
-                if connectedProjectID == nil, case .addProject(let path, _, _) = record.envelope.command {
+                if connectedProjectID == nil, case .addProject(let path, _, _, _) = record.envelope.command {
                     // Retained receipt proves the mutation, but canonical aliases
                     // cannot be guessed. Only an exact normalized path match selects.
                     let normalized = URL(fileURLWithPath: path).standardizedFileURL.path

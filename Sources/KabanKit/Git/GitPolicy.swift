@@ -85,36 +85,42 @@ public enum GitPolicyResolver {
                          "branch -d/-D/-f/-m/-M/-C, --delete, --move (also in short clusters)",
                          "checkout -B …", "switch -C …",
                          "checkout/switch/rebase … main (also refs/heads/main, <remote>/main, main~n, main^)"]) { w in
-            guard let cmd = w.first else { return false }
-            if ["update-ref", "symbolic-ref", "filter-branch"].contains(cmd) { return true }
-            if cmd == "reflog", w.dropFirst().first == "expire" { return true }
-            let args = optionArgs(w)
-            switch cmd {
-            case "branch":
-                return args.contains { longOption($0, abbreviates: "--delete", minimum: "--del") || longOption($0, abbreviates: "--move", minimum: "--mov") || shortCluster($0, hasAnyOf: "dDfmMC", consuming: "cC") }
-            case "checkout":
-                return args.contains { shortCluster($0, hasAnyOf: "B", consuming: "bB") } || args.contains(where: namesMain)
-            case "switch":
-                return args.contains { shortCluster($0, hasAnyOf: "C", consuming: "cC") } || args.contains(where: namesMain)
-            case "rebase":
-                return args.contains { word in
-                    if let equal = word.firstIndex(of: "="),
-                       longOption(String(word[..<equal]), abbreviates: "--onto", minimum: "--on") {
-                        return namesMain(String(word[word.index(after: equal)...]))
-                    }
-                    return namesMain(word)
-                }
-            default:
-                return false
-            }
+            foreignRefs(w, branch: "main")
         },
     ]
 
     /// Id of the hard invariant `rule` (a policy rule or a normalized command) violates, if any.
-    public static func hardInvariant(for rule: String) -> String? {
-        hardInvariantMatchers.first { $0.matches(rule) }?.id
+    public static func hardInvariant(for rule: String, baseBranch: String = "main") -> String? {
+        if let id = hardInvariantMatchers.first(where: { $0.matches(rule) })?.id { return id }
+        if baseBranch != "main", foreignRefs(words(rule), branch: baseBranch) { return HardInvariant.foreignRefs }
+        return nil
     }
     public static func violatesHardInvariant(_ rule: String) -> Bool { hardInvariant(for: rule) != nil }
+
+    private static func foreignRefs(_ w: [String], branch: String) -> Bool {
+        guard let cmd = w.first else { return false }
+        if ["update-ref", "symbolic-ref", "filter-branch"].contains(cmd) { return true }
+        if cmd == "reflog", w.dropFirst().first == "expire" { return true }
+        let args = optionArgs(w)
+        switch cmd {
+        case "branch":
+            return args.contains { longOption($0, abbreviates: "--delete", minimum: "--del") || longOption($0, abbreviates: "--move", minimum: "--mov") || shortCluster($0, hasAnyOf: "dDfmMC", consuming: "cC") }
+        case "checkout":
+            return args.contains { shortCluster($0, hasAnyOf: "B", consuming: "bB") } || args.contains { namesBranch($0, branch: branch) }
+        case "switch":
+            return args.contains { shortCluster($0, hasAnyOf: "C", consuming: "cC") } || args.contains { namesBranch($0, branch: branch) }
+        case "rebase":
+            return args.contains { word in
+                if let equal = word.firstIndex(of: "="),
+                   longOption(String(word[..<equal]), abbreviates: "--onto", minimum: "--on") {
+                    return namesBranch(String(word[word.index(after: equal)...]), branch: branch)
+                }
+                return namesBranch(word, branch: branch)
+            }
+        default:
+            return false
+        }
+    }
 
     static func words(_ rule: String) -> [String] { normalize(rule).split(separator: " ").map(String.init) }
     /// Words after the subcommand up to `--` (after it come paths, not options).
@@ -142,10 +148,10 @@ public enum GitPolicyResolver {
     static func longOption(_ word: String, abbreviates canonical: String, minimum: String) -> Bool {
         word.hasPrefix(minimum) && canonical.hasPrefix(word)
     }
-    static func namesMain(_ word: String) -> Bool {
+    static func namesBranch(_ word: String, branch: String) -> Bool {
         var w = Substring(word)
         if let cut = w.firstIndex(where: { "~^@".contains($0) }) { w = w[..<cut] }
-        return w == "main" || w.hasSuffix("/main")
+        return w == branch || w.hasSuffix("/" + branch)
     }
 
     // MARK: Rules
