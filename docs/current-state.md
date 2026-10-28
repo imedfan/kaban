@@ -212,6 +212,7 @@ CLI `2026.09.23-86fc751`, точный id согласованной модел�
 второй --resume той же сессии остановлен по init (SIGTERM, без tool_call
 и MCP tools/call). Пришли usage tokens; стоимости нет.
 [Фикстуры, результаты и ограничения](../research/spike-1-2026-10-28/RESULTS.md).
+[Проверенный source и проверки](development/backend-be-22-2026-10-28.md).
 Снимки метаданных дали минимальные пути записи, включая автообновление CLI,
 managed/plugins/skills; fs_usage не прошёл контрольную пробу. Полнота файлового
 наблюдения, production HOME/Seatbelt и тесты production parser/classifier BE-25
