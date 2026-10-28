@@ -147,7 +147,6 @@ extension KabanStore {
     static func observeModelInit(taskId: TaskID, runId: RunID, actualName: String?, fallback: String?,
                                  commandId: CommandID, at: Date, db: Database) throws -> ModelObservation {
         let task = try Self.task(taskId, db: db)
-        guard task.machine.state == .running, task.machine.currentRunId == runId else { return .unconfirmed }
         var detail = try Self.detail(taskId, db: db)
         guard let index = detail.runs.firstIndex(where: { $0.id == runId }) else { return .unconfirmed }
         // Compare the model actually requested for this run, even if an override changes meanwhile.
@@ -156,6 +155,7 @@ extension KabanStore {
         let request = try encode(Request(kind: "model-init", taskId: taskId,
             body: try encode([runId.rawValue, actualName ?? "", fallback ?? ""])))
         if try replay(commandId, request: request, db: db) != nil { return observation }
+        guard task.machine.state == .running, task.machine.currentRunId == runId else { return .unconfirmed }
         detail.runs[index].actualModelName = actualName
         try saveDetail(detail, taskId: taskId, db: db)
         switch observation {

@@ -179,8 +179,9 @@ public enum TechnicalExit: Equatable, Sendable {
 public enum ProcessExitClassifier {
     public static func classify(exitCode: Int32, runStillActive: Bool, producedActivity: Bool, changedFiles: Bool) -> TechnicalExit {
         guard runStillActive else { return .inactive }
-        guard exitCode == 0 else { return .crash(exitCode) }
+        // §1.4: no tools and no changed files defer the charge even on a nonzero exit.
         if !producedActivity && !changedFiles { return .silentDeferred }
+        guard exitCode == 0 else { return .crash(exitCode) }
         return .noFinalCall
     }
 }

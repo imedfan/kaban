@@ -145,14 +145,15 @@ extension ProcessControlTests {
             ("usage", #"{"type":"result","is_error":true,"error":"spendLimitHit"}"#, .queued(.quotaOm)),
             ("model", #"{"type":"error","message":"resource_exhausted"}"#, .queued(.modelFlag)),
             ("auth", #"{"type":"error","message":"Authentication failed"}"#, .retryWait(.runnerAuth)),
-            ("silent", "", .retryWait(.silentExit))
+            ("silent", "", .retryWait(.silentExit)),
+            ("silent-nonzero", "", .retryWait(.silentExit))
         ]
         for (id, error, expected) in cases {
             let f = try fixture()
             try streamCursor(f, name: "Explicit", afterInit: """
             echo '{"type":"user","text":"\(String(repeating: "context ", count: 800))quoted rate limit usage limit resource_exhausted unauthorized"}'
             \(error.isEmpty ? ":" : "echo '\(error)'")
-            exit 0
+            exit \(id == "silent-nonzero" ? 7 : 0)
             """)
             let taskId = TaskID(rawValue: id)
             let run = try launch(f, taskId)
