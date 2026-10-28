@@ -30,6 +30,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
     case merged
     case daemonRestarted
     case cancel(keepBranch: Bool)
+    case probeFinished(ProbeOutcome)
     case runFailed(RunID, RunFailure)
     case modelMismatch(runId: RunID, requested: String, actual: String, fallback: String?)
     case gatesFailed(output: String)
@@ -65,6 +66,7 @@ public enum DurableTaskCommand: Codable, Hashable, Sendable {
         case .merged: .merged
         case .daemonRestarted: .daemonRestarted
         case .cancel(let keep): .human(.cancel(keepBranch: keep))
+        case .probeFinished(let outcome): .probeFinished(outcome)
         case .runFailed(let id, let failure): .runEnded(runId: id, failure)
         case .modelMismatch(let id, let requested, let actual, let fallback):
             .modelMismatch(runId: id, requested: requested, actual: actual, fallback: fallback)

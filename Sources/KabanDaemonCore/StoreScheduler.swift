@@ -115,8 +115,10 @@ private struct SchedulerContext {
     let pendingProjects: Set<String>
     let mcpBlocked: Set<String>
     let restoring: Set<TaskID>
+    let agentLoad: Int
     init(_ db: Database) throws {
         projects = try KabanStore.projects(db); tasks = try KabanStore.allTasks(db)
+        agentLoad = try KabanStore.agentProcessLoad(db)
         settings = try KabanStore.settings(db); inputs = try KabanStore.schedulerInputs(db)
         flags = try KabanStore.schedulerFlags(db)
         overrides = try KabanStore.modelOverrides(db)
@@ -190,7 +192,7 @@ private struct SchedulerContext {
             }
         case .agent, .gate, .merge:
             if stage.kind == .agent {
-                if tasks.filter({ $0.machine.state == .running }).count >= settings.maxConcurrentRuns { return .ineligible }
+                if agentLoad >= settings.maxConcurrentRuns { return .ineligible }
                 if let max = project.summary.maxRuns, projectTasks.filter({ $0.machine.state == .running }).count >= max { return .ineligible }
             }
             if !task.machine.state.status.occupiesWIP, let limit = stage.effectiveWIP {

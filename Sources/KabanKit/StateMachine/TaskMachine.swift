@@ -304,6 +304,9 @@ private struct Machine {
             // Ordinary failure after all: charge the attempt and the run retroactively.
             s.runsSinceHuman = min(s.runsSinceHuman + 1, pipeline.board.maxRunsPerTask)
             chargeAttempt(stage, reason: .crash)
+        case .runnerAuth:
+            set(.retryWait(.runnerAuth))
+            effects.append(.raiseRunnerUnavailable(.runnerAuth))
         case .rateLimit:
             set(.retryWait(.rateLimit))
             effects.append(.raiseRateLimit)

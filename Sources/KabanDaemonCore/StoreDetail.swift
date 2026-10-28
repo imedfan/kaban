@@ -13,7 +13,7 @@ extension KabanStore {
         if project.production != nil {
             switch command {
             case .cancel, .start, .startBlocked, .pause, .resume, .answer, .approve, .requestChanges, .reject, .move, .retryStage, .acceptSuspicious, .humanContextChanged: break
-            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .mergeConflict, .mainDirty, .mainCleaned, .mainMoved, .merged, .resultClean, .resultReadOnly, .resultSuspicious, .resultIncident, .daemonRestarted, .runFailed, .modelMismatch, .gitDenialLimit:
+            case .completeStage, .returnToStage, .requestHuman, .gatesPassed, .gatesFailed, .mergeConflict, .mainDirty, .mainCleaned, .mainMoved, .merged, .resultClean, .resultReadOnly, .resultSuspicious, .resultIncident, .daemonRestarted, .runFailed, .modelMismatch, .gitDenialLimit, .probeFinished:
                 guard let run = task.runSpecId,
                       let data = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ? AND task_id = ?", arguments: [run.rawValue, task.card.id.rawValue]),
                       try decode(RunSpec.self, data).stageId == task.machine.stageId else { throw StoreError.incompleteProjection }
@@ -64,7 +64,7 @@ extension KabanStore {
                 d.feed.append(FeedItem(id: id, at: at, kind: "transition", text: "\(transition.from.status.rawValue) → \(transition.to.status.rawValue)", runId: transition.runId))
             case .startAgentRun(let request):
                 d.runs.append(RunSummary(id: request.runId, taskId: task.card.id, stageId: request.stageId, number: d.runs.count + 1, status: .running,
-                                         requestedModel: request.model, startedAt: at))
+                                         requestedModel: try resolvedModel(taskId: task.card.id, stageId: request.stageId, db: db) ?? request.model, startedAt: at))
             case .recordHumanRequest(let question, let run):
                 let question = SecretText.redact(question)
                 let request = HumanRequest(requestId: HumanRequestID(rawValue: id), taskId: task.card.id, runId: run, question: question)
@@ -103,6 +103,11 @@ extension KabanStore {
                 d.runs[index].status = .killed; d.runs[index].countsTowardLimits = false
             default: d.runs[index].status = .killed
             }
+        }
+        if case .probeFinished(.clean) = command, before.silentExitPending,
+           let run = before.lastRunId, let index = d.runs.firstIndex(where: { $0.id == run }) {
+            d.runs[index].status = .failed
+            d.runs[index].countsTowardLimits = true
         }
         if case .completeStage(let run, let summary) = command {
             let summary = SecretText.redact(summary)

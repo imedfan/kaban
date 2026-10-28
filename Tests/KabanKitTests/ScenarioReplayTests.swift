@@ -207,6 +207,11 @@ private final class Replayer {
             if let drv = step["driver"] as? [String: Any] {
                 guard drive(drv, &effects) else { report.status = .partial("step \(n): driver end not modelled"); break }
             }
+            if let probe = step["probeFinished"] as? [String: String], let model = probe["model"], probe["outcome"] == "clean" {
+                for id in order where tasks[id]?.state == .retryWait(.silentExit) && pipeline.stage(tasks[id]!.stageId)?.agent?.model?.rawValue == model {
+                    apply(id, .probeFinished(.clean), &effects)
+                }
+            }
             if step["tick"] != nil {
                 let due = order.filter { id in
                     switch tasks[id]!.state { case .queued, .retryWait: return clock >= (retryAt[id] ?? 0); default: return false }

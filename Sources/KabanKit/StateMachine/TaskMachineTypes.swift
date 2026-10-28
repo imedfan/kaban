@@ -176,12 +176,13 @@ public enum RunFailure: Codable, Hashable, Sendable {
     }
 }
 
-public enum ProbeOutcome: Hashable, Sendable {
+public enum ProbeOutcome: Codable, Hashable, Sendable {
     /// No limit found: the silent exit was an ordinary failure, the attempt is charged retroactively.
     case clean
     case rateLimit
     case usageExhausted(ModelPool?)
     case modelUnavailable
+    case runnerAuth
 }
 
 public enum ResultCheck: Hashable, Sendable {

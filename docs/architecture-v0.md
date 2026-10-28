@@ -491,7 +491,7 @@ commandId. Подробные границы — [wire contract](development/bac
 - Git: `allowGitOnce(denialId)`, `addDenialToPolicy(denialId, scope: .project | .stage(stageId))` (правка `.kaban/` через тот же путь, что `updatePipeline`), `revokeGitGrant(grantId)`.
 - Планировщик: `pauseAll` / `resumeAll`, `pauseProject` / `resumeProject`, `resumeAfterRateLimit` (досрочно снять cooldown), `setMaxConcurrentRuns`.
 - Среда: `checkEnvironment() -> { cursorAgentPath, version, authOK, gitVersion, sandboxOK, notificationsAuthorized }`, `recheck(scope: .runner | .project(id))` для кнопки «Проверить снова».
-- Модели и квота: `listModels()` (каталог с пулами, без `forbidden`), `refreshModelCatalog()`, `setModelPoolRule(pattern, pool)` / `removeModelPoolRule`, `clearModelFlag(modelId)`, `setQuotaOptions(enabled, consent, pollInterval, thresholdCm, thresholdOm)`.
+- Модели и квота: `listModels()` (каталог с пулами, без `forbidden`), `refreshModelCatalog()`, `setModelPoolRule(pattern, pool)` / `removeModelPoolRule`, `clearModelFlag(modelId)`, `clearUsageFlag(pool?)` (ручное снятие usage-флага указанного пула; `nil` — только флаг `unknown` Мака), `setQuotaOptions(enabled, consent, pollInterval, thresholdCm, thresholdOm)`.
 - MCP: `listProjectMcpServers(projectId)` (найденные в `.cursor/mcp.json` проекта и в личном конфиге), `setProjectMcpAllowlist(projectId, servers)`.
 - Логи: `tailLog(runId, fromOffset)`, `getRunHistory(taskId)`.
 - Инциденты: `listIncidents(projectIds?, state: .open | .all)` для раздела «Инциденты» в сайдбаре; отдельной команды «разобрать» нет.

@@ -24,6 +24,7 @@ extension KabanStore {
             default: break
             }
         }
+        try runModelProbePass(at: at, workspaceRoot: workspaceRoot)
         _ = try runSchedulerPass(at: at)
         _ = try runClonePass(owner: "runtime", at: at, workspaceRoot: workspaceRoot)
         _ = try runProcessPass(owner: "runtime", at: at, workspaceRoot: workspaceRoot, runner: runner, runnerArguments: runnerArguments)

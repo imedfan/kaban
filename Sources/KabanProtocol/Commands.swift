@@ -69,6 +69,8 @@ public enum Command: Codable, Hashable, Sendable {
     case setModelPoolRule(pattern: String, pool: ModelPool)
     case removeModelPoolRule(pattern: String)
     case clearModelFlag(modelId: ModelID)
+    /// nil clears only the unknown-pool Mac flag.
+    case clearUsageFlag(pool: ModelPool?)
     case setQuotaOptions(options: QuotaOptions)
     // MCP
     case listProjectMcpServers(projectId: ProjectID)

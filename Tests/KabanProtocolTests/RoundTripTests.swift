@@ -5,6 +5,16 @@ import XCTest
 final class RoundTripTests: XCTestCase {
     let encoder = KabanCoding.makeEncoder(pretty: true)
     let decoder = KabanCoding.makeDecoder()
+    func testClearUsageFlagRoundTripAndUnknownScope() throws {
+        for pool: ModelPool? in [nil, .cm, .om] {
+            let command = Command.clearUsageFlag(pool: pool)
+            try roundTrip(command)
+            XCTAssertEqual(command.name, .clearUsageFlag)
+        }
+        let legacyShape = Data(#"{"clearUsageFlag":{}}"#.utf8)
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: legacyShape), .clearUsageFlag(pool: nil))
+    }
+
     func testUnknownIncidentKindPreservesHistoryAndRequiredFields() throws {
         let known = Incident(id: "future", projectId: "p", taskId: "t", runId: nil,
                              kind: .refsMoved, rolledBack: [], openedAt: Date(timeIntervalSince1970: 0))

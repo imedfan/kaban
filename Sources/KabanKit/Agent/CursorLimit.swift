@@ -13,7 +13,7 @@ public enum CursorLimitClass: Equatable, Sendable {
 public enum CursorLimitClassifier {
     public static let cooldownSteps: [TimeInterval] = [15 * 60, 30 * 60, 60 * 60]
     public static let probeInterval: TimeInterval = 10 * 60
-    public static let unknownReset: TimeInterval = 6 * 60 * 60
+    public static let usageProbeInterval: TimeInterval = 6 * 60 * 60
 
     /// Empty text is not an error. A pool is used only for usage exhaustion; it is never invented.
     public static func classify(_ text: String, pool: ModelPool?) -> CursorLimitClass? {

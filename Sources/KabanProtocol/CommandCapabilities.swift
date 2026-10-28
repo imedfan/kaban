@@ -48,6 +48,7 @@ public enum CommandName: String, Codable, Hashable, Sendable, CaseIterable {
     case setModelPoolRule
     case removeModelPoolRule
     case clearModelFlag
+    case clearUsageFlag
     case setQuotaOptions
     case listProjectMcpServers
     case setProjectMcpAllowlist
@@ -104,6 +105,7 @@ extension Command {
         case .setModelPoolRule: .setModelPoolRule
         case .removeModelPoolRule: .removeModelPoolRule
         case .clearModelFlag: .clearModelFlag
+        case .clearUsageFlag: .clearUsageFlag
         case .setQuotaOptions: .setQuotaOptions
         case .listProjectMcpServers: .listProjectMcpServers
         case .setProjectMcpAllowlist: .setProjectMcpAllowlist
