@@ -4,6 +4,95 @@ import KabanProtocol
 import KabanBoardCore
 
 extension BoardQA {
+    static func cursorEnvironmentLiveSmoke(_ store: BoardStore) async throws -> [String: Any] {
+        guard let database = AppArguments.value("--developer-database"), database.hasPrefix("/tmp/kaban-fe23-") else {
+            throw failure("Private FE-23 database required")
+        }
+        let mode = AppArguments.value("--qa-cursor-mode") ?? "missing"
+        let root = URL(fileURLWithPath: database).deletingLastPathComponent()
+        let executable = root.appendingPathComponent("Очень длинный каталог Cursor CLI с пробелами/bin/cursor-agent").path
+        if AppArguments.value("--qa-onboarding") == nil { runtime?.finishSetup(); store.screen = .quota }
+        let environment = store.environment
+        await environment.refresh()
+        try await waitUntil("environment read") { !environment.isChecking }
+        guard environment.report != nil, environment.configuration != nil else { throw failure("Environment reads missing") }
+        if ["configure", "invalid", "not-runnable", "logged-out"].contains(mode) {
+            let chosen = mode == "invalid" ? "relative/path" : executable
+            environment.editPath(chosen)
+            let saved = await environment.savePath()
+            if mode == "invalid" {
+                guard !saved, case .rejected = environment.submissionPhase,
+                      environment.draftPath == chosen, environment.canConfigure else { throw failure("Invalid path refusal lost draft or blocked correction") }
+            } else {
+                guard saved else { throw failure("Configuration refused") }
+                try await waitUntil("cursorEnvironmentChanged") { environment.submissionPhase == .applied && store.canSend }
+                await environment.refresh()
+                try await waitUntil("confirmed environment read") { !environment.isChecking }
+                guard environment.configuration?.executablePath == executable, !environment.isEdited,
+                      let id = environment.submittedCommandID,
+                      let record = store.commandJournal?.records.first(where: { $0.envelope.commandId == id }),
+                      (record.confirmedSeq ?? 0) > 0 else {
+                    throw failure("Path not confirmed: configuration=\(String(describing: environment.configuration)), edited=\(environment.isEdited), receipt=\(String(describing: store.commandJournal?.records.last))")
+                }
+            }
+        } else if mode == "recheck" {
+            guard environment.runnerReason == .agentNotLoggedIn else { throw failure("Recovery must start logged out") }
+            try Data("ready".utf8).write(to: root.appendingPathComponent("mode"))
+            guard await environment.recheck() else { throw failure("Runner recheck refused") }
+            try await waitUntil("runner recovery") { store.canSend && environment.runnerReason == nil }
+            await environment.refresh()
+        }
+        try await waitUntil("latest environment report") { !environment.isChecking }
+        let expected: RunnerUnavailableReason?
+        switch mode {
+        case "missing", "invalid": expected = .agentMissing
+        case "not-runnable": expected = .agentNotRunnable
+        case "logged-out": expected = .agentNotLoggedIn
+        default: expected = nil
+        }
+        guard environment.runnerReason == expected else { throw failure("Wrong runner reason: \(String(describing: environment.runnerReason))") }
+        if ["configure", "restart", "recheck", "picker"].contains(mode) {
+            guard environment.report?.authOK == true, environment.report?.version == "fixture-fe23-1.0",
+                  environment.configuration?.executablePath == executable,
+                  store.models.catalog.contains(where: { $0.id.rawValue == "fixture-model" && ModelSelection.selectable($0, flags: store.models.flags) }) else {
+                throw failure("Configured facts missing: report=\(String(describing: environment.report)), configuration=\(String(describing: environment.configuration)), catalog=\(store.models.catalog)")
+            }
+        }
+        if mode == "offline" {
+            environment.editPath("/unsent/cursor-agent")
+            await runtime?.closeDeveloperSession()
+            guard environment.isStale, !environment.canConfigure, environment.draftPath == "/unsent/cursor-agent" else {
+                throw failure("Offline draft or stale state wrong")
+            }
+        }
+        if mode == "picker" {
+            let path = root.appendingPathComponent("repo").path
+            if !store.macPaused {
+                _ = await store.session.send(.pauseAll)
+                try await waitUntil("paused Mac") { store.macPaused && store.canSend }
+            }
+            _ = await store.session.send(.addProject(path: path, createTemplate: false, identity: .init(name: "Cursor QA", email: "cursor@example.test")))
+            try await waitUntil("picker project") { store.canSend && store.projection?.projects.values.contains { $0.path == path } == true }
+            guard let project = store.projection?.projects.values.first(where: { $0.path == path }) else { throw failure("Picker project missing") }
+            let editor = store.pipelineEditor(for: project.id)
+            await editor.loadIfNeeded()
+            store.openPipelineIssues(project.id)
+            try await waitUntil("model picker popover") { NSApp.windows.contains { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") } }
+            guard let popover = NSApp.windows.first(where: { $0.isVisible && NSStringFromClass(type(of: $0)).contains("Popover") }),
+                  let view = popover.contentView?.superview ?? popover.contentView,
+                  let capture = AppArguments.value("--export-live-window") else { throw failure("Model picker missing") }
+            popover.layoutIfNeeded(); view.layoutSubtreeIfNeeded()
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw failure("Picker bitmap missing") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw failure("Picker PNG missing") }
+            try png.write(to: URL(fileURLWithPath: capture + ".popover.png"))
+        }
+        try await captureWindow()
+        return ["mode": mode, "privateDaemon": true, "report": true, "reason": expected?.rawValue ?? "none",
+                "configurationCommandID": environment.submittedCommandID?.uuidString ?? "",
+                "selectableCatalog": store.models.catalog.contains { $0.id.rawValue == "fixture-model" },
+                "installedServiceVerified": false]
+    }
     static func macSettingsLiveSmoke(_ store: BoardStore) async throws -> [String: Any] {
         guard AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe20-") == true,
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private FE-20 database and WindowGroup required") }
