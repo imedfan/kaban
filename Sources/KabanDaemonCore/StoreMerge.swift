@@ -130,7 +130,7 @@ extension KabanStore {
         if main == intent.tip { return try finish(.merged) }
         if main != intent.base { return try finish(.mainMoved) }
         let branch = try TaskClone.checkedOutBranch(origin, identity: identity)
-        if branch == baseBranch {
+        if branch == (try projectBaseBranch(task)) {
             let dirty = try TaskClone.dirtyPaths(origin, identity: identity)
             let incoming = try TaskClone.diffNames(from: intent.base, to: intent.tip, in: clone.clonePath, identity: identity)
             if !Set(dirty).isDisjoint(with: incoming) { return try finish(.mainDirty) }

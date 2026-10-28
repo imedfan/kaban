@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 27 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 28 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`b56dece` (BE-27 принята через PR #122, BE-26 — #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
+`0463c30` (BE-31 принята через PR #123, BE-27 — #122, BE-26 — #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
 BE-23 — #119, FE-32 — #120; FE-34 — в `d94487e`,
 архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
@@ -238,7 +238,8 @@ CLI deny rules требуют BE-22/BE-24;
 
 ## BE-31: базовая ветка проекта
 
-В `codex/be-31-project-base-branch` от `b56dece`, source `651b561`, команда `addProject` принимает
+BE-31 принята в main `0463c30` через [PR #123](https://github.com/imedfan/kaban/pull/123).
+Команда `addProject` принимает
 optional `baseBranch`; отсутствие поля/null сохраняет `main`. Демон проверяет
 локальную ветку до создания проекта и возвращает `base_branch_missing` с
 `params.branch`. Выбранная база сохраняется в существующем `ProjectSummary.baseBranch`.
@@ -246,8 +247,11 @@ optional `baseBranch`; отсутствие поля/null сохраняет `ma
 rebase/fast-forward, result check и recovery используют эту базу.
 `/git/check` защищает выбранную ветку, включая отказ в разовом разрешении.
 [Проверки и границы BE-31](development/backend-be-31-2026-10-27.md).
-727 tests без ошибок и пропусков, App build, native smoke и private stdio
-restart/replay прошли; проверены minimum WindowGroup light/dark.
+Первоначальная ветка PR #124 проверяла source `651b561`: 727 tests, App build,
+native smoke и private stdio restart/replay; эти проверки остаются историческими.
+[PR #124](https://github.com/imedfan/kaban/pull/124) обновлён поверх принятого main
+и сохраняет его backend/fixtures. В нём исправляется только QA-проверка фокуса
+перед каждым native task shortcut; проверки foreground, листа и correlated events сохраняются.
 Нативный выбор ветки относится к FE-27; смена базы подключённого проекта
 не входит в MVP. Полный M1/MVP не принят.
 

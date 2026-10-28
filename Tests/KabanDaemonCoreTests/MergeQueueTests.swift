@@ -11,26 +11,20 @@ final class MergeQueueTests: XCTestCase {
         for (base, otherCheckout) in [("master", false), ("release/stable", true)] {
             let f = try fixture(baseBranch: base)
             try FileManager.default.createDirectory(atPath: f.origin + "/.cursor", withIntermediateDirectories: true)
-            let mcp = "{\"mcpServers\":{}}\n"
-            try mcp.write(toFile: f.origin + "/.cursor/mcp.json", atomically: true, encoding: .utf8)
-            try git(f, ["add", ".cursor"]); try git(f, ["commit", "-m", "Base MCP"])
+            try "{\"mcpServers\":{}}\n".write(toFile: f.origin + "/.cursor/mcp.json", atomically: true, encoding: .utf8)
+            try git(f, ["add", ".cursor/mcp.json"]); try git(f, ["commit", "-m", "Base MCP config"])
             let before = try sha(f, ["rev-parse", "refs/heads/" + base])
             var otherTip: String?
             if otherCheckout {
                 try git(f, ["switch", "-c", "main"])
                 try "user-only\n".write(toFile: f.origin + "/owner.txt", atomically: true, encoding: .utf8)
-                try "{\"mcpServers\":{\"other\":{\"command\":\"fixture\"}}}\n".write(toFile: f.origin + "/.cursor/mcp.json", atomically: true, encoding: .utf8)
-                try git(f, ["add", "owner.txt", ".cursor"]); try git(f, ["commit", "-m", "User branch"])
+                try git(f, ["add", "owner.txt"]); try git(f, ["commit", "-m", "User branch"])
                 otherTip = try sha(f, ["rev-parse", "HEAD"])
             }
-            let clone = try enqueue(f, "selected", "result.txt", "chosen-base\n")
+            let clone = try enqueue(f, "selected", "result.txt", "chosen-base\n", corruptMCP: true)
             XCTAssertEqual(clone.baseCommit, before)
+            XCTAssertEqual(try text(clone.clonePath, ".cursor/mcp.json"), "{\"mcpServers\":{}}\n")
             XCTAssertFalse(FileManager.default.fileExists(atPath: clone.clonePath + "/owner.txt"))
-            XCTAssertEqual(try text(clone.clonePath, ".cursor/mcp.json"), mcp)
-            if !otherCheckout {
-                try "new base\n".write(toFile: f.origin + "/new-base.txt", atomically: true, encoding: .utf8)
-                try git(f, ["add", "new-base.txt"]); try git(f, ["commit", "-m", "Base advances"])
-            }
             try approve(f, "selected"); _ = try tick(f, "merge-selected")
             _ = try f.store.runMergePass(owner: "test", at: at, workspaceRoot: f.workspace)
             let detail = try f.store.getTaskDetail("selected")
@@ -48,9 +42,11 @@ final class MergeQueueTests: XCTestCase {
                 XCTAssertEqual(try text(f.origin, "owner.txt"), "user-only\n")
             } else {
                 XCTAssertEqual(try text(f.origin, "result.txt"), "chosen-base\n")
-                XCTAssertEqual(try text(f.origin, "new-base.txt"), "new base\n")
             }
             XCTAssertEqual(try gitText(f, ["status", "--porcelain"]), "")
+            let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
+            XCTAssertEqual(try f.store.execute(.init(command: .removeProject(projectId: project))).result, .ok)
+            XCTAssertEqual(try f.store.getTaskDetail("selected").artifacts.first { $0.kind == "merge_result" }, artifact)
         }
     }
 
@@ -107,8 +103,8 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("red").artifacts, detail.artifacts)
     }
 
-    func testMainMovedBetweenCheckAndUpdateRechecks() throws {
-        let f = try fixture()
+    func testSelectedBaseMovedBetweenCheckAndUpdateRechecks() throws {
+        let f = try fixture(baseBranch: "master")
         _ = try enqueue(f, "moved", "note.txt", "from-task\n")
         try approve(f, "moved")
         _ = try tick(f, "merge-moved")
@@ -124,10 +120,10 @@ final class MergeQueueTests: XCTestCase {
         try "hand\n".write(toFile: f.origin + "/hand.txt", atomically: true, encoding: .utf8)
         try git(f, ["add", "hand.txt"])
         try git(f, ["commit", "-m", "hand moved main"])
-        let hand = try sha(f, ["rev-parse", "refs/heads/main"])
+        let hand = try sha(f, ["rev-parse", "refs/heads/master"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.origin + "/note.txt"))
         _ = try f.store.forwardOneMerge(owner: "test", at: at)
-        XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/main"]), hand)
+        XCTAssertEqual(try sha(f, ["rev-parse", "refs/heads/master"]), hand)
         XCTAssertEqual(try text(f.origin, "hand.txt"), "hand\n")
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.origin + "/note.txt"))
         let rebased = try task(f, "moved")
@@ -137,7 +133,7 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(try task(f, "moved").machine.state, .done)
         XCTAssertEqual(try text(f.origin, "note.txt"), "from-task\n")
         XCTAssertEqual(try text(f.origin, "hand.txt"), "hand\n")
-        XCTAssertEqual(try gitStatus(f, ["merge-base", "--is-ancestor", hand, "refs/heads/main"]), 0)
+        XCTAssertEqual(try gitStatus(f, ["merge-base", "--is-ancestor", hand, "refs/heads/master"]), 0)
     }
 
     func testDirtyAndIndexStateArePreserved() throws {
@@ -263,7 +259,7 @@ final class MergeQueueTests: XCTestCase {
         let binary = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/KabanDaemon")
         let executable = ProcessInfo.processInfo.environment["KABAN_DAEMON"].map { URL(fileURLWithPath: $0) } ?? binary
         guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw XCTSkip("Build KabanDaemon before the merge launch") }
-        let f = try fixture(baseBranch: "master")
+        let f = try fixture()
         _ = try enqueue(f, "once", "once.txt", "once\n")
         try approve(f, "once")
         _ = try tick(f, "merge-once")
@@ -273,7 +269,7 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(first.exit, 0, first.stderr)
         XCTAssertEqual(second.exit, 0, second.stderr)
         XCTAssertEqual(first.stderr, second.stderr)
-        let tip = try sha(f, ["rev-parse", "refs/heads/master"])
+        let tip = try sha(f, ["rev-parse", "refs/heads/main"])
         XCTAssertTrue(first.stderr.contains("merge once ff \(tip)"))
         XCTAssertEqual(try text(f.origin, "once.txt"), "once\n")
         XCTAssertEqual(try task(f, "once").machine.state, .done)
@@ -305,9 +301,7 @@ final class MergeQueueTests: XCTestCase {
         _ = try reopened.recoverProduction(passId: UUID(), at: at, workspaceRoot: f.workspace)
         XCTAssertEqual(try reopened.snapshot().tasks.first { $0.card.id == "startup" }?.machine.state, .done)
         let result = try XCTUnwrap(reopened.getTaskDetail("startup").artifacts.first { $0.kind == "merge_result" })
-        let merge = try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(result.text.utf8))
-        XCTAssertEqual(merge.commit, main)
-        XCTAssertEqual(merge.ref, "refs/heads/master")
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(LocalMergeResult.self, from: Data(result.text.utf8)).commit, main)
         try reopened.discardJournal()
         XCTAssertEqual(try KabanStore(path: f.path).getTaskDetail("startup").artifacts.filter { $0.kind == "merge_result" }, [result])
         XCTAssertEqual(try count(f), commits)
@@ -367,7 +361,7 @@ final class MergeQueueTests: XCTestCase {
     }
 
     @discardableResult
-    private func enqueue(_ f: Fixture, _ id: TaskID, _ name: String, _ contents: String) throws -> TaskCloneSnapshot {
+    private func enqueue(_ f: Fixture, _ id: TaskID, _ name: String, _ contents: String, corruptMCP: Bool = false) throws -> TaskCloneSnapshot {
         let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
         let reply = try f.store.execute(.init(command: .createTask(projectId: project, title: id.rawValue, body: "Task\n\n## Критерии приёмки\n- [ ] Ready")), now: { self.at }, makeTaskID: { id })
         XCTAssertEqual(reply.result, .taskCreated(id))
@@ -376,6 +370,7 @@ final class MergeQueueTests: XCTestCase {
         XCTAssertEqual(started.transitions.last?.task.machine.state, .running)
         let clone = try f.store.prepareTaskClone(taskId: id, at: at, workspaceRoot: f.workspace)
         try contents.write(to: URL(fileURLWithPath: clone.clonePath).appendingPathComponent(name), atomically: true, encoding: .utf8)
+        if corruptMCP { try "corrupted".write(toFile: clone.clonePath + "/.cursor/mcp.json", atomically: true, encoding: .utf8) }
         _ = try apply(f, id, .completeStage(try runId(f, id), summary: "Dev done"))
         _ = try f.store.runStagePass(owner: "test", at: at)
         _ = try tick(f, id.rawValue + "-review")

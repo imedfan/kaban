@@ -116,12 +116,6 @@ PipelineSourceContractTests проверяют roundtrip/legacy, PipelineEditorC
 
 ## Дополнение FE-12: сохранённые факты merge
 
-BE-31: `daemon-contracts.json` включает `addProjectSelectedBase` с
-`baseBranch: "master"`, correlated `projectAdded` и отказом
-`base_branch_missing` / `params.branch`. Без нового поля или с null запрос
-декодируется как прежний выбор `main`; неверный тип отклоняется.
-Существующее обязательное поле `ProjectSummary.baseBranch` сохраняется.
-
 TaskCard.mergeQueueSequence — optional admission Seq для текущей merge-стадии.
 Snapshot, TaskDetail и taskUpdated получают его от одной producer-проекции;
 UI не восстанавливает порядок по updatedAt/priority. Отсутствие означает
@@ -130,7 +124,7 @@ UI не восстанавливает порядок по updatedAt/priority. �
 TaskArtifact сохраняет открытый kind/text контракт. merge_conflict.text — JSON
 MergeConflictMaterial с files; merge_gate_output.text — redacted вывод красных
 проверок после rebase; merge_result.text — JSON LocalMergeResult с baseCommit,
-commit и ref (локальная refs/heads/<baseBranch>). Результат записывается атомарно с
+commit и ref (локальная refs/heads/main). Результат записывается атомарно с
 confirmed merged, сохраняется после journal retention и startup recovery.
 Неизвестный/слишком крупный формат показывается как исходный текст; artifact
 сам по себе не переводит карточку в Done. Проверки: RoundTripTests,
@@ -166,3 +160,12 @@ baseCommit?, bounceLimitTotal? и returnPipeline? этой задачи. Пос�
 недоступен. Старые required поля TaskDetail остаются required. Проверки:
 RoundTripTests, IncidentTests и SuspiciousFilesTests;
 [native evidence FE-18](../development/frontend-fe-18-2026-10-09.md).
+
+## BE-31: выбранная базовая ветка
+
+`addProject.baseBranch` — optional String: отсутствующее/null поле означает
+`main`; неверный тип отклоняется. Успешный `projectAdded` и snapshot содержат
+выбранное `ProjectSummary.baseBranch`. Фикстура
+`Tests/KabanProtocolTests/Fixtures/base-branch.json` содержит request, response,
+journal и отказ `base_branch_missing` с `params.branch`. Старые command fixtures
+сохранены. FE-27 добавляет выбор ветки в форму; BE-31 меняет backend и контракт.

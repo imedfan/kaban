@@ -7,17 +7,30 @@ import KabanProtocol
 final class GitGrantTests: XCTestCase {
     let at = Date(timeIntervalSince1970: 1_700_000_000)
 
-    func testSelectedBaseCannotBeGrantedOrAllowedByPermissivePolicy() throws {
+    func testSelectedBaseHardDenialsCannotBeGrantedOrAddedToPolicy() throws {
         let f = try fixture(pipeline(preset: "permissive"), baseBranch: "release/stable")
-        _ = try launch(f, "base")
-        let token = try f.store.issueRunToken(taskId: "base", at: at)
-        let blocked = try f.store.checkGit(token: token, argv: ["rebase", "origin/release/stable"], at: at)
-        XCTAssertFalse(blocked.allow)
-        XCTAssertEqual(blocked.rule, "foreign_refs")
-        let denial = try XCTUnwrap(f.store.getTaskDetail("base").gitDenials.last)
-        XCTAssertEqual(denial.context?.restriction?.code, "git_hard_invariant")
-        XCTAssertEqual(code(try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)))), "git_hard_invariant")
-        XCTAssertTrue(try f.store.checkGit(token: token, argv: ["rebase", "topic"], at: at).allow)
+        _ = try launch(f, "base-protection")
+        let token = try f.store.issueRunToken(taskId: "base-protection", at: at)
+        XCTAssertTrue(try f.store.checkGit(token: token, argv: ["status"], at: at).allow)
+        let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
+        guard case .pipelineSource(let source) = try f.store.execute(.init(command: .getPipelineSource(projectId: project))).result else { return XCTFail("Expected pipeline source") }
+        for argv in [["switch", "release/stable"], ["rebase", "--onto=refs/heads/release/stable", "HEAD~1"],
+                     ["fetch", "origin", "release/stable"], ["checkout", "origin/release/stable~1"]] {
+            let reply = try f.store.checkGit(token: token, argv: argv, at: at)
+            XCTAssertFalse(reply.allow)
+            XCTAssertEqual(reply.rule, "foreign_refs")
+            let denial = try XCTUnwrap(f.store.getTaskDetail("base-protection").gitDenials.last)
+            XCTAssertEqual(denial.context?.restriction?.code, "git_hard_invariant")
+            XCTAssertEqual(code(try f.store.execute(.init(command: .allowGitOnce(denialId: denial.denial.denialId)))), "git_hard_invariant")
+            let yaml = pipeline(preset: "permissive").replacingOccurrences(of: "git: {preset: permissive}",
+                with: "git: {preset: permissive, allow: [\"" + argv.joined(separator: " ") + "\"]}")
+            let draft = PipelineDraft(projectId: project, baseVersionHash: source.baseVersionHash, content: yaml, baseSourceHash: source.baseSourceHash)
+            XCTAssertEqual(code(try f.store.execute(.init(command: .addDenialToPolicy(denialId: denial.denial.denialId, scope: .project, draft: draft)))), "git_hard_invariant")
+        }
+        XCTAssertEqual(try f.store.execute(.init(command: .removeProject(projectId: project))).result, .ok)
+        let retained = try f.store.getTaskDetail("base-protection")
+        XCTAssertEqual(retained.task.state, .cancelled)
+        XCTAssertEqual(retained.gitDenials.last?.context?.restriction?.code, "git_hard_invariant")
     }
 
     func testGrantIsSingleUseAndDoesNotWidenOrOverrideHardRules() throws {

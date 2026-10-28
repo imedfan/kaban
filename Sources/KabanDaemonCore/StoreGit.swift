@@ -74,7 +74,7 @@ extension KabanStore {
         var task = try task(found.taskId, db: db)
         var detail = try detail(found.taskId, db: db)
         if detail.gitGrants.contains(where: { $0.grant.denialId == denialId }) { return try seq(db) }
-        let context = gitDenialContext(found.denial, task: task, detail: detail)
+        let context = try gitDenialContext(found.denial, task: task, detail: detail, db: db)
         if let restriction = context.restriction { throw StoreError.rejected(restriction) }
         guard let stageId = context.stageId else { throw StoreError.incompleteProjection }
         let grant = GitGrantCreated(grantId: GrantID(rawValue: "grant-\(UUID().uuidString.lowercased())"), denialId: denialId, argv: found.denial.denial.argv, by: .human)
@@ -91,7 +91,7 @@ extension KabanStore {
         }
         let task = try task(found.taskId, db: db)
         guard try isManaged(found.taskId, db: db) else { throw StoreError.incompleteProjection }
-        let context = gitDenialContext(found.denial, task: task, detail: try detail(found.taskId, db: db))
+        let context = try gitDenialContext(found.denial, task: task, detail: try detail(found.taskId, db: db), db: db)
         if let restriction = context.restriction { throw StoreError.rejected(restriction) }
         if case .stage(let id) = scope, id != context.stageId {
             throw StoreError.rejected(CommandError(code: "git_policy_scope", message: "Выберите стадию, на которой произошёл отказ."))
@@ -201,12 +201,11 @@ extension KabanStore {
         return denied(rule)
     }
 
-    static func gitDenialContext(_ denial: GitDenialSnapshot, task: DurableTask, detail: StoredDetail) -> GitDenialContext {
+    static func gitDenialContext(_ denial: GitDenialSnapshot, task: DurableTask, detail: StoredDetail, db: Database) throws -> GitDenialContext {
         let words = GitCheck.normalize(argv: denial.denial.argv)
         let stage = detail.runs.first { $0.id == denial.denial.runId }?.stageId
         let restriction: CommandError?
-        // The recorded invariant also covers the project's selected base, which need not be main.
-        if let id = GitCheck.blocked(words) ?? (HardInvariant.all.contains(denial.denial.rule) ? denial.denial.rule : nil) {
+        if let id = GitCheck.blocked(words, baseBranch: try project(task.card.projectId, db: db, includingRemoved: true).summary.baseBranch) {
             restriction = .init(code: "git_hard_invariant", message: "Жёсткий инвариант нельзя разрешить.", params: ["rule": id])
         } else if words.isEmpty {
             restriction = .init(code: "invalid_request", message: "В отказе нет команды.")

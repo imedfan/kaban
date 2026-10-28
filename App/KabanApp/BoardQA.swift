@@ -578,7 +578,7 @@ import Darwin
             try await Task.sleep(for: .milliseconds(50))
         }
         let windows = NSApp.windows.map { "\(type(of: $0)) title=\($0.title), visible=\($0.isVisible), key=\($0.isKeyWindow), canKey=\($0.canBecomeKey), main=\($0.isMainWindow), canMain=\($0.canBecomeMain), frame=\($0.frame)" }
-        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), active=\(NSApp.isActive), windows=\(windows)")
+        throw failure("Timed out waiting for \(state); projection=\(store?.projection != nil), pendingCreate=\(String(describing: store?.creation.commandID)), created=\(String(describing: store?.createdTaskID)), sheet=\(String(describing: store?.sheet)), control=\(String(describing: store?.controlSheet?.request)), selected=\(String(describing: store?.selectedID)), search=\(store?.searchRequest ?? -1); runtime=\(runtime?.status ?? "nil"), failure=\(runtime?.failure ?? "nil"), board=\(store?.error ?? "nil"), connection=\(String(describing: store?.connectionState)), active=\(NSApp.isActive), windows=\(windows)")
     }
     static func failure(_ message: String) -> NSError {
         NSError(domain: "BoardQA", code: 1, userInfo: [NSLocalizedDescriptionKey: message])

@@ -10,6 +10,9 @@ extension BoardQA {
         window.setContentSize(.init(width: 1040, height: 640))
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         var checks: [String] = []
+        func trace(_ text: String) {
+            FileHandle.standardError.write(Data("Control QA: \(text)\n".utf8))
+        }
         func mark(_ text: String) {
             checks.append(text)
             if let path = AppArguments.value("--control-smoke") ?? AppArguments.value("--control-routing-smoke") {
@@ -18,9 +21,26 @@ extension BoardQA {
         }
         if requiresFocus { try await waitUntil("native control menu focus") { NSApp.isActive && window.isKeyWindow } }
         else { mark("AppKit key-equivalent routing without OS foreground activation; physical keyboard/focus unverified") }
-        func key(_ text: String, code: UInt16, modifiers: NSEvent.ModifierFlags = [.command, .shift]) throws {
+        func key(_ action: TaskMenuAction, _ text: String, code: UInt16, modifiers: NSEvent.ModifierFlags = [.command, .shift]) async throws {
+            // Selection and prior sheet dismissal both yield to AppKit. The startup
+            // focus check no longer proves that the window owns this shortcut.
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            if requiresFocus {
+                try await waitUntil("native control focus for \(action.title)") { NSApp.isActive && window.isKeyWindow }
+            }
+            func find(_ menu: NSMenu?) -> NSMenuItem? {
+                for item in menu?.items ?? [] {
+                    if item.title == action.title && item.keyEquivalent == text { return item }
+                    if let nested = find(item.submenu) { return nested }
+                }
+                return nil
+            }
             func update(_ menu: NSMenu?) { menu?.update(); for item in menu?.items ?? [] { update(item.submenu) } }
-            update(NSApp.mainMenu)
+            try await waitUntil("native control menu ready for \(action.title)") {
+                update(NSApp.mainMenu)
+                return (!requiresFocus || (NSApp.isActive && window.isKeyWindow)) &&
+                    store.canPerform(action) && find(NSApp.mainMenu)?.isEnabled == true
+            }
             guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
                                               timestamp: 0, windowNumber: window.windowNumber, context: nil,
                                               characters: text, charactersIgnoringModifiers: text,
@@ -28,9 +48,14 @@ extension BoardQA {
                   NSApp.mainMenu?.performKeyEquivalent(with: event) == true else { throw failure("Native task menu shortcut unavailable: \(text)") }
         }
         func sheetKey(_ text: String = "\r", code: UInt16 = 36) async throws {
-            try await waitUntil("native task control sheet") { window.attachedSheet != nil }
-            guard let sheet = window.attachedSheet,
-                  let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            let selected = store.selectedID?.rawValue ?? "none"
+            try await waitUntil("native task control sheet for \(selected)") { window.attachedSheet != nil && store.controlSheet != nil }
+            guard let sheet = window.attachedSheet else { throw failure("Native control sheet disappeared") }
+            if requiresFocus {
+                sheet.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+                try await waitUntil("native control sheet focus for \(selected)") { NSApp.isActive && sheet.isKeyWindow }
+            }
+            guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
                                               timestamp: 0, windowNumber: sheet.windowNumber, context: nil,
                                               characters: text, charactersIgnoringModifiers: text,
                                               isARepeat: false, keyCode: code),
@@ -44,10 +69,12 @@ extension BoardQA {
             try await waitUntil("dismissed native task control") { window.attachedSheet == nil && store.controlSheet == nil }
         }
         await store.select("SHOP-31")
-        try key("p", code: 35)
+        trace("pause Human Review")
+        try await key(.pauseOrResume, "p", code: 35)
         try await sheetKey()
         try await settled("SHOP-31") { $0.state == .paused }
-        try key("p", code: 35)
+        trace("resume Human Review")
+        try await key(.pauseOrResume, "p", code: 35)
         try await sheetKey()
         try await settled("SHOP-31") { $0.state == .waitingHuman(.review) }
         mark("Cmd-Shift-P and Return pause/resume Human Review through the native menu and correlated task events")
@@ -76,18 +103,18 @@ extension BoardQA {
         mark("Typed drop handler opens a confirmation without optimistic movement; stale and cross-project payloads send nothing")
 
         await store.select("SHOP-35")
-        try key("r", code: 15); try await sheetKey()
+        try await key(.retry, "r", code: 15); try await sheetKey()
         try await settled("SHOP-35") { $0.state == .queued(nil) }
         mark("Cmd-Shift-R and Return submit a typed retry in an allowed waiting state")
 
         await store.select("SHOP-42")
-        try key("m", code: 46)
+        try await key(.move, "m", code: 46)
         try await waitUntil("move menu opens shared sheet") { store.controlSheet != nil && window.attachedSheet != nil }
         let before = store.projection!.tasks["SHOP-42"]!
         try await sheetKey("\u{1b}", code: 53)
         try await waitUntil("Escape closes move sheet") { store.controlSheet == nil && window.attachedSheet == nil }
         guard store.projection?.tasks["SHOP-42"] == before else { throw failure("Escape sent move") }
-        try key("m", code: 46)
+        try await key(.move, "m", code: 46)
         try await waitUntil("focused native move target list") { window.attachedSheet?.firstResponder != nil }
         guard let moveSheet = window.attachedSheet,
               let arrow = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -100,15 +127,7 @@ extension BoardQA {
         mark("Move menu is a keyboard alternative to drag; Escape sends nothing; Down arrow selects an allowed target and Return sends it explicitly")
 
         await store.select("SHOP-42")
-        func deleteEquivalent(_ menu: NSMenu?) -> String? {
-            for item in menu?.items ?? [] {
-                if item.tag == TaskMenuAction.cancel.rawValue { return item.keyEquivalent }
-                if let value = deleteEquivalent(item.submenu) { return value }
-            }
-            return nil
-        }
-        guard let delete = deleteEquivalent(NSApp.mainMenu), delete == "\u{8}" || delete == "\u{7f}" else { throw failure("Task cancellation Delete binding missing") }
-        try key(delete, code: 51); try await sheetKey()
+        try await key(.cancel, String(KeyEquivalent.delete.character), code: 51); try await sheetKey()
         try await settled("SHOP-42") { $0.state == .cancelled }
         let cancels = store.commandJournal?.records.filter { if case .cancelTask = $0.envelope.command { true } else { false } } ?? []
         guard cancels.last?.envelope.command == .cancelTask(taskId: "SHOP-42", keepBranch: false) else { throw failure("Cancel default did not preserve keepBranch=false") }

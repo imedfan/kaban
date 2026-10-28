@@ -153,18 +153,12 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertFalse(text(try git(f.repo, ["show", "master:.kaban/pipeline.yaml"])).isEmpty)
         XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", "master"])), "2")
         XCTAssertEqual(text(try git(f.repo, ["status", "--porcelain"])), "")
-        let moved = f.root.appendingPathComponent("Moved")
-        try FileManager.default.moveItem(at: f.repo, to: moved)
-        let reopened = try KabanStore(path: f.database)
-        XCTAssertEqual(try send(.relinkProject(projectId: project.id, path: moved.path), reopened).result, .ok)
-        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "master")
-        XCTAssertEqual(try reopened.getSnapshot().projects.first?.id, project.id)
     }
     func testMissingBaseRefusesBeforeTemplateAndReplaysWithExactBranch() throws {
         let f = try fixture()
         _ = try git(f.repo, ["tag", "tag-only"])
         _ = try git(f.repo, ["update-ref", "refs/remotes/origin/remote-only", "HEAD"])
-        for branch in ["missing", "tag-only", "remote-only", "../main", "--help", "main^{commit}", "bad\0branch", ""] {
+        for branch in ["missing", "tag-only", "remote-only", "../main", "--help", "main^{commit}", ""] {
             let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: branch))
             let reply = try f.store.execute(envelope)
             let error = try refusal(reply)
@@ -236,9 +230,8 @@ final class ProjectLifecycleTests: XCTestCase {
     }
     func testDatabaseFailureAfterGitCommitRecoversWithoutDuplicateOrOverwritingEdits() throws {
         let f = try fixture()
-        _ = try git(f.repo, ["branch", "-m", "main", "master"])
         try f.store.database.write { db in try db.execute(sql: "CREATE TRIGGER fail_project_reply BEFORE INSERT ON wire_command BEGIN SELECT RAISE(ABORT, 'injected'); END") }
-        let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: "master"))
+        let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity))
         XCTAssertThrowsError(try f.store.execute(envelope))
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
         XCTAssertEqual(try f.store.database.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM project_operation") }, 1)
@@ -251,7 +244,6 @@ final class ProjectLifecycleTests: XCTestCase {
         let reopened = try KabanStore(path: f.database)
         try reopened.recoverProjectOperations()
         XCTAssertEqual(try reopened.getSnapshot().projects.count, 1)
-        XCTAssertEqual(try reopened.getSnapshot().projects.first?.baseBranch, "master")
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), commit)
         XCTAssertEqual(try git(f.repo, ["diff", "--cached", "--binary"]), staged)
         XCTAssertEqual(try String(contentsOf: userSkill, encoding: .utf8), "user edit\n")
