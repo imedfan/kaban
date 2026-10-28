@@ -64,11 +64,95 @@ final class RunnerEnvironmentStoreTests: XCTestCase {
         let second = await runner.savePath(); XCTAssertFalse(second)
         XCTAssertEqual(Set(client.mutations.map(\.commandId)).count, 1, "Reconciliation must retain the exact ID")
         guard let command = runner.submittedCommandID else { return XCTFail("No pending command") }
-        client.configuration = .init(executablePath: "/chosen/cursor"); client.snapshot.seq = 1
-        try actual.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: command, event: .cursorEnvironmentChanged(client.configuration))))
+        client.snapshot.seq = 1
+        try actual.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: command,
+                                       event: .settingsChanged(.init(key: "scheduler", value: "updated", schedulerFlags: [])))))
+        XCTAssertEqual(runner.submissionPhase, .awaitingEvent, "Runner/catalog settings are not the configured-path event")
+        client.configuration = .init(executablePath: "/chosen/cursor")
+        await runner.refresh()
+        XCTAssertEqual(runner.configuration, .init(executablePath: nil), "A settings event must not let an ahead-of-journal read apply the path")
+        client.snapshot.seq = 2
+        try actual.consume(.event(.init(seq: 2, at: Date(), projectId: nil, commandId: command, event: .cursorEnvironmentChanged(client.configuration))))
         await runner.refresh()
         XCTAssertEqual(runner.submissionPhase, .applied); XCTAssertFalse(runner.isEdited)
         XCTAssertEqual(runner.configuration?.executablePath, "/chosen/cursor")
+    }
+    @MainActor func testReadBeforeEventDoesNotApplyPathAndDiscoveryUsesResolvedPath() async throws {
+        let client = EnvironmentClient()
+        let session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        let runner = RunnerEnvironmentStore(client: client, session: session)
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await runner.refresh()
+        runner.editPath("")
+        let accepted = await runner.savePath(); XCTAssertTrue(accepted)
+        try await wait { session.canSend }
+        client.configuration = .init(executablePath: "/discovered/cursor-agent")
+        await runner.refresh()
+        XCTAssertEqual(runner.configuration, .init(executablePath: nil), "Read ahead of journal must not apply a pending path")
+        XCTAssertTrue(runner.isEdited)
+        client.snapshot.seq = 1
+        try session.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: runner.submittedCommandID,
+                                        event: .cursorEnvironmentChanged(client.configuration))))
+        XCTAssertEqual(runner.configuration, client.configuration, "Applied path comes directly from journal")
+        XCTAssertTrue(runner.isStale, "Old report belongs to the previous executable")
+        await runner.refresh()
+        XCTAssertFalse(runner.isEdited)
+        XCTAssertEqual(runner.draftPath, "/discovered/cursor-agent")
+        XCTAssertFalse(runner.isStale)
+    }
+    @MainActor func testChangedDraftSurvivesEventAndRejectedPathCanBeCorrected() async throws {
+        let client = EnvironmentClient()
+        let session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        let runner = RunnerEnvironmentStore(client: client, session: session)
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await runner.refresh()
+        runner.editPath("relative")
+        client.rejectConfiguration = true
+        let rejected = await runner.savePath(); XCTAssertFalse(rejected)
+        runner.editPath("/first")
+        XCTAssertTrue(runner.canConfigure, "A refusal must not disable corrected submissions")
+        client.rejectConfiguration = false
+        let accepted = await runner.savePath(); XCTAssertTrue(accepted)
+        runner.editPath("/second")
+        client.configuration = .init(executablePath: "/first")
+        client.snapshot.seq = 1
+        try session.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: runner.submittedCommandID,
+                                        event: .cursorEnvironmentChanged(client.configuration))))
+        await runner.refresh()
+        XCTAssertEqual(runner.configuration, client.configuration)
+        XCTAssertEqual(runner.draftPath, "/second"); XCTAssertTrue(runner.isEdited)
+    }
+    @MainActor func testSnapshotSkippingExternalEnvironmentEventAllowsFreshBaseline() async throws {
+        let client = EnvironmentClient()
+        let session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        let runner = RunnerEnvironmentStore(client: client, session: session)
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await runner.refresh()
+        let first = CursorEnvironment(executablePath: "/first")
+        try session.consume(.event(.init(seq: 1, at: Date(), projectId: nil, event: .cursorEnvironmentChanged(first))))
+        client.configuration = .init(executablePath: "/second")
+        client.snapshot.seq = 2
+        try session.consume(.replacement(try await client.synchronize()))
+        try await wait { session.canSend }; await runner.refresh()
+        XCTAssertEqual(runner.configuration, client.configuration, "Retained event must not mask a newer baseline after resync")
+    }
+    @MainActor func testExternalEventWinsOverInFlightReport() async throws {
+        let client = EnvironmentClient()
+        let session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "test")
+        let runner = RunnerEnvironmentStore(client: client, session: session)
+        let task = Task { await session.run() }; defer { task.cancel() }
+        try await wait { session.canSend }; await runner.refresh()
+        client.holdReport = true
+        let read = Task { await runner.refresh() }
+        try await wait { client.heldReport != nil }
+        let external = CursorEnvironment(executablePath: "/external")
+        try session.consume(.event(.init(seq: 1, at: Date(), projectId: nil, event: .cursorEnvironmentChanged(external))))
+        XCTAssertEqual(runner.configuration, external)
+        client.holdReport = false
+        client.completeReport(.init(cursorAgentPath: "/stale", version: "old", authOK: true, gitVersion: "git", sandboxOK: true, notificationsAuthorized: false))
+        await read.value
+        XCTAssertEqual(runner.report, client.report, "Late report must be discarded and refreshed")
+        XCTAssertEqual(runner.draftPath, "/external")
     }
     @MainActor func testReopenedUnknownConfigurationKeepsTheSubmittedPathAndExactEnvelope() async throws {
         let storage = MemoryKeyValueStore(), client = EnvironmentClient()
@@ -81,7 +165,7 @@ final class RunnerEnvironmentStoreTests: XCTestCase {
         try await wait { session.canSend }; await runner.refresh()
         XCTAssertEqual(runner.submittedCommandID, envelope.commandId)
         XCTAssertEqual(runner.draftPath, "/chosen/before-restart")
-        XCTAssertEqual(runner.configuration, .init(executablePath: nil), "A cached acknowledgement did not persist the chosen path")
+        XCTAssertNil(runner.configuration, "Without a prior baseline, a pending mutation keeps the applied configuration unknown")
         XCTAssertEqual(runner.submissionPhase, .awaitingEvent); XCTAssertFalse(runner.canConfigure)
         XCTAssertFalse(client.mutations.isEmpty); XCTAssertTrue(client.mutations.allSatisfy { $0 == envelope })
     }
@@ -121,6 +205,7 @@ final class RunnerEnvironmentStoreTests: XCTestCase {
     var reads: [CommandName] = []
     var mutations: [CommandEnvelope] = []
     var badCorrelation = false
+    var rejectConfiguration = false
     var holdReport = false
     var heldReport: (CommandEnvelope, CheckedContinuation<CommandReply, Error>)?
     func getSnapshot() async throws -> Snapshot { snapshot }
@@ -136,6 +221,8 @@ final class RunnerEnvironmentStoreTests: XCTestCase {
         }
         let result: CommandResult
         switch envelope.command {
+        case .configureCursor where rejectConfiguration:
+            mutations.append(envelope); result = .error(.init(code: "cursor_environment_invalid", message: "Укажите абсолютный путь"))
         case .getCursorEnvironment: reads.append(envelope.command.name); result = .cursorEnvironment(configuration)
         case .checkEnvironment: reads.append(envelope.command.name); result = .environment(report)
         default: mutations.append(envelope); result = .ok

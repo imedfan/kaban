@@ -72,7 +72,7 @@ struct OnboardingView: View {
                         explanation(runtime.developer ? "Режим разработки · отдельная БД" : runtime.fixture ? "Демонстрация · данные в памяти" : "Задачи и настройки сохраняются локальной службой на этом Маке.")
                     }
                     if let environment = runtime.store?.environment {
-                        OnboardingEnvironmentView(environment: environment, theme: theme)
+                        CursorEnvironmentView(environment: environment, theme: theme)
                     } else {
                         section("Cursor и окружение", symbol: "terminal") {
                             explanation("Проверим путь, версию и вход в Cursor после подключения службы.")
@@ -146,7 +146,7 @@ struct OnboardingView: View {
     }
 }
 
-private struct OnboardingEnvironmentView: View {
+struct CursorEnvironmentView: View {
     @Bindable var environment: RunnerEnvironmentStore
     let theme: KabanTheme
     var body: some View {
@@ -158,13 +158,16 @@ private struct OnboardingEnvironmentView: View {
             }
             if environment.isStale { note("Показана последняя проверка. После подключения обновим данные.") }
             if let reason = environment.runnerReason { note(reasonText(reason)) }
+            if let configuration = environment.configuration {
+                fact("Применённый путь", value: configuration.executablePath ?? "Автоматический поиск")
+            }
             if let report = environment.report {
                 fact("Cursor CLI", value: report.cursorAgentPath ?? "Не найден")
                 fact("Версия", value: report.version ?? "Не удалось проверить")
                 fact("Аккаунт Cursor", value: report.authOK ? "Вход выполнен" : "Вход не подтверждён")
                 fact("Git", value: report.gitVersion ?? "Недоступен")
                 fact("Среда запуска", value: report.sandboxOK ? "Проверена" : "Недоступна")
-                if !report.authOK, report.cursorAgentPath != nil {
+                if !report.authOK, report.version != nil, report.cursorAgentPath != nil {
                     note("Выполните вход в Терминале, затем проверьте снова:")
                     Text(loginCommand(report.cursorAgentPath)).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -178,13 +181,14 @@ private struct OnboardingEnvironmentView: View {
             Text("Путь к cursor-agent").font(.system(size: 12, weight: .medium))
             HStack(spacing: 10) {
                 TextField("Автоматический поиск", text: Binding(get: { environment.draftPath }, set: { environment.editPath($0) }))
-                    .textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced))
+                    .textFieldStyle(.roundedBorder).font(.system(size: 12, design: .monospaced)).accessibilityIdentifier("cursor.path")
                     .disabled(environment.configuration == nil || !environment.session.can(.configureCursor))
                 Button("Выбрать…") { chooseExecutable() }.buttonStyle(KabanButtonStyle())
                     .disabled(environment.configuration == nil || !environment.session.can(.configureCursor))
-                Button("Сохранить") { Task { await environment.savePath() } }.buttonStyle(KabanButtonStyle())
+                Button("Сохранить") { Task { await environment.savePath() } }.buttonStyle(KabanButtonStyle()).accessibilityIdentifier("cursor.save")
                     .disabled(!environment.canConfigure)
             }
+            note("Оставьте поле пустым, чтобы служба нашла cursor-agent автоматически. Проверка выполняется без запуска модели.")
             if let failure = environment.configurationUnavailableReason { note(failure) }
             if let phase = environment.submissionPhase {
                 switch phase {
@@ -192,6 +196,7 @@ private struct OnboardingEnvironmentView: View {
                 case .deliveryUncertain: note("Исход сохранения неизвестен. Проверим прежнюю отправку после подключения.")
                 case .awaitingEvent: note("Ждём подтверждения сохранённого пути от службы.")
                 case .applied where !environment.isEdited: note("Путь сохранён службой Kaban.")
+                case .rejected(let error), .effectFailed(let error): note(error.message)
                 default: EmptyView()
                 }
             }
@@ -206,6 +211,9 @@ private struct OnboardingEnvironmentView: View {
             .onAppear { if environment.session.canSend { Task { await environment.refresh() } } }
             .onChange(of: environment.session.connectionState) { _, state in
                 if state == .connected { Task { await environment.refresh() } }
+            }
+            .onChange(of: environment.session.cursorEnvironmentSeq) { _, _ in
+                Task { await environment.refresh() }
             }
             .onChange(of: environment.submissionPhase) { _, phase in
                 if phase == .applied { Task { await environment.refresh() } }

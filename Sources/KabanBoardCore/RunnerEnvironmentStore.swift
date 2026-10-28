@@ -8,7 +8,8 @@ import KabanProtocol
     private let client: any KabanClient
     public let session: BoardSession
     public private(set) var report: EnvironmentReport?
-    public private(set) var configuration: CursorEnvironment?
+    private var readConfiguration: CursorEnvironment?
+    public var configuration: CursorEnvironment? { session.cursorEnvironment ?? readConfiguration }
     public private(set) var checkedAt: Date?
     public private(set) var isChecking = false
     public private(set) var reportError: String?
@@ -20,6 +21,7 @@ import KabanProtocol
     private var configurationGeneration: UUID?
     private var refreshAgain = false
     private var submittedConfiguration: CursorEnvironment?
+    private var reportEnvironmentSeq: Seq?
 
     public init(client: any KabanClient, session: BoardSession) {
         self.client = client; self.session = session
@@ -30,7 +32,7 @@ import KabanProtocol
             draftPath = value.executablePath ?? ""; isEdited = true
         }
     }
-    public var isStale: Bool { report != nil && (reportError != nil || !session.canSend || reportGeneration != session.sessionGeneration) }
+    public var isStale: Bool { report != nil && (reportError != nil || !session.canSend || reportGeneration != session.sessionGeneration || reportEnvironmentSeq != session.cursorEnvironmentSeq) }
     public var canConfigure: Bool {
         configuration != nil && configurationError == nil && configurationGeneration == session.sessionGeneration &&
         !isChecking && isEdited && session.can(.configureCursor(environment: draftConfiguration))
@@ -47,7 +49,8 @@ import KabanProtocol
         session.capabilities?.commands.first { $0.name == CommandName.recheck.rawValue }?.scopes?.contains("runner") == true
     }
     public var submissionPhase: ClientCommandPhase? {
-        session.journal?.records.first { $0.envelope.commandId == submittedCommandID }?.phase
+        _ = session.pendingRecords
+        return session.journal?.records.first { $0.envelope.commandId == submittedCommandID }?.phase
     }
     private var draftConfiguration: CursorEnvironment {
         .init(executablePath: draftPath.isEmpty ? nil : draftPath)
@@ -62,14 +65,21 @@ import KabanProtocol
             refreshAgain = false
             guard session.canSend else { return }
             let generation = session.sessionGeneration
+            let environmentSeq = session.cursorEnvironmentSeq
             if session.can(CommandName.getCursorEnvironment) {
                 do {
                     let reply = try await read(.getCursorEnvironment)
                     guard valid(generation) else { continue }
                     guard case .cursorEnvironment(let value) = reply else { throw invalidReply() }
-                    configuration = value; configurationGeneration = generation; configurationError = nil
-                    if !isEdited || (value == submittedConfiguration && submissionPhase == .applied && draftConfiguration == value) {
-                        draftPath = value.executablePath ?? ""; isEdited = false
+                    guard environmentSeq == session.cursorEnvironmentSeq else { refreshAgain = true; continue }
+                    // A query can arrive after commit but before journal delivery.
+                    // Keep the old applied path until the mutation is confirmed.
+                    if session.pending(in: .global)?.envelope.command.name != .configureCursor {
+                        readConfiguration = value
+                    }
+                    configurationGeneration = generation; configurationError = nil
+                    if !isEdited || (submissionPhase == .applied && draftConfiguration == submittedConfiguration) {
+                        draftPath = configuration?.executablePath ?? ""; isEdited = false
                     }
                 } catch { if valid(generation) { configurationError = message(error) } }
             } else {
@@ -81,6 +91,8 @@ import KabanProtocol
                     let reply = try await read(.checkEnvironment)
                     guard valid(generation) else { continue }
                     guard case .environment(let value) = reply else { throw invalidReply() }
+                    guard environmentSeq == session.cursorEnvironmentSeq else { refreshAgain = true; continue }
+                    reportEnvironmentSeq = environmentSeq
                     report = value; reportGeneration = generation; checkedAt = Date(); reportError = nil
                 } catch { if valid(generation) { reportError = message(error) } }
             } else {
@@ -91,13 +103,9 @@ import KabanProtocol
     @discardableResult public func savePath() async -> Bool {
         guard canConfigure else { return false }
         let value = draftConfiguration
-        let existing = Set(session.journal?.records.map { $0.envelope.commandId } ?? [])
-        let accepted = await session.send(.configureCursor(environment: value), editor: true)
-        if let record = session.journal?.records.last(where: { !existing.contains($0.envelope.commandId) && $0.envelope.command == .configureCursor(environment: value) }) {
-            submittedCommandID = record.envelope.commandId; submittedConfiguration = value
-        }
-        if !accepted { configurationError = session.editorError ?? session.error }
-        return accepted
+        let envelope = CommandEnvelope(command: .configureCursor(environment: value))
+        submittedCommandID = envelope.commandId; submittedConfiguration = value
+        return await session.send(envelope, editor: true)
     }
     @discardableResult public func recheck() async -> Bool {
         guard canRecheck else { return false }

@@ -11,6 +11,8 @@ public enum BoardSessionUpdate: Sendable {
 
 /// One application session. Views select data; they never own the update stream.
 @MainActor @Observable public final class BoardSession {
+    public private(set) var cursorEnvironment: CursorEnvironment?
+    public private(set) var cursorEnvironmentSeq: Seq?
     public var onAppliedUpdate: ((BoardSessionUpdate) -> Void)?
     private let client: any KabanClient
     public let boardSet: BoardSetStore
@@ -140,6 +142,7 @@ public enum BoardSessionUpdate: Sendable {
     private func invalidate() {
         // Invalidation is logical. Cancelling a private stdio RPC stops its
         // worker/child, so routine selection/resync must not cancel shared IO.
+        cursorEnvironment = nil; cursorEnvironmentSeq = nil
         epoch = UUID(); reconciliation = nil; requestedDetailID = nil
         _ = selection.begin(selectedID); historyGeneration = UUID()
     }
@@ -174,6 +177,8 @@ public enum BoardSessionUpdate: Sendable {
             try journal?.observe(value)
             guard result == .applied || result == .ignored else { refreshPending(); return }
             switch value.event {
+            case .cursorEnvironmentChanged(let environment):
+                cursorEnvironment = environment; cursorEnvironmentSeq = value.seq
             case .incidentOpened, .incidentResolved, .projectRemoved: incidentReadRevision = UUID()
             case .taskCreated(let card), .taskEdited(let card), .taskUpdated(let card): floors[card.id] = value.seq
             case .settingsChanged(let change):
@@ -210,6 +215,11 @@ public enum BoardSessionUpdate: Sendable {
     private func replace(_ replacement: SnapshotReplacement) throws {
         guard replacement.snapshot.seq >= 0, replacement.cursor.offset >= 0,
               replacement.current.allSatisfy({ $0.cursor.sessionId == replacement.cursor.sessionId && $0.cursor.offset <= replacement.cursor.offset && $0.afterSeq <= replacement.snapshot.seq && $0.afterSeq >= 0 }) else { throw resyncError() }
+        // Snapshot has no Cursor configuration. If it advances beyond our last
+        // environment event, let getCursorEnvironment establish a fresh baseline.
+        if let seq = cursorEnvironmentSeq, replacement.snapshot.seq > seq {
+            cursorEnvironment = nil; cursorEnvironmentSeq = nil
+        }
         // Full replacement clears every old volatile value as well as durable cards.
         var board = BoardProjection(snapshot: replacement.snapshot)
         for current in replacement.current.sorted(by: { $0.cursor.offset < $1.cursor.offset }) {
@@ -306,7 +316,7 @@ public enum BoardSessionUpdate: Sendable {
                 // The addressed answer composer presents its own durable receipt
                 // beside the retained text. A modal alert would cover the new question.
                 switch record.envelope.command {
-                case .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles: break
+                case .answerHuman, .approve, .requestChanges, .reject, .acceptSuspiciousFiles, .configureCursor: break
                 default: error = message; editorError = message
                 }
                 reportedFailures.insert(record.envelope.commandId)

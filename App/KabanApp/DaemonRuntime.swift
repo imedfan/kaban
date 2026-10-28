@@ -213,6 +213,9 @@ import KabanTransport
             else { try FileManager.default.createDirectory(at: URL(fileURLWithPath: path).deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
             let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/KabanDaemon")
             var arguments = ["--initialize"]
+            if path.hasPrefix("/tmp/kaban-fe23-"), let executable = AppArguments.qaValue("--qa-cursor-agent"), executable.hasPrefix("/tmp/kaban-fe23-") {
+                arguments += ["--cursor-agent", executable]
+            }
             if path.hasPrefix("/tmp/kaban-fe16-"), let personal = AppArguments.qaValue("--qa-personal-mcp-config"), personal.hasPrefix("/tmp/kaban-fe16-") {
                 arguments += ["--qa-personal-mcp-config", personal]
             }

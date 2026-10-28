@@ -175,6 +175,21 @@ source `bf6ef6d`: неиспользуемые
 Отчёты development фиксируют проверки своих SHA. Исторические границы отдельных
 инкрементов ниже не заменяют актуальную таблицу и ограничения этого среза.
 
+## FE-23: настройка Cursor (ветка реализации)
+
+Дополнение от 28 октября 2026: `codex/fe-23-cursor-setup`, source `01a4ef5`,
+с интеграцией принятой BE-31 (`origin/main` `0463c30`). Общий нативный блок Cursor
+доступен в онбординге и настройках «Этот Мак»: применённый путь, версия, вход,
+git/среда, выбор executable, инструкция login и повторная проверка.
+Путь подтверждается событием службы; `.ok` не меняет применённое значение.
+Штатное восстановление сохраняет receipt + snapshot fallback после retention.
+Новые черновики и устаревшие ответы не перекрывают подтверждённую настройку.
+
+Проверки, source и открытая installed-приёмка —
+[отчёт FE-23](development/frontend-fe-23-2026-10-28.md), [draft PR #125](https://github.com/imedfan/kaban/pull/125).
+Четыре системных критерия FE-03 остаются открыты: private stdio с тестовым CLI
+не подтверждает чистую установку, XPC, requiresApproval, настоящий login и разрешения macOS.
+
 ## BE-21: локальная установка без App Sandbox
 
 BE-21 принята в main `f405a27` через [PR #118](https://github.com/imedfan/kaban/pull/118).
@@ -235,6 +250,25 @@ BE-26 [#121](https://github.com/imedfan/kaban/pull/121) принята в main `
 ветка BE-27 интегрирована с этой базой. Настоящий Cursor commit и формат
 CLI deny rules требуют BE-22/BE-24;
 файловая граница относится к BE-28. Полный MVP не принят.
+
+## BE-31: базовая ветка проекта
+
+BE-31 принята в main `0463c30` через [PR #123](https://github.com/imedfan/kaban/pull/123).
+Команда `addProject` принимает
+optional `baseBranch`; отсутствие поля/null сохраняет `main`. Демон проверяет
+локальную ветку до создания проекта и возвращает `base_branch_missing` с
+`params.branch`. Выбранная база сохраняется в существующем `ProjectSummary.baseBranch`.
+Клоны, committed `.kaban/`, шаблон и сохранение YAML, восстановление MCP,
+rebase/fast-forward, result check и recovery используют эту базу.
+`/git/check` защищает выбранную ветку, включая отказ в разовом разрешении.
+[Проверки и границы BE-31](development/backend-be-31-2026-10-27.md).
+Первоначальная ветка PR #124 проверяла source `651b561`: 727 tests, App build,
+native smoke и private stdio restart/replay; эти проверки остаются историческими.
+[PR #124](https://github.com/imedfan/kaban/pull/124) обновлён поверх принятого main
+и сохраняет его backend/fixtures. В нём исправляется только QA-проверка фокуса
+перед каждым native task shortcut; проверки foreground, листа и correlated events сохраняются.
+Нативный выбор ветки относится к FE-27; смена базы подключённого проекта
+не входит в MVP. Полный M1/MVP не принят.
 
 ## Что есть в основном коде
 
