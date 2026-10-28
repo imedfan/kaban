@@ -64,8 +64,15 @@ final class RunnerEnvironmentStoreTests: XCTestCase {
         let second = await runner.savePath(); XCTAssertFalse(second)
         XCTAssertEqual(Set(client.mutations.map(\.commandId)).count, 1, "Reconciliation must retain the exact ID")
         guard let command = runner.submittedCommandID else { return XCTFail("No pending command") }
-        client.configuration = .init(executablePath: "/chosen/cursor"); client.snapshot.seq = 1
-        try actual.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: command, event: .cursorEnvironmentChanged(client.configuration))))
+        client.snapshot.seq = 1
+        try actual.consume(.event(.init(seq: 1, at: Date(), projectId: nil, commandId: command,
+                                       event: .settingsChanged(.init(key: "scheduler", value: "updated", schedulerFlags: [])))))
+        XCTAssertEqual(runner.submissionPhase, .awaitingEvent, "Runner/catalog settings are not the configured-path event")
+        client.configuration = .init(executablePath: "/chosen/cursor")
+        await runner.refresh()
+        XCTAssertEqual(runner.configuration, .init(executablePath: nil), "A settings event must not let an ahead-of-journal read apply the path")
+        client.snapshot.seq = 2
+        try actual.consume(.event(.init(seq: 2, at: Date(), projectId: nil, commandId: command, event: .cursorEnvironmentChanged(client.configuration))))
         await runner.refresh()
         XCTAssertEqual(runner.submissionPhase, .applied); XCTAssertFalse(runner.isEdited)
         XCTAssertEqual(runner.configuration?.executablePath, "/chosen/cursor")

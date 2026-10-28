@@ -70,6 +70,7 @@ public extension Command {
         case (.addDenialToPolicy(_, let scope, let draft), .gitPolicyUpdated(let value)):
             value.scope == scope && draft?.projectId == value.projectId && value.pipelineVersion != draft?.baseVersionHash
         case (.configureCursor, .cursorEnvironmentChanged): true
+        case (.configureCursor, _): false
         case (.pauseProject(let id), .settingsChanged(let change)):
             change.schedulerFlags?.contains(.projectPaused(id)) == true
         case (.resumeProject(let id), .settingsChanged(let change)):
