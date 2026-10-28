@@ -1,0 +1,14 @@
+[
+  "<USER_HOME>/.local/bin/cursor-agent",
+  "-p",
+  "--output-format",
+  "stream-json",
+  "--model",
+  "cursor-grok-4.6-medium",
+  "--force",
+  "--trust",
+  "--approve-mcps",
+  "--resume",
+  "a51ce6b2-2b68-432c-80b6-afd679b03efd",
+  "Call report_progress with text 'BE22 resumed', then reply DONE."
+]

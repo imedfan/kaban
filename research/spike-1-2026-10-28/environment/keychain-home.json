@@ -1,0 +1,6 @@
+{
+  "setup": "<RUN_HOME>/Library/Keychains -> <USER_HOME>/Library/Keychains",
+  "credentialContentsCopied": false,
+  "personalCursorConfigCopied": false,
+  "scope": "Research workaround, not proof of credential isolation or a production decision"
+}

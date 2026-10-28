@@ -1,0 +1,13 @@
+{
+  "authorizedModelStarts": 2,
+  "observedModelStarts": 2,
+  "performedBy": "Artem, manually in Terminal",
+  "modelId": "cursor-grok-4.6-medium",
+  "modelCatalogName": "Grok 4.6 Medium",
+  "runs": [
+    {"fixture": "run-1", "kind": "normal", "returncode": 0},
+    {"fixture": "run-2", "kind": "resume-kill-on-init", "returncode": -15}
+  ],
+  "additionalPaidStartsAllowed": false,
+  "freeSyntheticObserverTestsCountAsModelStarts": false
+}

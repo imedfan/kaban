@@ -1,0 +1,391 @@
+{
+  "file": "<USER_HOME>/Documents/dev/kaban/research/spike-1-2026-10-28/run-1/stream.jsonl",
+  "events": 61,
+  "bad_lines": 0,
+  "non_json_lines": [],
+  "event_kinds": {
+    "system/init": 1,
+    "user": 1,
+    "thinking/delta": 40,
+    "thinking/completed": 4,
+    "assistant": 2,
+    "tool_call/started": 6,
+    "tool_call/completed": 6,
+    "result/success": 1
+  },
+  "field_names": {
+    "system/init": [
+      "apiKeySource",
+      "cwd",
+      "model",
+      "permissionMode",
+      "session_id",
+      "subtype",
+      "type"
+    ],
+    "user": [
+      "message",
+      "session_id",
+      "type"
+    ],
+    "thinking/delta": [
+      "session_id",
+      "subtype",
+      "text",
+      "timestamp_ms",
+      "type"
+    ],
+    "thinking/completed": [
+      "session_id",
+      "subtype",
+      "timestamp_ms",
+      "type"
+    ],
+    "assistant": [
+      "message",
+      "model_call_id",
+      "session_id",
+      "timestamp_ms",
+      "type"
+    ],
+    "tool_call/started": [
+      "call_id",
+      "model_call_id",
+      "session_id",
+      "subtype",
+      "timestamp_ms",
+      "tool_call",
+      "type"
+    ],
+    "tool_call/completed": [
+      "call_id",
+      "model_call_id",
+      "session_id",
+      "subtype",
+      "timestamp_ms",
+      "tool_call",
+      "type"
+    ],
+    "result/success": [
+      "duration_api_ms",
+      "duration_ms",
+      "is_error",
+      "request_id",
+      "result",
+      "session_id",
+      "subtype",
+      "type",
+      "usage",
+      "usage.cacheReadTokens",
+      "usage.cacheWriteTokens",
+      "usage.inputTokens",
+      "usage.outputTokens"
+    ]
+  },
+  "session_ids": [
+    "a51ce6b2-2b68-432c-80b6-afd679b03efd"
+  ],
+  "init": {
+    "fields": [
+      "apiKeySource",
+      "cwd",
+      "model",
+      "permissionMode",
+      "session_id",
+      "subtype",
+      "type"
+    ],
+    "model": "Grok 4.6 Medium",
+    "session_id": "a51ce6b2-2b68-432c-80b6-afd679b03efd",
+    "apiKeySource": "login",
+    "permissionMode": "default",
+    "extra": {}
+  },
+  "result": {
+    "fields": [
+      "duration_api_ms",
+      "duration_ms",
+      "is_error",
+      "request_id",
+      "result",
+      "session_id",
+      "subtype",
+      "type",
+      "usage"
+    ],
+    "subtype": "success",
+    "is_error": false,
+    "session_id": "a51ce6b2-2b68-432c-80b6-afd679b03efd",
+    "duration_ms": 16195,
+    "duration_api_ms": 16195,
+    "request_id_present": true,
+    "usage_like": {
+      "usage": {
+        "inputTokens": 7756,
+        "outputTokens": 696,
+        "cacheReadTokens": 40064,
+        "cacheWriteTokens": 0
+      }
+    },
+    "result_text": "I'll start by reporting progress on the kaban-board, then create the files and complete the stage.DONE"
+  },
+  "tool_calls": {
+    "started": 6,
+    "completed": 6,
+    "kinds": [
+      "editToolCall",
+      "getMcpToolsToolCall",
+      "globToolCall",
+      "mcpToolCall",
+      "shellToolCall"
+    ],
+    "details": [
+      {
+        "kind": "getMcpToolsToolCall",
+        "call_id": "call-5fe55efe-e6a5-48f7-8824-b0243dc75328-0\nfc_56bc8f98-6f6a-9b4a-9d16-085f5abdc819_0",
+        "subtype": "started",
+        "args_keys": [
+          "server",
+          "toolCallId"
+        ],
+        "arg_server": "kaban-board"
+      },
+      {
+        "kind": "globToolCall",
+        "call_id": "call-5fe55efe-e6a5-48f7-8824-b0243dc75328-1\nfc_56bc8f98-6f6a-9b4a-9d16-085f5abdc819_1",
+        "subtype": "started",
+        "args_keys": [
+          "globPattern",
+          "targetDirectory"
+        ]
+      },
+      {
+        "kind": "getMcpToolsToolCall",
+        "call_id": "call-5fe55efe-e6a5-48f7-8824-b0243dc75328-0\nfc_56bc8f98-6f6a-9b4a-9d16-085f5abdc819_0",
+        "subtype": "completed",
+        "args_keys": [
+          "server",
+          "toolCallId"
+        ],
+        "arg_server": "kaban-board",
+        "result_keys": [
+          "success"
+        ],
+        "result_success_keys": [
+          "content"
+        ]
+      },
+      {
+        "kind": "globToolCall",
+        "call_id": "call-5fe55efe-e6a5-48f7-8824-b0243dc75328-1\nfc_56bc8f98-6f6a-9b4a-9d16-085f5abdc819_1",
+        "subtype": "completed",
+        "args_keys": [
+          "globPattern",
+          "targetDirectory"
+        ],
+        "result_keys": [
+          "success"
+        ],
+        "result_success_keys": [
+          "clientTruncated",
+          "files",
+          "path",
+          "pattern",
+          "ripgrepTruncated",
+          "totalFiles"
+        ]
+      },
+      {
+        "kind": "mcpToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-2\nfc_523a9694-603a-904d-9d80-1b39c39a246e_0",
+        "subtype": "started",
+        "args_keys": [
+          "args",
+          "name",
+          "providerIdentifier",
+          "serverIdentifier",
+          "skipApproval",
+          "smartModeApprovalOnly",
+          "toolCallId",
+          "toolName"
+        ],
+        "arg_name": "kaban-board-report_progress",
+        "arg_toolName": "report_progress",
+        "arg_providerIdentifier": "kaban-board"
+      },
+      {
+        "kind": "mcpToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-2\nfc_523a9694-603a-904d-9d80-1b39c39a246e_0",
+        "subtype": "completed",
+        "args_keys": [
+          "args",
+          "name",
+          "providerIdentifier",
+          "serverIdentifier",
+          "skipApproval",
+          "smartModeApprovalOnly",
+          "toolCallId",
+          "toolName"
+        ],
+        "arg_name": "kaban-board-report_progress",
+        "arg_toolName": "report_progress",
+        "arg_providerIdentifier": "kaban-board",
+        "result_keys": [
+          "success"
+        ],
+        "result_success_keys": [
+          "content",
+          "isError"
+        ]
+      },
+      {
+        "kind": "editToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-3\nfc_523a9694-603a-904d-9d80-1b39c39a246e_1",
+        "subtype": "started",
+        "args_keys": [
+          "path",
+          "streamContent"
+        ]
+      },
+      {
+        "kind": "shellToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-4\nfc_523a9694-603a-904d-9d80-1b39c39a246e_2",
+        "subtype": "started",
+        "args_keys": [
+          "adminCommandDenylist",
+          "closeStdin",
+          "command",
+          "conversationId",
+          "description",
+          "fileOutputThresholdBytes",
+          "hardTimeout",
+          "hasInputRedirect",
+          "hasOutputRedirect",
+          "isBackground",
+          "parsingResult",
+          "requestId",
+          "simpleCommands",
+          "skipApproval",
+          "timeout",
+          "timeoutBehavior",
+          "toolCallId",
+          "workingDirectory"
+        ],
+        "arg_command": "printf shell-ok > shell.txt"
+      },
+      {
+        "kind": "editToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-3\nfc_523a9694-603a-904d-9d80-1b39c39a246e_1",
+        "subtype": "completed",
+        "args_keys": [
+          "path",
+          "streamContent"
+        ],
+        "result_keys": [
+          "success"
+        ],
+        "result_success_keys": [
+          "afterFullFileContent",
+          "diffString",
+          "linesAdded",
+          "linesRemoved",
+          "message",
+          "path"
+        ],
+        "result_success_message": "Wrote contents to <CLONE>/hello.txt"
+      },
+      {
+        "kind": "shellToolCall",
+        "call_id": "call-edfb7f53-492e-43cc-9330-5ede0db23ecd-4\nfc_523a9694-603a-904d-9d80-1b39c39a246e_2",
+        "subtype": "completed",
+        "args_keys": [
+          "adminCommandDenylist",
+          "closeStdin",
+          "command",
+          "conversationId",
+          "description",
+          "fileOutputThresholdBytes",
+          "hardTimeout",
+          "hasInputRedirect",
+          "hasOutputRedirect",
+          "isBackground",
+          "parsingResult",
+          "requestId",
+          "simpleCommands",
+          "skipApproval",
+          "timeout",
+          "timeoutBehavior",
+          "toolCallId",
+          "workingDirectory"
+        ],
+        "arg_command": "printf shell-ok > shell.txt",
+        "result_keys": [
+          "isBackground",
+          "success"
+        ],
+        "result_success_keys": [
+          "command",
+          "executionTime",
+          "exitCode",
+          "interleavedOutput",
+          "localExecutionTimeMs",
+          "signal",
+          "stderr",
+          "stdout",
+          "workingDirectory"
+        ],
+        "result_success_exitCode": 0,
+        "result_success_stdout": "",
+        "result_success_stderr": ""
+      },
+      {
+        "kind": "mcpToolCall",
+        "call_id": "call-57604c09-3311-4228-a20f-6c1836fccc52-5\nfc_7d8fb3d1-79d7-922b-83f3-4ce0da751393_0",
+        "subtype": "started",
+        "args_keys": [
+          "args",
+          "name",
+          "providerIdentifier",
+          "serverIdentifier",
+          "skipApproval",
+          "smartModeApprovalOnly",
+          "toolCallId",
+          "toolName"
+        ],
+        "arg_name": "kaban-board-complete_stage",
+        "arg_toolName": "complete_stage",
+        "arg_providerIdentifier": "kaban-board"
+      },
+      {
+        "kind": "mcpToolCall",
+        "call_id": "call-57604c09-3311-4228-a20f-6c1836fccc52-5\nfc_7d8fb3d1-79d7-922b-83f3-4ce0da751393_0",
+        "subtype": "completed",
+        "args_keys": [
+          "args",
+          "name",
+          "providerIdentifier",
+          "serverIdentifier",
+          "skipApproval",
+          "smartModeApprovalOnly",
+          "toolCallId",
+          "toolName"
+        ],
+        "arg_name": "kaban-board-complete_stage",
+        "arg_toolName": "complete_stage",
+        "arg_providerIdentifier": "kaban-board",
+        "result_keys": [
+          "success"
+        ],
+        "result_success_keys": [
+          "content",
+          "isError"
+        ]
+      }
+    ]
+  },
+  "assistant_texts": [
+    "I'll start by reporting progress on the kaban-board, then create the files and complete the stage.",
+    "DONE"
+  ],
+  "errors": []
+}

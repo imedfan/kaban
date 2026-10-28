@@ -474,7 +474,11 @@ def tool_info(o):
     tc = o.get("tool_call")
     if not isinstance(tc, dict) or not tc:
         return None
-    kind = sorted(tc.keys())[0]
+    # Real CLI envelopes also carry timestamps, IDs and hook contexts alongside
+    # the payload. Alphabetical order can select completedAtMs instead of a tool.
+    payloads = [k for k, v in tc.items() if isinstance(v, dict)
+                and (k.endswith("ToolCall") or k == "function")]
+    kind = sorted(payloads or tc.keys())[0]
     body = tc.get(kind) if isinstance(tc.get(kind), dict) else {}
     info = {"kind": kind, "call_id": o.get("call_id"), "subtype": o.get("subtype")}
     args = body.get("args") if isinstance(body, dict) else None

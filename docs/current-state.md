@@ -200,6 +200,23 @@ BE-21 принята в main `f405a27` через [PR #118](https://github.com/i
 [Проверки и открытые системные критерии](development/backend-be-21-2026-10-09.md).
 До ручной приёмки installed XPC/reboot прежние ограничения BE-20 сохраняются.
 
+## BE-22: исследование живого CLI
+
+28 октября, ветка `codex/be-22-cursor-adapter` от `origin/main e5f6732`:
+CLI `2026.09.23-86fc751`, точный id согласованной модели —
+`cursor-grok-4.6-medium`. Бесплатно подтверждены status, каталог и mcp list
+напрямую и через временный LaunchAgent. Пустой HOME теряет вход;
+исследовательская ссылка на `Library/Keychains` возвращает его.
+Это не production-решение и не изоляция токена. Артём выполнил 2/2 платных
+старта: первый exit 0 с записью файлов и report_progress/complete_stage,
+второй --resume той же сессии остановлен по init (SIGTERM, без tool_call
+и MCP tools/call). Пришли usage tokens; стоимости нет.
+[Фикстуры, результаты и ограничения](../research/spike-1-2026-10-28/RESULTS.md).
+Снимки метаданных дали минимальные пути записи, включая автообновление CLI,
+managed/plugins/skills; fs_usage не прошёл контрольную пробу. Полнота файлового
+наблюдения, production HOME/Seatbelt и тесты production parser/classifier BE-25
+остаются открытыми. Полный MVP этим не принят.
+
 ## BE-23: окружение Cursor
 
 В `codex/be-23-daemon-environment`, source `f9fbae9`, поддержаны

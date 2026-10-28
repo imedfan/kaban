@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kaban-board": {
+      "url": "http://127.0.0.1:56296/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:KABAN_RUN_TOKEN}"
+      }
+    }
+  }
+}
