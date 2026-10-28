@@ -271,6 +271,8 @@ usage, thinking без ложной ошибки. Подключён реаль�
 Init/user/thinking без tools и файлов остаются silent exit. Additive migration v25
 сохраняет первый init, факт tools и ошибки независимо от log retention.
 
+Source `5929cfd`: 775 tests (0 failures/skips), App/helper build, native
+WindowGroup и daemon/CLI transport smoke, context checker — pass.
 [Проверки и границы BE-25](development/backend-be-25-2026-10-28.md).
 Живые лимиты и подмена не воспроизведены; соответствующие fixtures синтетические.
 Спайк BE-22 дал один kill до инструментов, но файловый observer не обеспечивает
