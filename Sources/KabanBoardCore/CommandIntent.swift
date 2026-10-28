@@ -16,7 +16,7 @@ public enum CommandScope: Codable, Hashable, Sendable {
 public extension Command {
     var mutationScope: CommandScope? {
         switch self {
-        case .getTaskDetail, .getRunHistory, .listBranches, .detectGates,
+        case .getTaskDetail, .getRunHistory, .listBranches, .listBranchesAtPath, .detectGates,
              .validatePipeline, .validatePipelineDraft, .getPipelineSource, .checkEnvironment,
              .getCursorEnvironment, .listModels, .listProjectMcpServers, .listIncidents:
             nil

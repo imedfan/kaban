@@ -7,6 +7,7 @@ public enum CommandName: String, Codable, Hashable, Sendable, CaseIterable {
     case removeProject
     case relinkProject
     case listBranches
+    case listBranchesAtPath
     case detectGates
     case setMascot
     case setProjectWeight
@@ -64,6 +65,7 @@ extension Command {
         case .removeProject: .removeProject
         case .relinkProject: .relinkProject
         case .listBranches: .listBranches
+        case .listBranchesAtPath: .listBranchesAtPath
         case .detectGates: .detectGates
         case .setMascot: .setMascot
         case .setProjectWeight: .setProjectWeight

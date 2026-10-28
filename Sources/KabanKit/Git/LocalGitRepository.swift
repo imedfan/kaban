@@ -14,16 +14,7 @@ public struct LocalGitRepository: Sendable {
     public var baseRef: String { "refs/heads/" + baseBranch }
 
     public init(path: String, baseBranch: String = "main") throws {
-        guard path.hasPrefix("/"), !path.contains("\0") else { throw Self.error("invalid_path", "Укажите абсолютный путь к репозиторию.") }
-        let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
-        var directory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: canonical, isDirectory: &directory), directory.boolValue else {
-            throw Self.error("project_missing", "Папка проекта не найдена.")
-        }
-        let root: String
-        do { root = try Self.run(["rev-parse", "--show-toplevel"], at: canonical).text }
-        catch { throw Self.error("not_git_repository", "Выберите рабочую папку Git-репозитория.") }
-        let rootPath = URL(fileURLWithPath: root).resolvingSymlinksInPath().standardizedFileURL.path
+        let rootPath = try Self.repositoryRoot(at: path)
         let reference = "refs/heads/" + baseBranch
         do {
             guard !baseBranch.contains("\0"), baseBranch.utf8.count <= 4096 else { throw Self.error("invalid_branch", "Некорректная ветка.") }
@@ -37,8 +28,24 @@ public struct LocalGitRepository: Sendable {
         let common = try Self.run(["rev-parse", "--path-format=absolute", "--git-common-dir"], at: rootPath).text
         self.repositoryID = URL(fileURLWithPath: common).resolvingSymlinksInPath().standardizedFileURL.path
     }
+    private static func repositoryRoot(at path: String) throws -> String {
+        guard path.hasPrefix("/"), !path.contains("\0") else { throw Self.error("invalid_path", "Укажите абсолютный путь к репозиторию.") }
+        let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: canonical, isDirectory: &directory), directory.boolValue else {
+            throw Self.error("project_missing", "Папка проекта не найдена.")
+        }
+        let root: String
+        do { root = try Self.run(["rev-parse", "--show-toplevel"], at: canonical).text }
+        catch { throw Self.error("not_git_repository", "Выберите рабочую папку Git-репозитория.") }
+        return URL(fileURLWithPath: root).resolvingSymlinksInPath().standardizedFileURL.path
+    }
+    public static func branches(at path: String) throws -> [String] {
+        let root = try repositoryRoot(at: path)
+        return try run(["for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/"], at: root).text.split(separator: "\n").map(String.init).sorted()
+    }
     public func baseCommit() throws -> String { try git(["rev-parse", "--verify", baseRef + "^{commit}"]).text }
-    public func branches() throws -> [String] { try git(["for-each-ref", "--format=%(refname:short)", "refs/heads/"]).text.split(separator: "\n").map(String.init).sorted() }
+    public func branches() throws -> [String] { try git(["for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/"]).text.split(separator: "\n").map(String.init).sorted() }
     public func pipeline() throws -> String? {
         let object = baseRef + ":.kaban/pipeline.yaml"
         let exists = try git(["cat-file", "-e", object], allowedFailure: true)

@@ -168,4 +168,8 @@ RoundTripTests, IncidentTests и SuspiciousFilesTests;
 выбранное `ProjectSummary.baseBranch`. Фикстура
 `Tests/KabanProtocolTests/Fixtures/base-branch.json` содержит request, response,
 journal и отказ `base_branch_missing` с `params.branch`. Старые command fixtures
-сохранены. FE-27 добавляет выбор ветки в форму; BE-31 меняет backend и контракт.
+сохранены. FE-27 добавляет выбор ветки в форму и отдельный query `listBranchesAtPath(path)`
+до регистрации проекта (capability с тем же именем). Старый
+`listBranches(projectId)` и его обязательный projectId сохранены; новый query
+возвращает `.branches([String])`, не меняет journal/state и не требует `main`.
+BE-31 добавила `addProject.baseBranch` и сохранение базы.

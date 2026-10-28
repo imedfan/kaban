@@ -183,6 +183,24 @@ final class ProjectLifecycleTests: XCTestCase {
         try FileManager.default.removeItem(at: f.repo.appendingPathComponent("Package.swift"))
         XCTAssertEqual(try send(.detectGates(projectId: p.id), f.store).result, .gates(["swift build", "swift test"]))
     }
+    func testPreRegistrationBranchesAreFreshAndNeedNoMainOrProject() throws {
+        let f = try fixture()
+        _ = try git(f.repo, ["branch", "-m", "master"])
+        _ = try git(f.repo, ["tag", "master"])
+        _ = try git(f.repo, ["update-ref", "refs/remotes/origin/remote-only", "HEAD"])
+        let before = try f.store.getSnapshot()
+        let envelope = CommandEnvelope(command: .listBranchesAtPath(path: f.repo.path))
+        XCTAssertEqual(try f.store.execute(envelope).result, .branches(["master"]))
+        let commit = text(try git(f.repo, ["rev-parse", "refs/heads/master^{commit}"]))
+        _ = try git(f.repo, ["branch", "feature/local", commit])
+        XCTAssertEqual(try f.store.execute(envelope).result, .branches(["feature/local", "master"]))
+        XCTAssertEqual(try f.store.getSnapshot(), before)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban"))
+        XCTAssertEqual(try refusal(send(.listBranchesAtPath(path: f.root.path), f.store)).code, "not_git_repository")
+        XCTAssertEqual(try refusal(send(.listBranchesAtPath(path: "relative"), f.store)).code, "invalid_path")
+        let data = try JSONEncoder().encode(envelope)
+        XCTAssertEqual(try JSONDecoder().decode(CommandEnvelope.self, from: data), envelope)
+    }
     func testMissingObserverRelinkPreservesIdTasksHistoryAndDoesNotSpam() throws {
         let f = try fixture(), p = try add(f)
         try create(f.store, project: p.id)

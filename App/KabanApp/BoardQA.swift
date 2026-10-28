@@ -257,7 +257,70 @@ import Darwin
         }
         return ["real WindowGroup uses the bundled stdio daemon", "create, edit, pause, resume and cancel complete through correlated journal events", "command envelope and receipt metadata are retained; lost create reply does not duplicate the task", "capabilities, readLog and tailLog use the same daemon session", "task body remains durable; no paid agent is launched"]
     }
+    private static func baseBranchSmoke(_ initial: BoardStore) async throws -> [String] {
+        guard !initial.usesFixture, let path = AppArguments.value("--project-smoke-repository"),
+              path.hasPrefix("/tmp/kaban-fe27-"), AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe27-") == true,
+              let runtime, let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private FE-27 fixture missing") }
+        var store = initial
+        let mode = AppArguments.value("--qa-base-mode") ?? "flow"
+        func capture(_ name: String) async throws {
+            guard let output = AppArguments.value("--export-live-window") else { return }
+            try await captureWindow()
+            let destination = output + "." + name + ".png"
+            try? FileManager.default.removeItem(atPath: destination)
+            try FileManager.default.copyItem(atPath: output, toPath: destination)
+        }
+        store.beginProjectFlow(.add)
+        try await waitUntil("actual base branch sheet") { window.attachedSheet != nil }
+        store.projects.editPath(path); await store.projects.refreshBranches()
+        try await waitUntil("base branch query completes") { !store.projects.isReadingBranches }
+        if mode == "empty" || mode == "non-git" {
+            guard !store.projects.canSubmit, mode == "empty" ? store.projects.branches == [] : store.projects.branchesError != nil else { throw failure("Empty/non-git repository permits registration") }
+            try await capture(mode); return ["actual WindowGroup; empty/non-git path prevents registration and displays server result"]
+        }
+        guard store.projects.branches?.contains("master") == true, store.projects.draft.baseBranch == nil,
+              !store.projects.canSubmit else { throw failure("Repository without main did not require explicit choice") }
+        if let long = store.projects.branches?.first(where: { $0.count > 40 }) {
+            store.projects.selectBaseBranch(long); try await capture("long-branch")
+        }
+        store.projects.selectBaseBranch("master")
+        try await capture("selection")
+        store.projectSheet = nil
+        try await waitUntil("closed base branch draft") { window.attachedSheet == nil }
+        store.beginProjectFlow(.add)
+        try await waitUntil("reopened base branch draft") { window.attachedSheet != nil }
+        await store.projects.refreshBranches()
+        guard store.projects.draft.baseBranch == "master" else { throw failure("Reopen lost chosen base") }
+        store.projects.selectBaseBranch("vanished")
+        // The ref was listed when selected; remove it before the command reaches the daemon.
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["-C", path, "branch", "-D", "vanished"]
+        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+        try process.run(); process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw failure("Failed to prepare missing branch race") }
+        _ = await store.projects.submit()
+        try await waitUntil("base_branch_missing inline refusal") { store.projects.baseBranchError != nil && store.canSend }
+        guard store.projects.baseBranchError == "Локальной ветки «vanished» нет в этом репозитории",
+              store.projects.draft.path == path, store.projects.draft.createTemplate else { throw failure("Missing branch refusal lost input") }
+        try await capture("refusal")
+        store.projects.selectBaseBranch("master")
+        _ = await store.projects.submit()
+        try await waitUntil("correlated master project") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projects.connectedProjectID != nil && store.canSend }
+        let id = store.projects.connectedProjectID!
+        guard store.projection?.projects[id]?.baseBranch == "master",
+              store.projects.record?.envelope.command == .addProject(path: path, createTemplate: true, baseBranch: "master") else { throw failure("Master was not sent/applied") }
+        store.projectSheet = nil
+        try await waitUntil("closed registration sheet") { window.attachedSheet == nil }
+        await runtime.retry()
+        try await waitUntil("reopened base project") { runtime.store !== store && runtime.store?.canSend == true }
+        guard let reopened = runtime.store, reopened.projection?.projects[id]?.baseBranch == "master" else { throw failure("Master lost on daemon restart") }
+        store = reopened; store.selectedProjectID = id; store.screen = .project(id)
+        try await capture("settings")
+        return ["actual native sheet in WindowGroup; master explicitly chosen without main", "draft retains selection on reopen", "real missing branch race shows params.branch inline and retains path/template", "correlated projectAdded or covered receipt applies master", "template committed on master; daemon restart retains base; project settings show read-only branch"]
+    }
     private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
+        if AppArguments.value("--project-smoke-base-branch") != nil { return try await baseBranchSmoke(initial) }
         if let metadata = AppArguments.value("--project-smoke-reopen") {
             return try await reopenedProjectSmoke(initial, metadata: metadata)
         }
@@ -269,10 +332,10 @@ import Darwin
         initial.projects.setCreateTemplate(false)
         var enteredIdentity: GitIdentity?
         if let nonGit = AppArguments.value("--project-smoke-non-git") {
-            initial.projects.editPath(nonGit); _ = await initial.projects.submit()
-            try await waitUntil("real non-git refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "not_git_repository" && initial.canSend }; return false }
+            initial.projects.editPath(nonGit); await initial.projects.refreshBranches()
+            guard initial.projects.branchesError != nil, !initial.projects.canSubmit else { throw failure("Non-git branch read should prevent registration") }
             guard initial.projection?.projects.count == before, initial.projects.draft.path == nonGit, !initial.projects.draft.createTemplate else { throw failure("Non-git refusal lost input or registered a lane") }
-            initial.projects.editPath(repository); _ = await initial.projects.submit()
+            initial.projects.editPath(repository); await initial.projects.refreshBranches(); _ = await initial.projects.submit()
             try await waitUntil("real git identity refusal") { if case .rejected(let error) = initial.projects.phase { return error.code == "identity_required" && initial.canSend }; return false }
             guard initial.projection?.projects.count == before, initial.projects.draft.identity.focus == .name,
                   initial.projects.draft.identity.name.caption != nil, !initial.projects.draft.identity.name.highlighted else { throw failure("First invalid identity rendering does not follow server params") }
@@ -291,12 +354,13 @@ import Darwin
             guard initial.projects.draft.path == "preserved draft" else { throw failure("Cancelled folder picker changed draft") }
             initial.projects.editPath(repository)
         } else { initial.projects.editPath(repository) }
+        await initial.projects.refreshBranches()
         _ = await initial.projects.submit()
         try await waitUntil("correlated project registration") { initial.projects.observeOutcome(); return initial.projects.phase == .applied && initial.projects.connectedProjectID != nil && initial.canSend }
         let id = initial.projects.connectedProjectID!
         guard initial.projection?.projects.count == before + 1,
               let record = initial.projects.record, record.confirmedSeq != nil,
-              record.envelope.command == .addProject(path: repository, createTemplate: false, identity: enteredIdentity),
+              record.envelope.command == .addProject(path: repository, createTemplate: false, identity: enteredIdentity, baseBranch: "main"),
               initial.projection?.projects[id]?.path == URL(fileURLWithPath: repository).standardizedFileURL.path else { throw failure("Project registration proof missing: \(String(describing: initial.projects.record))") }
         // A catch-up replacement can cover committed projectAdded before its
         // individual delivery. The original receipt plus that authoritative

@@ -70,7 +70,7 @@ public struct DaemonService: Sendable {
     private static func support(_ command: CommandName) -> CommandSupport {
         switch command {
         case .pauseAll, .resumeAll, .setMaxConcurrentRuns, .setQuotaOptions,
-             .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .recheck,
+             .addProject, .removeProject, .relinkProject, .listBranches, .listBranchesAtPath, .detectGates, .recheck,
              .createTask, .editTask, .setPriority, .cancelTask, .getTaskDetail, .getRunHistory,
              .pauseProject, .resumeProject, .setMascot, .setProjectWeight, .setProjectIdentity,
              .validatePipeline, .validatePipelineDraft, .getPipelineSource, .updatePipeline,

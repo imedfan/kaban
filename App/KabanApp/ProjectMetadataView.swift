@@ -12,7 +12,7 @@ struct ProjectMetadataView: View {
             Text("Проект · на этом Маке").font(.system(size: 13, weight: .semibold))
             Text("Локальная база службы Kaban. Сохраняется сразу, без commit .kaban/.").font(.system(size: 11)).foregroundStyle(theme.secondary)
             if let project = settings.project {
-                row("Основная ветка", project.baseBranch)
+                row("Базовая ветка", project.baseBranch)
                 row("Вес проекта", String(project.weight))
                 row("Процессов одновременно", project.maxRuns.map(String.init) ?? "Без личного лимита")
                 row("Автор коммитов", project.identity.map { "\($0.name) <\($0.email)>" } ?? "—")

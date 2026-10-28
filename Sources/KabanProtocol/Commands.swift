@@ -14,6 +14,8 @@ public enum Command: Codable, Hashable, Sendable {
     case removeProject(projectId: ProjectID)
     case relinkProject(projectId: ProjectID, path: String)
     case listBranches(projectId: ProjectID)
+    /// Read local branches before a project is registered. Capability-gated separately.
+    case listBranchesAtPath(path: String)
     case detectGates(projectId: ProjectID)
     case setMascot(projectId: ProjectID, seed: String)
     case setProjectWeight(projectId: ProjectID, weight: Int, maxRuns: Int?)

@@ -18,7 +18,7 @@ extension KabanStore {
     }
     static func isProjectOperation(_ command: Command) -> Bool {
         switch command {
-        case .addProject, .removeProject, .relinkProject, .listBranches, .detectGates, .recheck(.project): true
+        case .addProject, .removeProject, .relinkProject, .listBranches, .listBranchesAtPath, .detectGates, .recheck(.project): true
         default: false
         }
     }
@@ -40,6 +40,8 @@ extension KabanStore {
         }
         do {
             switch envelope.command {
+            case .listBranchesAtPath(let path):
+                return .init(commandId: envelope.commandId, seq: nil, result: .branches(try LocalGitRepository.branches(at: path)))
             case .listBranches(let id), .detectGates(let id):
                 let record = try database.read { db in try Self.project(id, db: db) }
                 let repository = try LocalGitRepository(path: record.summary.path, baseBranch: record.summary.baseBranch)
@@ -156,12 +158,14 @@ extension KabanStore {
             if try database.read({ db in try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM project_operation WHERE id = ?)", arguments: [envelope.commandId.uuidString]) }) == true { throw error }
             let reply = CommandReply(commandId: envelope.commandId, seq: nil, result: .error(error))
             if case .listBranches = envelope.command { return reply }
+            if case .listBranchesAtPath = envelope.command { return reply }
             if case .detectGates = envelope.command { return reply }
             return try database.write { db in try Self.saveProjectReply(reply, request: request, db: db); return reply }
         } catch let error as StoreError {
             if try database.read({ db in try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM project_operation WHERE id = ?)", arguments: [envelope.commandId.uuidString]) }) == true { throw error }
             let reply = Self.failure(error, commandId: envelope.commandId)
             if case .listBranches = envelope.command { return reply }
+            if case .listBranchesAtPath = envelope.command { return reply }
             if case .detectGates = envelope.command { return reply }
             return try database.write { db in try Self.saveProjectReply(reply, request: request, db: db); return reply }
         }
