@@ -219,7 +219,7 @@ extension KabanStore {
     }
 
     static func probeOutcome(stdout: String, stderr: String, code: Int32?, model: ModelID, pool: ModelPool, catalog: [ModelInfo]) -> ProbeOutcome? {
-        switch CursorLimitClassifier.classify(stdout + "\n" + stderr, pool: pool) {
+        switch CursorLimitClassifier.classify(CursorLimitClassifier.failureText(stdout: stdout, stderr: stderr), pool: pool) {
         case .rateLimit: return .rateLimit
         case .usageExhausted(let pool): return .usageExhausted(pool)
         case .modelUnavailable: return .modelUnavailable

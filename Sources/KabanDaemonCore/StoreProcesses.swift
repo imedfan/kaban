@@ -119,13 +119,21 @@ extension KabanStore {
         for var record in try allProcessRecords() where record.state == "running" {
             let run = RunID(rawValue: record.runId)
             let task = TaskID(rawValue: record.taskId)
-            try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: false)
+            try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: false, at: at)
+            // Init ingestion commits the mismatch and kill outbox before any exit classification.
+            try acknowledgeStops(owner: "stream-observer", at: at)
+            if let latest = try processRecord(run) { record = latest }
+            if record.state != "running" { continue }
             if let code = ProcessGroup.poll(record.pid) {
-                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
-                try classify(&record, code: code, at: at)
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                try acknowledgeStops(owner: "stream-observer", at: at)
+                if let latest = try processRecord(run) { record = latest }
+                if record.state == "running" { try classify(&record, code: code, at: at) }
             } else if !ProcessGroup.isAlive(record.pid) {
-                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
-                guard record.exitClass == nil else { continue }
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                try acknowledgeStops(owner: "stream-observer", at: at)
+                if let latest = try processRecord(run) { record = latest }
+                guard record.state == "running", record.exitClass == nil else { continue }
                 record.state = "exited"
                 record.exitClass = "unobserved"
                 record.passLines.append("process exit \(record.runId) unobserved")
@@ -140,7 +148,10 @@ extension KabanStore {
                 if let kind = ProcessDeadlines(stall: record.stallDeadline, wall: record.wallDeadline).due(at: at) {
                     let birth = ProcessGroup.ProcessBirth(seconds: record.birthSeconds, microseconds: record.birthMicroseconds)
                     try ProcessGroup.stop(pid: record.pid, processGroup: record.processGroup, birth: birth)
-                    try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
+                    try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                    try acknowledgeStops(owner: "stream-observer", at: at)
+                    if let latest = try processRecord(run) { record = latest }
+                    guard record.state == "running" else { continue }
                     record.state = "stopped"
                     record.exitClass = kind == .wall ? "wall" : "stall"
                     record.passLines.append("process timeout \(record.runId) \(kind == .wall ? "wall" : "stall")")
@@ -156,7 +167,7 @@ extension KabanStore {
     private static func outputExcerpt(_ path: String) -> String {
         guard let handle = FileHandle(forReadingAtPath: path) else { return "" }
         defer { try? handle.close() }
-        return String(decoding: handle.readData(ofLength: 4_000), as: UTF8.self)
+        return String(decoding: handle.readData(ofLength: 65_536), as: UTF8.self)
     }
 
     private static func limitExitClass(_ kind: CursorLimitClass) -> String {
@@ -174,12 +185,18 @@ extension KabanStore {
         let taskId = TaskID(rawValue: record.taskId)
         let task = try database.read { db in try Self.task(taskId, db: db) }
         let active = task.machine.state == .running && task.machine.currentRunId?.rawValue == record.runId
-        let activity = fileSize(record.stdoutPath) + fileSize(record.stderrPath) > 0
+        let stream = try database.read { db in
+            try Row.fetchOne(db, sql: "SELECT tool_seen, failures FROM run_stream WHERE run_id = ?", arguments: [record.runId])
+        }
+        let stdout = Self.outputExcerpt(record.stdoutPath)
+        let stderr = Self.outputExcerpt(record.stderrPath)
+        // Legacy diagnostic runners may write plain text; structured Cursor chatter is not a tool call.
+        let plainActivity = stdout.split(separator: "\n").contains { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("{") }
+        let activity = (stream?["tool_seen"] as Bool? ?? false) || plainActivity
         let changed = try filesChanged(taskId)
         if active {
-            let excerpt = Self.outputExcerpt(record.stdoutPath) + "\n" + Self.outputExcerpt(record.stderrPath)
-            if let preview = CursorLimitClassifier.classify(excerpt, pool: nil), preview != .unknown,
-               let kind = try observeAgentFailure(taskId: taskId, runId: RunID(rawValue: record.runId), text: excerpt, commandId: UUID(), at: at),
+            let excerpt = (stream?["failures"] as String? ?? "") + "\n" + CursorLimitClassifier.failureText(stdout: stdout, stderr: stderr)
+            if let kind = try observeAgentFailure(taskId: taskId, runId: RunID(rawValue: record.runId), text: excerpt, commandId: UUID(), at: at),
                kind != .unknown {
                 record.state = "exited"
                 record.exitCode = code
@@ -220,7 +237,7 @@ extension KabanStore {
         }
     }
 
-    private func acknowledgeStops(owner: String, at: Date) throws {
+    func acknowledgeStops(owner: String, at: Date) throws {
         for item in try pendingEffectItems() {
             guard case .killRun(let runId) = item.effect else { continue }
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }
