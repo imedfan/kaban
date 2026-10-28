@@ -156,3 +156,15 @@ argv/cwd, stdin/streams/exit code настоящего executable, отказ п
 неверный JSON/HTTP, redirect, таймаут, отсутствующие env и недоступный демон.
 Cursor и системный LaunchAgent не запускаются. Можно передать shim из
 `.build/debug/` или `Kaban.app/Contents/MacOS/`; обе формы проверяет CI.
+
+### Настройка Cursor (FE-23)
+
+`python3 tools/check-cursor-setup.py --app <Debug Kaban.app>` запускает 11
+сценариев настоящего WindowGroup с private stdio daemon и синтетическим CLI.
+Проверяет missing/not-runnable/logged-out, inline refusal, configure + точное
+событие в SQLite, login recovery через recheck, persisted path после restart,
+offline draft и настоящий model picker. Светлая/тёмная темы, длинный путь,
+content viewport 1040×608 и обычный размер сохраняются в `/tmp/kaban-fe23-*`
+вместе с JSON/logs. Все вызовы CLI ограничены version/status/list-models.
+Регистрацию helper, системные permissions и установленный XPC этот smoke
+не выполняет. [Границы FE-23](../docs/development/frontend-fe-23-2026-10-28.md).
