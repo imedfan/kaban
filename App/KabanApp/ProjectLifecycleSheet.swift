@@ -42,7 +42,7 @@ struct ProjectLifecycleSheet: View {
             Divider().overlay(theme.line)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if let error = model.formError { refusal(error) }
+                    if let error = model.formError, model.baseBranchError == nil { refusal(error) }
                     if model.phase == .applied { result }
                     else if removing { removalExplanation }
                     else { folderForm }
@@ -78,13 +78,16 @@ struct ProjectLifecycleSheet: View {
             .onChange(of: store.connectionState) { _, state in
                 if state == .connected, model.phase == .applied { Task { await model.refreshDiagnostics() } }
             }
+            .task(id: model.draft.path + String(describing: model.session.sessionGeneration) + String(store.canSend) + route.id) {
+                await model.refreshBranches()
+            }
     }
     private var formHeight: CGFloat {
         if removing { return 220 }
         if model.phase == .applied { return 410 }
-        if model.draft.showsIdentity { return 390 }
-        if model.formError != nil || model.isPending { return 340 }
-        return 270
+        if model.draft.showsIdentity { return 490 }
+        if model.formError != nil || model.isPending { return 440 }
+        return route.operation == .add ? 390 : 270
     }
     private var folderForm: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -99,6 +102,7 @@ struct ProjectLifecycleSheet: View {
                 }
             }
             if route.operation == .add {
+                branchField
                 row("Шаблон") {
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle("Создать шаблон .kaban/ и закоммитить", isOn: Binding(get: { model.draft.createTemplate }, set: { model.setCreateTemplate($0) }))
@@ -125,6 +129,33 @@ struct ProjectLifecycleSheet: View {
                 note(store.unavailableReason(route.operation == .add ? .addProject : .relinkProject))
             }
         }.disabled(model.isPending)
+    }
+    private var branchField: some View {
+        row("База") {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Picker("Базовая ветка", selection: Binding(get: { model.draft.baseBranch ?? "" }, set: { model.selectBaseBranch($0) })) {
+                        Text("Выберите ветку").tag("")
+                        if let selected = model.draft.baseBranch, model.branches?.contains(selected) != true {
+                            Text(selected + " · недоступна").tag(selected)
+                        }
+                        ForEach(model.branches ?? [], id: \.self) { Text($0).tag($0) }
+                    }.labelsHidden().accessibilityLabel("Базовая ветка").accessibilityIdentifier("project-base-branch")
+                    Image(systemName: "info.circle")
+                        .help("От этой ветки создаются ветки задач, в неё же вливается результат")
+                        .accessibilityLabel("От этой ветки создаются ветки задач, в неё же вливается результат")
+                    Button { Task { await model.refreshBranches() } } label: { Image(systemName: "arrow.clockwise") }
+                        .help("Обновить локальные ветки").disabled(model.isReadingBranches || !store.canSend)
+                }.disabled(model.isPending)
+                if model.isReadingBranches { note("Читаем локальные ветки…") }
+                if let error = model.baseBranchError { refusal(error) }
+                if let error = model.branchesError { refusal(error) }
+                else if model.branches?.isEmpty == true { note("Локальных веток нет. Создайте ветку и первый коммит в репозитории, затем обновите список.") }
+                else if let selected = model.draft.baseBranch, let branches = model.branches, !branches.contains(selected) {
+                    note("Выбранная ветка недоступна. Выберите локальную ветку из списка.")
+                }
+            }
+        }
     }
     private func identityField(_ fieldID: IdentityField, title: String, field: IdentityFieldDraft) -> some View {
         row(title) {

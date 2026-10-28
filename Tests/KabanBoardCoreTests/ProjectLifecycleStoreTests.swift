@@ -3,6 +3,75 @@ import KabanProtocol
 @testable import KabanBoardCore
 
 final class ProjectLifecycleStoreTests: XCTestCase {
+    @MainActor func testMasterChoiceSurvivesIdentityRefusalAndReopen() async throws {
+        let client = ProjectClient(), storage = MemoryKeyValueStore(), session = BoardSession(client: client, storage: storage, key: "commands")
+        client.branchNames = ["master", "release/very-long-local-base-branch-name"]
+        let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
+        let model = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
+        model.open(.add); model.editPath("/repository"); await model.refreshBranches()
+        XCTAssertNil(model.draft.baseBranch); XCTAssertFalse(model.canSubmit)
+        model.selectBaseBranch("master"); XCTAssertTrue(model.canSubmit)
+        client.result = .error(.init(code: "identity_required", message: IdentityDraft.generalText))
+        _ = await model.submit()
+        XCTAssertEqual(client.mutations.last?.command, .addProject(path: "/repository", createTemplate: true, baseBranch: "master"))
+        XCTAssertTrue(model.draft.showsIdentity)
+        model.editIdentity(.name, value: "Author"); model.editIdentity(.email, value: "author@example.test")
+        let reopened = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
+        reopened.open(.add); await reopened.refreshBranches()
+        XCTAssertEqual(reopened.draft.baseBranch, "master"); XCTAssertEqual(reopened.draft.identity.name.value, "Author")
+        client.result = .error(.init(code: "base_branch_missing", message: "English fallback", params: ["branch": "master"]))
+        _ = await reopened.submit()
+        XCTAssertEqual(reopened.baseBranchError, "Локальной ветки «master» нет в этом репозитории")
+        XCTAssertEqual(reopened.draft.path, "/repository"); XCTAssertEqual(reopened.draft.identity.email.value, "author@example.test")
+        client.branchNames = ["main", "master"]; await reopened.refreshBranches()
+        XCTAssertEqual(reopened.draft.baseBranch, "master", "Refresh never changes an explicit choice")
+        reopened.selectBaseBranch("main"); XCTAssertNil(reopened.baseBranchError)
+    }
+    @MainActor func testBranchReadsDiscardPreviousPathAndDoNotInventMain() async throws {
+        let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
+        let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
+        let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
+        model.open(.add); model.editPath("/old"); client.holdBranches = true
+        let old = Task { await model.refreshBranches() }; try await wait { client.held != nil }
+        let continuation = try XCTUnwrap(client.held), id = try XCTUnwrap(client.heldID)
+        model.editPath("/new"); client.holdBranches = false; client.branchNames = ["master"]
+        await model.refreshBranches(); model.selectBaseBranch("master")
+        continuation.resume(returning: .init(commandId: id, seq: nil, result: .branches(["main"])))
+        await old.value
+        XCTAssertEqual(model.branches, ["master"]); XCTAssertEqual(model.draft.baseBranch, "master"); XCTAssertTrue(model.canSubmit)
+        model.editPath("/empty"); client.branchNames = []; await model.refreshBranches()
+        XCTAssertEqual(model.branches, []); XCTAssertNil(model.draft.baseBranch); XCTAssertFalse(model.canSubmit)
+        model.editPath("/default"); client.branchNames = ["feature", "main"]; await model.refreshBranches()
+        XCTAssertEqual(model.draft.baseBranch, "main"); XCTAssertTrue(model.canSubmit)
+        client.badCorrelation = true; await model.refreshBranches()
+        XCTAssertFalse(model.canSubmit); XCTAssertNotNil(model.branchesError)
+    }
+    @MainActor func testOldDaemonCannotRegisterWithAnInventedBase() async throws {
+        let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
+        client.supportsPathBranches = false
+        let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
+        let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
+        model.open(.add); model.editPath("/repository"); await model.refreshBranches()
+        XCTAssertEqual(model.branchesError, "Обновите службу Kaban: выбор ветки до добавления проекта не поддерживается.")
+        XCTAssertFalse(model.canSubmit); XCTAssertNil(model.draft.baseBranch)
+    }
+    @MainActor func testOldDraftDecodesAndPendingMasterRestoresExactSelection() async throws {
+        let client = ProjectClient(), storage = MemoryKeyValueStore(), session = BoardSession(client: client, storage: storage, key: "commands")
+        // Encode the actual old shape by removing only the newly added field.
+        var legacy = ProjectFormDraft(); legacy.path = "/repository"; legacy.baseBranch = "master"
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy)) as? [String: Any])
+        json.removeValue(forKey: "baseBranch"); storage.set(try JSONSerialization.data(withJSONObject: json), forKey: "drafts.add")
+        let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
+        let model = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
+        model.open(.add); XCTAssertNil(model.formError); XCTAssertEqual(model.draft.path, "/repository")
+        client.branchNames = ["master"]; await model.refreshBranches(); model.selectBaseBranch("master")
+        _ = await model.submit(); try await wait { session.canSend }
+        let envelope = try XCTUnwrap(client.mutations.first)
+        let reopened = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
+        reopened.open(.add); reopened.selectBaseBranch("main")
+        XCTAssertEqual(reopened.draft.baseBranch, "master"); XCTAssertEqual(reopened.record?.envelope, envelope)
+        XCTAssertEqual(reopened.phase, .awaitingEvent); XCTAssertFalse(reopened.canSubmit)
+    }
     @MainActor private func wait(_ condition: () -> Bool) async throws {
         let limit = Date().addingTimeInterval(3)
         while !condition() { if Date() > limit { XCTFail("Timed out"); throw CancellationError() }; try await Task.sleep(for: .milliseconds(5)) }
@@ -11,18 +80,18 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let client = ProjectClient(), storage = MemoryKeyValueStore(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
-        model.open(.add); model.editPath("/chosen/repository"); model.setCreateTemplate(false)
+        model.open(.add); model.editPath("/chosen/repository"); await model.refreshBranches(); model.setCreateTemplate(false)
         client.result = .error(.init(code: "identity_required", message: IdentityDraft.generalText, params: ["missing": "email", "name": "Repo Author"]))
         let first = await model.submit(); XCTAssertFalse(first)
-        XCTAssertEqual(client.mutations.last?.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: nil))
+        XCTAssertEqual(client.mutations.last?.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: nil, baseBranch: "main"))
         XCTAssertTrue(model.draft.showsIdentity); XCTAssertEqual(model.draft.identity.name.value, "Repo Author")
         XCTAssertTrue(model.draft.identity.name.fromGitSettings); XCTAssertFalse(model.draft.identity.email.highlighted)
         XCTAssertEqual(model.draft.identity.focus, .email); XCTAssertEqual(session.projection?.projects.count, 0)
         model.editIdentity(.name, value: " My Author "); model.editIdentity(.email, value: " ")
-        model.open(.add); XCTAssertEqual(model.draft.identity.name.value, " My Author "); XCTAssertEqual(model.draft.identity.email.value, " ")
+        model.open(.add); await model.refreshBranches(); XCTAssertEqual(model.draft.identity.name.value, " My Author "); XCTAssertEqual(model.draft.identity.email.value, " ")
         client.result = .error(.init(code: "identity_required", message: IdentityDraft.generalText, params: ["missing": "email"]))
         let second = await model.submit(); XCTAssertFalse(second)
-        XCTAssertEqual(client.mutations.last?.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: .init(name: " My Author ", email: " ")))
+        XCTAssertEqual(client.mutations.last?.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: .init(name: " My Author ", email: " "), baseBranch: "main"))
         XCTAssertTrue(model.draft.identity.email.highlighted); XCTAssertEqual(model.draft.identity.email.caption, "Укажите почту")
         let reopened = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
         reopened.open(.add); XCTAssertEqual(reopened.draft.path, "/chosen/repository"); XCTAssertFalse(reopened.draft.createTemplate)
@@ -33,7 +102,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let client = ProjectClient(), storage = MemoryKeyValueStore(), session = BoardSession(client: client, storage: storage, key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
-        model.open(.add); model.editPath("/chosen/repository"); model.setCreateTemplate(false)
+        model.open(.add); model.editPath("/chosen/repository"); await model.refreshBranches(); model.setCreateTemplate(false)
         let sent = await model.submit(); XCTAssertTrue(sent); try await wait { session.canSend }
         XCTAssertEqual(model.phase, .awaitingEvent); XCTAssertFalse(model.canSubmit); XCTAssertNil(model.connectedProjectID)
         XCTAssertEqual(session.projection?.projects.count, 0)
@@ -52,7 +121,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
-        model.open(.add); model.editPath("/chosen/repository"); model.setCreateTemplate(false)
+        model.open(.add); model.editPath("/chosen/repository"); await model.refreshBranches(); model.setCreateTemplate(false)
         var project = Fix.project(); project.path = "/chosen/repository"
         // The committed event is already covered by a replacement. No individual
         // projectAdded is delivered; the original nonzero receipt must be kept.
@@ -65,7 +134,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         XCTAssertNil(model.record?.createdProjectID)
         XCTAssertEqual(model.record?.coveredSnapshotSeq, 4)
         XCTAssertEqual(model.record?.reply?.seq, 4)
-        XCTAssertEqual(model.record?.envelope.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: nil))
+        XCTAssertEqual(model.record?.envelope.command, .addProject(path: "/chosen/repository", createTemplate: false, identity: nil, baseBranch: "main"))
         XCTAssertEqual(Set(client.mutations.map(\.commandId)).count, 1)
         XCTAssertEqual(session.visibleIDs, [project.id]); XCTAssertFalse(model.canSubmit)
     }
@@ -73,7 +142,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
-        model.open(.add); model.editPath("/chosen/repository")
+        model.open(.add); model.editPath("/chosen/repository"); await model.refreshBranches()
         var held: CheckedContinuation<CommandReply, Error>?
         client.mutationHandler = { _ in try await withCheckedThrowingContinuation { held = $0 } }
         let submission = Task { await model.submit() }; try await wait { held != nil }
@@ -88,7 +157,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
-        model.open(.add); model.editPath("/not-git")
+        model.open(.add); model.editPath("/not-git"); await model.refreshBranches()
         client.result = .error(.init(code: "not_git_repository", message: "Не git-репозиторий")); _ = await model.submit()
         XCTAssertEqual(model.draft.path, "/not-git"); XCTAssertEqual(session.visibleIDs, []); XCTAssertFalse(model.draft.showsIdentity)
         client.result = .error(.init(code: "identity_required", message: IdentityDraft.generalText)); _ = await model.submit()
@@ -134,22 +203,24 @@ final class ProjectLifecycleStoreTests: XCTestCase {
     var mutationSeq: Seq? = 0
     var mutations: [CommandEnvelope] = []
     var mutationHandler: ((CommandEnvelope) async throws -> CommandReply)?
+    var branchNames = ["main", "feature"]
+    var supportsPathBranches = true
     var badCorrelation = false, holdBranches = false
     var held: CheckedContinuation<CommandReply, Error>?
     var heldID: CommandID?
     func getSnapshot() async throws -> Snapshot { snapshot }
     func synchronize() async throws -> SnapshotReplacement { .init(snapshot: snapshot, cursor: cursor, current: []) }
     func capabilities() async throws -> DaemonCapabilities {
-        .init(operations: [.init(name: "synchronize", supported: true)], commands: [CommandName.addProject, .removeProject, .relinkProject, .listBranches, .detectGates].map { .init(name: $0.rawValue, support: .supported) })
+        .init(operations: [.init(name: "synchronize", supported: true)], commands: [CommandName.addProject, .listBranchesAtPath, .removeProject, .relinkProject, .listBranches, .detectGates].filter { supportsPathBranches || $0 != .listBranchesAtPath }.map { .init(name: $0.rawValue, support: .supported) })
     }
     func updates() -> AsyncThrowingStream<KabanClientUpdate, Error> { AsyncThrowingStream { $0.yield(.connection(.connected)) } }
     func events() -> AsyncStream<EventEnvelope> { AsyncStream { $0.finish() } }
     func send(_ envelope: CommandEnvelope) async throws -> CommandReply {
         let value: CommandResult
         switch envelope.command {
-        case .listBranches:
+        case .listBranches, .listBranchesAtPath:
             if holdBranches { heldID = envelope.commandId; return try await withCheckedThrowingContinuation { held = $0 } }
-            value = .branches(["main", "feature"])
+            value = .branches(branchNames)
         case .detectGates: value = .gates(["swift build"])
         default:
             mutations.append(envelope)

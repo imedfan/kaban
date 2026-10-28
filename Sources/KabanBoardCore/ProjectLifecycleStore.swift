@@ -12,6 +12,7 @@ public enum ProjectOperation: Equatable, Sendable {
 public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public var path = ""
     public var createTemplate = true
+    public var baseBranch: String?
     public var identity = IdentityDraft()
     public var showsIdentity = false
     public var commandID: CommandID?
@@ -37,6 +38,9 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public private(set) var gatesError: String?
     public private(set) var environmentError: String?
     public private(set) var isReading = false
+    public private(set) var isReadingBranches = false
+    private var branchReadID = UUID()
+    private var branchSessionGeneration: UUID?
     private var refreshAgain = false
     private var diagnosticsGeneration: UUID?
     private var handledOutcome: CommandID?
@@ -54,26 +58,38 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public var diagnosticsStale: Bool { !session.canSend || diagnosticsGeneration != session.sessionGeneration || branchesError != nil || gatesError != nil || environmentError != nil }
     private var command: Command {
         switch operation {
-        case .add: .addProject(path: draft.path, createTemplate: draft.createTemplate, identity: draft.showsIdentity ? draft.identity.enteredIdentity : nil)
+        case .add: .addProject(path: draft.path, createTemplate: draft.createTemplate, identity: draft.showsIdentity ? draft.identity.enteredIdentity : nil, baseBranch: draft.baseBranch)
         case .relink(let id): .relinkProject(projectId: id, path: draft.path)
         case .remove(let id): .removeProject(projectId: id)
         }
     }
     private var hasRequiredPath: Bool { if case .remove = operation { return true }; return !draft.path.isEmpty }
+    private var hasSelectedBaseBranch: Bool {
+        guard let selected = draft.baseBranch, !selected.isEmpty else { return false }
+        return branches?.contains(selected) == true && branchSessionGeneration == session.sessionGeneration && !isReadingBranches
+    }
     public var canSubmit: Bool {
         !isPending && phase != .applied && (operation == .add || operation.projectID.map { session.projection?.projects[$0] != nil } == true) &&
-        hasRequiredPath && session.can(command)
+        hasRequiredPath && (operation != .add || hasSelectedBaseBranch) && session.can(command)
+    }
+    public var baseBranchError: String? {
+        guard case .rejected(let error) = phase, error.code == CommandError.baseBranchMissingCode,
+              case .addProject(let path, _, _, let submitted) = record?.envelope.command,
+              path == draft.path, submitted == draft.baseBranch else { return nil }
+        return CommandErrorText.render(error, template: "Локальной ветки «{branch}» нет в этом репозитории")
     }
     public func open(_ value: ProjectOperation) {
         operation = value; formGeneration = UUID(); formError = nil; connectedProjectID = nil; handledOutcome = nil
+        branchReadID = UUID(); isReadingBranches = false; branchSessionGeneration = nil
         branches = nil; gates = nil; environment = nil; branchesError = nil; gatesError = nil; environmentError = nil; diagnosticsGeneration = nil
         do { draft = try storage.data(forKey: draftKey).map { try JSONDecoder().decode(ProjectFormDraft.self, from: $0) } ?? .init() }
         catch { draft = .init(); formError = "Не удалось прочитать черновик проекта. " + error.localizedDescription }
         if let pending = session.journal?.records.last(where: { $0.isPending && matches($0.envelope.command) }) {
             draft.commandID = pending.envelope.commandId
             switch pending.envelope.command {
-            case .addProject(let path, let template, let identity, _):
+            case .addProject(let path, let template, let identity, let baseBranch):
                 draft.path = path; draft.createTemplate = template; draft.showsIdentity = identity != nil
+                draft.baseBranch = baseBranch
                 if let identity { draft.identity = .init(identity: identity) }
             case .relinkProject(_, let path): draft.path = path
             default: break
@@ -91,7 +107,37 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
         default: false
         }
     }
-    public func editPath(_ value: String) { guard !isPending, phase != .applied else { return }; draft.path = value; persist() }
+    public func editPath(_ value: String) {
+        guard !isPending, phase != .applied, draft.path != value else { return }
+        if baseBranchError != nil { formError = nil }
+        draft.path = value; draft.baseBranch = nil; branches = nil; branchesError = nil
+        branchReadID = UUID(); isReadingBranches = false; branchSessionGeneration = nil
+        persist()
+    }
+    public func selectBaseBranch(_ value: String) {
+        guard operation == .add, !isPending, phase != .applied else { return }
+        if baseBranchError != nil { formError = nil }
+        draft.baseBranch = value.isEmpty ? nil : value; persist()
+    }
+    public func refreshBranches() async {
+        guard operation == .add, !draft.path.isEmpty, session.canSend, !isPending, phase != .applied else { return }
+        guard session.can(CommandName.listBranchesAtPath) else {
+            branches = nil; branchesError = "Обновите службу Kaban: выбор ветки до добавления проекта не поддерживается."; return
+        }
+        let request = UUID(), path = draft.path, form = formGeneration, generation = session.sessionGeneration
+        branchReadID = request; isReadingBranches = true; branchesError = nil
+        defer { if branchReadID == request { isReadingBranches = false } }
+        func valid() -> Bool { !Task.isCancelled && branchReadID == request && form == formGeneration && generation == session.sessionGeneration && path == draft.path && session.canSend }
+        do {
+            let result = try await read(.listBranchesAtPath(path: path))
+            guard valid() else { return }
+            guard case .branches(let items) = result else { throw invalidReply() }
+            branches = items; branchSessionGeneration = generation
+            if draft.baseBranch == nil, items.contains("main") { draft.baseBranch = "main"; persist() }
+        } catch {
+            if valid() { branches = nil; branchSessionGeneration = nil; branchesError = message(error) }
+        }
+    }
     public func setCreateTemplate(_ value: Bool) { guard !isPending, phase != .applied else { return }; draft.createTemplate = value; persist() }
     public func editIdentity(_ field: IdentityField, value: String) {
         guard !isPending, phase != .applied else { return }
