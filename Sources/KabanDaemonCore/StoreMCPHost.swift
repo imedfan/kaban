@@ -101,8 +101,12 @@ extension KabanStore {
         var environment = inherited
         // Hash identifiers before using them in paths; run IDs are external protocol values.
         let home = URL(fileURLWithPath: endpoint.workspaceRoot).appendingPathComponent("mcp-homes/" + SHA256Digest.hex(key))
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try CursorRunHome.prepare(home, userHome: URL(fileURLWithPath: inherited["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path))
         environment["HOME"] = home.path
+        environment["CURSOR_CONFIG_DIR"] = nil
+        environment["CFFIXED_USER_HOME"] = home.path
+        environment["XDG_CACHE_HOME"] = home.appendingPathComponent(".cache").path
+        environment["XDG_DATA_HOME"] = home.appendingPathComponent(".local/share").path
         environment["XDG_CONFIG_HOME"] = home.appendingPathComponent(".config").path
         return environment
     }

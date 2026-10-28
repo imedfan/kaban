@@ -15,6 +15,8 @@ public struct RunSpec: Codable, Hashable, Sendable {
     public let gitPolicy: EffectiveGitPolicy?
     public let identity: GitIdentity?
     public let returnReason: ReturnReason?
+    /// Frozen task and previous-stage materials. nil for non-agent stages or unknown legacy context.
+    public let promptParts: CursorPromptParts?
 }
 
 extension KabanStore {
@@ -43,10 +45,27 @@ extension KabanStore {
             source = try latest?.versionHash() == hash ? latest : version.source
         } else { source = nil }
         let hash = try task.pipelineVersion ?? PipelineContentHash.sha256(String(decoding: encode(task.pipeline), as: UTF8.self))
+        // v1 tasks may have no detail row; retain that unknown legacy surface.
+        let detail = try Data.fetchOne(db, sql: "SELECT payload FROM task_detail WHERE task_id = ?", arguments: [task.card.id.rawValue])
+            .map { try decode(StoredDetail.self, $0) }
+        let skill = stage.agent?.skill.flatMap { path in
+            (source?.files[path] ?? source?.referencedSkills[path]).flatMap { String(data: $0.data, encoding: .utf8) }
+        } ?? ""
+        let summary = detail?.artifacts.last { $0.kind == "summary" }
+        let handoff = summary.map { summary in
+            ([summary] + ["diffstat", "gate_output"].compactMap { kind in
+                detail?.artifacts.last { $0.stageId == summary.stageId && $0.kind == kind }
+            })
+                .map { "\($0.kind):\n\($0.text)" }.joined(separator: "\n\n")
+        }
+        let parts = stage.kind == .agent ? detail.map {
+            CursorPromptParts(skill: skill, title: task.card.title,
+                body: $0.body ?? "Task body is unavailable in this legacy record.", handoff: handoff)
+        } : nil
         let spec = RunSpec(runId: runId, taskId: task.card.id, stageId: stage.id, pipelineVersion: hash,
                            pipeline: task.pipeline, source: source,
                            gitPolicy: stage.kind == .agent ? GitPolicyResolver.resolve(project: task.pipeline.git, stage: stage) : nil,
-                           identity: record?.summary.identity, returnReason: task.machine.returnReason)
+                           identity: record?.summary.identity, returnReason: task.machine.returnReason, promptParts: parts)
         try db.execute(sql: "INSERT INTO run_spec(run_id, task_id, payload) VALUES (?, ?, ?)", arguments: [runId.rawValue, task.card.id.rawValue, try encode(spec)])
     }
 }

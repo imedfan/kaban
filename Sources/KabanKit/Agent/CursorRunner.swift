@@ -55,15 +55,17 @@ public enum CursorRunner {
             if version.code != 0 || versionLine(version.text) == nil {
                 return CursorRunnerAssessment(version: nil, reason: .agentNotRunnable, limitsNote: nil)
             }
-            let status = invoke(path, ["status"], environment)
+            let status = invoke(path, ["status", "--format", "json"], environment)
             let models = invoke(path, ["--list-models"], environment)
             let statusText = status.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let confirmed = status.code == 0 && statusText.split(separator: "\n").contains { line in
+            let auth = (try? JSONSerialization.jsonObject(with: Data(status.stdout.utf8))) as? [String: Any]
+            let explicitAuth = auth?["isAuthenticated"] as? Bool
+            let confirmed = status.code == 0 && (explicitAuth == true || statusText.split(separator: "\n").contains { line in
                 let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 return value == "ready" || value == "logged in" || value.hasPrefix("logged in as ") ||
                     value == "signed in" || value.hasPrefix("signed in as ") || value == "authenticated successfully"
-            }
-            let reason = loginFailure(in: status.text) ?? (confirmed ? nil : .agentNotRunnable)
+            })
+            let reason = loginFailure(in: status.text) ?? (explicitAuth == false ? .agentNotLoggedIn : (confirmed ? nil : .agentNotRunnable))
             return CursorRunnerAssessment(version: versionLine(version.text), reason: reason,
                 limitsNote: limitsNote(from: models.text), authOK: reason == nil && confirmed,
                 catalog: models.code == 0 ? ModelCatalogMatcher.parseListModels(models.text) : nil)

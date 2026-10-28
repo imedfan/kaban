@@ -151,6 +151,12 @@ public final class KabanStore: Sendable {
             reductionPipeline.stages[index].onSuccess = owner?.pipeline.stage(before.stageId)?.onSuccess
             for stage in owner?.pipeline.stages ?? [] where reductionPipeline.stage(stage.id) == nil { reductionPipeline.stages.append(stage) }
         }
+        if case .start = command,
+           let override = try String.fetchOne(db, sql: "SELECT model FROM model_override WHERE task_id = ? AND stage_id = ?",
+                                              arguments: [taskId.rawValue, before.stageId.rawValue]),
+           let index = reductionPipeline.index(of: before.stageId) {
+            reductionPipeline.stages[index].agent?.model = ModelID(rawValue: override)
+        }
         switch command {
         case .probeFinished, .runFailed(_, .silentExit):
             if let model = try Self.probeModel(task, db: db), let index = reductionPipeline.index(of: before.stageId) {

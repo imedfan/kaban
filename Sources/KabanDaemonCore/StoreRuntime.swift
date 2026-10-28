@@ -3,7 +3,7 @@ import KabanKit
 
 extension KabanStore {
     /// Serialized with wire commands: stop/WIP/cleanup and restored context precede admission.
-    /// A configured local runner is opt-in; absent runner keeps Cursor starts pending.
+    /// Starts the configured Cursor in the host; an explicit runner remains available for diagnostics.
     public func runRuntimePass(at: Date, workspaceRoot: String, runner: String? = nil, runnerArguments: [String] = []) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
         _ = try recoverEffectExecution(at: at, reclaimUnexpired: false)
@@ -27,6 +27,6 @@ extension KabanStore {
         try runModelProbePass(at: at, workspaceRoot: workspaceRoot)
         _ = try runSchedulerPass(at: at)
         _ = try runClonePass(owner: "runtime", at: at, workspaceRoot: workspaceRoot)
-        _ = try runProcessPass(owner: "runtime", at: at, workspaceRoot: workspaceRoot, runner: runner, runnerArguments: runnerArguments)
+        _ = try runProcessPass(owner: "runtime", at: at, workspaceRoot: workspaceRoot, runner: runner, runnerArguments: runnerArguments, launchConfiguredCursor: true)
     }
 }

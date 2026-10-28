@@ -5,7 +5,7 @@ public enum CursorLaunchFailure: Error, Equatable {
     case modelRequired
 }
 
-public struct CursorPromptParts: Equatable, Sendable {
+public struct CursorPromptParts: Codable, Hashable, Sendable {
     public var skill: String
     public var title: String
     public var body: String
@@ -50,17 +50,21 @@ public enum CursorLaunch {
             sections.append(parts.additions.map(renderAddition).joined(separator: "\n"))
         }
         if !parts.grants.isEmpty {
-            sections.append("Grants:\n" + parts.grants.joined(separator: "\n"))
+            sections.append("git_grants:\n" + parts.grants.joined(separator: "\n"))
         }
+        sections.append("Call report_progress at least once every few minutes, including while waiting for git permissions.")
         sections.append("Finish only with a final MCP call: complete_stage, return_to_stage, or request_human. A process exit is not completion.")
         return sections.joined(separator: "\n\n")
     }
 
-    /// `--approve-mcps` is not passed. A failed MCP preflight blocks the run instead of approving every server. Resume without a verified id starts a new session.
-    public static func plan(model: String, readOnly: Bool, resumeRequested: Bool, verifiedSessionId: String?, prompt: String, environment: [String: String]) throws -> CursorLaunchPlan {
+    /// Approval is permitted only after the caller has verified the exact run MCP set.
+    /// Resume without a verified id starts a new session.
+    public static func plan(model: String, readOnly: Bool, resumeRequested: Bool, verifiedSessionId: String?, prompt: String, environment: [String: String], mcpPreflightPassed: Bool = false) throws -> CursorLaunchPlan {
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         guard PipelineValidator.hasExplicitModel(ModelID(rawValue: trimmed)) else { throw CursorLaunchFailure.modelRequired }
         var arguments = ["-p", "--output-format", "stream-json", "--model", trimmed]
+        arguments.append("--trust")
+        if mcpPreflightPassed { arguments.append("--approve-mcps") }
         if !readOnly { arguments.append("--force") }
         let session = verifiedSessionId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let resume = resumeRequested ? session.flatMap { $0.isEmpty ? nil : $0 } : nil
