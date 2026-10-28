@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 26 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 28 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`f2c082d` (BE-26 принята через PR #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
+`0463c30` (BE-31 принята через PR #123; BE-27 — #122; BE-26 — #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
 BE-23 — #119, FE-32 — #120; FE-34 — в `d94487e`,
 архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
@@ -258,12 +258,14 @@ launchd `running`, `runs = 1`. Причина потери прежней сис
 
 ## BE-30: producer проб моделей
 
-В `codex/be-30-model-probes` от main `b56dece` добавлен штатный запуск отдельных
+В `codex/be-30-model-probes` от main `0463c30` добавлен штатный запуск отдельных
 проб через сохранённый Cursor executable: shared result для silent-задач,
 retroactive attempt/run accounting, 10-минутный интервал, общий потолок процессов
 без stage/project WIP и durable replay результата. Unknown usage хранит nil-дату
 и проверяется раз в 6 часов; чистая проба и scoped `clearUsageFlag(pool?)` снимают
 флаг. Новая ошибка того же пула защищена generation. Additive store migration v24.
+Source `58d23ba` на базе принятой BE-31 прошёл 746 tests (0 failures/skips),
+App/helper build, native WindowGroup smoke и daemon/CLI smoke.
 [Проверки и границы](development/backend-be-30-2026-10-27.md).
 BE-24/25 отсутствуют в базе; живые CLI/Seatbelt/installed проверки не выполнены.
 Синтетический CLI не доказывает совместимость с реальным Cursor или полный MVP.
