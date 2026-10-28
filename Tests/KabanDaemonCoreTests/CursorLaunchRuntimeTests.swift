@@ -90,18 +90,20 @@ extension ProcessControlTests {
         XCTAssertNil(try f.store.getTaskDetail("cursor").gitGrants.first?.consumption)
     }
 
-    func testLegacyTaskWithoutDetailStillFreezesItsPipeline() throws {
+    func testLegacyRunSpecWithoutDetailDoesNotInventPrompt() throws {
         let f = try fixture()
         let project = try XCTUnwrap(f.store.getSnapshot().projects.first?.id)
         _ = try f.store.execute(.init(command: .createTask(projectId: project, title: "Legacy", body: "Task\n\n## Критерии приёмки\nReady")), makeTaskID: { "legacy-cursor" })
         _ = try f.store.tick(tickId: UUID(), runId: "admit", at: at)
-        try f.store.database.write { db in try db.execute(sql: "DELETE FROM task_detail WHERE task_id = 'legacy-cursor'") }
-        _ = try f.store.tick(tickId: UUID(), runId: "legacy-run", at: at)
+        try f.store.database.write { db in
+            try db.execute(sql: "DELETE FROM task_detail WHERE task_id = 'legacy-cursor'")
+            let task = try KabanStore.task("legacy-cursor", db: db)
+            try KabanStore.freezeRunSpec("legacy-run", task: task, db: db)
+        }
         let spec = try XCTUnwrap(f.store.getRunSpec("legacy-run"))
         XCTAssertEqual(spec.stageId, "dev")
         XCTAssertEqual(spec.pipeline.stage("dev")?.agent?.model, "explicit")
         XCTAssertNil(spec.promptParts)
-        XCTAssertEqual(try task(f, "legacy-cursor").machine.state, .running)
     }
 
     func testStartUsesBoundPipelineModelWhenNoOverrideExists() throws {
