@@ -30,9 +30,9 @@ public extension LocalGitRepository {
     static var maxConfigurationBytes: Int { 16 * 1024 * 1024 }
     static var maxConfigurationFiles: Int { 1024 }
 
-    /// Resolve main once: every blob is then addressed by immutable object id.
+    /// Resolve the base once: every blob is then addressed by immutable object id.
     func pipelineSource() throws -> PipelineSource {
-        let commit = try mainCommit()
+        let commit = try baseCommit()
         let entries = try git(["ls-tree", "-rz", commit, "--", ".kaban"]).data.split(separator: 0)
         guard entries.count <= Self.maxConfigurationFiles else { throw Self.error("pipeline_invalid", "В .kaban/ слишком много файлов.") }
         var files: [String: PipelineSource.File] = [:], total = 0

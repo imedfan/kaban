@@ -6,7 +6,8 @@ public enum Command: Codable, Hashable, Sendable {
     // Проекты
     /// `identity` — автор коммитов демона (§8.2). Без него демон один раз читает `user.name`/`user.email`
     /// обычным git пользователя в этом репозитории; если автора нет нигде, ответ `identity_required` и проект не создаётся.
-    case addProject(path: String, createTemplate: Bool, identity: GitIdentity? = nil)
+    /// `baseBranch` — существующая локальная ветка; nil сохраняет базу main старого клиента.
+    case addProject(path: String, createTemplate: Bool, identity: GitIdentity? = nil, baseBranch: String? = nil)
     /// Сменить автора коммитов демона; действует с новых коммитов. Пустое после обрезки по краям поле
     /// или перенос строки / NUL — `identity_required` (`missing` / `invalid` в `params`), автор не меняется.
     case setProjectIdentity(projectId: ProjectID, identity: GitIdentity)
@@ -184,6 +185,7 @@ public struct CommandError: Codable, Hashable, Sendable, Error {
     /// `addProject` / `setProjectIdentity`: автора нет нигде, имя/почта пустые после обрезки или содержат
     /// перенос строки / NUL; детали в `params` (`missing`, `invalid`, найденные `name`/`email`); ничего не изменено.
     public static let identityRequiredCode = "identity_required"
+    public static let baseBranchMissingCode = "base_branch_missing"
     public static let unsupportedCommandCode = "unsupported_command"
     public static let unsupportedOperationCode = "unsupported_operation"
     public static let stalePipelineDraftCode = "stale_pipeline_draft"

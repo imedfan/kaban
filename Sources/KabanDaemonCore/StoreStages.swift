@@ -233,7 +233,7 @@ extension KabanStore {
             let readOnly = stage?.isReadOnly == true
             let clone = try readyClone(item.taskId)
             let identity = try projectIdentity(task)
-            let judged = try judgeResult(task: task, clone: clone, identity: identity, readOnly: readOnly, ignoringMainMove: stage?.kind == .merge)
+            let judged = try judgeResult(task: task, clone: clone, identity: identity, readOnly: readOnly, ignoringBaseMove: stage?.kind == .merge)
             _ = try commitEffectResult(effectId: lease.effectId, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: lease.effectId + "/result", phase: .finished, outcome: judged.outcome), at: at, diagnostic: "BE-13 result check compares the main repository and the task branch; an ordinary dirty tree stays clean")
             try remember(taskId: item.taskId.rawValue, line: "stage \(item.taskId.rawValue) result \(task.machine.stageId.rawValue) \(judged.label)")
             return true
@@ -242,23 +242,25 @@ extension KabanStore {
     }
 
     /// Incident beats a suspicious file, which beats a read-only dirty tree. A writable dirty tree with neither is clean.
-    /// `ignoringMainMove` leaves `refs/heads/main` alone when that is the only drift, so a merge recheck cannot roll the user's main back.
-    func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool, ignoringMainMove: Bool = false) throws -> (outcome: RealEffectOutcome, label: String) {
+    /// `ignoringBaseMove` leaves the selected base ref alone when that is the only drift, so a merge recheck cannot roll the user's main back.
+    func judgeResult(task: DurableTask, clone: ReadyClone?, identity: GitIdentity?, readOnly: Bool, ignoringBaseMove: Bool = false) throws -> (outcome: RealEffectOutcome, label: String) {
         guard let clone else { return (.clean, "clean") }
+        let baseBranch = try projectBaseBranch(task)
+        let baseRef = "refs/heads/" + baseBranch
         let snapshot = try database.read { db in try Self.protectionSnapshot(task.card.projectId, db: db) }
         // The run config goes back to the bytes captured before the swap before anything is compared or committed.
         _ = try restoreInstalledMCPConfigs(taskId: task.card.id)
-        try TaskClone.restoreBoardMCP(clone: clone.clonePath, origin: clone.projectPath, identity: identity)
+        try TaskClone.restoreBoardMCP(clone: clone.clonePath, origin: clone.projectPath, baseBranch: baseBranch, identity: identity)
         let base = clone.baseCommit ?? ""
         if let snapshot, let found = try TaskClone.protectionDrift(clone.projectPath, snapshot: snapshot, identity: identity) {
             var drift: IncidentKind? = found
-            if ignoringMainMove, found == .refsMoved,
+            if ignoringBaseMove, found == .refsMoved,
                let current = try? TaskClone.captureProtection(clone.projectPath, identity: identity) {
                 var adopted = snapshot
-                if let main = current.heads["refs/heads/main"] {
-                    adopted.heads["refs/heads/main"] = main
+                if let main = current.heads[baseRef] {
+                    adopted.heads[baseRef] = main
                 } else {
-                    adopted.heads.removeValue(forKey: "refs/heads/main")
+                    adopted.heads.removeValue(forKey: baseRef)
                 }
                 if adopted.heads == current.heads, adopted.tags == current.tags, adopted.config == current.config { drift = nil }
             }
@@ -356,6 +358,10 @@ extension KabanStore {
             guard FileManager.default.fileExists(atPath: record.clonePath) else { return nil }
             return ReadyClone(clonePath: record.clonePath, workspaceRoot: record.workspaceRoot, projectPath: record.projectPath, baseCommit: record.baseCommit, branch: record.branch)
         }
+    }
+
+    func projectBaseBranch(_ task: DurableTask) throws -> String {
+        try database.read { db in try Self.project(task.card.projectId, db: db).summary.baseBranch }
     }
 
     func projectIdentity(_ task: DurableTask) throws -> GitIdentity? {

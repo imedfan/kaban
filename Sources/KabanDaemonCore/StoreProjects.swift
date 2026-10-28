@@ -42,7 +42,7 @@ extension KabanStore {
             switch envelope.command {
             case .listBranches(let id), .detectGates(let id):
                 let record = try database.read { db in try Self.project(id, db: db) }
-                let repository = try LocalGitRepository(path: record.summary.path)
+                let repository = try LocalGitRepository(path: record.summary.path, baseBranch: record.summary.baseBranch)
                 let result: CommandResult
                 if case .listBranches = envelope.command { result = .branches(try repository.branches()) }
                 else { result = .gates(try repository.gates()) }
@@ -67,8 +67,8 @@ extension KabanStore {
                     try Self.saveProjectReply(reply, request: request, db: db)
                     return reply
                 }
-            case .addProject(let path, let createTemplate, let explicit):
-                let repository = try LocalGitRepository(path: path)
+            case .addProject(let path, let createTemplate, let explicit, let baseBranch):
+                let repository = try LocalGitRepository(path: path, baseBranch: baseBranch ?? "main")
                 try checkProjectPath(repository.path, repositoryID: repository.repositoryID, excluding: nil)
                 let identity: GitIdentity
                 do { identity = try GitIdentity.resolveForProject(explicit: explicit, repositoryPath: repository.path) }
@@ -80,7 +80,7 @@ extension KabanStore {
                 let template = yaml == nil && sourceError == nil && createTemplate ? try repository.prepareTemplate(identity: identity, commandId: envelope.commandId) : nil
                 let id = ProjectID(rawValue: UUID().uuidString.lowercased())
                 let summary = ProjectSummary(id: id, name: URL(fileURLWithPath: repository.path).lastPathComponent,
-                                             path: repository.path, mascotSeed: id.rawValue, identity: identity)
+                                             path: repository.path, baseBranch: repository.baseBranch, mascotSeed: id.rawValue, identity: identity)
                 var record = Self.productionRecord(summary, repositoryID: repository.repositoryID, yaml: template == nil ? yaml : PipelineTemplate.defaultYAML)
                 if let sourceError {
                     record.production?.unavailableReason = .pipelineInvalid
@@ -93,7 +93,7 @@ extension KabanStore {
                 var record = try database.read { db in try Self.project(id, db: db) }
                 try database.read { try Self.requireNoProjectIntent(id, db: $0) }
                 guard record.production != nil else { throw CommandError(code: "unsupported_command", message: "Переподключение доступно для локальных проектов.") }
-                let repository = try LocalGitRepository(path: path)
+                let repository = try LocalGitRepository(path: path, baseBranch: record.summary.baseBranch)
                 try checkProjectPath(repository.path, repositoryID: repository.repositoryID, excluding: id)
                 record.summary.path = repository.path; record.summary.availability = .available
                 record.production?.repositoryID = repository.repositoryID
@@ -110,7 +110,7 @@ extension KabanStore {
                 var workingFile: PipelineSource.File?, workingError: CommandError?
                 if availability == .available {
                     do {
-                        let repository = try LocalGitRepository(path: observed.summary.path)
+                        let repository = try LocalGitRepository(path: observed.summary.path, baseBranch: observed.summary.baseBranch)
                         guard repository.repositoryID == observed.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
                         source = try repository.pipelineSource(); edits = try repository.hasConfigurationEdits(); sourceError = nil
                         if edits {
@@ -198,7 +198,7 @@ extension KabanStore {
         }
     }
     private func finishProjectOperation(_ operation: ProjectOperation) throws -> CommandReply {
-        let repository = try LocalGitRepository(path: operation.record.summary.path)
+        let repository = try LocalGitRepository(path: operation.record.summary.path, baseBranch: operation.record.summary.baseBranch)
         if let template = operation.template {
             do { try repository.finishTemplate(template) }
             catch let error as CommandError where ["git_race", "template_conflict"].contains(error.code) {

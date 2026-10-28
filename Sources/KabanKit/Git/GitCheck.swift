@@ -38,13 +38,13 @@ public enum GitCheck {
     }
 
     /// Hard invariant id for a normalized command, including `.kaban/` writes and call-time
-    /// `notes` / `fetch` / `worktree` targets that name `main`.
-    public static func blocked(_ words: [String]) -> String? {
+    /// `notes` / `fetch` / `worktree` targets that name the project base (and legacy `main`).
+    public static func blocked(_ words: [String], baseBranch: String = "main") -> String? {
         let command = words.joined(separator: " ")
-        if let id = GitPolicyResolver.hardInvariant(for: command) { return id }
+        if let id = GitPolicyResolver.hardInvariant(for: command, baseBranch: baseBranch) { return id }
         if writesKaban(words) { return HardInvariant.kabanDir }
         if let cmd = words.first, ["notes", "fetch", "worktree"].contains(cmd),
-           words.dropFirst().contains(where: namesMain) {
+           words.dropFirst().contains(where: { GitPolicyResolver.namesBranch($0, branch: "main") || GitPolicyResolver.namesBranch($0, branch: baseBranch) }) {
             return HardInvariant.foreignRefs
         }
         return nil
@@ -79,11 +79,5 @@ public enum GitCheck {
     private static func pathHasKaban(_ word: String) -> Bool {
         if word == "--" || word.hasPrefix("-") { return false }
         return word.split(separator: "/", omittingEmptySubsequences: false).contains { $0 == ".kaban" }
-    }
-
-    private static func namesMain(_ word: String) -> Bool {
-        var w = Substring(word)
-        if let cut = w.firstIndex(where: { "~^@".contains($0) }) { w = w[..<cut] }
-        return w == "main" || w.hasSuffix("/main")
     }
 }

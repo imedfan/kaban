@@ -61,8 +61,8 @@ extension KabanStore {
         guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM task_detail WHERE task_id = ?", arguments: [id.rawValue]) else { throw StoreError.incompleteProjection }
         return try decode(StoredDetail.self, data)
     }
-    static func project(_ id: ProjectID, db: Database) throws -> ProjectRecord {
-        guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ? AND id NOT IN (SELECT project_id FROM removed_project)", arguments: [id.rawValue]) else { throw StoreError.projectMissing }
+    static func project(_ id: ProjectID, db: Database, includingRemoved: Bool = false) throws -> ProjectRecord {
+        guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM project WHERE id = ? AND (? OR id NOT IN (SELECT project_id FROM removed_project))", arguments: [id.rawValue, includingRemoved]) else { throw StoreError.projectMissing }
         return try decode(ProjectRecord.self, data)
     }
     static func settings(_ db: Database) throws -> GlobalSettings {

@@ -64,6 +64,14 @@ enum WireContractExamples {
               live: live.map { .init(cursor: cursor, afterSeq: 1042, at: Samples.t0, event: $0) },
               refusal: .init(.command(.init(commandId: Samples.cmd, seq: nil, result: .error(.init(code: error, message: "Операция отклонена"))))))
     }
+    static let baseBranchProject = ProjectSummary(id: Samples.project, name: "Repository", path: "/tmp/repository", baseBranch: "master", mascotSeed: "base-branch")
+    static let baseBranch: WireContractExample = {
+        var example = command("addProjectBaseBranch", .addProject(path: "/tmp/repository", createTemplate: true, baseBranch: "master"),
+                              result: .ok, journal: .projectAdded(baseBranchProject))
+        example.refusal = .init(.command(.init(commandId: Samples.cmd, seq: nil, result: .error(.init(
+            code: "base_branch_missing", message: "Локальной ветки «master» нет в этом репозитории", params: ["branch": "master"])))))
+        return example
+    }()
     static let values: [WireContractExample] = [
         .init(name: "capabilities", request: .init(.capabilities),
               response: .init(.capabilities(.init(operations: [.init(name: "readLog", supported: false)],
@@ -94,6 +102,17 @@ enum WireContractExamples {
 }
 
 final class WireContractTests: XCTestCase {
+    func testAddProjectBaseBranchIsOptionalOnlyAtTheRequestBoundary() throws {
+        let decoder = KabanCoding.makeDecoder(), encoder = KabanCoding.makeEncoder()
+        let legacy = Data(#"{"addProject":{"path":"/repo","createTemplate":true}}"#.utf8)
+        XCTAssertEqual(try decoder.decode(Command.self, from: legacy), .addProject(path: "/repo", createTemplate: true))
+        let explicit = Command.addProject(path: "/repo", createTemplate: true, baseBranch: "release/stable")
+        XCTAssertEqual(try decoder.decode(Command.self, from: encoder.encode(explicit)), explicit)
+        XCTAssertThrowsError(try decoder.decode(Command.self, from: Data(#"{"addProject":{"path":"/repo","createTemplate":true,"baseBranch":42}}"#.utf8)))
+        let project = try decoder.decode(ProjectSummary.self, from: encoder.encode(WireContractExamples.baseBranchProject))
+        XCTAssertEqual(project.baseBranch, "master")
+    }
+
     func testLegacyUpdateHasNoDraftAndKnownMalformedDraftIsRejected() throws {
         let data = Data(#"{"updatePipeline":{"projectId":"p","contentHash":"h","future":true}}"#.utf8)
         XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: data), .updatePipeline(projectId: "p", contentHash: "h"))
