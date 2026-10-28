@@ -253,6 +253,29 @@ daemon/CLI transport smoke и context checker прошли.
 [Проверки и оставшаяся live-приёмка](development/backend-be-24-2026-10-28.md).
 Платный запуск из `--launch-agent`, production Seatbelt и installed/reboot не проверены.
 
+## BE-25: штатный stream и сверка модели (ветка реализации)
+
+`codex/be-25-cursor-stream` построена поверх HEAD `1bbc2b7` открытого
+[PR #129](https://github.com/imedfan/kaban/pull/129) (BE-24); проверенная после fetch
+база main — `ad0ed88`. BE-24 не считается принятой из-за наличия в этой ветке.
+Первый init атомарно с log cursor сохраняет actual name/session и сверяет frozen
+requested model. Известная подмена даёт kill outbox, `model_substituted`, флаг
+именно запрошенной модели и refund; неизвестное имя — один `model_unconfirmed`.
+MCP читает доступный stream перед принятием tool call, чтобы быстрый
+`complete_stage` не обогнал наблюдение уже записанного init.
+
+Production parser проверяется на обоих реальных потоках BE-22: корректные
+payload инструментов с metadata siblings, nested shell/MCP results, camelCase
+usage, thinking без ложной ошибки. Подключён реальный формат каталога.
+Лимиты берутся из error envelopes/CLI diagnostics; текст задачи не ставит флаг.
+Init/user/thinking без tools и файлов остаются silent exit. Additive migration v25
+сохраняет первый init, факт tools и ошибки независимо от log retention.
+
+[Проверки и границы BE-25](development/backend-be-25-2026-10-28.md).
+Живые лимиты и подмена не воспроизведены; соответствующие fixtures синтетические.
+Спайк BE-22 дал один kill до инструментов, но файловый observer не обеспечивает
+универсальный барьер перед shell/внешним эффектом; полный UC-22/MVP не принят.
+
 ## BE-26: MCP в штатном host
 
 BE-26 принята в main `f2c082d` через [PR #121](https://github.com/imedfan/kaban/pull/121).
@@ -356,7 +379,7 @@ retroactive attempt/run accounting, 10-минутный интервал, общ
 Source `58d23ba` на базе принятой BE-31 прошёл 746 tests (0 failures/skips),
 App/helper build, native WindowGroup smoke и daemon/CLI smoke.
 [Проверки и границы](development/backend-be-30-2026-10-27.md).
-BE-24 реализуется отдельно от этой базы (см. выше); BE-25 отсутствует,
+BE-24 и зависимая BE-25 реализуются в отдельных ветках (см. выше);
 живые production CLI/Seatbelt/installed проверки не выполнены.
 Синтетический CLI не доказывает совместимость с реальным Cursor или полный MVP.
 
