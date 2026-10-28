@@ -1,0 +1,39 @@
+{
+  "file": "<USER_HOME>/Documents/dev/kaban/research/spike-1-2026-10-28/trace-test/stream.jsonl",
+  "events": 1,
+  "bad_lines": 0,
+  "non_json_lines": [],
+  "event_kinds": {
+    "result": 1
+  },
+  "field_names": {
+    "result": [
+      "result",
+      "type"
+    ]
+  },
+  "session_ids": [],
+  "init": null,
+  "result": {
+    "fields": [
+      "result",
+      "type"
+    ],
+    "subtype": null,
+    "is_error": null,
+    "session_id": null,
+    "duration_ms": null,
+    "duration_api_ms": null,
+    "request_id_present": false,
+    "usage_like": {},
+    "result_text": "synthetic trace check"
+  },
+  "tool_calls": {
+    "started": 0,
+    "completed": 0,
+    "kinds": [],
+    "details": []
+  },
+  "assistant_texts": [],
+  "errors": []
+}

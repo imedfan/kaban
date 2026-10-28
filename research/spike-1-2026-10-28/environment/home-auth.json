@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-28",
+  "source": "Bounded free probes outside Codex sandbox; booleans only, no credential contents retained",
+  "variants": {
+    "ordinaryHome": true,
+    "emptyHome": false,
+    "emptyHomeWithUserCursorConfigDir": false,
+    "emptyHomeWithUserXDGConfigHome": false,
+    "emptyHomeWithUserCFFixedHome": false,
+    "emptyHomeWithSecurityPreferencesLinkOnly": false,
+    "emptyHomeWithKeychainsLinkOnly": true
+  },
+  "keychainSearchList": {
+    "ordinaryHome": ["<USER_HOME>/Library/Keychains/login.keychain-db"],
+    "emptyHome": [],
+    "command": "security list-keychains -d user",
+    "credentialValuesReadByInvestigator": false
+  },
+  "userReportedIsolatedLogin": {
+    "source": "Artem's Terminal output in this chat",
+    "securityExitCode": 154,
+    "credentialDeletionSuggestedByCLI": true,
+    "credentialDeletionPerformed": false,
+    "ordinaryHomeAuthVerifiedAfterError": true
+  },
+  "productionDecision": "Not made: Keychains symlink is a research workaround, not token isolation"
+}

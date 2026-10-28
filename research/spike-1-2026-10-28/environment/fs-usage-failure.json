@@ -1,0 +1,11 @@
+{
+  "source": "Artem ran the synthetic trace-test in Terminal, before any model start",
+  "command": "sudo -n /usr/bin/fs_usage -w -f filesys -t 300 <synthetic-PID>",
+  "exit": 0,
+  "stderr": [],
+  "observedLines": 0,
+  "syntheticChildExit": 0,
+  "knownControlFileCreated": true,
+  "conclusion": "Observer not verified; no paid model started during these tests. Cause of missing kernel events not established.",
+  "replacement": "Before/after lstat snapshots in explicit roots; transient and out-of-root writes remain unobserved"
+}

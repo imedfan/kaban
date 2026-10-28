@@ -1,0 +1,12 @@
+[
+  "<USER_HOME>/.local/bin/cursor-agent",
+  "-p",
+  "--output-format",
+  "stream-json",
+  "--model",
+  "cursor-grok-4.6-medium",
+  "--force",
+  "--trust",
+  "--approve-mcps",
+  "This is a disposable Kaban CLI research repository. Only work in this repository. Call the kaban-board MCP report_progress tool with text 'BE22 started'. Create hello.txt containing exactly 'hello kaban\\n', then run 'printf shell-ok > shell.txt'. Finally call the kaban-board MCP complete_stage tool with summary 'BE22 complete'. Reply DONE. Do not inspect credentials or environment variables and do not use any other MCP servers."
+]

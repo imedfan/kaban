@@ -1,0 +1,23 @@
+{
+  "method": "lstat before/after; no file contents read",
+  "roots": [
+    "<RUN_HOME>",
+    "<CLONE>",
+    "<WORK>/tmp",
+    "<USER_HOME>/.cursor",
+    "<USER_HOME>/.config/cursor",
+    "<USER_HOME>/.local/share/cursor-agent",
+    "<USER_HOME>/Library/Caches/cursor-compile-cache",
+    "<USER_HOME>/Library/Caches/cursor-agent",
+    "<USER_HOME>/Library/Logs/cursor-agent",
+    "<USER_HOME>/Library/Application Support/cursor-agent"
+  ],
+  "changes": [
+    {
+      "path": "<CLONE>/be22-trace-check.txt",
+      "change": "created"
+    }
+  ],
+  "errors": [],
+  "coverage": "Persistent metadata changes in listed roots only. No symlink traversal. Transient files, writes outside roots, and Keychain writes are unobserved. Other processes can change real-HOME roots; attribution requires review."
+}

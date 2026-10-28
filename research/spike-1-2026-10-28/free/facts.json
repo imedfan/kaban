@@ -1,0 +1,10 @@
+{
+  "user-home": {
+    "authenticated": true,
+    "exactModelInCatalog": true
+  },
+  "run-home": {
+    "authenticated": false,
+    "exactModelInCatalog": false
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stderr": [],
+  "coverage": "CLI leader PID (preserved across exec), all threads. Subprocess filesystem operations are not traced. Review write operations and paths manually. Not an exhaustive allowlist."
+}

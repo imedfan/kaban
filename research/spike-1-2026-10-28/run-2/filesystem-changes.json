@@ -1,0 +1,87 @@
+{
+  "method": "lstat before/after; no file contents read",
+  "roots": [
+    "<RUN_HOME>",
+    "<CLONE>",
+    "<WORK>/tmp",
+    "<USER_HOME>/.cursor",
+    "<USER_HOME>/.config/cursor",
+    "<USER_HOME>/.local/share/cursor-agent",
+    "<USER_HOME>/Library/Caches/cursor-compile-cache",
+    "<USER_HOME>/Library/Caches/cursor-agent",
+    "<USER_HOME>/Library/Logs/cursor-agent",
+    "<USER_HOME>/Library/Application Support/cursor-agent"
+  ],
+  "changes": [
+    {
+      "path": "<USER_HOME>/.local/share/cursor-agent/versions/2026.09.23-86fc751/.running",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<USER_HOME>/.local/share/cursor-agent/versions/2026.09.23-86fc751/.running/46895",
+      "change": "created"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/chats/2a90d470a85427cbc31685f32885157f/a51ce6b2-2b68-432c-80b6-afd679b03efd",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/chats/2a90d470a85427cbc31685f32885157f/a51ce6b2-2b68-432c-80b6-afd679b03efd/store.db",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/cli-config.json",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/projects/private-tmp-kaban-be22--9ce39fa",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/projects/private-tmp-kaban-be22--9ce39fa/worker.sock",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/projects/private-tmp-kaban-be22-2026-10-28-clone/mcp-approvals.json",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/projects/private-tmp-kaban-be22-2026-10-28-clone/worker.log",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/skills-cursor",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/skills-cursor/.sync-manifest.json",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<RUN_HOME>/.cursor/statsig-cache.json",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<WORK>/tmp/cursor-agent-logs-501",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<WORK>/tmp/cursor-agent-logs-501/latest.log",
+      "change": "metadata_changed"
+    },
+    {
+      "path": "<WORK>/tmp/cursor-agent-logs-501/session-2026-10-28T13-01-04-234Z-46895-1.log",
+      "change": "created"
+    },
+    {
+      "path": "<WORK>/tmp/cursor-agent-logs-501/session-2026-10-28T13-01-08-758Z-46960-1.log",
+      "change": "created"
+    }
+  ],
+  "errors": [],
+  "coverage": "Persistent metadata changes in listed roots only. No symlink traversal. Transient files, writes outside roots, and Keychain writes are unobserved. Other processes can change real-HOME roots; attribution requires review."
+}
