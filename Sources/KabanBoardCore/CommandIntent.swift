@@ -39,7 +39,7 @@ public extension Command {
         case .addProject, .pauseAll, .resumeAll, .resumeAfterRateLimit,
              .setMaxConcurrentRuns, .configureCursor, .recheck(.runner),
              .refreshModelCatalog, .setModelPoolRule, .removeModelPoolRule,
-             .setQuotaOptions: .global
+             .setQuotaOptions, .clearUsageFlag: .global
         }
     }
 

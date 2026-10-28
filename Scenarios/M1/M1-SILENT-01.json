@@ -96,6 +96,101 @@
         "probes": [],
         "note": "вторая проба по той же модели не раньше +10m от первой"
       }
+    },
+    {
+      "probeFinished": {
+        "model": "claude-opus",
+        "outcome": "clean"
+      },
+      "then": {
+        "tasks": {
+          "t-1": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "crash"
+            },
+            "attempt": 2,
+            "autoRuns": 1,
+            "retryAt": "+30s"
+          },
+          "t-2": {
+            "state": {
+              "status": "retry_wait",
+              "reason": "crash"
+            },
+            "attempt": 2,
+            "autoRuns": 1,
+            "retryAt": "+30s"
+          }
+        },
+        "runsStarted": 0,
+        "events": [
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-1",
+              "projectId": "p-kaban",
+              "title": "Задача t-1",
+              "stageId": "dev",
+              "state": {
+                "status": "retry_wait",
+                "reason": "crash"
+              },
+              "priority": 0,
+              "branch": "kaban/t-1",
+              "attempt": 2,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": "claude-opus",
+              "retryAt": "2026-10-04T08:03:30.000Z",
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:03:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "retryAt",
+              "runsSinceHuman",
+              "state"
+            ]
+          },
+          {
+            "type": "taskUpdated",
+            "data": {
+              "id": "t-2",
+              "projectId": "p-kaban",
+              "title": "Задача t-2",
+              "stageId": "test",
+              "state": {
+                "status": "retry_wait",
+                "reason": "crash"
+              },
+              "priority": 0,
+              "branch": "kaban/t-2",
+              "attempt": 2,
+              "maxAttempts": 3,
+              "runsSinceHuman": 1,
+              "bounceByReason": {},
+              "overlapsWith": [],
+              "unusedGitGrants": 0,
+              "model": "claude-opus",
+              "retryAt": "2026-10-04T08:03:30.000Z",
+              "suspiciousFiles": [],
+              "updatedAt": "2026-10-04T08:03:00.000Z"
+            },
+            "check": [
+              "id",
+              "attempt",
+              "retryAt",
+              "runsSinceHuman",
+              "state"
+            ]
+          }
+        ]
+      }
     }
   ]
 }

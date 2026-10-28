@@ -16,6 +16,7 @@ JSON не править руками: источник это `gen_m1.py`, фа
 - `advance`: сдвиг фейковых часов (`30s`, `2m`, `15m`).
 - `tick: "scheduler"`: один проход планировщика.
 - `driver`: фейковый драйвер завершает текущий run задачи. `end` — значение `RunEndReason` (`completed`, `crash`, `stall_timeout`, `gate_failed`, `rate_limit`, `runner_auth`, `daemon_restart`, `silent_exit`, `model_substituted`, `returned`, `asked_human`). Дополнительно: `gates: green|red`, `to` для `returned`, `actual` для подмены, `dirty` для грязного клона, `branchFiles` (diff ветки для `suspicious_files`), `gitDenied: N` (N отказов без завершения run).
+- `probeFinished`: результат общей пробы модели (`{model, outcome: "clean"}`); передаётся ожидающим `silent_exit` задачам без создания task run.
 - `pipelineApplied`: в `main` закоммичена версия пайплайна с указанными изменениями стадий.
 
 `then` проверяется **частично**: сверяются только перечисленные поля.

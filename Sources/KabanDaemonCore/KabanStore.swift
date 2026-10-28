@@ -56,6 +56,7 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("mcp_final_call_v23") { db in
             try db.execute(sql: "CREATE TABLE mcp_final_call (token_hash TEXT PRIMARY KEY NOT NULL, tool TEXT NOT NULL, response BLOB NOT NULL)")
         }
+        migrator.registerMigration("model_probe_process_v24", migrate: Self.migrateModelProbeProcesses)
         try migrator.migrate(database)
     }
 
@@ -132,7 +133,7 @@ public final class KabanStore: Sendable {
             try Self.apply(command, taskId: taskId, commandId: commandId, at: at, request: request, db: db)
         }
     }
-    static func apply(_ command: DurableTaskCommand, taskId: TaskID, commandId: CommandID, at: Date, request: Data, db: Database) throws -> DurableReceipt {
+    static func apply(_ command: DurableTaskCommand, taskId: TaskID, commandId: CommandID, at: Date, request: Data, db: Database, installLimitEffects: Bool = true) throws -> DurableReceipt {
         if let receipt = try Self.replay(commandId, request: request, db: db) { return receipt }
         let previousLoad = try Self.stageLoads(db)
         let previousFlags = try Self.schedulerFlags(db)
@@ -149,6 +150,13 @@ public final class KabanStore: Sendable {
            owner?.pipeline.stage(destination) == nil {
             reductionPipeline.stages[index].onSuccess = owner?.pipeline.stage(before.stageId)?.onSuccess
             for stage in owner?.pipeline.stages ?? [] where reductionPipeline.stage(stage.id) == nil { reductionPipeline.stages.append(stage) }
+        }
+        switch command {
+        case .probeFinished, .runFailed(_, .silentExit):
+            if let model = try Self.probeModel(task, db: db), let index = reductionPipeline.index(of: before.stageId) {
+                reductionPipeline.stages[index].agent?.model = model
+            }
+        default: break
         }
         let result = TaskMachine.transition(before, command.event, pipeline: reductionPipeline)
         if case .rejected(let error) = result.outcome { throw StoreError.rejected(error) }
@@ -196,7 +204,7 @@ public final class KabanStore: Sendable {
                 let snapshot = try TaskClone.captureProtection(path, identity: owner?.summary.identity)
                 try Self.replaceProtectionSnapshot(snapshot, projectId: task.card.projectId, db: db)
             }
-            for effect in result.effects {
+            for effect in result.effects where installLimitEffects {
                 if case .raiseModelFlag(let request) = effect {
                     try Self.installModelFlag(request, at: at, commandId: commandId, db: db)
                 }

@@ -90,7 +90,7 @@ final class LimitHandlingTests: XCTestCase {
         guard case .usageExhaustedUnknown(let reset) = try fixture.store.getSnapshot().schedulerFlags.first(where: { if case .usageExhaustedUnknown = $0 { true } else { false } }) else {
             return XCTFail("Missing Mac usage flag")
         }
-        XCTAssertEqual(reset, at.addingTimeInterval(6 * 60 * 60))
+        XCTAssertNil(reset)
         let blocked = try task("b", fixture.store)
         XCTAssertFalse(try fixture.store.database.read { try KabanStore.canStart(blocked, at: self.at, db: $0) })
         let command = UUID()
@@ -105,7 +105,7 @@ final class LimitHandlingTests: XCTestCase {
         XCTAssertFalse(stored.contains { String(data: $0, encoding: .utf8)?.contains("token=secret") == true })
     }
 
-    func testSilentProbeIsOnePerModelAndDoesNotStartAProcess() throws {
+    func testSilentProbeRequestsCoalesceBeforeRuntimeStarts() throws {
         let fixture = try store()
         try running("a", fixture.store)
         _ = try fixture.store.apply(.runFailed("run-a", .silentExit), taskId: "a", commandId: UUID(), at: at)

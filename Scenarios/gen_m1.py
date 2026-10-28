@@ -73,7 +73,8 @@ sc("M1-RATE-01",["UC-09 а"],"Cooldown rate-limit растёт 15→30→60 ми
 sc("M1-SILENT-01",["1.4"],"Молчаливый выход: попытка не списывается, проба не чаще раза в 10 минут на модель",
  G([task("t-1","dev",st("running"),runId="r-1",model="claude-opus"),task("t-2","test",st("running"),runId="r-2",model="claude-opus")]),[
  {"driver":{"task":"t-1","end":"silent_exit"},"then":{"tasks":{"t-1":{"state":st("retry_wait","silent_exit"),"attempt":1}},"probes":[{"model":"claude-opus","at":"+0s"}]}},
- {"advance":"3m","driver":{"task":"t-2","end":"silent_exit"},"then":{"probes":[],"note":"вторая проба по той же модели не раньше +10m от первой"}}])
+ {"advance":"3m","driver":{"task":"t-2","end":"silent_exit"},"then":{"probes":[],"note":"вторая проба по той же модели не раньше +10m от первой"}},
+ {"probeFinished":{"model":"claude-opus","outcome":"clean"},"then":{"tasks":{"t-1":{"state":st("retry_wait","crash"),"attempt":2,"autoRuns":1,"retryAt":"+30s"},"t-2":{"state":st("retry_wait","crash"),"attempt":2,"autoRuns":1,"retryAt":"+30s"}},"runsStarted":0}}])
 
 # --- Лимит запусков
 sc("M1-RUNLIMIT-01",["1.4","F27"],"max_runs_per_task=12: тринадцатый автоматический запуск не стартует",

@@ -256,6 +256,18 @@ launchd `running`, `runs = 1`. Причина потери прежней сис
 не установлена; восстановление через unregister/register подтверждено.
 Доказательства записаны в отчёте FE-32.
 
+## BE-30: producer проб моделей
+
+В `codex/be-30-model-probes` от main `b56dece` добавлен штатный запуск отдельных
+проб через сохранённый Cursor executable: shared result для silent-задач,
+retroactive attempt/run accounting, 10-минутный интервал, общий потолок процессов
+без stage/project WIP и durable replay результата. Unknown usage хранит nil-дату
+и проверяется раз в 6 часов; чистая проба и scoped `clearUsageFlag(pool?)` снимают
+флаг. Новая ошибка того же пула защищена generation. Additive store migration v24.
+[Проверки и границы](development/backend-be-30-2026-10-27.md).
+BE-24/25 отсутствуют в базе; живые CLI/Seatbelt/installed проверки не выполнены.
+Синтетический CLI не доказывает совместимость с реальным Cursor или полный MVP.
+
 | Область | Реализовано | Граница |
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |

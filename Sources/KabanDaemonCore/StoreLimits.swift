@@ -26,7 +26,7 @@ extension KabanStore {
         }
     }
 
-    /// Records the probe time. It does not start `cursor-agent -p`.
+    /// Coalesces requests. The runtime owns actual process admission and start times.
     static func installProbe(model: ModelID, at: Date, db: Database) throws {
         let now = at.timeIntervalSince1970
         if let next = try Double.fetchOne(db, sql: "SELECT next_at FROM model_probe WHERE model = ?", arguments: [model.rawValue]), next > now {
@@ -53,6 +53,7 @@ extension KabanStore {
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try encode(inputs)])
         case .raiseUsageExhausted(let pool):
             var inputs = try schedulerInputs(db)
+            let alreadyUnknown = inputs.flags.contains { unknownUsageScope($0) == (pool?.rawValue ?? "unknown") }
             inputs.flags.removeAll { flag in
                 switch (pool, flag) {
                 case (nil, .usageExhaustedUnknown): true
@@ -60,7 +61,12 @@ extension KabanStore {
                 default: false
                 }
             }
-            let reset = inputs.quota?.billingCycleEnd ?? at.addingTimeInterval(CursorLimitClassifier.unknownReset)
+            let reset = inputs.quota?.billingCycleEnd
+            if reset == nil {
+                try db.execute(sql: "INSERT INTO usage_probe_due(scope, next_at, generation) VALUES (?, ?, ?) ON CONFLICT(scope) DO UPDATE SET generation = excluded.generation, next_at = CASE WHEN ? THEN usage_probe_due.next_at ELSE excluded.next_at END",
+                               arguments: [pool?.rawValue ?? "unknown", at.addingTimeInterval(CursorLimitClassifier.usageProbeInterval).timeIntervalSince1970, UUID().uuidString, alreadyUnknown])
+            }
+            if reset != nil { try db.execute(sql: "DELETE FROM usage_probe_due WHERE scope = ?", arguments: [pool?.rawValue ?? "unknown"]) }
             if let pool { inputs.flags.append(.poolUsageExhausted(pool, resetsAt: reset)) }
             else { inputs.flags.append(.usageExhaustedUnknown(resetsAt: reset)) }
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try encode(inputs)])
@@ -77,6 +83,7 @@ extension KabanStore {
     }
 
     static func replaceUsageReset(_ date: Date, pool: ModelPool?, db: Database) throws {
+        try db.execute(sql: "DELETE FROM usage_probe_due WHERE scope = ?", arguments: [pool?.rawValue ?? "unknown"])
         var inputs = try schedulerInputs(db)
         inputs.flags = inputs.flags.map { flag in
             switch (pool, flag) {
@@ -125,7 +132,7 @@ extension KabanStore {
         return kind
     }
 
-    func resumeAfterRateLimit(_ envelope: CommandEnvelope, at: Date) throws -> CommandReply {
+    func clearLimitFlag(_ envelope: CommandEnvelope, at: Date) throws -> CommandReply {
         let request = try Self.encode(envelope)
         if let reply = try database.read({ try Self.wireReplay(envelope.commandId, request: request, db: $0) }) { return reply }
         return try database.write { db in
@@ -136,7 +143,18 @@ extension KabanStore {
                 return reply
             }
             var inputs = try Self.schedulerInputs(db)
-            inputs.flags.removeAll { if case .rateLimited = $0 { true } else { false } }
+            if case .clearUsageFlag(let pool) = envelope.command {
+                inputs.flags.removeAll { flag in
+                    switch (pool, flag) {
+                    case (nil, .usageExhaustedUnknown): true
+                    case (let wanted?, .poolUsageExhausted(let existing, _)): wanted == existing
+                    default: false
+                    }
+                }
+                try db.execute(sql: "DELETE FROM usage_probe_due WHERE scope = ?", arguments: [pool?.rawValue ?? "unknown"])
+            } else {
+                inputs.flags.removeAll { if case .rateLimited = $0 { true } else { false } }
+            }
             try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try Self.encode(inputs)])
             let seq = try Self.journal(.settingsChanged(.init(key: "scheduler", value: "updated", schedulerFlags: Self.schedulerFlags(db))), projectId: nil, commandId: envelope.commandId, at: at, db: db)
             let reply = CommandReply(commandId: envelope.commandId, seq: seq, result: .ok)
