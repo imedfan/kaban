@@ -225,6 +225,10 @@ BE-18 принят в main через [PR #89](https://github.com/imedfan/kaban/
 
 - [x] неизвестное stream-событие не ломает run, partial lines корректны, malformed/слишком большая строка ограничена.
 - [x] Model обязательна.
+- [x] BE-24: модель передаётся в argv штатного Cursor, task override имеет приоритет.
+- [x] BE-24: промпт из frozen skill/task/handoff и request additions доходит до процесса;
+  git-разрешения сопровождаются `GitGrantDelivered(next_prompt)`. Проверено синтетическим CLI,
+  платная production LaunchAgent-приёмка остаётся открытой.
 - [x] Без проверенного resume стартует новая сессия с сохранённым контекстом, без выдуманного sessionId.
 - [x] Не найден/не залогинен → runner_unavailable, проверка каждые 5 мин и по кнопке.
 - [x] Версия CLI и фактические ограничения зафиксированы; проверка help не заменяет реальный запуск.

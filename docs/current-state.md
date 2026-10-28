@@ -233,6 +233,26 @@ restart и agent_not_logged_in. Положительный login, авториз
 и installed launchd остаются открытыми.
 [Доказательства и ограничения BE-23](development/backend-be-23-2026-10-15.md).
 
+## BE-24: штатный Cursor launch (ветка реализации)
+
+`codex/be-24-cursor-driver`, production source `3884156` (test source `e879be4`), от принятой BE-22,
+`origin/main ad0ed88` после fetch.
+Обычный host без `--runner` запускает сохранённый Cursor executable через
+`CursorLaunch.plan/render`: явная модель с task override, `--force` только write,
+`--trust`, `--approve-mcps` после проверки точного набора MCP. Skill/task/handoff
+сохраняются в RunSpec, additions — в durable start request. Действующие grants
+текущей стадии попадают в промпт; process + `GitGrantDelivered(next_prompt)`
+пишутся атомарно до exec-gate, доставка не расходует grant.
+
+Выбран run HOME со ссылкой только на пользовательский `Library/Keychains`:
+бесплатный реальный status подтвердил вход, `mcp list` — только `kaban`, личного
+`.cursor/mcp.json` в run HOME нет. Это не изоляция credentials. Обработаны
+наблюдаемые JSON status и строковый MCP listing; stream parser/classifier — BE-25.
+763 tests (0 failures/skips), App/helper build, native WindowGroup smoke,
+daemon/CLI transport smoke и context checker прошли.
+[Проверки и оставшаяся live-приёмка](development/backend-be-24-2026-10-28.md).
+Платный запуск из `--launch-agent`, production Seatbelt и installed/reboot не проверены.
+
 ## BE-26: MCP в штатном host
 
 BE-26 принята в main `f2c082d` через [PR #121](https://github.com/imedfan/kaban/pull/121).
@@ -249,10 +269,12 @@ Additive v23 сохраняет ответы финальных MCP-вызово
 повторы complete/return/question не создают второй эффект, после host restart
 старые токены отклоняются. Полные args/env/headers выбранных MCP сохраняются.
 [Проверки и ограничения](development/backend-be-26-2026-10-26.md).
-Live-критерий BE-26/BE-10 и полная FE-16 приёмка остаются открытыми:
-формат реального `mcp list`, auth с отдельным HOME и вызов через настоящий
-Cursor требуют BE-22/BE-24. Production Cursor prompt/stream, shim и Seatbelt
-не входят в этот инкремент; обычный host без `--runner` не запускает модель.
+Live-критерий BE-26/BE-10 и полная FE-16 приёмка остаются открытыми.
+В ветке BE-24 формат реального `mcp list` и auth с отдельным HOME
+проверены бесплатно; вызов через настоящий Cursor из production host открыт.
+Production Cursor prompt/stream, shim и Seatbelt не входят в срез BE-26;
+на нём host без `--runner` не запускал модель.
+Подключение этого пути — отдельная ветка BE-24 выше.
 
 ## BE-27: executable git shim
 
@@ -334,7 +356,8 @@ retroactive attempt/run accounting, 10-минутный интервал, общ
 Source `58d23ba` на базе принятой BE-31 прошёл 746 tests (0 failures/skips),
 App/helper build, native WindowGroup smoke и daemon/CLI smoke.
 [Проверки и границы](development/backend-be-30-2026-10-27.md).
-BE-24/25 отсутствуют в базе; живые CLI/Seatbelt/installed проверки не выполнены.
+BE-24 реализуется отдельно от этой базы (см. выше); BE-25 отсутствует,
+живые production CLI/Seatbelt/installed проверки не выполнены.
 Синтетический CLI не доказывает совместимость с реальным Cursor или полный MVP.
 
 | Область | Реализовано | Граница |
