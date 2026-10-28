@@ -16,6 +16,7 @@ struct MacSettingsView: View {
                 }
                 Text("Хранятся у службы Kaban на этом Маке.").font(.callout).foregroundStyle(theme.secondary)
                 SchedulerFlagsView(store: store, theme: theme)
+                CursorEnvironmentView(environment: store.environment, theme: theme)
                 ceiling
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 16) {

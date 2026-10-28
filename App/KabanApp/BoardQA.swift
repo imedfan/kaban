@@ -10,8 +10,8 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
-    static var needsExplicitWindow: Bool { AppArguments.value("--project-smoke") != nil || AppArguments.value("--menubar-live-smoke") != nil || AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
+    static var isActive: Bool { ["--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
+    static var needsExplicitWindow: Bool { AppArguments.value("--cursor-live-smoke") != nil || AppArguments.value("--project-smoke") != nil || AppArguments.value("--menubar-live-smoke") != nil || AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
     static func run() async {
         do {
             if needsExplicitWindow {
@@ -38,7 +38,10 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = AppArguments.value("--menubar-live-smoke") {
+            if let path = AppArguments.value("--cursor-live-smoke") {
+                let checks = try await cursorEnvironmentLiveSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = AppArguments.value("--menubar-live-smoke") {
                 let checks = try await menuBarLiveSmoke(store)
                 let result = AppArguments.value("--qa-menubar-functional") == "YES" ? "functional_passed_popup_unverified" : "passed"
                 try JSONSerialization.data(withJSONObject: ["result": result, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
@@ -145,7 +148,7 @@ import Darwin
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
-            if let path = ["--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
+            if let path = ["--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
@@ -157,7 +160,8 @@ import Darwin
     static func captureWindow() async throws {
         guard let path = AppArguments.value("--export-live-window") ?? AppArguments.value("--qa-window-id"),
               let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("No main window or output path") }
-        window.setContentSize(AppArguments.value("--qa-size") == "minimum" || AppArguments.value("--qa-state") == "minimum" ? .init(width: 1040, height: 640) : .init(width: 1440, height: 900))
+        let minimumHeight: CGFloat = AppArguments.value("--cursor-live-smoke") != nil ? 608 : 640
+        window.setContentSize(AppArguments.value("--qa-size") == "minimum" || AppArguments.value("--qa-state") == "minimum" ? .init(width: 1040, height: minimumHeight) : .init(width: 1440, height: 900))
         window.makeKeyAndOrderFront(nil); NSApp.activate()
         try await Task.sleep(for: .milliseconds(700))
         if AppArguments.value("--qa-state") == "mascot" {
