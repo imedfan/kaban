@@ -64,7 +64,8 @@ final class ModelProbeTests: XCTestCase {
           status) echo ready; exit 0;;
           --list-models) printf 'fake\\tFake Model\\ncomposer-test\\tComposer Model\\n'; exit 0;;
         esac
-        printf '%s\\n' "$@" >> \(q(f.root.appendingPathComponent("argv").path))
+        printf '%s\\n' "$@" > probe-argv
+        touch probe-ready
         \(wait ? "while [ ! -f " + q(f.root.appendingPathComponent("release").path) + " ]; do /bin/sleep 0.02; done" : "")
         printf '%s' \(q(text))
         printf '%s' \(q(stderr)) >&2
@@ -98,7 +99,16 @@ final class ModelProbeTests: XCTestCase {
         let f = try fixture()
         for id: TaskID in ["a", "b"] { try start(id, f); try silent(id, f) }
         let load = try f.store.database.read { try KabanStore.stageLoads($0) }
-        try cli(f)
+        try cli(f, wait: true)
+        try pass(f)
+        let probe = try XCTUnwrap(records(f).first)
+        let argvPath = probe.directory + "/work/probe-argv"
+        let deadline = Date().addingTimeInterval(3)
+        while !FileManager.default.fileExists(atPath: probe.directory + "/work/probe-ready"), Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        let argv = try String(contentsOfFile: argvPath, encoding: .utf8)
+        XCTAssertTrue(argv.contains("--model\nfake\n"))
+        XCTAssertFalse(argv.contains("--force")); XCTAssertFalse(argv.contains("--resume"))
+        try Data().write(to: f.root.appendingPathComponent("release"))
         try finish(f)
         XCTAssertEqual(try records(f).count, 1)
         for id: TaskID in ["a", "b"] {
@@ -115,10 +125,45 @@ final class ModelProbeTests: XCTestCase {
         let seq = try f.store.getSnapshot().seq
         try finish(f, at.addingTimeInterval(2))
         XCTAssertEqual(try f.store.getSnapshot().seq, seq)
-        let argv = try String(contentsOf: f.root.appendingPathComponent("argv"), encoding: .utf8)
-        XCTAssertTrue(argv.contains("--model\nfake\n"))
-        XCTAssertFalse(argv.contains("--force")); XCTAssertFalse(argv.contains("--resume"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(records(f).first).directory))
+    }
+
+    func testProbeUsesRunHomeAndCannotWriteDaemonData() throws {
+        #if os(macOS)
+        let f = try fixture()
+        try start("isolated", f); try silent("isolated", f)
+        try cli(f, wait: true)
+        let server = try MCPBoardServer(store: f.store)
+        defer { server.stop() }
+        let executable = f.root.appendingPathComponent("cursor-agent")
+        var script = try String(contentsOf: executable, encoding: .utf8)
+        script = script.replacingOccurrences(of: #"printf '%s\n' "$@" > probe-argv"#, with: """
+        printf '%s' "$HOME" > probe-home
+        printf '%s' "${KABAN_RUN_TOKEN-unset}" > probe-token
+        /usr/bin/touch '\(f.root.path)/escaped' 2>/dev/null
+        echo $? > probe-write-exit
+        /usr/bin/curl --noproxy '*' -s --max-time 1 'http://127.0.0.1:\(server.port)/mcp' > probe-network 2>/dev/null
+        echo $? > probe-network-exit
+        printf '%s\\n' "$@" > probe-argv
+        """)
+        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try pass(f)
+        let probe = try XCTUnwrap(records(f).first)
+        let deadline = Date().addingTimeInterval(3)
+        while !FileManager.default.fileExists(atPath: probe.directory + "/work/probe-ready"), Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        func read(_ name: String) throws -> String { try String(contentsOfFile: probe.directory + "/work/" + name, encoding: .utf8) }
+        XCTAssertEqual(try read("probe-home"), probe.directory + "/home")
+        XCTAssertEqual(try read("probe-token"), "unset")
+        XCTAssertEqual(try read("probe-write-exit"), "1\n")
+        XCTAssertNotEqual(try read("probe-network-exit"), "0\n")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.path + "/escaped"))
+        XCTAssertEqual(try read(".cursor/mcp.json"), #"{"mcpServers":{}}"#)
+        try Data().write(to: f.root.appendingPathComponent("release"))
+        try finish(f)
+        XCTAssertEqual(try task("isolated", f.store).machine.state, .retryWait(.crash))
+        #else
+        throw XCTSkip("Production Seatbelt is a macOS boundary")
+        #endif
     }
 
     func testWIPOneAndProjectSlotDoNotBlockProbeAndLastAttemptWaitsForHuman() throws {

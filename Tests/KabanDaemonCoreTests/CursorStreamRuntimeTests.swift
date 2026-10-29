@@ -43,7 +43,7 @@ extension ProcessControlTests {
         let f = try fixture()
         try streamCursor(f, name: "Other", afterInit: """
         /bin/sleep 3
-        touch '\(f.root.path)/tool-ran'
+        touch .tool-ran
         /bin/sleep 30
         """)
         let run = try launch(f, "mismatch")
@@ -53,7 +53,7 @@ extension ProcessControlTests {
         XCTAssertEqual(process.state, "stopped")
         XCTAssertEqual(process.sessionId, "session-25")
         XCTAssertFalse(isRunning(process.pid))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.path + "/tool-ran"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: try XCTUnwrap(f.store.getTaskDetail("mismatch").clonePath) + "/.tool-ran"))
         let state = try task(f, "mismatch").machine
         XCTAssertEqual(state.attemptsUsed, 0)
         XCTAssertEqual(state.runsSinceHuman, 0)
@@ -74,12 +74,12 @@ extension ProcessControlTests {
 
     func testFastMCPCompletionObservesMismatchBeforePeriodicPoll() throws {
         let f = try fixture()
-        try streamCursor(f, name: "Other", afterInit: "touch '\(f.root.path)/init-written'\n/bin/sleep 30")
+        try streamCursor(f, name: "Other", afterInit: "touch .init-written\n/bin/sleep 30")
         _ = try launch(f, "fast")
         _ = try f.store.prepareTaskClone(taskId: "fast", at: at, workspaceRoot: f.workspace)
         try configuredPass(f)
         let deadline = Date().addingTimeInterval(3)
-        while !FileManager.default.fileExists(atPath: f.root.path + "/init-written"), Date() < deadline {
+        while !FileManager.default.fileExists(atPath: try XCTUnwrap(f.store.getTaskDetail("fast").clonePath) + "/.init-written"), Date() < deadline {
             Thread.sleep(forTimeInterval: 0.01)
         }
         let token = try f.store.issueRunToken(taskId: "fast", at: at)

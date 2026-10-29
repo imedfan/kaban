@@ -39,13 +39,13 @@ final class ProcessControlTests: XCTestCase {
 
     struct Fixture { let root: URL; let workspace: String; let path: String; var store: KabanStore; let origin: String }
 
-    func fixture(stall: String = "10m", wall: String = "60m") throws -> Fixture {
+    func fixture(stall: String = "10m", wall: String = "60m", preset: String = "standard") throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("kaban-proc-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
         let repo = root.appendingPathComponent("repo")
         try FileManager.default.createDirectory(at: repo.appendingPathComponent(".kaban"), withIntermediateDirectories: true)
-        try pipeline(stall: stall, wall: wall).write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
+        try pipeline(stall: stall, wall: wall).replacingOccurrences(of: "version: 1", with: "version: 1\ngit: {preset: \(preset)}").write(to: repo.appendingPathComponent(".kaban/pipeline.yaml"), atomically: true, encoding: .utf8)
         try "skill".write(to: repo.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
         try git(repo, ["init", "-b", "main"])
         try git(repo, ["config", "user.name", "Process Test"])

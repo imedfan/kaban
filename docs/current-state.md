@@ -1,13 +1,13 @@
 # Kaban: текущее состояние
 
-Срез 28 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
+Срез 29 октября 2026. Kaban — основной проект Артёма. Разработка не ограничена
 ролью «второй команды»; действующие правила — [contributing](contributing.md)
 и [AGENTS.md](../AGENTS.md). Документы и оригиналы дизайна доступны в Git.
 
 ## База этого среза
 
 Проверенная после `git fetch origin` база реализации: `origin/main` —
-`e5f6732` (BE-30 принята через PR #126; BE-31 принята через PR #123; BE-27 — #122; BE-26 — #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
+`1bf4577` (BE-22 принята через #128, BE-24/25 — через #130; BE-30 принята через PR #126; BE-31 принята через PR #123; BE-27 — #122; BE-26 — #121; FE-21, FE-25 и BE-21 — PR #115, #116 и #118;
 BE-23 — #119, FE-32 — #120; FE-34 — в `d94487e`,
 архитектура v0.11.27 и спека v0.8.26).
 Код BE-01–19 присутствует в main: [PR #89](https://github.com/imedfan/kaban/pull/89)
@@ -233,10 +233,11 @@ restart и agent_not_logged_in. Положительный login, авториз
 и installed launchd остаются открытыми.
 [Доказательства и ограничения BE-23](development/backend-be-23-2026-10-15.md).
 
-## BE-24: штатный Cursor launch (ветка реализации)
+## BE-24: штатный Cursor launch (код в main)
 
 `codex/be-24-cursor-driver`, production source `3884156` (test source `e879be4`), от принятой BE-22,
-`origin/main ad0ed88` после fetch.
+`origin/main ad0ed88` после fetch. Код вошёл в main `1bf4577` вместе с
+BE-25 через [PR #130](https://github.com/imedfan/kaban/pull/130).
 Обычный host без `--runner` запускает сохранённый Cursor executable через
 `CursorLaunch.plan/render`: явная модель с task override, `--force` только write,
 `--trust`, `--approve-mcps` после проверки точного набора MCP. Skill/task/handoff
@@ -253,11 +254,12 @@ daemon/CLI transport smoke и context checker прошли.
 [Проверки и оставшаяся live-приёмка](development/backend-be-24-2026-10-28.md).
 Платный запуск из `--launch-agent`, production Seatbelt и installed/reboot не проверены.
 
-## BE-25: штатный stream и сверка модели (ветка реализации)
+## BE-25: штатный stream и сверка модели (код в main)
 
-`codex/be-25-cursor-stream` построена поверх HEAD `1bbc2b7` открытого
-[PR #129](https://github.com/imedfan/kaban/pull/129) (BE-24); проверенная после fetch
-база main — `ad0ed88`. BE-24 не считается принятой из-за наличия в этой ветке.
+`codex/be-25-cursor-stream` была построена поверх BE-24 `1bbc2b7`
+([PR #129](https://github.com/imedfan/kaban/pull/129)). Принята в main `1bf4577`
+через [PR #130](https://github.com/imedfan/kaban/pull/130); дерево принятой базы
+совпало с исходным `d59658d`. Открытых PR после fetch 29 октября нет.
 Первый init атомарно с log cursor сохраняет actual name/session и сверяет frozen
 requested model. Известная подмена даёт kill outbox, `model_substituted`, флаг
 именно запрошенной модели и refund; неизвестное имя — один `model_unconfirmed`.
@@ -277,6 +279,28 @@ WindowGroup и daemon/CLI transport smoke, context checker — pass.
 Живые лимиты и подмена не воспроизведены; соответствующие fixtures синтетические.
 Спайк BE-22 дал один kill до инструментов, но файловый observer не обеспечивает
 универсальный барьер перед shell/внешним эффектом; полный UC-22/MVP не принят.
+
+## BE-28: production Seatbelt (ветка реализации)
+
+`codex/be-28-production-seatbelt` обновлена до main `1bf4577` после принятия
+зависимостей BE-24/25; чужие ветки и PR не изменялись. На macOS configured
+Cursor и отдельные model probes запускаются через `sandbox-exec` после durable
+exec-gate. Временные файлы и наблюдавшиеся служебные каталоги CLI относятся
+к отдельному HOME; профиль и launcher остаются вне агентской записи.
+
+В клоне доступны git objects/index/refs/logs/HEAD: standard/permissive коммитят
+через shim, strict получает отказ политики. Запись в config/hooks/info и
+`.kaban` закрыта, как и в основной репозиторий, личный gitconfig и состояние
+службы вне выделенных run-каталогов. SSH/globalStorage закрыты от реального
+HOME. MCP использует порт host; другие loopback-порты закрыты. Прокси и host
+allowlist не добавлены; внешний IP-трафик разрешён по принятой границе MVP.
+
+Изоляция токена CLI **не гарантирована**: CLI и инструменты наследуют один
+профиль и доступ к login Keychain. Полный список временных записей BE-22 не
+доказан; платный `-p` с коммитом настоящего агента и гейтами, installed/reboot
+и сборки BE-29 остаются открытыми. Бесплатный status/MCP не закрывает их.
+Source `5e6a584`: 777 tests (0 failures/skips), App/helper build, native WindowGroup, daemon/CLI и shim smoke прошли.
+[Проверки и границы BE-28](development/backend-be-28-2026-10-29.md).
 
 ## BE-26: MCP в штатном host
 
@@ -381,15 +405,15 @@ retroactive attempt/run accounting, 10-минутный интервал, общ
 Source `58d23ba` на базе принятой BE-31 прошёл 746 tests (0 failures/skips),
 App/helper build, native WindowGroup smoke и daemon/CLI smoke.
 [Проверки и границы](development/backend-be-30-2026-10-27.md).
-BE-24 и зависимая BE-25 реализуются в отдельных ветках (см. выше);
-живые production CLI/Seatbelt/installed проверки не выполнены.
+Код BE-24/25 принят в main `1bf4577`; BE-28 отдельно подключает Seatbelt,
+включая model probes. Платные production CLI/installed проверки не выполнены.
 Синтетический CLI не доказывает совместимость с реальным Cursor или полный MVP.
 
 | Область | Реализовано | Граница |
 |---|---|---|
 | Protocol | Типизированные команды, snapshot/details, события, settings, optional Markdown body, legacy decoding | Наличие DTO не означает готовый транспорт |
 | Kit | YAML/pipeline validation, git-policy, автомат, retry/return/pause rules, POSIX process group | Spawn и stop сами не являются циклом демона |
-| DaemonCore | GRDB store v1–v20 в main и MCP diagnostic v21 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Обычный loop с явно выбранным runner исполняет task effects; production Cursor launch/stream, часть wire/read/producers и критериев изоляции остаются открыты |
+| DaemonCore | GRDB store v1–v25 в main, state/journal/outbox и claim/lease/receipt, project/pipeline lifecycle, RunSpec/scheduler, clones/process groups, MCP/gates/hooks/result check, models/limits, grants/incidents/files, logs, merge/recovery/WIP; MCP catalog/permissions, grant lifecycle и committed policy intent FE-17 в main | Код BE-01–19 принят. Штатный Cursor launch/stream BE-24/25 принят; Seatbelt — ветка BE-28. Полная live/installed приёмка и изоляция токена остаются открыты |
 | Daemon/Transport/CLI | Single-writer host, startup recovery, scheduler/observer, XPC/private stdio, snapshot/catch-up/session/ephemeral, capabilities, logs и kabanctl; diagnostic passes | В main есть bundle/LaunchAgent/App integration из #91; штатная установка пока не принята. Наличие scheduler reservation и diagnostic smoke не доказывает живой Cursor |
 | BoardCore | KabanClient/MockKabanClient, проекция seq/events, pending commands, BoardSet, DropRules, presentation; BoardSession/reconciliation/drafts, bounded RunLogStore, exact WIPRestoreRequest, HumanAnswerStore и HumanReviewStore; PipelineEditorStore FE-13, ModelSettingsStore/task override FE-14, ProjectSettingsStore и GitPolicyPresentation FE-15 в main, ProjectMCPStore FE-16 и GitPermissionsStore/preview FE-17 и SuspiciousFilesStore FE-18 в main; IncidentsStore/IncidentDecisionStore FE-19 в main; MacSettingsStore FE-20 в main; AttentionStore FE-21 в main; ValidationIssueText FE-25 в main | Core зависит только от Protocol; FE-01–20 в main; source/apply и настройки проверены с production store |
 | Kaban.app | SwiftUI BoardView/BoardStore, live DaemonKabanClient, create/edit/move/cancel, полные детали/run history, native log/WIP confirmation, ответы/замечания, Human Review, merge, pause/resume, lifecycle UI; pipeline FE-13, модели FE-14 и metadata/git/workspace/files FE-15 в main, MCP settings/picker FE-16 и git permissions/history/preview FE-17 и suspicious files FE-18 в main; incident history/decisions FE-19 в main; Mac settings/flags/quota presentation FE-20 в main; MenuBarExtra/NativeNotifications FE-21 в main; русские diagnostics FE-25 в main | FE-01–20 в main. В BE-20 normal XPC путь подготовлен; developer private stdio проверен. Установка SMAppService пока отклонена macOS |
@@ -718,7 +742,7 @@ Crash и timeout пишут `refs/kaban/wip/<run>` внутри клона и о
 
 [PR #83](https://github.com/imedfan/kaban/pull/83) принят в составе main через PR #89 — [изоляция MCP](development/backend-mcp-isolation-2026-10-06.md).
 Чужой или нечитаемый `mcp list` блокирует старт и не включает `--approve-mcps`. Сервер вне allowlist даёт предупреждение и не попадает в конфиг. Токен в файле только как `${env:KABAN_RUN_TOKEN}`. Подмена `.cursor/mcp.json` снимается до пустого diff.
-Профиль запрещает прямую запись и `/usr/bin/git config` в `.git` клона. Это не гарантия изоляции: CLI остаётся вне профиля, чтение широкое, токен CLI не спрятан. Установленный CLI не залогинен, поэтому auth, сборка и MCP в реальном профиле не подтверждены.
+В исходном срезе BE-10 профиль проверялся только синтетически и закрывал весь `.git`; CLI оставался вне него и не был залогинен. Актуальное подключение профиля, доступность commit и бесплатная проверка login/MCP описаны в BE-28 выше; изоляция токена и платная live-приёмка остаются открытыми.
 
 ### Backend: BE-11 гейты и передача стадии
 
