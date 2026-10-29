@@ -133,6 +133,8 @@ final class ModelProbeTests: XCTestCase {
         let f = try fixture()
         try start("isolated", f); try silent("isolated", f)
         try cli(f, wait: true)
+        let server = try MCPBoardServer(store: f.store)
+        defer { server.stop() }
         let executable = f.root.appendingPathComponent("cursor-agent")
         var script = try String(contentsOf: executable, encoding: .utf8)
         script = script.replacingOccurrences(of: #"printf '%s\n' "$@" > probe-argv"#, with: """
@@ -140,6 +142,8 @@ final class ModelProbeTests: XCTestCase {
         printf '%s' "${KABAN_RUN_TOKEN-unset}" > probe-token
         /usr/bin/touch '\(f.root.path)/escaped' 2>/dev/null
         echo $? > probe-write-exit
+        /usr/bin/curl --noproxy '*' -s --max-time 1 'http://127.0.0.1:\(server.port)/mcp' > probe-network 2>/dev/null
+        echo $? > probe-network-exit
         printf '%s\\n' "$@" > probe-argv
         """)
         try script.write(to: executable, atomically: true, encoding: .utf8)
@@ -151,6 +155,7 @@ final class ModelProbeTests: XCTestCase {
         XCTAssertEqual(try read("probe-home"), probe.directory + "/home")
         XCTAssertEqual(try read("probe-token"), "unset")
         XCTAssertEqual(try read("probe-write-exit"), "1\n")
+        XCTAssertNotEqual(try read("probe-network-exit"), "0\n")
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.path + "/escaped"))
         XCTAssertEqual(try read(".cursor/mcp.json"), #"{"mcpServers":{}}"#)
         try Data().write(to: f.root.appendingPathComponent("release"))

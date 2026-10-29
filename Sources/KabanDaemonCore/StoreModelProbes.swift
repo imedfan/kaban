@@ -153,7 +153,7 @@ extension KabanStore {
                 command = [SeatbeltProfile.executable] + SeatbeltProfile.arguments(clone: cwd.path,
                     scratch: environment["TMPDIR"]!, runHome: home.path,
                     realHome: inherited["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path,
-                    repository: nil, cli: executable, mcpPort: 0, command: command)
+                    repository: nil, cli: executable, mcpPort: nil, command: command)
                 #endif
                 let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-probe", gate] + command,
                     workingDirectory: cwd.path, environment: environment, standardOutput: record.directory + "/out", standardError: record.directory + "/err")

@@ -61,7 +61,6 @@ public enum SeatbeltProfile {
     (allow network-outbound (literal "/private/var/run/mDNSResponder"))
     (allow network-outbound
       (require-all (remote ip "*:*") (require-not (remote ip "localhost:*"))))
-    (allow network-outbound (remote ip (string-append "localhost:" (param "MCP_PORT"))))
     """
 
     /// Precreate only the observed BE-22 service directories; never grant the entire HOME or host temp.
@@ -76,7 +75,7 @@ public enum SeatbeltProfile {
     }
 
     public static func arguments(clone: String, scratch: String, runHome: String, realHome: String,
-                                 repository: String?, cli: String, mcpPort: UInt16, command: [String]) -> [String] {
+                                 repository: String?, cli: String, mcpPort: UInt16?, command: [String]) -> [String] {
         // Foundation may abbreviate /private/var to /var; Seatbelt matches the kernel's physical path.
         func physical(_ path: String) -> String {
             if let resolved = realpath(path, nil) {
@@ -90,8 +89,12 @@ public enum SeatbeltProfile {
         let running = URL(fileURLWithPath: physical(cli)).deletingLastPathComponent().appendingPathComponent(".running").path
         var parameters = [("CLONE", physical(clone)), ("SCRATCH", physical(scratch)), ("RUN_HOME", physical(runHome)),
                           ("REAL_HOME", physical(realHome)),
-                          ("CLI_RUNNING", running), ("MCP_PORT", String(mcpPort))]
+                          ("CLI_RUNNING", running)]
         var profile = tool
+        if let mcpPort, mcpPort > 0 {
+            parameters.append(("MCP_PORT", String(mcpPort)))
+            profile += "\n(allow network-outbound (remote ip (string-append \"localhost:\" (param \"MCP_PORT\"))))"
+        }
         if let repository {
             parameters.append(("REPOSITORY", physical(repository)))
             profile += "\n(deny file-write* (subpath (param \"REPOSITORY\")))"
