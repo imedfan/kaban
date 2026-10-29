@@ -15,12 +15,13 @@ extension ProcessControlTests {
           --list-models) printf 'explicit\\tExplicit\\noverride-model\\tOverride\\n'; exit 0 ;;
           mcp) printf '%s' "$HOME" > '\(f.root.path)/list-home'; echo 'kaban: not loaded (needs approval)'; \(unexpected ? "echo 'personal-server: not loaded (needs approval)'" : ":"); exit 0 ;;
         esac
-        printf '%s\\0' "$@" > '\(f.root.path)/argv'
-        printf '%s' "$HOME" > '\(f.root.path)/home'
-        printf '%s' "$XDG_CONFIG_HOME" > '\(f.root.path)/config-home'
-        cp .cursor/mcp.json '\(f.root.path)/run-mcp.json'
+        mkdir -p .be24
+        printf '%s\\0' "$@" > '.be24/argv'
+        printf '%s' "$HOME" > '.be24/home'
+        printf '%s' "$XDG_CONFIG_HOME" > '.be24/config-home'
+        cp .cursor/mcp.json '.be24/run-mcp.json'
         echo '{"type":"assistant","message":{"content":[{"type":"text","text":"fixture launch"}]}}'
-        touch '\(f.root.path)/captured'
+        touch '.be24/captured'
         /bin/sleep 30
         """)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)
@@ -30,16 +31,22 @@ extension ProcessControlTests {
         return path
     }
 
+    private func cursorCapture(_ f: Fixture, _ name: String) throws -> URL {
+        guard let cwd = try f.store.agentProcesses().first?.workingDirectory else { throw CocoaError(.fileReadNoSuchFile) }
+        return URL(fileURLWithPath: cwd).appendingPathComponent(".be24/" + name)
+    }
+
     private func capturedArguments(_ f: Fixture) throws -> [String] {
         let deadline = Date().addingTimeInterval(8)
-        while !FileManager.default.fileExists(atPath: f.root.appendingPathComponent("captured").path), Date() < deadline {
+        while Date() < deadline {
+            if let capture = try? cursorCapture(f, "captured"), FileManager.default.fileExists(atPath: capture.path) { break }
             Thread.sleep(forTimeInterval: 0.02)
         }
-        if !FileManager.default.fileExists(atPath: f.root.appendingPathComponent("captured").path) {
+        if (try? cursorCapture(f, "captured")).map({ FileManager.default.fileExists(atPath: $0.path) }) != true {
             let hostError = (try? String(contentsOf: f.root.appendingPathComponent("host.err"), encoding: .utf8)) ?? ""
             XCTFail("Cursor did not launch. Host: \(hostError), state: \(try f.store.snapshot().tasks.map { "\($0.card.id) \($0.machine.stageId): \($0.machine.state)" })")
         }
-        let data = try Data(contentsOf: f.root.appendingPathComponent("argv"))
+        let data = try Data(contentsOf: try cursorCapture(f, "argv"))
         return String(decoding: data, as: UTF8.self).split(separator: "\0").map(String.init)
     }
 
@@ -75,10 +82,10 @@ extension ProcessControlTests {
             XCTAssertTrue(prompt.contains(input), "Missing input: \(input)")
         }
         XCTAssertFalse(prompt.contains("WRONG mutable skill"))
-        let home = try String(contentsOf: f.root.appendingPathComponent("home"), encoding: .utf8)
+        let home = try String(contentsOf: try cursorCapture(f, "home"), encoding: .utf8)
         XCTAssertTrue(home.hasPrefix(f.workspace + "/mcp-homes/"))
         XCTAssertEqual(try String(contentsOf: f.root.appendingPathComponent("list-home"), encoding: .utf8), home)
-        XCTAssertEqual(try String(contentsOf: f.root.appendingPathComponent("config-home"), encoding: .utf8), home + "/.config")
+        XCTAssertEqual(try String(contentsOf: try cursorCapture(f, "config-home"), encoding: .utf8), home + "/.config")
         XCTAssertFalse(FileManager.default.fileExists(atPath: home + "/.cursor/mcp.json"))
         let delivery = try XCTUnwrap(f.store.getTaskDetail("cursor").gitGrants.first?.delivery)
         XCTAssertEqual(delivery.via, .nextPrompt)
@@ -139,7 +146,8 @@ extension ProcessControlTests {
         XCTAssertThrowsError(try f.store.runProcessPass(owner: "test", at: at, workspaceRoot: f.workspace, runner: nil, launchConfiguredCursor: true))
         XCTAssertTrue(try f.store.agentProcesses().isEmpty)
         XCTAssertNil(try f.store.getTaskDetail("delivery-failure").gitGrants.first?.delivery)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.appendingPathComponent("captured").path))
+        let clone = try XCTUnwrap(f.store.getTaskDetail("delivery-failure").clonePath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: clone + "/.be24/captured"))
     }
 
     func testDaemonWithoutRunnerLaunchesConfiguredCursor() throws {

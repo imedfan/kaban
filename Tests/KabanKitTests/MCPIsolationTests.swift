@@ -101,11 +101,11 @@ final class MCPIsolationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: outside.appendingPathComponent("mcp.json").path))
     }
 
-    func testDirectGitAndDirectWritesAreDenied() throws {
+    func testGitCommitsAndWorkerSocketWorkWhileProtectedPathsStayDenied() throws {
         guard FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else {
             throw XCTSkip("sandbox-exec is not on this host")
         }
-        let unresolved = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let unresolved = URL(fileURLWithPath: "/tmp/kb28-" + UUID().uuidString.prefix(8))
         try FileManager.default.createDirectory(at: unresolved, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: unresolved) }
         let root = URL(fileURLWithPath: physical(unresolved.path))
@@ -123,21 +123,99 @@ final class MCPIsolationTests: XCTestCase {
         let pipeline = clone.appendingPathComponent(".kaban/pipeline.yaml")
         let before = try Data(contentsOf: config)
         try Data("marker\n".utf8).write(to: pipeline)
-        let profile = root.appendingPathComponent("tool.sb")
-        try SeatbeltProfile.tool.write(to: profile, atomically: true, encoding: .utf8)
-        let deniedGit = sandbox(profile: profile, clone: clone, scratch: scratch, home: home, ["/usr/bin/git", "-C", clone.path, "config", "user.email", "other@example.com"])
+        let runHome = home.appendingPathComponent("run")
+        _ = try SeatbeltProfile.prepareRunDirectories(home: runHome)
+        let repository = home.appendingPathComponent("repository")
+        for directory in [repository, home.appendingPathComponent(".ssh"),
+                          home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage"),
+                          home.appendingPathComponent("Library/Application Support/Kaban")] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        let deniedGit = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/git", "-C", clone.path, "config", "user.email", "other@example.com"])
         XCTAssertNotEqual(deniedGit.status, 0, deniedGit.error)
         XCTAssertEqual(try Data(contentsOf: config), before)
-        let deniedWrite = sandbox(profile: profile, clone: clone, scratch: scratch, home: home, ["/bin/sh", "-c", "printf x > \"$1\"", "sh", pipeline.path])
+        let deniedWrite = sandbox(clone: clone, scratch: scratch, home: home, ["/bin/sh", "-c", "printf x > \"$1\"", "sh", pipeline.path])
         XCTAssertNotEqual(deniedWrite.status, 0, deniedWrite.error)
         XCTAssertEqual(try String(contentsOf: pipeline, encoding: .utf8), "marker\n")
         let outside = root.appendingPathComponent("forbidden")
-        let deniedOutside = sandbox(profile: profile, clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", outside.path])
+        let deniedOutside = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", outside.path])
         XCTAssertNotEqual(deniedOutside.status, 0, deniedOutside.error)
         XCTAssertFalse(FileManager.default.fileExists(atPath: outside.path))
-        let allowed = sandbox(profile: profile, clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", clone.appendingPathComponent("allowed").path])
+        let allowed = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", clone.appendingPathComponent("allowed").path])
         XCTAssertEqual(allowed.status, 0, allowed.error)
         XCTAssertTrue(FileManager.default.fileExists(atPath: clone.appendingPathComponent("allowed").path))
+        // Index, objects, refs, reflog and HEAD must remain writable for agent-owned commits.
+        for args in [["add", "allowed"], ["commit", "-m", "Seatbelt commit"], ["status", "--porcelain"]] {
+            let result = sandbox(clone: clone, scratch: scratch, home: home,
+                                 ["/usr/bin/git", "-C", clone.path] + args)
+            XCTAssertEqual(result.status, 0, result.error)
+        }
+        XCTAssertEqual(try git(["log", "-1", "--format=%s"], clone).trimmingCharacters(in: .newlines), "Seatbelt commit")
+        for path in [".git/config", ".git/hooks/x", ".git/info/exclude", ".kaban/x"] {
+            let denied = sandbox(clone: clone, scratch: scratch, home: home,
+                                 ["/usr/bin/touch", clone.appendingPathComponent(path).path])
+            XCTAssertNotEqual(denied.status, 0, path)
+        }
+        let protected = [repository.appendingPathComponent("main.txt"), home.appendingPathComponent(".gitconfig"),
+                         home.appendingPathComponent("Library/Application Support/Kaban/store.sqlite"),
+                         runHome.appendingPathComponent(".cursor/mcp.json"), runHome.appendingPathComponent("git-bin/git")]
+        for path in protected {
+            try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("original".utf8).write(to: path)
+            let denied = sandbox(clone: clone, scratch: scratch, home: home,
+                                 ["/bin/sh", "-c", "printf changed > \"$1\"", "probe", path.path])
+            XCTAssertNotEqual(denied.status, 0, path.path)
+            XCTAssertEqual(try String(contentsOf: path, encoding: .utf8), "original")
+        }
+        for path in [".ssh/key", "Library/Application Support/Cursor/User/globalStorage/state.vscdb"] {
+            let secret = home.appendingPathComponent(path)
+            try Data("synthetic-secret".utf8).write(to: secret)
+            let link = clone.appendingPathComponent("secret-link")
+            try FileManager.default.createSymbolicLink(at: link, withDestinationURL: secret)
+            for target in [secret, link] {
+                let denied = sandbox(clone: clone, scratch: scratch, home: home, ["/bin/cat", target.path])
+                XCTAssertNotEqual(denied.status, 0, target.path)
+            }
+            try FileManager.default.removeItem(at: link)
+        }
+        let hardlink = clone.appendingPathComponent("config-alias")
+        let linked = sandbox(clone: clone, scratch: scratch, home: home,
+                             ["/bin/ln", config.path, hardlink.path])
+        if linked.status == 0 {
+            let denied = sandbox(clone: clone, scratch: scratch, home: home,
+                                 ["/bin/sh", "-c", "printf changed > \"$1\"", "probe", hardlink.path])
+            XCTAssertNotEqual(denied.status, 0, denied.error)
+            XCTAssertEqual(try Data(contentsOf: config), before)
+        }
+        let rename = sandbox(clone: clone, scratch: scratch, home: home,
+                             ["/bin/mv", clone.appendingPathComponent(".git").path, clone.appendingPathComponent("git-old").path])
+        XCTAssertNotEqual(rename.status, 0, rename.error)
+        // The observed service writes and run temp work; config/shim/Keychains are not granted by HOME.
+        let serviceFiles = [".cursor/agent-cli-state.json", ".cursor/cli-config.json", ".cursor/statsig-cache.json",
+                            ".cursor/chats/session.json", ".cursor/projects/worker.log", ".cursor/ai-tracking/db.sqlite",
+                            ".cursor/managed/rules.json", ".cursor/plugins/cache/plugin", ".cursor/skills-cursor/skill.md",
+                            "Library/Caches/cursor-compile-cache/compiled", ".local/bin/cursor-agent",
+                            ".local/share/cursor-agent/versions/build"]
+        for path in serviceFiles.map({ runHome.appendingPathComponent($0) }) + [scratch.appendingPathComponent("temp")] {
+            let allowed = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", path.path])
+            XCTAssertEqual(allowed.status, 0, allowed.error)
+            XCTAssertTrue(FileManager.default.fileExists(atPath: path.path))
+        }
+        let worker = sandbox(clone: clone, scratch: scratch, home: home, ["/bin/sh", "-c", """
+        /usr/bin/nc -l -U "$1/worker.sock" > "$1/received" &
+        server=$!
+        i=0
+        while [ ! -S "$1/worker.sock" ]; do
+          i=$((i+1)); [ "$i" -lt 40 ] || exit 90
+          /bin/sleep 0.05
+        done
+        printf worker | /usr/bin/nc -w 1 -U "$1/worker.sock"
+        /bin/sleep 0.1
+        kill "$server"
+        wait "$server" 2>/dev/null
+        [ "$(cat "$1/received")" = worker ]
+        """, "probe", runHome.appendingPathComponent(".cursor/projects").path])
+        XCTAssertEqual(worker.status, 0, worker.error)
         let openGit = process(["/usr/bin/git", "-C", clone.path, "config", "user.email", "other@example.com"])
         XCTAssertEqual(openGit.status, 0, openGit.error)
         XCTAssertNotEqual(try Data(contentsOf: config), before)
@@ -198,8 +276,9 @@ final class MCPIsolationTests: XCTestCase {
         return result.output
     }
 
-    private func sandbox(profile: URL, clone: URL, scratch: URL, home: URL, _ command: [String]) -> (status: Int32, error: String) {
-        let result = process(["/usr/bin/sandbox-exec"] + SeatbeltProfile.arguments(profile: profile.path, clone: clone.path, scratch: scratch.path, fakeHome: home.path, mcpPort: "43191", proxyPort: "43192", command: command))
+    private func sandbox(clone: URL, scratch: URL, home: URL, _ command: [String]) -> (status: Int32, error: String) {
+        let params = SeatbeltProfile.arguments(clone: clone.path, scratch: scratch.path, runHome: home.appendingPathComponent("run").path, realHome: home.path, repository: home.appendingPathComponent("repository").path, cli: "/usr/bin/true", mcpPort: 43191, command: command)
+        let result = process(["/usr/bin/sandbox-exec"] + params)
         return (result.status, result.error)
     }
 

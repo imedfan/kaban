@@ -96,7 +96,18 @@ extension KabanStore {
             // launcher times out without running user tools after a crash before saveProcess.
             let gate = logs + "/" + lease.leaseId + ".start"
             let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
-            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + launchArguments, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
+            var command = [runner] + launchArguments
+            #if os(macOS)
+            if configuredCursor {
+                guard let endpoint = mcpHost.endpoint, endpoint.port != 0,
+                      let home = environment["HOME"], let scratch = environment["TMPDIR"] else { throw StoreError.incompleteProjection }
+                let repository = try database.read { db in try Self.project(task.card.projectId, db: db).summary.path }
+                let realHome = cursorEnvironmentProbe.environment["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path
+                command = [SeatbeltProfile.executable] + SeatbeltProfile.arguments(clone: cwd, scratch: scratch,
+                    runHome: home, realHome: realHome, repository: repository, cli: runner, mcpPort: endpoint.port, command: command)
+            }
+            #endif
+            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate] + command, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
             let record = AgentProcessRecord(runId: request.runId.rawValue, taskId: item.taskId.rawValue, startId: lease.leaseId, pid: handle.pid,
                                             processGroup: handle.processGroup, birthSeconds: handle.birth.seconds, birthMicroseconds: handle.birth.microseconds,
                                             state: "running", startedAt: at, lastActivityAt: at, stallDeadline: at.addingTimeInterval(TimeInterval(stall)),

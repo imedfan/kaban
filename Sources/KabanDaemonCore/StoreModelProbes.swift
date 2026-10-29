@@ -136,15 +136,27 @@ extension KabanStore {
             guard var record = reservation else { continue }
             do {
                 try FileManager.default.createDirectory(atPath: record.directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-                var environment = try cursorProcessEnvironment()
-                environment.removeValue(forKey: "KABAN_RUN_TOKEN")
+                let inherited = try cursorProcessEnvironment()
+                let home = URL(fileURLWithPath: record.directory).appendingPathComponent("home")
+                var environment = try CursorRunHome.environment(inherited, home: home)
+                for key in ["KABAN_RUN_TOKEN", "KABAN_MCP_URL", "KABAN_GIT_CHECK_URL"] { environment[key] = nil }
+                let cwd = URL(fileURLWithPath: record.directory).appendingPathComponent("work")
+                try FileManager.default.createDirectory(at: cwd.appendingPathComponent(".cursor"), withIntermediateDirectories: true)
+                try Data(#"{"mcpServers":{}}"#.utf8).write(to: cwd.appendingPathComponent(".cursor/mcp.json"), options: .atomic)
                 // No project cwd, run token, resume or --force. A probe only asks for a short reply.
                 let plan = try CursorLaunch.plan(model: model.rawValue, readOnly: true, resumeRequested: false, verifiedSessionId: nil,
                     prompt: "Reply with OK only. Do not use tools, inspect files, or change anything.", environment: environment)
                 let gate = record.directory + "/start"
                 let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
-                let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-probe", gate, executable] + plan.arguments,
-                    workingDirectory: record.directory, environment: environment, standardOutput: record.directory + "/out", standardError: record.directory + "/err")
+                var command = [executable] + plan.arguments
+                #if os(macOS)
+                command = [SeatbeltProfile.executable] + SeatbeltProfile.arguments(clone: cwd.path,
+                    scratch: environment["TMPDIR"]!, runHome: home.path,
+                    realHome: inherited["HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.path,
+                    repository: nil, cli: executable, mcpPort: 0, command: command)
+                #endif
+                let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-probe", gate] + command,
+                    workingDirectory: cwd.path, environment: environment, standardOutput: record.directory + "/out", standardError: record.directory + "/err")
                 record.handlePID = handle.pid; record.birth = handle.birth
                 do {
                     try database.write { try Self.saveProbeProcess(record, db: $0) }
