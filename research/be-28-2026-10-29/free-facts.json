@@ -1,0 +1,32 @@
+{
+  "facts" : [
+    {
+      "command" : [
+        "--version"
+      ],
+      "exit" : 0,
+      "stderrBytes" : 0,
+      "version" : "2026.09.23-86fc751"
+    },
+    {
+      "command" : [
+        "status",
+        "--format",
+        "json"
+      ],
+      "exit" : 0,
+      "isAuthenticated" : true,
+      "stderrBytes" : 0
+    },
+    {
+      "boardListed" : true,
+      "command" : [
+        "mcp",
+        "list"
+      ],
+      "exit" : 0,
+      "stderrBytes" : 0
+    }
+  ],
+  "paidPrompts" : 0
+}
