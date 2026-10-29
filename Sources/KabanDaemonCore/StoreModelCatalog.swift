@@ -138,46 +138,40 @@ extension KabanStore {
 
     public func observeModelInit(taskId: TaskID, runId: RunID, actualName: String?, fallback: String?, commandId: CommandID, at: Date) throws -> ModelObservation {
         projectOperations.lock(); defer { projectOperations.unlock() }
-        let task = try database.read { try Self.task(taskId, db: $0) }
-        let stageId = task.machine.stageId
-        let stageModel = task.pipeline.stage(stageId)?.agent?.model
-        let requested = try database.read { try Self.resolvedModel(taskId: taskId, stageId: stageId, db: $0) }
-        let rows = try database.read { try Self.catalogRecord($0).rows }
-        guard let requested else { return .unconfirmed }
-        let observation = ModelCatalogMatcher.observe(requestedId: requested, actualName: actualName, rows: rows)
-        switch observation {
-        case .confirmed:
-            return .confirmed
-        case .unconfirmed:
-            let request = try Self.encode(Request(kind: "model-unconfirmed", taskId: taskId, body: Data((actualName ?? "").utf8)))
-            try database.write { db in
-                if try Self.replay(commandId, request: request, db: db) != nil { return }
-                var detail = try Self.detail(taskId, db: db)
-                let shown = actualName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                detail.feed.append(FeedItem(id: commandId.uuidString.lowercased() + "/model", at: at, kind: "model_unconfirmed", text: shown.isEmpty ? "Фактическое имя модели не подтверждено." : "Фактическое имя «\(shown)» не подтверждено каталогом.", runId: runId))
-                try Self.saveDetail(detail, taskId: taskId, db: db)
-                let current = try Self.task(taskId, db: db)
-                let seq = try Self.seq(db)
-                try Self.saveReceipt(DurableReceipt(commandId: commandId, firstSeq: seq, lastSeq: seq, task: current), request: request, db: db)
-            }
-            return .unconfirmed
-        case .substituted(let requestedName, let actual):
-            _ = try apply(.modelMismatch(runId: runId, requested: requestedName, actual: actual, fallback: fallback), taskId: taskId, commandId: commandId, at: at)
-            if let stageModel, requested != stageModel {
-                try database.write { db in try Self.retargetModelFlag(from: stageModel, to: requested, db: db) }
-            }
-            return observation
+        return try database.write { db in
+            try Self.observeModelInit(taskId: taskId, runId: runId, actualName: actualName, fallback: fallback,
+                                      commandId: commandId, at: at, db: db)
         }
     }
 
-    static func retargetModelFlag(from source: ModelID, to target: ModelID, db: Database) throws {
-        var inputs = try schedulerInputs(db)
-        guard let index = inputs.modelFlags.firstIndex(where: { $0.modelId == source && $0.reason == .substituted }) else { return }
-        var flag = inputs.modelFlags.remove(at: index)
-        flag.modelId = target
-        inputs.modelFlags.removeAll { $0.modelId == target }
-        inputs.modelFlags.append(flag)
-        try db.execute(sql: "UPDATE scheduler_inputs SET payload = ? WHERE id = 1", arguments: [try encode(inputs)])
+    static func observeModelInit(taskId: TaskID, runId: RunID, actualName: String?, fallback: String?,
+                                 commandId: CommandID, at: Date, db: Database) throws -> ModelObservation {
+        let task = try Self.task(taskId, db: db)
+        var detail = try Self.detail(taskId, db: db)
+        guard let index = detail.runs.firstIndex(where: { $0.id == runId }) else { return .unconfirmed }
+        // Compare the model actually requested for this run, even if an override changes meanwhile.
+        let requested = detail.runs[index].requestedModel
+        let observation = ModelCatalogMatcher.observe(requestedId: requested, actualName: actualName, rows: try catalogRecord(db).rows)
+        let request = try encode(Request(kind: "model-init", taskId: taskId,
+            body: try encode([runId.rawValue, actualName ?? "", fallback ?? ""])))
+        if try replay(commandId, request: request, db: db) != nil { return observation }
+        guard task.machine.state == .running, task.machine.currentRunId == runId else { return .unconfirmed }
+        detail.runs[index].actualModelName = actualName
+        try saveDetail(detail, taskId: taskId, db: db)
+        switch observation {
+        case .confirmed, .unconfirmed:
+            if observation == .unconfirmed {
+                let shown = actualName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                detail.feed.append(FeedItem(id: commandId.uuidString.lowercased() + "/model", at: at, kind: "model_unconfirmed", text: shown.isEmpty ? "Фактическое имя модели не подтверждено." : "Фактическое имя «\(shown)» не подтверждено каталогом.", runId: runId))
+                try saveDetail(detail, taskId: taskId, db: db)
+            }
+            let seq = try journal(.taskUpdated(task.card), task: task, commandId: commandId, at: at, db: db)
+            try saveReceipt(DurableReceipt(commandId: commandId, firstSeq: seq, lastSeq: seq, task: task), request: request, db: db)
+        case .substituted(let requestedName, let actual):
+            _ = try apply(.modelMismatch(runId: runId, requested: requestedName, actual: actual, fallback: fallback),
+                          taskId: taskId, commandId: commandId, at: at, request: request, db: db)
+        }
+        return observation
     }
 
     static func installUnavailable(modelId: ModelID, requested: String, at: Date, db: Database) throws {

@@ -101,7 +101,7 @@ extension KabanStore {
         projectOperations.lock(); defer { projectOperations.unlock() }
         let task = try database.read { try Self.task(taskId, db: $0) }
         guard task.machine.state == .running, task.machine.currentRunId == runId else { return nil }
-        let model = try database.read { try Self.resolvedModel(taskId: taskId, stageId: task.machine.stageId, db: $0) }
+        let model = try database.read { try Self.probeModel(task, db: $0) }
         let inputs = try database.read { try Self.schedulerInputs($0) }
         let pool = model.map { ModelPoolResolver.pool(for: $0, rules: inputs.modelPoolRules) }
         guard let kind = CursorLimitClassifier.classify(text, pool: pool) else { return nil }

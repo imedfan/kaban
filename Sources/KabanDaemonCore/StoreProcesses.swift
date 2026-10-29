@@ -29,10 +29,14 @@ extension KabanStore {
     }
 
     /// Spawns, polls, stops, and classifies recorded runs. Poll and stop use `WNOHANG` and `kill` and do not wait.
-    /// Without `runner`, a pending start stays pending. Cursor is not launched.
-    public func runProcessPass(owner: String, at: Date, workspaceRoot: String, runner: String?, runnerArguments: [String] = []) throws -> [String] {
-        if let runner {
-            try spawnPending(owner: owner, at: at, workspaceRoot: workspaceRoot, runner: runner, arguments: runnerArguments)
+    /// An explicit runner is diagnostic. Production opts into the configured Cursor after the observation pass.
+    public func runProcessPass(owner: String, at: Date, workspaceRoot: String, runner: String?, runnerArguments: [String] = [], launchConfiguredCursor: Bool = false) throws -> [String] {
+        projectOperations.lock(); defer { projectOperations.unlock() }
+        let cursor = launchConfiguredCursor && mcpHost.endpoint != nil
+            ? try currentCursorEnvironment().configuration.executablePath : nil
+        if let executable = runner ?? cursor {
+            try spawnPending(owner: owner, at: at, workspaceRoot: workspaceRoot, runner: executable,
+                             arguments: runnerArguments, configuredCursor: runner == nil)
         }
         try observeRunning(at: at, workspaceRoot: workspaceRoot)
         try acknowledgeStops(owner: owner, at: at)
@@ -44,14 +48,26 @@ extension KabanStore {
         try database.read { db in try Self.processRows(db).sorted { $0.runId < $1.runId }.map(\.snapshot) }
     }
 
-    private func spawnPending(owner: String, at: Date, workspaceRoot: String, runner: String, arguments: [String]) throws {
+    private func spawnPending(owner: String, at: Date, workspaceRoot: String, runner: String, arguments: [String], configuredCursor: Bool) throws {
         for item in try pendingEffectItems() {
             guard case .startAgentRun(let request) = item.effect else { continue }
             if try processRecord(request.runId) != nil { continue }
             let task = try database.read { db in try Self.task(item.taskId, db: db) }
             guard task.machine.state == .running, task.machine.currentRunId == request.runId else { continue }
+            if configuredCursor {
+                guard let clone = try database.read({ try Self.cloneRecord(item.taskId, db: $0) }),
+                      clone.phase == "ready", FileManager.default.fileExists(atPath: clone.clonePath) else { continue }
+            }
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }
-            let stage = task.pipeline.stage(request.stageId)
+            let spec = try getRunSpec(request.runId)
+            let stage = (spec?.pipeline ?? task.pipeline).stage(request.stageId)
+            // Validate the frozen request before environment/token creation or any child process.
+            if configuredCursor {
+                guard let spec, spec.taskId == item.taskId, spec.stageId == request.stageId,
+                      spec.promptParts != nil else { throw StoreError.incompleteProjection }
+                _ = try CursorLaunch.plan(model: request.model.rawValue, readOnly: request.readOnly,
+                    resumeRequested: false, verifiedSessionId: nil, prompt: "", environment: [:])
+            }
             let stall = stage?.timeouts.stallSeconds ?? 600
             let wall = stage?.timeouts.wallSeconds ?? 3600
             let cwd = try workingDirectory(taskId: item.taskId, workspaceRoot: workspaceRoot)
@@ -61,6 +77,16 @@ extension KabanStore {
                 _ = try apply(.runFailed(request.runId, .mcpPreflightBlocked), taskId: item.taskId, commandId: UUID(), at: at)
                 continue
             }
+            let grants = configuredCursor ? try launchGrants(taskId: item.taskId, stageId: request.stageId) : []
+            let launchArguments: [String]
+            if configuredCursor, var parts = spec?.promptParts {
+                parts.additions = request.prompt
+                parts.grants = grants.map { "\($0.grant.argv.joined(separator: " ")) разрешена один раз" }
+                let plan = try CursorLaunch.plan(model: request.model.rawValue, readOnly: request.readOnly,
+                    resumeRequested: request.resumeSession, verifiedSessionId: nil,
+                    prompt: CursorLaunch.render(parts), environment: environment, mcpPreflightPassed: true)
+                launchArguments = plan.arguments
+            } else { launchArguments = arguments }
             let logs = try logDirectory(taskId: item.taskId, workspaceRoot: workspaceRoot)
             let stdout = logs + "/" + safe(request.runId.rawValue) + ".out"
             let stderr = logs + "/" + safe(request.runId.rawValue) + ".err"
@@ -70,7 +96,7 @@ extension KabanStore {
             // launcher times out without running user tools after a crash before saveProcess.
             let gate = logs + "/" + lease.leaseId + ".start"
             let launcher = "i=0; while [ ! -f \"$1\" ]; do i=$((i+1)); [ \"$i\" -lt 100 ] || exit 125; /bin/sleep 0.05; done; shift; exec \"$@\""
-            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + arguments, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
+            let handle = try ProcessGroup.spawn(executable: "/bin/sh", arguments: ["-c", launcher, "kaban-launch", gate, runner] + launchArguments, workingDirectory: cwd, environment: environment, standardOutput: stdout, standardError: stderr)
             let record = AgentProcessRecord(runId: request.runId.rawValue, taskId: item.taskId.rawValue, startId: lease.leaseId, pid: handle.pid,
                                             processGroup: handle.processGroup, birthSeconds: handle.birth.seconds, birthMicroseconds: handle.birth.microseconds,
                                             state: "running", startedAt: at, lastActivityAt: at, stallDeadline: at.addingTimeInterval(TimeInterval(stall)),
@@ -78,7 +104,7 @@ extension KabanStore {
                                             workingDirectory: cwd, sessionId: nil, exitCode: nil, exitClass: nil, outputBytes: 0,
                                             passLines: ["process group \(request.runId.rawValue) started"])
             do {
-                try saveProcess(record)
+                try saveStartedProcess(record, grants: grants, at: at)
                 try recordExternalFact(effectId: item.id, leaseId: lease.leaseId, fact: ExternalEffectFact(actionId: item.id + "/process", phase: .started))
                 try Data().write(to: URL(fileURLWithPath: gate), options: .atomic)
             } catch {
@@ -93,13 +119,21 @@ extension KabanStore {
         for var record in try allProcessRecords() where record.state == "running" {
             let run = RunID(rawValue: record.runId)
             let task = TaskID(rawValue: record.taskId)
-            try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: false)
+            try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: false, at: at)
+            // Init ingestion commits the mismatch and kill outbox before any exit classification.
+            try acknowledgeStops(owner: "stream-observer", at: at)
+            if let latest = try processRecord(run) { record = latest }
+            if record.state != "running" { continue }
             if let code = ProcessGroup.poll(record.pid) {
-                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
-                try classify(&record, code: code, at: at)
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                try acknowledgeStops(owner: "stream-observer", at: at)
+                if let latest = try processRecord(run) { record = latest }
+                if record.state == "running" { try classify(&record, code: code, at: at) }
             } else if !ProcessGroup.isAlive(record.pid) {
-                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
-                guard record.exitClass == nil else { continue }
+                try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                try acknowledgeStops(owner: "stream-observer", at: at)
+                if let latest = try processRecord(run) { record = latest }
+                guard record.state == "running", record.exitClass == nil else { continue }
                 record.state = "exited"
                 record.exitClass = "unobserved"
                 record.passLines.append("process exit \(record.runId) unobserved")
@@ -114,7 +148,10 @@ extension KabanStore {
                 if let kind = ProcessDeadlines(stall: record.stallDeadline, wall: record.wallDeadline).due(at: at) {
                     let birth = ProcessGroup.ProcessBirth(seconds: record.birthSeconds, microseconds: record.birthMicroseconds)
                     try ProcessGroup.stop(pid: record.pid, processGroup: record.processGroup, birth: birth)
-                    try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true)
+                    try captureProcessLog(stdoutPath: record.stdoutPath, stderrPath: record.stderrPath, runId: run, taskId: task, workspaceRoot: workspaceRoot, complete: true, at: at)
+                    try acknowledgeStops(owner: "stream-observer", at: at)
+                    if let latest = try processRecord(run) { record = latest }
+                    guard record.state == "running" else { continue }
                     record.state = "stopped"
                     record.exitClass = kind == .wall ? "wall" : "stall"
                     record.passLines.append("process timeout \(record.runId) \(kind == .wall ? "wall" : "stall")")
@@ -130,7 +167,7 @@ extension KabanStore {
     private static func outputExcerpt(_ path: String) -> String {
         guard let handle = FileHandle(forReadingAtPath: path) else { return "" }
         defer { try? handle.close() }
-        return String(decoding: handle.readData(ofLength: 4_000), as: UTF8.self)
+        return String(decoding: handle.readData(ofLength: 65_536), as: UTF8.self)
     }
 
     private static func limitExitClass(_ kind: CursorLimitClass) -> String {
@@ -148,12 +185,18 @@ extension KabanStore {
         let taskId = TaskID(rawValue: record.taskId)
         let task = try database.read { db in try Self.task(taskId, db: db) }
         let active = task.machine.state == .running && task.machine.currentRunId?.rawValue == record.runId
-        let activity = fileSize(record.stdoutPath) + fileSize(record.stderrPath) > 0
+        let stream = try database.read { db in
+            try Row.fetchOne(db, sql: "SELECT tool_seen, failures FROM run_stream WHERE run_id = ?", arguments: [record.runId])
+        }
+        let stdout = Self.outputExcerpt(record.stdoutPath)
+        let stderr = Self.outputExcerpt(record.stderrPath)
+        // Legacy diagnostic runners may write plain text; structured Cursor chatter is not a tool call.
+        let plainActivity = stdout.split(separator: "\n").contains { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("{") }
+        let activity = (stream?["tool_seen"] as Bool? ?? false) || plainActivity
         let changed = try filesChanged(taskId)
         if active {
-            let excerpt = Self.outputExcerpt(record.stdoutPath) + "\n" + Self.outputExcerpt(record.stderrPath)
-            if let preview = CursorLimitClassifier.classify(excerpt, pool: nil), preview != .unknown,
-               let kind = try observeAgentFailure(taskId: taskId, runId: RunID(rawValue: record.runId), text: excerpt, commandId: UUID(), at: at),
+            let excerpt = (stream?["failures"] as String? ?? "") + "\n" + CursorLimitClassifier.failureText(stdout: stdout, stderr: stderr)
+            if let kind = try observeAgentFailure(taskId: taskId, runId: RunID(rawValue: record.runId), text: excerpt, commandId: UUID(), at: at),
                kind != .unknown {
                 record.state = "exited"
                 record.exitCode = code
@@ -194,7 +237,7 @@ extension KabanStore {
         }
     }
 
-    private func acknowledgeStops(owner: String, at: Date) throws {
+    func acknowledgeStops(owner: String, at: Date) throws {
         for item in try pendingEffectItems() {
             guard case .killRun(let runId) = item.effect else { continue }
             guard let lease = try claimEffect(id: item.id, owner: owner, leaseFor: 30, at: at) else { continue }

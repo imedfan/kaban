@@ -95,7 +95,8 @@ public enum MCPPreflight {
         check(plan(stageServers: stageServers, allowlist: allowlist, definitions: definitions, boardURL: boardURL), listOutput: listOutput, listExit: listExit)
     }
 
-    /// `name<TAB>source` lines only. Any other text is unreadable and must not be treated as an empty allow.
+    /// Accept the observed BE-22 CLI listing and legacy tab-separated fixtures.
+    /// Unknown output remains unreadable, never an empty allow.
     private static func parseList(_ output: String, exit: Int32) -> Set<String>? {
         guard exit == 0 else { return nil }
         var names: Set<String> = []
@@ -103,8 +104,14 @@ public enum MCPPreflight {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
             let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-            names.insert(parts[0])
+            if parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty {
+                names.insert(parts[0])
+            } else if let colon = line.range(of: ": "),
+                      line[colon.upperBound...] == "not loaded (needs approval)" {
+                let name = String(line[..<colon.lowerBound])
+                guard !name.isEmpty, !name.contains(where: { $0.isWhitespace }) else { return nil }
+                names.insert(name)
+            } else { return nil }
         }
         return names.isEmpty ? nil : names
     }

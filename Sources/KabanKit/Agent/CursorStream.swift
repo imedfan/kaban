@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import KabanProtocol
 
 public struct CursorStreamDiagnostic: Equatable, Sendable {
@@ -67,6 +68,14 @@ public struct CursorStreamParser: Sendable {
         return CursorStreamBatch(events: events, diagnostics: diagnostics, sources: sources)
     }
 
+    /// Flush a final unterminated NDJSON record once the process has exited.
+    public mutating func finish() -> CursorStreamBatch {
+        var batch = CursorStreamBatch(events: [], diagnostics: [])
+        if !skipping { consume(line, events: &batch.events, diagnostics: &batch.diagnostics, sources: &batch.sources) }
+        line.removeAll(); skipping = false
+        return batch
+    }
+
     private mutating func consume(_ raw: Data, events: inout [AgentEvent], diagnostics: inout [CursorStreamDiagnostic], sources: inout [String]) {
         var data = raw
         if data.last == 13 { data.removeLast() }
@@ -84,7 +93,7 @@ public struct CursorStreamParser: Sendable {
         switch type {
         case "system":
             let subtype = object["subtype"] as? String
-            guard subtype == nil || subtype == "init" else {
+            guard subtype == "init" else {
                 diagnostics.append(CursorStreamDiagnostic(kind: .unknown))
                 return
             }
@@ -92,16 +101,29 @@ public struct CursorStreamParser: Sendable {
             let session = nonEmpty(object["session_id"])
             if let session { observedSessionId = session }
             events.append(.initialized(modelName: model, sessionId: session))
+        case "thinking":
+            // BE-22 emits delta/completed even in print mode. Do not expose private reasoning.
+            return
         case "assistant", "user":
             let text = messageText(object)
             guard !text.isEmpty else { return }
             events.append(.message(role: type, text: text))
         case "tool_call":
-            events.append(toolEvent(object))
+            guard let event = toolEvent(object) else {
+                diagnostics.append(CursorStreamDiagnostic(kind: .unknown))
+                return
+            }
+            events.append(event)
         case "result":
             let isError = object["is_error"] as? Bool ?? false
             let subtype = object["subtype"] as? String
             events.append(.result(ok: !isError && subtype != "error", durationMs: integer(object["duration_ms"])))
+            if isError || subtype == "error" {
+                let error = object["error"] as? [String: Any]
+                let message = nonEmpty(object["error"]) ?? nonEmpty(error?["message"]) ?? nonEmpty(object["result"]) ?? nonEmpty(object["message"]) ?? ""
+                let code = nonEmpty(object["code"]) ?? nonEmpty(error?["code"])
+                if code != nil || !message.isEmpty { events.append(.error(code: code, message: message)) }
+            }
             if let usage = object["usage"] as? [String: Any] {
                 events.append(.usage(inputTokens: token(usage, "input_tokens", "inputTokens"), outputTokens: token(usage, "output_tokens", "outputTokens")))
             }
@@ -115,11 +137,12 @@ public struct CursorStreamParser: Sendable {
         }
     }
 
-    private func toolEvent(_ object: [String: Any]) -> AgentEvent {
+    private func toolEvent(_ object: [String: Any]) -> AgentEvent? {
         let id = nonEmpty(object["call_id"]) ?? ""
         let payload = object["tool_call"] as? [String: Any] ?? [:]
-        let name = payload.keys.sorted().first ?? ""
-        let body = payload[name] as? [String: Any] ?? [:]
+        // Metadata (hookAdditionalContexts, startedAtMs, toolCallId…) are siblings.
+        let names = payload.keys.filter { $0.hasSuffix("ToolCall") && payload[$0] is [String: Any] }
+        guard names.count == 1, let name = names.first, let body = payload[name] as? [String: Any] else { return nil }
         let summary = String((body["args"] as? [String: Any]).flatMap { $0["command"] as? String }?.prefix(200) ?? "")
         if (object["subtype"] as? String) == "completed" {
             return .toolResult(id: id, ok: toolSucceeded(body), summary: summary)
@@ -130,8 +153,10 @@ public struct CursorStreamParser: Sendable {
     private func toolSucceeded(_ body: [String: Any]) -> Bool {
         if body["error"] != nil { return false }
         guard let result = body["result"] as? [String: Any] else { return true }
-        if result["error"] != nil { return false }
-        if let code = integer(result["exitCode"]) ?? integer(result["exit_code"]), code != 0 { return false }
+        if result["error"] != nil || result["failure"] != nil { return false }
+        let success = result["success"] as? [String: Any] ?? result
+        if success["isError"] as? Bool == true { return false }
+        if let code = integer(success["exitCode"]) ?? integer(success["exit_code"]), code != 0 { return false }
         return true
     }
 
@@ -152,9 +177,10 @@ public struct CursorStreamParser: Sendable {
     }
 
     private func integer(_ value: Any?) -> Int? {
-        if value is Bool { return nil }
-        if let value = value as? Int { return value }
-        if let value = value as? Double, value.isFinite, value.rounded() == value { return Int(value) }
+        if let number = value as? NSNumber {
+            guard CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+            return Int(exactly: number.doubleValue)
+        }
         return nil
     }
 

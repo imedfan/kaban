@@ -29,10 +29,32 @@ public enum CursorLimitClassifier {
         if lower.contains("rate limit") || lower.contains("rate_limit") || lower.contains("too many requests") {
             return .rateLimit
         }
-        if lower.contains("authentication failed") || lower.contains("invalid api key") || lower.contains("unauthorized") {
+        let status = (try? JSONSerialization.jsonObject(with: Data(trimmed.utf8))) as? [String: Any]
+        if CursorRunner.loginFailure(in: trimmed) != nil || status?["isAuthenticated"] as? Bool == false {
             return .runnerAuth
         }
         return .unknown
+    }
+
+    /// Only error envelopes and unstructured CLI diagnostics are failures. Prompts, messages,
+    /// thinking and tool output can quote a limit without reporting a runner failure.
+    public static func failureText(stdout: String, stderr: String) -> String {
+        var failures: [String] = []
+        for text in [stdout, stderr] {
+            for line in text.split(separator: "\n") {
+                var parser = CursorStreamParser()
+                let batch = parser.append(Data((String(line) + "\n").utf8))
+                for event in batch.events {
+                    if case .error(let code, let message) = event {
+                        failures.append([code, message].compactMap { $0 }.joined(separator: " "))
+                    }
+                }
+                if !line.trimmingCharacters(in: .whitespaces).hasPrefix("{"), !batch.diagnostics.isEmpty {
+                    failures.append(String(line))
+                }
+            }
+        }
+        return failures.joined(separator: "\n")
     }
 
     /// The next cooldown while a flag is already active uses the following step. A missing flag starts at 15 minutes.

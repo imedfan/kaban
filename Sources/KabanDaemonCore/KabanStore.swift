@@ -57,6 +57,9 @@ public final class KabanStore: Sendable {
             try db.execute(sql: "CREATE TABLE mcp_final_call (token_hash TEXT PRIMARY KEY NOT NULL, tool TEXT NOT NULL, response BLOB NOT NULL)")
         }
         migrator.registerMigration("model_probe_process_v24", migrate: Self.migrateModelProbeProcesses)
+        migrator.registerMigration("run_stream_v25") { db in
+            try db.execute(sql: "CREATE TABLE run_stream (run_id TEXT PRIMARY KEY NOT NULL, init_seen INTEGER NOT NULL, tool_seen INTEGER NOT NULL, failures TEXT NOT NULL)")
+        }
         try migrator.migrate(database)
     }
 
@@ -151,8 +154,14 @@ public final class KabanStore: Sendable {
             reductionPipeline.stages[index].onSuccess = owner?.pipeline.stage(before.stageId)?.onSuccess
             for stage in owner?.pipeline.stages ?? [] where reductionPipeline.stage(stage.id) == nil { reductionPipeline.stages.append(stage) }
         }
+        if case .start = command,
+           let override = try String.fetchOne(db, sql: "SELECT model FROM model_override WHERE task_id = ? AND stage_id = ?",
+                                              arguments: [taskId.rawValue, before.stageId.rawValue]),
+           let index = reductionPipeline.index(of: before.stageId) {
+            reductionPipeline.stages[index].agent?.model = ModelID(rawValue: override)
+        }
         switch command {
-        case .probeFinished, .runFailed(_, .silentExit):
+        case .probeFinished, .runFailed, .modelMismatch:
             if let model = try Self.probeModel(task, db: db), let index = reductionPipeline.index(of: before.stageId) {
                 reductionPipeline.stages[index].agent?.model = model
             }

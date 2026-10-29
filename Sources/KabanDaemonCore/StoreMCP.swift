@@ -100,6 +100,21 @@ extension KabanStore {
 
     func performBoardTool(token: String, name: String, arguments: [String: Any], at: Date) throws -> BoardToolResponse {
         projectOperations.lock(); defer { projectOperations.unlock() }
+        // A fast CLI can call complete_stage before the periodic observer sees init.
+        // Commit available stream facts first; a mismatch revokes the token before any tool result.
+        if let endpoint = mcpHost.endpoint {
+            let process = try database.read { db -> AgentProcessRecord? in
+                guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM mcp_run_token WHERE token_hash = ? AND restart_revoked = 0 AND revoked = 0)", arguments: [SHA256Digest.hex(token)]) == true,
+                      let row = try Self.tokenRow(SHA256Digest.hex(token), db: db) else { return nil }
+                return try Self.processRow(RunID(rawValue: row.runId), db: db)
+            }
+            if let process, process.state == "running" {
+                try captureProcessLog(stdoutPath: process.stdoutPath, stderrPath: process.stderrPath,
+                    runId: RunID(rawValue: process.runId), taskId: TaskID(rawValue: process.taskId),
+                    workspaceRoot: endpoint.workspaceRoot, complete: false, at: at)
+                try acknowledgeStops(owner: "mcp-stream-observer", at: at)
+            }
+        }
         return try database.write { db in try Self.performBoardTool(token: token, name: name, arguments: arguments, at: at, db: db) }
     }
 

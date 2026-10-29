@@ -40,7 +40,8 @@ extension KabanStore {
     /// Parse one redacted stdout chunk into durable AgentEvent offsets. The same function serves the process observer.
     /// A read never consumes those rows. Retention drops a prefix without renumbering the events that remain.
     public func ingestAgentOutput(runId: RunID, taskId: TaskID, chunk: Data, stderr: Data = Data(), complete: Bool = false,
-                                  directory: String, extras: [String] = [], consumedStdout: Int64? = nil, consumedStderr: Int64? = nil) throws {
+                                  directory: String, extras: [String] = [], consumedStdout: Int64? = nil, consumedStderr: Int64? = nil, at: Date = Date()) throws {
+        projectOperations.lock(); defer { projectOperations.unlock() }
         _ = try database.read { db in try Self.task(taskId, db: db) }
         let stdoutText = SecretText.redact(String(decoding: chunk, as: UTF8.self), extras: extras)
         let stderrText = SecretText.redact(String(decoding: stderr, as: UTF8.self), extras: extras)
@@ -58,7 +59,35 @@ extension KabanStore {
             row.stderrPath = stderrPath
             var parser = CursorStreamParser()
             parser.resume(remainder: row.pending, skipping: row.skipping)
-            let batch = parser.append(Data(stdoutText.utf8))
+            var batch = parser.append(Data(stdoutText.utf8))
+            if complete {
+                let final = parser.finish()
+                batch.events += final.events; batch.sources += final.sources
+                batch.diagnostics += final.diagnostics
+            }
+            let state = try Row.fetchOne(db, sql: "SELECT init_seen, tool_seen, failures FROM run_stream WHERE run_id = ?", arguments: [runId.rawValue])
+            var initSeen: Bool = state?["init_seen"] ?? false
+            var toolSeen: Bool = state?["tool_seen"] ?? false
+            var failures: String = state?["failures"] ?? ""
+            for event in batch.events {
+                switch event {
+                case .initialized(let name, let session) where !initSeen:
+                    initSeen = true
+                    _ = try Self.observeModelInit(taskId: taskId, runId: runId, actualName: name, fallback: nil,
+                                                 commandId: UUID(), at: at, db: db)
+                    if var process = try Self.processRow(runId, db: db) {
+                        process.sessionId = session
+                        try db.execute(sql: "UPDATE agent_process SET payload = ? WHERE run_id = ?", arguments: [try Self.encode(process), runId.rawValue])
+                    }
+                case .toolCall, .toolResult: toolSeen = true
+                case .error(let code, let message):
+                    failures += "\n" + [code, message].compactMap { $0 }.joined(separator: " ")
+                default: break
+                }
+            }
+            failures = String(failures.suffix(65_536))
+            try db.execute(sql: "INSERT INTO run_stream(run_id, init_seen, tool_seen, failures) VALUES (?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET init_seen = excluded.init_seen, tool_seen = excluded.tool_seen, failures = excluded.failures",
+                           arguments: [runId.rawValue, initSeen, toolSeen, failures])
             row.pending = parser.remainder
             row.skipping = parser.skippingRemainder
             if batch.events.count != batch.sources.count { throw StoreError.incompleteProjection }
@@ -143,14 +172,14 @@ extension KabanStore {
     }
 
     /// Read new process bytes and append them. A slow reader is not in this path: the write does not wait on `readLog`.
-    func captureProcessLog(stdoutPath: String, stderrPath: String, runId: RunID, taskId: TaskID, workspaceRoot: String, complete: Bool) throws {
+    func captureProcessLog(stdoutPath: String, stderrPath: String, runId: RunID, taskId: TaskID, workspaceRoot: String, complete: Bool, at: Date) throws {
         let existing = try database.read { db in try Self.runLogRow(runId, db: db) }
         let (stdout, stdoutBytes) = Self.logSlice(path: stdoutPath, from: existing?.stdoutBytes ?? 0)
         let (stderr, stderrBytes) = Self.logSlice(path: stderrPath, from: existing?.stderrBytes ?? 0)
         if stdout.isEmpty && stderr.isEmpty && existing == nil && !complete { return }
         if stdout.isEmpty && stderr.isEmpty && existing == nil { return }
         try ingestAgentOutput(runId: runId, taskId: taskId, chunk: stdout, stderr: stderr, complete: complete, directory: workspaceRoot,
-                              consumedStdout: stdoutBytes, consumedStderr: stderrBytes)
+                              consumedStdout: stdoutBytes, consumedStderr: stderrBytes, at: at)
         if complete {
             SecretText.redactFile(stdoutPath)
             SecretText.redactFile(stderrPath)

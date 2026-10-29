@@ -17,6 +17,7 @@ final class ProcessGroupTests: XCTestCase {
         XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 0, runStillActive: true, producedActivity: true, changedFiles: false), .noFinalCall)
         XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 0, runStillActive: true, producedActivity: false, changedFiles: true), .noFinalCall)
         XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 0, runStillActive: true, producedActivity: false, changedFiles: false), .silentDeferred)
+        XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 7, runStillActive: true, producedActivity: false, changedFiles: false), .silentDeferred)
         XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 0, runStillActive: false, producedActivity: true, changedFiles: true), .inactive)
         XCTAssertEqual(ProcessExitClassifier.classify(exitCode: 9, runStillActive: true, producedActivity: true, changedFiles: false), .crash(9))
         let now = Date()
