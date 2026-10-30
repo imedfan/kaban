@@ -6,6 +6,9 @@ import KabanBoardCore
 /// Display fixtures use the same DTOs and mock transport as the eventual daemon.
 @MainActor enum AppFixture {
     static func client() -> MockKabanClient {
+        if let profile = AppArguments.qaValue("--qa-load-profile") {
+            return loadClient(profile)
+        }
         let now = Date()
         var stages: [StageSummary] = [
             .init(id: "backlog", name: "Backlog", kind: .queue, display: .init(order: 0), onSuccess: "dev"),
@@ -161,6 +164,33 @@ import KabanBoardCore
         }
         let flags: [SchedulerFlag] = ["dirty", "error", "pending"].contains(AppArguments.qaValue("--qa-merge") ?? "") ? [.mergeBlocked("shop")] : []
         return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
+    }
+
+    private static func loadClient(_ profile: String) -> MockKabanClient {
+        let projectCount = profile == "10x500" ? 10 : 5
+        let taskCount = profile == "10x500" ? 500 : 50
+        let stages: [StageSummary] = [
+            .init(id: "backlog", name: "Backlog", kind: .queue, display: .init(order: 0)),
+            .init(id: "dev", name: "Dev", kind: .agent, display: .init(order: 1), wip: 3, model: "fixture-model"),
+            .init(id: "review", name: "Human Review", kind: .human, display: .init(order: 2)),
+            .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 3))
+        ]
+        let projects = (0..<projectCount).map { index in
+            ProjectSummary(id: .init(rawValue: "load-\(index)"), name: "Проект \(index + 1)", path: "/fixture/\(index)", mascotSeed: "load-\(index)")
+        }
+        let tasks = projects.flatMap { project in
+            (0..<taskCount).map { index in
+                TaskCard(id: .init(rawValue: "\(project.id.rawValue)-\(index)"), projectId: project.id,
+                         title: "Задача \(index + 1): проверка обработки длинного текста и событий",
+                         stageId: stages[index % stages.count].id,
+                         state: index % stages.count == 2 ? .waitingHuman(.review) : index % stages.count == 3 ? .done : .queued(nil),
+                         hasAcceptanceCriteria: true, updatedAt: Date())
+            }
+        }
+        let client = MockKabanClient(snapshot: .init(seq: 0, projects: projects,
+            pipelines: projects.map { .init(projectId: $0.id, versionHash: "load-fixture", stages: stages) }, tasks: tasks))
+        BoardQA.loadClient = client
+        return client
     }
 }
 

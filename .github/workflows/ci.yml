@@ -15,6 +15,9 @@ jobs:
       - name: Check documents, design originals and Drive import
         run: python3 tools/check-project-context.py
 
+      - name: Check acceptance evidence failure handling
+        run: python3 tools/test-frontend-acceptance.py
+
   linux:
     name: Linux (Swift 6)
     runs-on: ubuntu-latest
@@ -79,6 +82,22 @@ jobs:
           assert result["result"] == "passed", result
           print(json.dumps(result, ensure_ascii=False))
           PY
+          for profile in 5x50 10x500; do
+            load_result="$RUNNER_TEMP/kaban-board-load-$profile.json"
+            open -n -W --stdout "$RUNNER_TEMP/kaban-board-load-$profile.log" \
+              --stderr "$RUNNER_TEMP/kaban-board-load-$profile.log" \
+              "$derived_data/Build/Products/Debug/Kaban.app" --args \
+              -ApplePersistenceIgnoreState YES --board-load-smoke "$load_result" \
+              --qa-load-profile "$profile"
+            python3 - "$load_result" <<'PYLOAD'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as report:
+              result = json.load(report)
+          assert result["result"] == "passed", result
+          assert result["metrics"]["eventsApplied"] == 90, result
+          print(json.dumps(result, ensure_ascii=False))
+          PYLOAD
+          done
           control_result="$RUNNER_TEMP/kaban-native-task-controls.json"
           control_log="$RUNNER_TEMP/kaban-native-task-controls.log"
           rm -f "$control_result"

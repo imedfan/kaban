@@ -10,7 +10,8 @@ import Darwin
 @MainActor enum BoardQA {
     static var store: BoardStore?
     static var runtime: DaemonRuntime?
-    static var isActive: Bool { ["--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
+    static var loadClient: MockKabanClient?
+    static var isActive: Bool { ["--board-load-smoke", "--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-volume-smoke", "--log-smoke", "--control-live-smoke", "--control-routing-smoke", "--control-smoke", "--export-live-window", "--ui-smoke", "--qa-window-id", "--daemon-smoke", "--project-smoke", "--task-smoke", "--board-smoke", "--detail-smoke", "--detail-live-smoke"].contains { AppArguments.value($0) != nil } }
     static var needsExplicitWindow: Bool { AppArguments.value("--cursor-live-smoke") != nil || AppArguments.value("--project-smoke") != nil || AppArguments.value("--menubar-live-smoke") != nil || AppArguments.value("--mac-live-smoke") != nil || AppArguments.value("--incident-live-smoke") != nil || AppArguments.value("--files-live-smoke") != nil || AppArguments.value("--git-live-smoke") != nil || AppArguments.value("--mcp-live-smoke") != nil || AppArguments.value("--settings-live-smoke") != nil || AppArguments.value("--model-live-smoke") != nil || AppArguments.value("--pipeline-live-smoke") != nil || AppArguments.value("--review-live-smoke") != nil || AppArguments.value("--merge-live-smoke") != nil }
     static func run() async {
         do {
@@ -38,7 +39,10 @@ import Darwin
             }
             try await waitUntil("connected board in WindowGroup") { store?.projection != nil && store?.canSend == true && NSApp.windows.contains { $0.styleMask.contains(.titled) } }
             guard let store else { throw failure("No application store") }
-            if let path = AppArguments.value("--cursor-live-smoke") {
+            if let path = AppArguments.value("--board-load-smoke") {
+                let metrics = try await boardLoadSmoke(store)
+                try JSONSerialization.data(withJSONObject: ["result": "passed", "metrics": metrics], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+            } else if let path = AppArguments.value("--cursor-live-smoke") {
                 let checks = try await cursorEnvironmentLiveSmoke(store)
                 try JSONSerialization.data(withJSONObject: ["result": "passed", "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
             } else if let path = AppArguments.value("--menubar-live-smoke") {
@@ -148,7 +152,7 @@ import Darwin
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
-            if let path = ["--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
+            if let path = ["--board-load-smoke", "--cursor-live-smoke", "--menubar-live-smoke", "--mac-live-smoke", "--incident-live-smoke", "--files-live-smoke", "--git-live-smoke", "--mcp-live-smoke", "--settings-live-smoke", "--model-live-smoke", "--pipeline-live-smoke", "--merge-smoke", "--merge-live-smoke", "--review-smoke", "--review-live-smoke", "--answer-smoke", "--answer-live-smoke", "--log-live-smoke", "--log-smoke", "--log-volume-smoke", "--control-smoke", "--control-routing-smoke", "--control-live-smoke"].compactMap({ AppArguments.value($0) }).first,
                let data = try? JSONSerialization.data(withJSONObject: ["result": "failed", "error": error.localizedDescription], options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: URL(fileURLWithPath: path))
             }
@@ -156,6 +160,77 @@ import Darwin
             await runtime?.closeDeveloperSession()
             Darwin.exit(EXIT_FAILURE)
         }
+    }
+    /// Measures mock transport → BoardSession → actual SwiftUI window. No daemon or FPS claim.
+    static func boardLoadSmoke(_ store: BoardStore) async throws -> [String: Any] {
+        let profile = AppArguments.value("--qa-load-profile") ?? ""
+        guard ["5x50", "10x500"].contains(profile), let client = loadClient,
+              let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Load fixture/window missing") }
+        let expectedProjects = profile == "5x50" ? 5 : 10
+        let expectedTasks = profile == "5x50" ? 250 : 5_000
+        guard store.visibleIDs.count == expectedProjects, store.projection?.tasks.count == expectedTasks else { throw failure("Wrong load profile") }
+        window.setContentSize(.init(width: 1040, height: 640))
+        window.makeKeyAndOrderFront(nil); NSApp.activate()
+        try await Task.sleep(for: .milliseconds(500))
+        var maximumGap = 0.0
+        var ticks = 0
+        let ticker = Task { @MainActor in
+            var previous = ProcessInfo.processInfo.systemUptime
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                maximumGap = max(maximumGap, now - previous); previous = now; ticks += 1
+            }
+        }
+        defer { ticker.cancel() }
+        let ids = store.projection!.tasks.values.filter { $0.state.status == .queued }.map(\.id).sorted { $0.rawValue < $1.rawValue }
+        let startSeq = store.projection!.stateSeq
+        let start = ProcessInfo.processInfo.systemUptime
+        var latencies: [Double] = []
+        // Three bursts at up to 30 Hz. Wait for each authoritative event, so no
+        // skipped work or unbounded buffering can masquerade as responsiveness.
+        for burst in 0..<3 {
+            let burstStart = ProcessInfo.processInfo.systemUptime
+            for index in 0..<30 {
+                let id = ids[(burst * 30 + index) % ids.count]
+                let envelope = CommandEnvelope(command: .setPriority(taskId: id, priority: burst + 1))
+                let sent = ProcessInfo.processInfo.systemUptime
+                let reply = try await client.send(envelope)
+                guard case .ok = reply.result else { throw failure("Load command refused") }
+                let expectedSeq = startSeq + Int64(burst * 30 + index + 1)
+                // 1 ms polling bounds the observation overhead; the normal QA
+                // waitUntil polls every 50 ms and would cap the producer at 20 Hz.
+                for _ in 0..<2_000 {
+                    if store.projection?.stateSeq == expectedSeq { break }
+                    try await Task.sleep(for: .milliseconds(1))
+                }
+                guard store.projection?.stateSeq == expectedSeq, store.projection?.tasks[id]?.priority == burst + 1 else { throw failure("Load event missing") }
+                latencies.append(ProcessInfo.processInfo.systemUptime - sent)
+                if index % 10 == 0 {
+                    guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0,
+                        windowNumber: window.windowNumber, context: nil, characters: "2", charactersIgnoringModifiers: "2", isARepeat: false, keyCode: 19),
+                        NSApp.mainMenu?.performKeyEquivalent(with: event) == true,
+                        store.selectedProjectID == store.visibleIDs[1] else { throw failure("Project shortcut failed during stream") }
+                    store.query = "Задача"; store.compactBoard.toggle()
+                }
+                let next = burstStart + Double(index + 1) / 30
+                let delay = next - ProcessInfo.processInfo.systemUptime
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
+            }
+        }
+        store.query = ""; store.compactBoard = false
+        guard store.projection?.tasks.count == expectedTasks, store.canSend, ticks > 0,
+              store.projection?.stateSeq == startSeq + 90 else { throw failure("Incomplete load work") }
+        let elapsed = ProcessInfo.processInfo.systemUptime - start
+        var usage = rusage()
+        guard getrusage(RUSAGE_SELF, &usage) == 0 else { throw failure("RSS unavailable") }
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
+        return ["profile": profile, "projects": expectedProjects, "tasks": expectedTasks, "eventsApplied": 90,
+                "bursts": 3, "elapsedSeconds": elapsed, "eventLatencySeconds": latencies,
+                "heartbeatMaximumGapSeconds": maximumGap, "heartbeatTicks": ticks,
+                "processPeakRSSBytes": usage.ru_maxrss,
+                "latencyScope": "send to applied projection, upper bound includes 1ms polling; not frame/render latency",
+                "scope": "mock transport, BoardSession and actual WindowGroup; 9 native menu shortcuts, search and compact toggle; excludes daemon, drag, FPS and physical input"]
     }
     static func captureWindow() async throws {
         guard let path = AppArguments.value("--export-live-window") ?? AppArguments.value("--qa-window-id"),
