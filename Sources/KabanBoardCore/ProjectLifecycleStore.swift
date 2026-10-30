@@ -74,7 +74,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     }
     public var baseBranchError: String? {
         guard case .rejected(let error) = phase, error.code == CommandError.baseBranchMissingCode,
-              case .addProject(let path, _, _, let submitted) = record?.envelope.command,
+              case .addProject(let path, _, _, let submitted, _) = record?.envelope.command,
               path == draft.path, submitted == draft.baseBranch else { return nil }
         return CommandErrorText.render(error, template: "Локальной ветки «{branch}» нет в этом репозитории")
     }
@@ -87,7 +87,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
         if let pending = session.journal?.records.last(where: { $0.isPending && matches($0.envelope.command) }) {
             draft.commandID = pending.envelope.commandId
             switch pending.envelope.command {
-            case .addProject(let path, let template, let identity, let baseBranch):
+            case .addProject(let path, let template, let identity, let baseBranch, _):
                 draft.path = path; draft.createTemplate = template; draft.showsIdentity = identity != nil
                 draft.baseBranch = baseBranch
                 if let identity { draft.identity = .init(identity: identity) }
@@ -161,7 +161,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
         switch record.phase {
         case .rejected(let error):
             handledOutcome = record.envelope.commandId; draft.handledCommandID = record.envelope.commandId; formError = error.code == CommandError.identityRequiredCode ? IdentityDraft.generalText : CommandErrorText.render(error)
-            if error.code == CommandError.identityRequiredCode, case .addProject(_, _, let submitted, _) = record.envelope.command {
+            if error.code == CommandError.identityRequiredCode, case .addProject(_, _, let submitted, _, _) = record.envelope.command {
                 draft.showsIdentity = true; draft.identity = draft.identity.refusing(error, submitted: submitted)
             }
             // This form owns the refusal; do not show a second board-wide alert.
@@ -172,7 +172,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
             handledOutcome = record.envelope.commandId; formError = nil
             if operation == .add {
                 connectedProjectID = record.createdProjectID
-                if connectedProjectID == nil, case .addProject(let path, _, _, _) = record.envelope.command {
+                if connectedProjectID == nil, case .addProject(let path, _, _, _, _) = record.envelope.command {
                     // Retained receipt proves the mutation, but canonical aliases
                     // cannot be guessed. Only an exact normalized path match selects.
                     let normalized = URL(fileURLWithPath: path).standardizedFileURL.path

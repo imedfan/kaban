@@ -172,6 +172,62 @@ final class ProjectLifecycleTests: XCTestCase {
         let project = try add(f)
         XCTAssertEqual(project.baseBranch, "main")
     }
+    func testTemplateDetectsCommittedGatesBeforeSingleCommitAndReplays() throws {
+        let f = try fixture()
+        try "// swift-tools-version: 6.1\n".write(to: f.repo.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        _ = try git(f.repo, ["add", "Package.swift"])
+        _ = try git(f.repo, ["commit", "-m", "Build descriptor"])
+        _ = try git(f.repo, ["branch", "-m", "main", "develop"])
+        let before = text(try git(f.repo, ["rev-parse", "HEAD"]))
+        let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: "develop"))
+        let reply = try f.store.execute(envelope)
+        XCTAssertEqual(reply.result, .ok)
+        let yaml = text(try git(f.repo, ["show", "develop:.kaban/pipeline.yaml"]))
+        let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
+        for stage in config.stages {
+            XCTAssertEqual(stage.gates, ["dev", "merge"].contains(stage.id) ? ["swift build", "swift test"] : [])
+        }
+        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", before + "..HEAD"])), "1")
+        let paths = text(try git(f.repo, ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])).split(separator: "\n")
+        XCTAssertEqual(paths.count, 4)
+        XCTAssertTrue(paths.allSatisfy { $0.hasPrefix(".kaban/") })
+        let head = try git(f.repo, ["rev-parse", "HEAD"])
+        XCTAssertEqual(try KabanStore(path: f.database).execute(envelope), reply)
+        XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), head)
+    }
+
+    func testUndetectedGatesLeaveTemplateWithoutGates() throws {
+        let f = try fixture()
+        XCTAssertEqual(try send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store).result, .ok)
+        let yaml = text(try git(f.repo, ["show", "HEAD:.kaban/pipeline.yaml"]))
+        let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
+        XCTAssertEqual(config.stages.count, 7)
+        XCTAssertTrue(config.stages.allSatisfy { $0.gates.isEmpty })
+        XCTAssertFalse(yaml.contains("gates:"))
+    }
+
+    func testExplicitGatesRoundTripAndRefuseWithoutTemplate() throws {
+        let f = try fixture()
+        let json = try JSONSerialization.data(withJSONObject: ["addProject": [
+            "path": f.repo.path, "createTemplate": false, "gates": ["echo 'quoted': value"]
+        ]])
+        let command = try KabanCoding.makeDecoder().decode(Command.self, from: json)
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(Command.self, from: KabanCoding.makeEncoder().encode(command)), command)
+        let envelope = CommandEnvelope(command: command)
+        let reply = try f.store.execute(envelope)
+        XCTAssertEqual(try refusal(reply).code, "invalid")
+        let refusalFixture = Data(#"{"error":{"_0":{"code":"invalid","message":"Гейты можно задать только при создании шаблона."}}}"#.utf8)
+        XCTAssertEqual(try KabanCoding.makeDecoder().decode(CommandResult.self, from: refusalFixture), reply.result)
+        XCTAssertEqual(try f.store.execute(envelope), reply)
+        XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban"))
+        XCTAssertEqual(try send(.addProject(path: f.repo.path, createTemplate: true, identity: identity, gates: ["echo 'quoted': value"]), f.store).result, .ok)
+        let yaml = text(try git(f.repo, ["show", "HEAD:.kaban/pipeline.yaml"]))
+        let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
+        XCTAssertEqual(config.stages.first { $0.id == "dev" }?.gates, ["echo 'quoted': value"])
+        XCTAssertEqual(config.stages.first { $0.id == "merge" }?.gates, ["echo 'quoted': value"])
+    }
+
     func testBranchesAndGatesReadCommittedMainAndRemainFreshQueries() throws {
         let f = try fixture()
         try "// swift-tools-version: 6.1\n".write(to: f.repo.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
