@@ -1,0 +1,28 @@
+{
+  "paidStarts": 0,
+  "facts": [
+    {
+      "command": [
+        "--version"
+      ],
+      "exitCode": 0,
+      "version": "2026.10.22-27dcf5f"
+    },
+    {
+      "command": [
+        "status",
+        "--format",
+        "json"
+      ],
+      "exitCode": 0,
+      "isAuthenticated": true
+    },
+    {
+      "command": [
+        "--list-models"
+      ],
+      "exitCode": 0,
+      "grokModelPresent": true
+    }
+  ]
+}

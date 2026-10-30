@@ -1,0 +1,15 @@
+KABAN_SCENARIOS=Scenarios/M1 swift test; source core tree unchanged from 593e755.
+Full local log: /tmp/kaban-fe22-swift-test.log
+SHA256: cc0b7ad8710f0b677fc2fe3856fafefd0aa1909c90e1ca87ca1dbf16e04db6c4
+
+Test Suite 'All tests' passed at 2026-10-30 12:57:46.322.
+	 Executed 29 tests, with 0 failures (0 unexpected) in 2.600 (2.604) seconds
+Test Suite 'All tests' passed at 2026-10-30 12:57:46.699.
+	 Executed 73 tests, with 0 failures (0 unexpected) in 0.293 (0.297) seconds
+Test Suite 'All tests' passed at 2026-10-30 12:59:02.573.
+	 Executed 191 tests, with 0 failures (0 unexpected) in 75.698 (75.713) seconds
+Test Suite 'All tests' passed at 2026-10-30 13:06:01.878.
+	 Executed 253 tests, with 0 failures (0 unexpected) in 418.700 (418.726) seconds
+Test Suite 'All tests' passed at 2026-10-30 13:06:05.159.
+	 Executed 231 tests, with 0 failures (0 unexpected) in 2.818 (2.839) seconds
+Total: 777 tests, 0 failures, 0 skips.

@@ -1,0 +1,30 @@
+{
+  "result": "passed",
+  "qaEnabled": true,
+  "demoTypes": [],
+  "qaTypes": [
+    "AppFixture",
+    "BoardQA",
+    "NativeWindowCapture",
+    "QADeferredControlClient",
+    "QADetailClient",
+    "QAEnvironmentClient",
+    "QAHumanAnswerClient",
+    "QAHumanReviewClient",
+    "QAIncompatibleTransport",
+    "QAMergeClient",
+    "QAProjectClient",
+    "QAReplyLossTransport",
+    "QARunHistoryClient"
+  ],
+  "requiredTypes": [
+    "AppFixture",
+    "BoardQA",
+    "KabanBackdrop",
+    "KabanChip",
+    "KabanMascot",
+    "KabanTheme",
+    "KabanWordmark",
+    "NativeWindowCapture"
+  ]
+}

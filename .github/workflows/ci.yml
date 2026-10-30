@@ -84,6 +84,7 @@ jobs:
           PY
           for profile in 5x50 10x500; do
             load_result="$RUNNER_TEMP/kaban-board-load-$profile.json"
+            rm -f "$load_result"
             open -n -W --stdout "$RUNNER_TEMP/kaban-board-load-$profile.log" \
               --stderr "$RUNNER_TEMP/kaban-board-load-$profile.log" \
               "$derived_data/Build/Products/Debug/Kaban.app" --args \

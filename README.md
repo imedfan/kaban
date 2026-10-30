@@ -2,9 +2,11 @@
 
 Локальное macOS-приложение для канбан-пайплайна разработки: задачи проходят
 agent-, gate-, human- и merge-стадии с явными моделями, WIP, ретраями и git-политикой.
-Kaban — основной проект. Текущий код содержит headless-ядро с SQLite/fake engine
-и нативную SwiftUI-доску на mock-клиенте. Backend имеет XPC/CLI transport;
-подключение доски к нему и реальный Cursor CLI впереди.
+Kaban — основной проект. Нативная SwiftUI-доска подключена к локальному daemon
+через XPC; developer-режим использует private stdio. Ядро содержит SQLite,
+production scheduler, Cursor CLI/MCP, git shim, Seatbelt, гейты и recovery.
+Полная сквозная приёмка установленного приложения ещё открыта;
+[FE-22](docs/development/frontend-fe-22-2026-10-30.md) фиксирует результаты и блокеры.
 
 ## Начало работы
 
@@ -41,6 +43,8 @@ KABAN_SCENARIOS=Scenarios/M1 swift test
 Приложение требует macOS 26+ и полный Xcode с соответствующим SDK.
 SwiftPM-пакет имеет минимум macOS 15. `swift test` не проверяет вид SwiftUI-окна.
 Unsigned app build и запуск описаны в [App/README.md](App/README.md).
+Повторяемая автоматическая матрица FE-22 с настоящим WindowGroup, Debug/Release
+подписями и отдельным статусом live-приёмки — [tools/README.md](tools/README.md#приёмка-fe-22).
 
 ## Требования
 

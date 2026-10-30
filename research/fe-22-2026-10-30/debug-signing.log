@@ -1,0 +1,10 @@
+{
+  "result": "passed",
+  "identifiers": [
+    "app.kaban.desktop",
+    "app.kaban.agent",
+    "app.kaban.git-shim"
+  ],
+  "hardenedRuntime": true,
+  "appSandboxEntitlement": false
+}
