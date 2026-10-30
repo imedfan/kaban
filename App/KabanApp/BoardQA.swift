@@ -664,7 +664,7 @@ import Darwin
         store.filter = .all
         checks.append("search and attention filters read the same projection")
         guard let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) && $0.contentView != nil }) else { throw failure("Keyboard window missing") }
-        window.makeKeyAndOrderFront(nil); NSApp.activate()
+        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         try await waitUntil("keyboard window focus") { NSApp.isActive && window.isKeyWindow }
         func creationMenuEnabled(_ menu: NSMenu?) -> Bool {
             menu?.update()

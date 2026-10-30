@@ -63,20 +63,28 @@ class Acceptance:
         started = time.time()
         log = self.root / (name + ".log")
         timed_out = False
+        launch_error = None
         # Each run owns a fresh directory, so an old report cannot turn a failed
         # launch green. Kill only this process group on timeout (including helper).
         with log.open("w") as output:
-            process = subprocess.Popen([str(arg) for arg in command], cwd=REPO, stdout=output,
-                                       stderr=subprocess.STDOUT, start_new_session=True, env=env)
             try:
-                code = process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                os.killpg(process.pid, signal.SIGKILL)
-                code = process.wait()
+                process = subprocess.Popen([str(arg) for arg in command], cwd=REPO, stdout=output,
+                                           stderr=subprocess.STDOUT, start_new_session=True, env=env)
+                try:
+                    code = process.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+                    os.killpg(process.pid, signal.SIGKILL)
+                    code = process.wait()
+            except OSError as error:
+                launch_error = str(error)
+                output.write(launch_error + "\n")
+                code = 127
         step = {"name": name, "scope": scope, "command": [str(arg) for arg in command],
                 "startedUnix": started, "elapsedSeconds": time.time() - started,
                 "exitCode": code, "result": validate_result(code, timed_out, report, png), "log": str(log)}
+        if launch_error:
+            step["launchError"] = launch_error
         for label, path in (("report", report), ("png", png)):
             if path is not None:
                 step[label] = str(path)

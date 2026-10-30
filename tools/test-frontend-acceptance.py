@@ -57,6 +57,13 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(qa.data["result"], "automated_passed_live_unverified")
             self.assertEqual(qa.data["visualInspection"], "manual_required")
 
+    def test_missing_executable_is_a_recorded_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            qa = acceptance.Acceptance(Path(directory), {})
+            self.assertFalse(qa.run("missing", [str(Path(directory) / "missing")], "test"))
+            self.assertEqual(qa.data["steps"][0]["exitCode"], 127)
+            self.assertIn("launchError", qa.data["steps"][0])
+
 
 if __name__ == "__main__":
     unittest.main()
