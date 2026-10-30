@@ -6,6 +6,9 @@ import KabanBoardCore
 /// Display fixtures use the same DTOs and mock transport as the eventual daemon.
 @MainActor enum AppFixture {
     static func client() -> MockKabanClient {
+        if let profile = AppArguments.qaValue("--qa-load-profile") {
+            return loadClient(profile)
+        }
         let now = Date()
         var stages: [StageSummary] = [
             .init(id: "backlog", name: "Backlog", kind: .queue, display: .init(order: 0), onSuccess: "dev"),
@@ -161,6 +164,46 @@ import KabanBoardCore
         }
         let flags: [SchedulerFlag] = ["dirty", "error", "pending"].contains(AppArguments.qaValue("--qa-merge") ?? "") ? [.mergeBlocked("shop")] : []
         return MockKabanClient(snapshot: .init(seq: 0, projects: projects, pipelines: pipelines, tasks: tasks, schedulerFlags: flags, openIncidentCount: projects.reduce(0) { $0 + $1.openIncidentCount }, stageLoad: loads), taskBodies: bodies, taskRuns: runs, currentEvents: current, humanRequests: questions)
+    }
+
+    private static func loadClient(_ profile: String) -> MockKabanClient {
+        let projectCount = profile == "10x500" ? 10 : 5
+        let taskCount = profile == "10x500" ? 500 : 50
+        let stages: [StageSummary] = [
+            .init(id: "backlog", name: "Backlog", kind: .queue, display: .init(order: 0)),
+            .init(id: "dev", name: "Dev", kind: .agent, display: .init(order: 1), wip: 3, model: "fixture-model"),
+            .init(id: "review", name: "Human Review", kind: .human, display: .init(order: 2)),
+            .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 3))
+        ]
+        let projects: [ProjectSummary] = (0..<projectCount).map { index in
+            ProjectSummary(id: .init(rawValue: "load-\(index)"), name: "Проект \(index + 1)", path: "/fixture/\(index)", mascotSeed: "load-\(index)")
+        }
+        var tasks: [TaskCard] = []
+        tasks.reserveCapacity(projectCount * taskCount)
+        for project in projects {
+            for index in 0..<taskCount {
+                let stageIndex = index % stages.count
+                let state: TaskState
+                switch stageIndex {
+                case 2: state = .waitingHuman(.review)
+                case 3: state = .done
+                default: state = .queued(nil)
+                }
+                let id = TaskID(rawValue: "\(project.id.rawValue)-\(index)")
+                let title = "Задача \(index + 1): проверка обработки длинного текста и событий"
+                let card = TaskCard(id: id, projectId: project.id, title: title,
+                                    stageId: stages[stageIndex].id, state: state,
+                                    hasAcceptanceCriteria: true, updatedAt: Date())
+                tasks.append(card)
+            }
+        }
+        let pipelines: [PipelineSummary] = projects.map { project in
+            PipelineSummary(projectId: project.id, versionHash: "load-fixture", stages: stages)
+        }
+        let client = MockKabanClient(snapshot: .init(seq: 0, projects: projects,
+            pipelines: pipelines, tasks: tasks))
+        BoardQA.loadClient = client
+        return client
     }
 }
 

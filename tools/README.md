@@ -1,5 +1,50 @@
 # Инструменты проверки Kaban
 
+## Приёмка FE-22
+
+После сборки SwiftPM и ad-hoc Debug/Release:
+
+```sh
+python3 tools/check-frontend-acceptance.py \
+  --app /tmp/kaban-fe22-app/Build/Products/Debug/Kaban.app \
+  --release-app /tmp/kaban-fe22-app/Build/Products/Release/Kaban.app \
+  --bin-dir "$(swift build --show-bin-path)" \
+  --output /tmp/kaban-fe22-evidence --core-tests
+```
+
+`--output` должен быть новым каталогом. Без него создаётся `/tmp/kaban-fe22-*`.
+Команды сборки и installed-сценарий — в [отчёте FE-22](../docs/development/frontend-fe-22-2026-10-30.md).
+Нужны macOS с активной GUI-сессией и разрешённый запуск App. Во время проверки
+не переключайте фокус: строгие keyboard smokes требуют настоящего key window.
+Каждый запуск оставляет `summary.json`, отдельные logs, JSON и PNG. Итог
+`automated_passed_live_unverified` подтверждает только перечисленные автоматические
+шаги. Ошибка/таймаут/отсутствующий или частичный report делают шаг красным;
+следующие проверки сохраняются независимо. Контракт результата проверяет
+`python3 tools/test-frontend-acceptance.py` (без GUI и Swift).
+
+Проверяются подписи/состав обеих конфигураций, transport/shim, основные нативные
+actions в обеих темах, restart BoardSet, minimum/long/empty/error/grouped/Reduce
+Motion окна, большой TextKit2 лог и private-daemon настройки Cursor/pipeline/models.
+`--core-tests` добавляет полный `KABAN_SCENARIOS=Scenarios/M1 swift test`;
+без него поле `environment.coreTests` явно сообщает `not_run`.
+
+QA профили `--board-load-smoke <report> --qa-load-profile 5x50|10x500` проверяют
+точные размеры доски, 90 событий из mock через BoardSession, девять настоящих
+menu shortcuts, поиск и переключение compact в настоящем WindowGroup. Три
+последовательных пакета идут с целевой частотой до 30 Гц и backpressure по
+применению. JSON содержит каждую задержку до проекции (включая polling 1 мс),
+heartbeat и process peak RSS в байтах. Это один процесс на профиль/тему, не
+FPS/drag benchmark; память включает старт App. Значения не являются новым gate.
+
+Скрипт не устанавливает/регистрирует helper, не меняет пользовательскую БД,
+не запрашивает системные permissions и не запускает платный Cursor.
+CLI в private проверках синтетический. Installed XPC, обновление bundle, reboot,
+доставка уведомлений, VoiceOver, physical input, Reduce Transparency/Increase
+Contrast и четыре живых запуска остаются отдельными строками матрицы.
+HEAD и diff hash в summary описывают checkout во время проверки; для prebuilt
+bundle дополнительно сохранены SHA-256 executable. Они сами по себе не доказывают
+происхождение сборки — команды/исходный SHA фиксируются в отчёте.
+
 ## Рабочий контекст и дизайн
 
 ```sh

@@ -1,0 +1,13 @@
+{
+  "result": "passed",
+  "qaEnabled": false,
+  "demoTypes": [],
+  "qaTypes": [],
+  "requiredTypes": [
+    "KabanBackdrop",
+    "KabanChip",
+    "KabanMascot",
+    "KabanTheme",
+    "KabanWordmark"
+  ]
+}

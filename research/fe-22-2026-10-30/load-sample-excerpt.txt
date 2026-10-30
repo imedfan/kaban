@@ -1,0 +1,99 @@
+Excerpt of 1-second sample during initial load-10x500-light.
+Full local sample: /tmp/kaban-fe22-load-10x500.sample.txt
+SHA256: 70d7ad78e94174aa14905a877dc6a89623d8e3a295bc9799c54bae66a932f7a8
+
+Analysis of sampling Kaban (pid 12338) every 1 millisecond
+Process:         Kaban [12338]
+Path:            /private/tmp/*/Kaban.app/Contents/MacOS/Kaban
+Load Address:    0x102020000
+Identifier:      app.kaban.desktop
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  Python [8949]
+Target Type:     live task
+
+Date/Time:       2026-10-30 13:04:45.263 +0200
+Launch Time:     2026-10-30 13:03:22.316 +0200
+OS Version:      macOS 27.0.1 (26A434)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         190.5M
+Physical footprint (peak):  292.4M
+Idle exit:                  untracked
+----
+
+Call graph:
+    225 Thread_22308284   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 225 start  (in dyld) + 6688  [0x18bd47e80]
+    +   225 main  (in Kaban) + 12  [0x10275311c]  KabanApp.swift:0
+    +     225 static KabanApp.$main()  (in Kaban) + 40  [0x10274c4a4]  /<compiler-generated>:0
+    +       225 static App.main()  (in SwiftUI) + 224  [0x1c4e868b8]
+    +         225 runApp<A>(_:)  (in SwiftUI) + 108  [0x1c4babc68]
+    +           225 specialized runApp(_:)  (in SwiftUI) + 140  [0x1c4798c84]
+    +             225 NSApplicationMain  (in AppKit) + 880  [0x19075fc4c]
+    +               225 -[NSApplication run]  (in AppKit) + 396  [0x19078790c]
+    +                 225 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 292  [0x19100c26c]
+    +                   225 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 780  [0x19100c748]
+    +                     225 _DPSNextEvent  (in AppKit) + 580  [0x1907944fc]
+    +                       225 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 292  [0x190ad729c]
+    +                         225 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x199796380]
+    +                           225 ReceiveNextEventCommon  (in HIToolbox) + 492  [0x19961391c]
+    +                             225 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x199610590]
+    +                               224 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 592  [0x18c2b7864]
+    +                               ! 224 __CFRunLoopDoObservers  (in CoreFoundation) + 648  [0x18c1ddbbc]
+    +                               !   224 __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__  (in CoreFoundation) + 36  [0x18c1ddcc4]
+    +                               !     224 @objc closure #1 in static NSRunLoop.addObserver(_:)  (in SwiftUICore) + 36  [0x230b0065c]
+    +                               !       223 specialized static NSRunLoop.flushObservers()  (in SwiftUICore) + 340  [0x230b00b9c]
+    +                               !       : 223 <deduplicated_symbol>  (in SwiftUICore) + 28  [0x22ffb8434]
+    +                               !       :   222 closure #1 in closure #1 in NSHostingView.beginTransaction()  (in SwiftUI) + 168  [0x1c4f8c7c4]
+    +                               !       :   | 222 ViewGraphRootValueUpdater.updateGraph<A>(body:)  (in SwiftUICore) + 180  [0x230b6ba50]
+    +                               !       :   |   222 ViewGraphRootValueUpdater._updateViewGraph<A>(body:)  (in SwiftUICore) + 252  [0x230b6d554]
+    +                               !       :   |     222 partial apply for closure #1 in ViewGraphRootValueUpdater.updateGraph<A>(body:)  (in SwiftUICore) + 28  [0x230b6eb6c]
+    +                               !       :   |       222 closure #1 in closure #1 in closure #1 in NSHostingView.beginTransaction()  (in SwiftUI) + 24  [0x1c4f8c7f8]
+    +                               !       :   |         222 GraphHost.flushTransactions()  (in SwiftUICore) + 864  [0x2306120cc]
+    +                               !       :   |           222 AG::Subgraph::update(unsigned int)  (in AttributeGraph) + 944  [0x1c5f0994c]
+    +                               !       :   |             222 AG::Graph::UpdateStack::update()  (in AttributeGraph) + 528  [0x1c5ef9ef8]
+    +                               !       :   |               145 implicit closure #1 in closure #1 in closure #1 in Attribute.init<A>(_:)  (in SwiftUICore) + 324  [0x2304272dc]
+    +                               !       :   |               + 145 DelayedPreferenceChild.value.getter  (in SwiftUICore) + 952  [0x2305cc9b8]
+    +                               !       :   |               +   145 closure #1 in DelayedPreferenceChild.value.getter  (in SwiftUICore) + 120  [0x2305ccd00]
+    +                               !       :   |               +     145 Attribute.syncMainIfReferences<A>(do:)  (in SwiftUICore) + 272  [0x23071fb68]
+    +                               !       :   |               +       145 static AGAttribute.syncMainIfReferences<A>(flags:disqualifyAttribute:do:)  (in SwiftUICore) + 452  [0x23071ff78]
+    +                               !       :   |               +         145 closure #1 in static AGAttribute.syncMainIfReferences<A>(flags:disqualifyAttribute:do:)  (in SwiftUICore) + 176  [0x230720e7c]
+    +                               !       :   |               +           145 partial apply for closure #1 in Attribute.syncMainIfReferences<A>(do:)  (in SwiftUICore) + 36  [0x2307212f4]
+    +                               !       :   |               +             145 partial apply for closure #1 in closure #1 in DelayedPreferenceChild.value.getter  (in SwiftUICore) + 64  [0x2305cdb34]
+    +                               !       :   |               +               145 partial apply for closure #1 in ScrollViewReader.body.getter  (in SwiftUI) + 80  [0x1c586278c]
+    +                               !       :   |               +                 145 closure #1 in closure #1 in BoardView.board(width:)  (in Kaban) + 872  [0x1027c0de0]  BoardView.swift:230
+    +                               !       :   |               +                   145 ScrollView.init(_:content:)  (in Kaban) + 68  [0x102057b10]  /<compiler-generated>:0
+    +                               !       :   |               +                     145 ScrollView.init(_:showsIndicators:content:)  (in SwiftUI) + 304  [0x1c54b170c]
+    +                               !       :   |               +                       145 closure #1 in closure #1 in closure #1 in BoardView.board(width:)  (in Kaban) + 624  [0x1027c1330]  BoardView.swift:231
+    +                               !       :   |               +                         145 LazyVStack.init(alignment:spacing:pinnedViews:content:)  (in SwiftUICore) + 80  [0x230473378]
+    +                               !       :   |               +                           39 closure #1 in closure #1 in closure #1 in closure #1 in BoardView.board(width:)  (in Kaban) + 4080  [0x1027c237c]  BoardView.swift:234
+    +                               !       :   |               +                           ! 39 BoardView.lanes.getter  (in Kaban) + 340  [0x1027a5e84]  BoardView.swift:20
+    +                               !       :   |               +                           !   39 BoardProjection.lanes(orderedBy:)  (in Kaban) + 224  [0x102d3a5b0]  BoardProjection.swift:293
+    +                               !       :   |               +                           !     39 Sequence.compactMap<A>(_:)  (in libswiftCore.dylib) + 16  [0x1a06afd4c]
+    +                               !       :   |               +                           !       39 Sequence._compactMap<A>(_:)  (in libswiftCore.dylib) + 1296  [0x1a0978384]
+    +                               !       :   |               +                           !         39 partial apply for closure #1 in BoardProjection.lanes(orderedBy:)  (in Kaban) + 24  [0x102d456f4]  /<compiler-generated>:0
+    +                               !       :   |               +                           !           39 closure #1 in BoardProjection.lanes(orderedBy:)  (in Kaban) + 308  [0x102d3a72c]  BoardProjection.swift:295
+    +                               !       :   |               +                           !             39 BoardProjection.columns(for:)  (in Kaban) + 384  [0x102d3a914]  BoardProjection.swift:324
+    +                               !       :   |               +                           !               39 Collection.map<A, B>(_:)  (in Kaban) + 1124  [0x10203e570]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                 39 partial apply for closure #1 in BoardProjection.columns(for:)  (in Kaban) + 36  [0x102d45724]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                   39 closure #1 in BoardProjection.columns(for:)  (in Kaban) + 272  [0x102d3b4a8]  BoardProjection.swift:325
+    +                               !       :   |               +                           !                     28 _ArrayProtocol.filter<A>(_:)  (in Kaban) + 768  [0x10203dd6c]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                     : 28 partial apply for closure #1 in closure #1 in BoardProjection.columns(for:)  (in Kaban) + 40  [0x102d58a00]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                     :   12 closure #1 in closure #1 in BoardProjection.columns(for:)  (in Kaban) + 356  [0x102d3b754]  BoardProjection.swift:325
+    +                               !       :   |               +                           !                     :   | 5 Dictionary._Variant.lookup(_:)  (in libswiftCore.dylib) + 188  [0x1a0858380]
+    +                               !       :   |               +                           !                     :   | + 3 __RawDictionaryStorage.find<A>(_:hashValue:)  (in libswiftCore.dylib) + 288  [0x1a0871538]
+    +                               !       :   |               +                           !                     :   | + ! 3 protocol witness for static Equatable.== infix(_:_:) in conformance TaskID  (in Kaban) + 56  [0x102cc688c]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                     :   | + !   2 == infix<A>(_:_:)  (in libswiftCore.dylib) + 324  [0x1a083cbcc]
+    +                               !       :   |               +                           !                     :   | + !   : 2 <deduplicated_symbol>  (in libswiftCore.dylib) + 32  [0x1a0806b00]
+    +                               !       :   |               +                           !                     :   | + !   1 == infix<A>(_:_:)  (in libswiftCore.dylib) + 320  [0x1a083cbc8]
+    +                               !       :   |               +                           !                     :   | + 1 __RawDictionaryStorage.find<A>(_:)  (in libswiftCore.dylib) + 56  [0x1a0870ec0]
+    +                               !       :   |               +                           !                     :   | + 1 __RawDictionaryStorage.find<A>(_:hashValue:)  (in libswiftCore.dylib) + 316  [0x1a0871554]
+    +                               !       :   |               +                           !                     :   | +   1 ???  (in Kaban)  load address 0x102020000 + 0x1d5c10  [0x1021f5c10]
+    +                               !       :   |               +                           !                     :   | 5 Dictionary._Variant.lookup(_:)  (in libswiftCore.dylib) + 308  [0x1a08583f8]
+    +                               !       :   |               +                           !                     :   | + 1 initializeWithCopy for TaskCard  (in Kaban) + 44  [0x102c6d978]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                     :   | + ! 1 swift_bridgeObjectRetain  (in libswiftCore.dylib) + 4  [0x1a068e808]
+    +                               !       :   |               +                           !                     :   | + 1 initializeWithCopy for TaskCard  (in Kaban) + 116  [0x102c6d9c0]  /<compiler-generated>:0
+    +                               !       :   |               +                           !                     :   | + ! 1 swift_bridgeObjectRetain  (in libswiftCore.dylib) + 12  [0x1a068e810]
