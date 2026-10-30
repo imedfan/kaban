@@ -104,6 +104,7 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         let model = ProjectLifecycleStore(client: client, session: session, storage: storage, key: "drafts")
         model.open(.add); model.editPath("/chosen/repository"); await model.refreshBranches(); model.setCreateTemplate(false)
         let sent = await model.submit(); XCTAssertTrue(sent); try await wait { session.canSend }
+        XCTAssertNil(model.gateResultText)
         XCTAssertEqual(model.phase, .awaitingEvent); XCTAssertFalse(model.canSubmit); XCTAssertNil(model.connectedProjectID)
         XCTAssertEqual(session.projection?.projects.count, 0)
         let original = try XCTUnwrap(client.mutations.first)
@@ -115,6 +116,17 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         try session.consume(.event(.init(seq: 1, at: Date(), projectId: project.id, commandId: original.commandId, event: .projectAdded(project))))
         reopened.observeOutcome(); XCTAssertEqual(reopened.connectedProjectID, project.id)
         XCTAssertEqual(session.visibleIDs, [project.id]); XCTAssertEqual(reopened.phase, .applied)
+        XCTAssertTrue(reopened.gateResultText?.contains("неизвестны") == true)
+        var pipeline = Fix.pipeline(); pipeline.projectId = project.id
+        pipeline.stages = [.init(id: "dev", name: "Dev", kind: .agent, display: .init(order: 1), gates: ["saved verify"])]
+        try session.consume(.event(.init(seq: 2, at: Date(), projectId: project.id, event: .pipelineApplied(pipeline))))
+        XCTAssertTrue(reopened.gateResultText?.contains("saved verify — в Dev") == true)
+        await reopened.refreshDiagnostics()
+        XCTAssertTrue(reopened.gateResultText?.contains("saved verify") == true, "Detection must not replace saved pipeline facts")
+        pipeline.stages[0].gates = []
+        try session.consume(.event(.init(seq: 3, at: Date(), projectId: project.id, event: .pipelineApplied(pipeline))))
+        XCTAssertTrue(reopened.gateResultText?.contains("гейтов нет") == true)
+
         XCTAssertEqual(try ClientCommandJournal(storage: storage, key: "commands").records.first?.createdProjectID, project.id)
     }
     @MainActor func testCoveredOriginalReceiptSelectsProjectFromAuthoritativeSnapshot() async throws {
@@ -180,19 +192,39 @@ final class ProjectLifecycleStoreTests: XCTestCase {
         try session.consume(.event(.init(seq: 2, at: Date(), projectId: project.id, commandId: removal, event: .projectRemoved(project.id))))
         model.observeOutcome(); XCTAssertEqual(model.phase, .applied); XCTAssertNil(session.projection?.projects[project.id]); XCTAssertEqual(session.visibleIDs, [])
     }
+    @MainActor func testGateResultUsesConfiguredStagesAndDistinguishesUnknownFromEmpty() {
+        XCTAssertTrue(ProjectLifecycleStore.gateResultText(pipeline: nil).contains("неизвестны"))
+        var pipeline = Fix.pipeline()
+        pipeline.stages = []
+        XCTAssertTrue(ProjectLifecycleStore.gateResultText(pipeline: pipeline).contains("неизвестны"))
+        pipeline.stages = [
+            .init(id: "dev", name: "Dev", kind: .agent, display: .init(order: 1), gates: ["swift build", "swift test"]),
+            .init(id: "merge", name: "Merge", kind: .merge, display: .init(order: 2), gates: ["swift build", "swift test"])
+        ]
+        XCTAssertEqual(ProjectLifecycleStore.gateResultText(pipeline: pipeline), "Гейты: swift build, swift test — в Dev и Merge.\nИзменить или убрать гейты можно в редакторе пайплайна.")
+        // Existing pipelines can have arbitrary stage names and different commands.
+        pipeline.stages[1].name = "Локальное слияние"
+        pipeline.stages[1].gates = ["custom verify --strict"]
+        let text = ProjectLifecycleStore.gateResultText(pipeline: pipeline)
+        XCTAssertTrue(text.contains("Гейты: swift build, swift test — в Dev."))
+        XCTAssertTrue(text.contains("Гейты: custom verify --strict — в Локальное слияние."))
+        for index in pipeline.stages.indices { pipeline.stages[index].gates = [] }
+        XCTAssertEqual(ProjectLifecycleStore.gateResultText(pipeline: pipeline), "В пайплайне гейтов нет — их можно задать в редакторе пайплайна.")
+    }
+
     @MainActor func testDiagnosticsUseCorrelatedRepliesAndDiscardPreviousFormRead() async throws {
         let client = ProjectClient(), session = BoardSession(client: client, storage: MemoryKeyValueStore(), key: "commands")
         client.snapshot = Fix.snapshot()
         let run = Task { await session.run() }; defer { run.cancel() }; try await wait { session.canSend }
         let model = ProjectLifecycleStore(client: client, session: session, storage: MemoryKeyValueStore(), key: "drafts")
         model.open(.relink(Fix.project)); await model.refreshDiagnostics()
-        XCTAssertEqual(model.branches, ["main", "feature"]); XCTAssertEqual(model.gates, ["swift build"]); XCTAssertNil(model.environment)
+        XCTAssertEqual(model.branches, ["main", "feature"]); XCTAssertNil(model.environment)
         XCTAssertNotNil(model.environmentError, "Unsupported environment stays unknown")
         client.badCorrelation = true; await model.refreshDiagnostics(); XCTAssertTrue(model.diagnosticsStale); XCTAssertNotNil(model.branchesError)
         client.badCorrelation = false; client.holdBranches = true
         let reading = Task { await model.refreshDiagnostics() }; try await wait { client.held != nil }
         model.open(.add); client.held?.resume(returning: .init(commandId: client.heldID!, seq: nil, result: .branches(["stale"]))); await reading.value
-        XCTAssertNil(model.branches); XCTAssertNil(model.gates); XCTAssertNil(model.environment)
+        XCTAssertNil(model.branches); XCTAssertNil(model.environment)
     }
 }
 

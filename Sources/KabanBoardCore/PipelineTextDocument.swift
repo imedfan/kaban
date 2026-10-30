@@ -96,7 +96,8 @@ public struct PipelineTextDocument: Sendable {
         if let node = unique(path) {
             let chars = Array(result[node.line])
             let separator = node.range.lowerBound > 0 && chars[node.range.lowerBound - 1] == ":" ? " " : ""
-            result[node.line] = String(chars[..<node.range.lowerBound]) + separator + token + String(chars[node.range.upperBound...])
+            let commentSeparator = !token.isEmpty && node.range.upperBound < chars.count && chars[node.range.upperBound] == "#" ? " " : ""
+            result[node.line] = String(chars[..<node.range.lowerBound]) + separator + token + commentSeparator + String(chars[node.range.upperBound...])
             if node.block, let sequence = scalarSequence(node) {
                 for index in sequence.lines.reversed() {
                     let chars = Array(result[index]), comment = commentEnd(chars, from: 0)

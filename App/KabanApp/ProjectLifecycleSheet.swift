@@ -204,15 +204,14 @@ struct ProjectLifecycleSheet: View {
             if model.isReading { ProgressView().controlSize(.small) }
             if let branches = model.branches { row("Ветки") { note(branches.isEmpty ? "Список пуст" : branches.joined(separator: ", ")) } }
             if let error = model.branchesError { note(error) }
-            if let gates = model.gates { row("Гейты") { note(gates.isEmpty ? "Команды не найдены" : gates.joined(separator: "\n")) } }
-            if let error = model.gatesError { note(error) }
+            if let text = model.gateResultText { note(text).accessibilityIdentifier("project-gate-result") }
             if let error = model.environmentError { note(error) }
             if let environment = model.environment { note(environment.authOK && environment.cursorAgentPath != nil && environment.version != nil && environment.gitVersion != nil && environment.sandboxOK ? "Cursor готов по последней проверке службы." : "Cursor пока недоступен. Задачи можно хранить в Backlog.") }
             if let pipeline = store.projection?.pipelines[id], !pipeline.isValid {
                 Label("Для запусков настройте пайплайн. Backlog доступен.", systemImage: "exclamationmark.triangle").font(.system(size: 12)).foregroundStyle(theme.status("waiting").2)
                 ForEach(Array(pipeline.issues.enumerated()), id: \.offset) { _, issue in note(issue.message) }
             }
-            if model.diagnosticsStale, model.branches != nil || model.gates != nil || model.environment != nil { note("Показана последняя проверка; часть данных недоступна или устарела.") }
+            if model.diagnosticsStale, model.branches != nil || model.environment != nil { note("Показана последняя проверка; часть данных недоступна или устарела.") }
             Button("Проверить снова") { Task { await model.refreshDiagnostics() } }.buttonStyle(KabanButtonStyle()).disabled(model.isReading || !store.canSend)
         }
     }

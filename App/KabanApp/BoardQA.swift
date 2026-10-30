@@ -394,7 +394,71 @@ import Darwin
         try await capture("settings")
         return ["actual native sheet in WindowGroup; master explicitly chosen without main", "draft retains selection on reopen", "real missing branch race shows params.branch inline and retains path/template", "correlated projectAdded or covered receipt applies master", "template committed on master; daemon restart retains base; project settings show read-only branch"]
     }
+    private static func gateResultSmoke(_ store: BoardStore) async throws -> [String] {
+        guard !store.usesFixture, let path = AppArguments.value("--project-smoke-repository"), path.hasPrefix("/tmp/kaban-fe26-"),
+              AppArguments.value("--developer-database")?.hasPrefix("/tmp/kaban-fe26-") == true,
+              let window = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) else { throw failure("Private FE-26 fixture missing") }
+        let mode = AppArguments.value("--qa-gate-mode") ?? "found"
+        store.beginProjectFlow(.add)
+        try await waitUntil("actual add project sheet") { window.attachedSheet != nil }
+        store.projects.editPath(path); await store.projects.refreshBranches()
+        if mode == "existing" || mode == "long" { store.projects.setCreateTemplate(false) }
+        try await waitUntil("registration ready without gate confirmation") { store.projects.canSubmit }
+        guard store.projects.gateResultText == nil else { throw failure("Gate result appeared before registration") }
+        _ = await store.projects.submit()
+        try await waitUntil("applied gate project") { store.projects.observeOutcome(); return store.projects.phase == .applied && store.projects.connectedProjectID != nil && store.canSend }
+        let id = store.projects.connectedProjectID!
+        try await waitUntil("applied pipeline facts") { store.projection?.pipelines[id] != nil }
+        let text = store.projects.gateResultText ?? ""
+        let expected = mode == "long" ? ["verify " + String(repeating: "very-long-command-argument/", count: 14) + " --strict"] : mode == "existing" ? ["custom verify --strict"] : ["swift build", "swift test"]
+        guard let pipeline = store.projection?.pipelines[id] else { throw failure("Pipeline missing") }
+        if mode == "empty" {
+            guard text.contains("гейтов нет"), pipeline.stages.allSatisfy({ $0.gates.isEmpty }) else { throw failure("Empty detection result is misleading") }
+        } else {
+            guard expected.allSatisfy({ text.contains($0) }),
+                  pipeline.stages.first(where: { $0.id == "dev" })?.gates == expected,
+                  pipeline.stages.first(where: { $0.id == "merge" })?.gates == expected else { throw failure("Reported gates differ from applied pipeline: " + text) }
+        }
+        await store.projects.refreshDiagnostics()
+        guard store.projects.gateResultText == text else { throw failure("Diagnostic search replaced applied gates") }
+        try await captureWindow()
+        if let output = AppArguments.value("--export-live-window") {
+            try FileManager.default.copyItem(atPath: output, toPath: output + ".result.png")
+        }
+        store.projectSheet = nil
+        try await waitUntil("closed gate result") { window.attachedSheet == nil }
+        store.openPipelineIssues(id)
+        let editor = store.pipelineEditor(for: id)
+        await editor.loadIfNeeded()
+        try await waitUntil("native pipeline editor") { editor.source != nil && store.activePipelineEditor === editor }
+        editor.selectedStageID = "merge"; editor.section = "Исполнитель"
+        if let output = AppArguments.value("--export-live-window") {
+            try await captureWindow()
+            try FileManager.default.copyItem(atPath: output, toPath: output + ".configured.png")
+        }
+        if mode != "empty" {
+            for name in ["dev", "merge"] {
+                guard let stage = editor.document.stages.first(where: { $0.id == name }),
+                      editor.document.stringList("stages[\(stage.index)].gates") == expected else { throw failure("Gates missing in pipeline editor") }
+                editor.patch("stages[\(stage.index)].gates", value: "[]")
+            }
+            // Template models are deliberately empty; choose explicit QA ids to validate the edit.
+            for stage in editor.document.stages where stage.kind == "agent" {
+                editor.patch("stages[\(stage.index)].agent.model", value: "qa-explicit-model", quoted: true)
+            }
+            await editor.validate()
+            do { try await waitUntil("gate removal can apply") { editor.canApply } }
+            catch { throw failure("Gate removal unavailable: issues=\(editor.issues), validation=\(editor.validation), error=\(editor.error ?? "nil"), loading=\(editor.loading), baseChanged=\(editor.baseChanged), pending=\(String(describing: store.session.pending(in: .project(id))))") }
+            await editor.apply()
+            try await waitUntil("correlated gate removal") { editor.isApplied && store.projection?.pipelines[id]?.stages.allSatisfy { $0.gates.isEmpty } == true }
+        }
+        await editor.confirmApplied()
+        if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
+        return ["actual WindowGroup and private production daemon", "no gate confirmation; result uses applied pipeline", "mode: " + mode,
+                mode == "empty" ? "empty detection is explicit; native pipeline editor opens" : "saved Dev/Merge gates are visible and removed through correlated pipelineApplied"]
+    }
     private static func projectSmoke(_ initial: BoardStore) async throws -> [String] {
+        if AppArguments.value("--project-smoke-gates") != nil { return try await gateResultSmoke(initial) }
         if AppArguments.value("--project-smoke-base-branch") != nil { return try await baseBranchSmoke(initial) }
         if let metadata = AppArguments.value("--project-smoke-reopen") {
             return try await reopenedProjectSmoke(initial, metadata: metadata)
@@ -449,8 +513,8 @@ import Darwin
         guard eventProof || receiptProof else { throw failure("Project lacks correlated event or covered original receipt") }
         try await waitUntil("one new board lane") { initial.visibleIDs.filter { $0 == id }.count == 1 }
         await initial.projects.refreshDiagnostics()
-        try await waitUntil("completed server project diagnostics") { !initial.projects.isReading && initial.projects.branches != nil && initial.projects.gates != nil && initial.projects.environmentError != nil }
-        guard initial.projects.branches?.contains("main") == true, initial.projects.gates != nil, initial.projects.environment == nil, initial.projects.environmentError != nil else { throw failure("Project diagnostics lost authoritative/unknown distinction") }
+        try await waitUntil("completed server project diagnostics") { !initial.projects.isReading && initial.projects.branches != nil && initial.projects.gateResultText != nil && initial.projects.environmentError != nil }
+        guard initial.projects.branches?.contains("main") == true, initial.projects.gateResultText != nil, initial.projects.environment == nil, initial.projects.environmentError != nil else { throw failure("Project diagnostics lost authoritative/unknown distinction") }
         if AppArguments.value("--project-smoke-non-git") != nil, initial.projectCaption(id) != "Пайплайн не настроен" { throw failure("no_pipeline caption does not reflect server validation") }
         if AppArguments.value("--export-live-window") != nil { try await captureWindow() }
         initial.projectSheet = nil; initial.selectedProjectID = id
