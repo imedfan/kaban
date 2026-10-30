@@ -175,20 +175,33 @@ import KabanBoardCore
             .init(id: "review", name: "Human Review", kind: .human, display: .init(order: 2)),
             .init(id: "done", name: "Done", kind: .terminal, display: .init(order: 3))
         ]
-        let projects = (0..<projectCount).map { index in
+        let projects: [ProjectSummary] = (0..<projectCount).map { index in
             ProjectSummary(id: .init(rawValue: "load-\(index)"), name: "Проект \(index + 1)", path: "/fixture/\(index)", mascotSeed: "load-\(index)")
         }
-        let tasks = projects.flatMap { project in
-            (0..<taskCount).map { index in
-                TaskCard(id: .init(rawValue: "\(project.id.rawValue)-\(index)"), projectId: project.id,
-                         title: "Задача \(index + 1): проверка обработки длинного текста и событий",
-                         stageId: stages[index % stages.count].id,
-                         state: index % stages.count == 2 ? .waitingHuman(.review) : index % stages.count == 3 ? .done : .queued(nil),
-                         hasAcceptanceCriteria: true, updatedAt: Date())
+        var tasks: [TaskCard] = []
+        tasks.reserveCapacity(projectCount * taskCount)
+        for project in projects {
+            for index in 0..<taskCount {
+                let stageIndex = index % stages.count
+                let state: TaskState
+                switch stageIndex {
+                case 2: state = .waitingHuman(.review)
+                case 3: state = .done
+                default: state = .queued(nil)
+                }
+                let id = TaskID(rawValue: "\(project.id.rawValue)-\(index)")
+                let title = "Задача \(index + 1): проверка обработки длинного текста и событий"
+                let card = TaskCard(id: id, projectId: project.id, title: title,
+                                    stageId: stages[stageIndex].id, state: state,
+                                    hasAcceptanceCriteria: true, updatedAt: Date())
+                tasks.append(card)
             }
         }
+        let pipelines: [PipelineSummary] = projects.map { project in
+            PipelineSummary(projectId: project.id, versionHash: "load-fixture", stages: stages)
+        }
         let client = MockKabanClient(snapshot: .init(seq: 0, projects: projects,
-            pipelines: projects.map { .init(projectId: $0.id, versionHash: "load-fixture", stages: stages) }, tasks: tasks))
+            pipelines: pipelines, tasks: tasks))
         BoardQA.loadClient = client
         return client
     }
