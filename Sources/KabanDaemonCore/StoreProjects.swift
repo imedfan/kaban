@@ -69,7 +69,10 @@ extension KabanStore {
                     try Self.saveProjectReply(reply, request: request, db: db)
                     return reply
                 }
-            case .addProject(let path, let createTemplate, let explicit, let baseBranch):
+            case .addProject(let path, let createTemplate, let explicit, let baseBranch, let requestedGates):
+                guard createTemplate || (requestedGates ?? []).isEmpty else {
+                    throw CommandError(code: "invalid", message: "Гейты можно задать только при создании шаблона.")
+                }
                 let repository = try LocalGitRepository(path: path, baseBranch: baseBranch ?? "main")
                 try checkProjectPath(repository.path, repositoryID: repository.repositoryID, excluding: nil)
                 let identity: GitIdentity
@@ -79,11 +82,12 @@ extension KabanStore {
                 let sourceError: CommandError?
                 do { yaml = try repository.pipeline(); sourceError = nil }
                 catch let error as CommandError where ["pipeline_invalid", "git_operation_limit"].contains(error.code) { yaml = nil; sourceError = error }
-                let template = yaml == nil && sourceError == nil && createTemplate ? try repository.prepareTemplate(identity: identity, commandId: envelope.commandId) : nil
+                let gates = yaml == nil && sourceError == nil && createTemplate ? try (requestedGates ?? repository.gates()) : []
+                let template = yaml == nil && sourceError == nil && createTemplate ? try repository.prepareTemplate(identity: identity, commandId: envelope.commandId, gates: gates) : nil
                 let id = ProjectID(rawValue: UUID().uuidString.lowercased())
                 let summary = ProjectSummary(id: id, name: URL(fileURLWithPath: repository.path).lastPathComponent,
                                              path: repository.path, baseBranch: repository.baseBranch, mascotSeed: id.rawValue, identity: identity)
-                var record = Self.productionRecord(summary, repositoryID: repository.repositoryID, yaml: template == nil ? yaml : PipelineTemplate.defaultYAML)
+                var record = Self.productionRecord(summary, repositoryID: repository.repositoryID, yaml: template == nil ? yaml : PipelineTemplate.files(gates: gates)[".kaban/pipeline.yaml"])
                 if let sourceError {
                     record.production?.unavailableReason = .pipelineInvalid
                     record.production?.pipelineSummary.issues = [.init(path: ".kaban/pipeline.yaml", code: sourceError.code, message: sourceError.message, severity: .error)]
