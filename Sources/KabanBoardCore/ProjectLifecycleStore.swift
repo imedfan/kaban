@@ -32,10 +32,8 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public private(set) var formError: String?
     public private(set) var connectedProjectID: ProjectID?
     public private(set) var branches: [String]?
-    public private(set) var gates: [String]?
     public private(set) var environment: EnvironmentReport?
     public private(set) var branchesError: String?
-    public private(set) var gatesError: String?
     public private(set) var environmentError: String?
     public private(set) var isReading = false
     public private(set) var isReadingBranches = false
@@ -55,7 +53,31 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public var record: ClientCommandJournal.Record? { session.journal?.records.first { $0.envelope.commandId == draft.commandID } }
     public var phase: ClientCommandPhase? { record?.phase }
     public var isPending: Bool { record?.isPending == true }
-    public var diagnosticsStale: Bool { !session.canSend || diagnosticsGeneration != session.sessionGeneration || branchesError != nil || gatesError != nil || environmentError != nil }
+    public var diagnosticsStale: Bool { !session.canSend || diagnosticsGeneration != session.sessionGeneration || branchesError != nil || environmentError != nil }
+    /// Applied pipeline facts, never a new detection that might differ from the saved template.
+    public var gateResultText: String? {
+        guard phase == .applied, let id = connectedProjectID else { return nil }
+        return Self.gateResultText(pipeline: session.projection?.pipelines[id])
+    }
+    public static func gateResultText(pipeline: PipelineSummary?) -> String {
+        guard let pipeline, !pipeline.stages.isEmpty else {
+            return "Гейты неизвестны — данные пайплайна недоступны. Проверьте редактор пайплайна."
+        }
+        let stages = pipeline.stages.filter { !$0.gates.isEmpty }
+        guard !stages.isEmpty else {
+            return "В пайплайне гейтов нет — их можно задать в редакторе пайплайна."
+        }
+        var groups: [(commands: [String], names: [String])] = []
+        for stage in stages {
+            if let index = groups.firstIndex(where: { $0.commands == stage.gates }) {
+                groups[index].names.append(stage.name)
+            } else {
+                groups.append((stage.gates, [stage.name]))
+            }
+        }
+        return groups.map { "Гейты: " + $0.commands.joined(separator: ", ") + " — в " + $0.names.joined(separator: " и ") + "." }.joined(separator: "\n")
+            + "\nИзменить или убрать гейты можно в редакторе пайплайна."
+    }
     private var command: Command {
         switch operation {
         case .add: .addProject(path: draft.path, createTemplate: draft.createTemplate, identity: draft.showsIdentity ? draft.identity.enteredIdentity : nil, baseBranch: draft.baseBranch)
@@ -81,7 +103,7 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
     public func open(_ value: ProjectOperation) {
         operation = value; formGeneration = UUID(); formError = nil; connectedProjectID = nil; handledOutcome = nil
         branchReadID = UUID(); isReadingBranches = false; branchSessionGeneration = nil
-        branches = nil; gates = nil; environment = nil; branchesError = nil; gatesError = nil; environmentError = nil; diagnosticsGeneration = nil
+        branches = nil; environment = nil; branchesError = nil; environmentError = nil; diagnosticsGeneration = nil
         do { draft = try storage.data(forKey: draftKey).map { try JSONDecoder().decode(ProjectFormDraft.self, from: $0) } ?? .init() }
         catch { draft = .init(); formError = "Не удалось прочитать черновик проекта. " + error.localizedDescription }
         if let pending = session.journal?.records.last(where: { $0.isPending && matches($0.envelope.command) }) {
@@ -199,11 +221,6 @@ public struct ProjectFormDraft: Codable, Equatable, Sendable {
             do { let value = try await read(.listBranches(projectId: id)); guard valid() else { return }; guard case .branches(let items) = value else { throw invalidReply() }; branches = items; branchesError = nil }
             catch { if valid() { branchesError = message(error) } }
         } else { branchesError = "Служба не поддерживает список веток." }
-        guard valid() else { return }
-        if session.can(CommandName.detectGates) {
-            do { let value = try await read(.detectGates(projectId: id)); guard valid() else { return }; guard case .gates(let items) = value else { throw invalidReply() }; gates = items; gatesError = nil }
-            catch { if valid() { gatesError = message(error) } }
-        } else { gatesError = "Служба не поддерживает поиск команд гейтов." }
         guard valid() else { return }
         if session.can(CommandName.checkEnvironment) {
             do { let value = try await read(.checkEnvironment); guard valid() else { return }; guard case .environment(let report) = value else { throw invalidReply() }; environment = report; environmentError = nil }
