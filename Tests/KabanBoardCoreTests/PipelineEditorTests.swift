@@ -19,6 +19,14 @@ final class PipelineEditorTests: XCTestCase {
         XCTAssertTrue(flow.contains("kind: terminal, display: {order: 9}} # future"))
         XCTAssertThrowsError(try document.replacing("board.max_waiting_human", with: "7\r\nversion: 2"))
     }
+    func testChoosingModelInAnnotatedEmptyTemplateFieldPreservesComment() throws {
+        for newline in ["\n", "\r\n"] {
+            let source = ["stages:", "  - id: dev", "    kind: agent", "    agent:", "      model:            # required: choose an explicit model", "      skill: .kaban/skills/dev.md", ""].joined(separator: newline)
+            let edited = try PipelineTextDocument(source).replacing("stages[0].agent.model", with: "explicit-model", quoted: true)
+            XCTAssertEqual(edited, source.replacingOccurrences(of: "# required:", with: "\"explicit-model\" # required:"))
+            XCTAssertEqual(PipelineTextDocument(edited).value("stages[0].agent.model"), "explicit-model")
+        }
+    }
     func testComplexAndDuplicateMappingsRemainAvailableOnlyAsExactYAML() throws {
         for text in ["stages: &stage\n  - id: dev\n    kind: agent\n", "defaults: &d {kind: agent}\nstages:\n  - <<: *d\n    id: dev\n", "%YAML 1.2\n---\nstages: []\n"] {
             let doc = PipelineTextDocument(text)
