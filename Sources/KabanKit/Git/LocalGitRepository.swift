@@ -85,7 +85,7 @@ public struct LocalGitRepository: Sendable {
         public let blobs: [String: String]
     }
     /// Prepares objects only. The user's index, working files and refs are unchanged.
-    public func prepareTemplate(identity: GitIdentity, commandId: CommandID) throws -> TemplateCommit {
+    public func prepareTemplate(identity: GitIdentity, commandId: CommandID, gates: [String] = []) throws -> TemplateCommit {
         guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else {
             throw Self.error("template_checkout_required", "Для создания шаблона откройте \(baseBranch) или добавьте проект без шаблона.", ["baseBranch": baseBranch])
         }
@@ -99,8 +99,9 @@ public struct LocalGitRepository: Sendable {
         let index = scratch.appendingPathComponent("index").path
         _ = try git(["read-tree", base], index: index)
         var blobs: [String: String] = [:]
-        for name in PipelineTemplate.files.keys.sorted() {
-            let blob = try git(["hash-object", "-w", "--no-filters", "--stdin"], input: Data(PipelineTemplate.files[name]!.utf8)).text
+        let files = PipelineTemplate.files(gates: gates)
+        for name in files.keys.sorted() {
+            let blob = try git(["hash-object", "-w", "--no-filters", "--stdin"], input: Data(files[name]!.utf8)).text
             blobs[name] = blob
             _ = try git(["update-index", "--add", "--cacheinfo", "100644", blob, name], index: index)
         }

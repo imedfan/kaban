@@ -9,6 +9,17 @@ public enum PipelineTemplate {
         ".kaban/skills/test.md": "Verify the task against its acceptance criteria. Report failures through Kaban MCP.\n",
         ".kaban/skills/review.md": "Review the result without changing files. Finish through Kaban MCP.\n",
     ] }
+    /// JSON string arrays are also valid YAML; quoting preserves arbitrary shell commands.
+    public static func files(gates: [String]) -> [String: String] {
+        var result = files
+        guard !gates.isEmpty else { return result }
+        let data = try! JSONEncoder().encode(gates)
+        let value = String(decoding: data, as: UTF8.self)
+        result[".kaban/pipeline.yaml"] = defaultYAML
+            .replacingOccurrences(of: "    on_success: test", with: "    gates: " + value + "\n    on_success: test")
+            .replacingOccurrences(of: "    on_conflict:", with: "    gates: " + value + "\n    on_conflict:")
+        return result
+    }
     public static let defaultYAML = """
     version: 1
     board:

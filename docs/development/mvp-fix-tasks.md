@@ -479,11 +479,13 @@ init и инструментом; она доказывает остановку
 - **Объём:** автозаполнение `gates` результатом `detectGates` и вписывание в `dev` и `merge` до коммита шаблона; пустой результат — шаблон без гейтов; отказ `invalid` при `createTemplate = false`.
 - **Вне объёма:** изменение гейтов существующего проекта (это `updatePipeline`, FE-13).
 - **Критерии приёмки:**
-  - [ ] Given репозиторий с `Package.swift`, When проект добавляется с шаблоном, Then `swift build`/`swift test` есть в `<base>:.kaban/pipeline.yaml` у `dev` и `merge` и нет у `test`/`ai-review`; ровно один коммит, только `.kaban/`; подтверждения не запрашивалось.
-  - [ ] Ничего не найдено → шаблон без гейтов.
-  - [ ] По `complete_stage` на `dev` гейты запускаются; красный гейт не пускает задачу дальше (регресс BE-04).
-  - [ ] `createTemplate: false` + непустой `gates` → `invalid`, проект не создан.
-  - [ ] Fixtures запроса и отказа.
+  - [x] Given репозиторий с `Package.swift`, When проект добавляется с шаблоном, Then `swift build`/`swift test` есть в `<base>:.kaban/pipeline.yaml` у `dev` и `merge` и нет у `test`/`ai-review`; ровно один коммит, только `.kaban/`; подтверждения не запрашивалось.
+  - [x] Ничего не найдено → шаблон без гейтов.
+  - [x] По `complete_stage` на `dev` гейты запускаются; красный гейт не пускает задачу дальше (регресс BE-04).
+  - [x] `createTemplate: false` + непустой `gates` → `invalid`, проект не создан.
+  - [x] Fixtures запроса и отказа.
+
+Реализация в ветке `codex/be-33-auto-gates`; [проверки и ограничения](backend-be-33-2026-10-30.md). Полный прогон имеет нестабильные отказы CursorEnvironmentStoreTests; изолированный повтор зелёный.
 
 ### BE-34. Три кода `ValidationIssue` в `ValidationCode` и §4.1
 - **Приоритет:** P2
