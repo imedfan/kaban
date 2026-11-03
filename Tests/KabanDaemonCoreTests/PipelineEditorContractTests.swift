@@ -17,12 +17,12 @@ extension PipelineLifecycleTests {
         let changed = "# exact 👋\r\n" + yaml + "# later\n"
         try self.changed(f, ".kaban/pipeline.yaml", changed)
         guard case .pipelineSource(let second) = try f.store.execute(read).result else { return XCTFail() }
-        XCTAssertEqual(second.workingContent, changed); XCTAssertEqual(second.committedContent, yaml)
-        XCTAssertTrue(second.hasWorkingChanges); XCTAssertEqual(second.baseSourceHash, first.baseSourceHash)
+        XCTAssertEqual(second.workingContent, changed); XCTAssertEqual(second.committedContent, changed)
+        XCTAssertFalse(second.hasWorkingChanges); XCTAssertNotEqual(second.baseSourceHash, first.baseSourceHash)
         XCTAssertNil(try f.store.execute(read).seq); XCTAssertEqual(try f.store.getSnapshot().seq, seq)
         try FileManager.default.removeItem(at: f.repo.appendingPathComponent(".kaban/pipeline.yaml"))
         guard case .pipelineSource(let missing) = try f.store.execute(read).result else { return XCTFail() }
-        XCTAssertNil(missing.workingContent); XCTAssertEqual(missing.committedContent, yaml)
+        XCTAssertNil(missing.workingContent); XCTAssertNil(missing.committedContent)
         let empty = try fixture()
         guard case .pipelineSource(let absent) = try empty.store.execute(.init(command: .getPipelineSource(projectId: empty.project))).result else { return XCTFail() }
         XCTAssertNil(absent.baseVersionHash); XCTAssertNil(absent.committedContent); XCTAssertNil(absent.workingContent)
@@ -49,7 +49,7 @@ extension PipelineLifecycleTests {
         let version = try XCTUnwrap(summary(f).versionHash)
         XCTAssertEqual(reply.result, .pipelineVersion(hash: version))
         let after = try git(f.repo, ["rev-parse", "HEAD"])
-        XCTAssertNotEqual(after, before)
+        XCTAssertEqual(after, before)
         XCTAssertEqual(try f.store.execute(accepted), reply)
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), after)
         guard case .pipelineSource(let applied) = try f.store.execute(read).result else { return XCTFail() }

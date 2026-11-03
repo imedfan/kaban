@@ -33,7 +33,7 @@ extension KabanStore {
     }
     static func sourceValidation(_ source: PipelineSource, projectId: ProjectID, db: Database) throws -> PipelineValidation {
         guard let file = source.files[".kaban/pipeline.yaml"] else {
-            return .init(config: nil, issues: [.init(path: ".kaban/pipeline.yaml", code: "pipeline_missing", message: "Нет закоммиченного пайплайна.", severity: .error)])
+            return .init(config: nil, issues: [.init(path: ".kaban/pipeline.yaml", code: "pipeline_missing", message: "В корне проекта нет .kaban/pipeline.yaml.", severity: .error)])
         }
         guard file.data.count <= DaemonWire.maxPipelineBytes, let yaml = source.yaml else {
             return .init(config: nil, issues: [.init(path: ".kaban/pipeline.yaml", code: "pipeline_invalid", message: "pipeline.yaml должен быть UTF-8 размером не более 1 МиБ.", severity: .error)])
@@ -46,14 +46,22 @@ extension KabanStore {
             try db.execute(sql: "INSERT INTO pipeline_version(project_id, hash, payload) VALUES (?, ?, ?)", arguments: [projectId.rawValue, hash, try encode(version)])
         }
     }
+    /// Cache observed sources, including invalid ones, so an editor's prewritten YAML can be
+    /// bound to its original assets even if the observer has already adopted the new bytes.
+    static func rememberPipelineSource(_ source: PipelineSource, hash: String, projectId: ProjectID, db: Database) throws {
+        guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM pipeline_source_snapshot WHERE project_id = ? AND hash = ?)", arguments: [projectId.rawValue, hash]) != true else { return }
+        try db.execute(sql: "INSERT INTO pipeline_source_snapshot(project_id, hash, payload) VALUES (?, ?, ?)",
+                       arguments: [projectId.rawValue, hash, try encode(source)])
+    }
     static func applyPipelineSource(_ source: PipelineSource, edits: Bool, record: inout ProjectRecord, db: Database) throws {
         let validation = try sourceValidation(source, projectId: record.summary.id, db: db)
         let sameAssets = record.production?.source?.files == source.files && record.production?.source?.referencedSkills == source.referencedSkills
         let sourceHash = sameAssets && record.projectedPipeline.sourceHash != nil ? record.projectedPipeline.sourceHash! : try source.versionHash()
+        try rememberPipelineSource(source, hash: sourceHash, projectId: record.summary.id, db: db)
         let hash = source.files[".kaban/pipeline.yaml"] == nil ? nil : sourceHash
         let previous = record.pipeline
         let config = validation.config ?? previous
-        // The committed invalid config is visible, but orphaned nonterminal cards retain their
+        // The current invalid config is visible, but orphaned nonterminal cards retain their
         // storage lanes until the human restores/moves them. No last-valid execution fallback.
         let active = try pipelineContext(record.summary.id, db: db).stagesWithActiveTasks
         var storage = config.entryStage == nil ? previous : config
@@ -81,7 +89,7 @@ extension KabanStore {
         }
     }
 
-    /// Reads Git outside SQLite. Only production records are observed; fake fixtures never gain
+    /// Reads root configuration files outside SQLite. Only production records are observed; fake fixtures never gain
     /// the production validator's approval by passing through this path.
     public func refreshPipelines(at: Date = Date(), commandId: CommandID = UUID(), only: ProjectID? = nil) throws {
         projectOperations.lock(); defer { projectOperations.unlock() }
@@ -97,8 +105,7 @@ extension KabanStore {
             do {
                 let repository = try LocalGitRepository(path: observed.summary.path, baseBranch: observed.summary.baseBranch)
                 guard repository.repositoryID == observed.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
-                let commit = try repository.baseCommit()
-                source = observed.production?.source?.commit == commit ? observed.production?.source : try repository.pipelineSource()
+                source = try repository.pipelineSource()
                 edits = try repository.hasConfigurationEdits(); sourceError = nil
                 if edits {
                     do { workingFile = try repository.workingPipelineFile() }
@@ -159,14 +166,13 @@ extension KabanStore {
                 id = denial.task.card.projectId; hash = value.contentHash; draft = value
             default: preconditionFailure()
             }
-            var record = try database.read { try Self.project(id, db: $0) }
-            if record.production != nil {
-                try refreshPipelines(only: id)
-                record = try database.read { try Self.project(id, db: $0) }
+            let record = try database.read { try Self.project(id, db: $0) }
+            // Validate envelope/hash independently of mutable filesystem observations.
+            try draft.checkContent(projectId: id, requestedHash: hash)
+            guard record.production != nil else {
+                try draft.checkBinding(projectId: id, currentVersionHash: record.projectedPipeline.versionHash, requestedHash: hash)
+                throw CommandError(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна доступно для локальных проектов.")
             }
-            try draft.checkBinding(projectId: id, currentVersionHash: record.projectedPipeline.versionHash, requestedHash: hash)
-            guard record.production != nil else { throw CommandError(code: CommandError.unsupportedCommandCode, message: "Применение пайплайна доступно для локальных проектов.") }
-            try draft.checkSourceBinding(currentSourceHash: record.projectedPipeline.sourceHash, emptySourceHash: record.production?.source?.files.isEmpty == true ? record.projectedPipeline.sourceHash : nil)
             let validation = try database.read { try Self.validateDraftContent(projectId: id, content: draft.content, db: $0) }
             guard validation.isValid else { return try savePipelineReply(.init(commandId: envelope.commandId, seq: nil, result: .validationIssues(validation.issues)), request: request) }
             if case .addDenialToPolicy(let denialId, let scope, _) = envelope.command, let config = validation.config {
@@ -178,7 +184,37 @@ extension KabanStore {
             let repository = try LocalGitRepository(path: record.summary.path, baseBranch: record.summary.baseBranch)
             guard repository.repositoryID == record.production?.repositoryID else { throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.") }
             let source = try repository.pipelineSource()
-            try draft.checkSourceBinding(currentSourceHash: source.versionHash(), emptySourceHash: source.files.isEmpty ? source.versionHash() : nil)
+            let currentHash = try source.versionHash()
+            if draft.requiresExactWorkingContent == true && source.files[".kaban/pipeline.yaml"]?.data != Data(draft.content.utf8) {
+                throw CommandError(code: "pipeline_worktree_conflict", message: "Рабочий файл изменился после записи черновика. Перечитайте файл.")
+            }
+            let expected = draft.baseSourceHash ?? draft.baseVersionHash ?? (source.files.isEmpty ? currentHash : nil)
+            guard let expected else {
+                throw CommandError(code: "pipeline_source_required", message: "Передайте baseSourceHash корневой .kaban/ для исправления невалидного пайплайна.")
+            }
+            let base = try database.read { db -> PipelineSource? in
+                if try record.production?.source?.versionHash() == expected { return record.production?.source }
+                if let data = try Data.fetchOne(db, sql: "SELECT payload FROM pipeline_source_snapshot WHERE project_id = ? AND hash = ?", arguments: [id.rawValue, expected]) {
+                    return try Self.decode(PipelineSource.self, data)
+                }
+                if let data = try Data.fetchOne(db, sql: "SELECT payload FROM pipeline_version WHERE project_id = ? AND hash = ?", arguments: [id.rawValue, expected]) {
+                    return try Self.decode(PipelineVersion.self, data).source
+                }
+                return nil
+            }
+            if currentHash != expected {
+                // UI writes YAML before sending updatePipeline. Only that exact YAML change is
+                // allowed; edits to skills or any other asset invalidate the original draft.
+                guard let base, source.files[".kaban/pipeline.yaml"]?.data == Data(draft.content.utf8) else {
+                    throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Содержимое .kaban/ изменилось после начала редактирования.")
+                }
+                var restored = source
+                restored.files[".kaban/pipeline.yaml"] = base.files[".kaban/pipeline.yaml"]
+                try draft.checkSourceBinding(currentSourceHash: restored.versionHash())
+            }
+            if let version = draft.baseVersionHash, version != expected {
+                throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Черновик относится к другой версии пайплайна.")
+            }
             guard let identity = record.summary.identity else { throw GitIdentityRequired(missing: [.name, .email]).commandError }
             let plan = try repository.preparePipeline(content: draft.content, source: source, identity: identity, commandId: envelope.commandId,
                                                       requiresExactWorkingContent: draft.requiresExactWorkingContent == true)
@@ -251,8 +287,8 @@ extension KabanStore {
             let flags = try Self.schedulerFlags(db), loads = try Self.stageLoads(db)
             var record = try Self.project(operation.projectId, db: db)
             guard record.summary.path == operation.path, record.production?.repositoryID == operation.repositoryID else { throw StoreError.incompleteProjection }
-            // The accepted commit remains an immutable version even if recovery sees a newer,
-            // invalid user commit. Publish current main without losing the accepted version.
+            // The accepted snapshot remains immutable even if recovery sees newer invalid
+            // root files. Publish current files without losing the accepted version.
             guard let yaml = operation.plan.source.yaml else { throw StoreError.incompleteProjection }
             let accepted = PipelineValidator.validate(yaml: yaml)
             guard accepted.isValid, let config = accepted.config else { throw StoreError.incompleteProjection }

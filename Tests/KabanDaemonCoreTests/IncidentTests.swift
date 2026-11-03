@@ -206,27 +206,21 @@ final class IncidentTests: XCTestCase {
         XCTAssertEqual(try reopened.getTaskDetail("ask").acceptedFiles.count, 0)
     }
 
-    func testKabanChangesRollBackAndDoNotContinue() throws {
+    func testCloneConfigurationIsOrdinaryTaskContentAndNeverReloaded() throws {
         let f = try fixture(pipeline(preset: "standard"))
-        let untracked = try reach(f, "untracked")
-        try "secret".write(to: untracked.appendingPathComponent(".kaban/extra"), atomically: true, encoding: .utf8)
-        try expectIncident(f, "untracked", .kabanDirChanged)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: untracked.appendingPathComponent(".kaban/extra").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: untracked.appendingPathComponent(".kaban/pipeline.yaml").path))
-
-        let tracked = try reach(f, "tracked")
-        try "changed".write(to: tracked.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
-        try git(tracked, ["add", ".kaban/dev.md"])
-        try git(tracked, ["commit", "-m", "edit kaban"])
-        try expectIncident(f, "tracked", .kabanDirChanged)
-        XCTAssertEqual(try String(contentsOf: tracked.appendingPathComponent(".kaban/dev.md"), encoding: .utf8), "skill")
-
-        let link = try reach(f, "link")
-        try FileManager.default.removeItem(at: link.appendingPathComponent(".kaban"))
-        try FileManager.default.createSymbolicLink(at: link.appendingPathComponent(".kaban"), withDestinationURL: link.appendingPathComponent("note.txt"))
-        try expectIncident(f, "link", .kabanDirChanged)
-        XCTAssertFalse(try URL(fileURLWithPath: link.appendingPathComponent(".kaban").path).resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: link.appendingPathComponent(".kaban/pipeline.yaml").path))
+        let clone = try reach(f, "tracked")
+        let version = try XCTUnwrap(f.store.getSnapshot().pipelines.first?.versionHash)
+        try "changed".write(to: clone.appendingPathComponent(".kaban/dev.md"), atomically: true, encoding: .utf8)
+        try git(clone, ["add", ".kaban/dev.md"])
+        try git(clone, ["commit", "-m", "edit kaban"])
+        _ = try apply(f, "tracked", .completeStage(try runId(f, "tracked"), summary: "updated files"))
+        _ = try f.store.runStagePass(owner: "test", at: at)
+        XCTAssertEqual(try String(contentsOf: clone.appendingPathComponent(".kaban/dev.md"), encoding: .utf8), "changed")
+        guard case .incidents(let incidents) = try f.store.execute(.init(command: .listIncidents(projectIds: nil, state: .all))).result else { return XCTFail("Missing incidents reply") }
+        XCTAssertTrue(incidents.isEmpty)
+        XCTAssertEqual(try task(f, "tracked").machine.stageId, "test")
+        try f.store.refreshPipelines()
+        XCTAssertEqual(try f.store.getSnapshot().pipelines.first?.versionHash, version)
     }
 
     func testMainRepositoryDriftOpensADurableIncident() throws {

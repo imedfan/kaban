@@ -74,7 +74,7 @@ final class ProjectLifecycleTests: XCTestCase {
         let reopened = try KabanStore(path: f.database)
         XCTAssertEqual(try reopened.execute(invalid, now: { XCTFail("Refusal replay read clock"); return self.at }), reply)
     }
-    func testDirtyTemplateCommitPreservesStagedUnstagedAndUntrackedFiles() throws {
+    func testDirtyTemplatePreservesGitAndUnrelatedFiles() throws {
         let f = try fixture()
         try "staged\n".write(to: f.repo.appendingPathComponent("tracked.txt"), atomically: true, encoding: .utf8)
         _ = try git(f.repo, ["add", "tracked.txt"])
@@ -95,9 +95,9 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertEqual(try git(f.repo, ["diff", "--cached", "--binary", "--", "tracked.txt"]), staged)
         XCTAssertEqual(try git(f.repo, ["diff", "--binary", "--", "tracked.txt"]), unstaged)
         XCTAssertEqual(try String(contentsOf: f.repo.appendingPathComponent("untracked.txt"), encoding: .utf8), "secret\n")
-        XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD^"]), original)
-        XCTAssertEqual(Set(text(try git(f.repo, ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])).split(separator: "\n").map(String.init)), Set(PipelineTemplate.files.keys))
-        XCTAssertEqual(text(try git(f.repo, ["show", "-s", "--format=%an <%ae>", "HEAD"])), "Kaban Author <kaban@example.test>")
+        XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), original)
+        XCTAssertTrue(try git(f.repo, ["ls-files", "--", ".kaban"]).isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban/pipeline.yaml"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.path + "/hook-ran"))
         XCTAssertTrue(try git(f.repo, ["diff", "--cached", "--", ".kaban"]).isEmpty)
         XCTAssertTrue(try git(f.repo, ["diff", "--", ".kaban"]).isEmpty)
@@ -116,7 +116,7 @@ final class ProjectLifecycleTests: XCTestCase {
         let f = try fixture(), project = try add(f)
         try create(f.store, project: project.id)
         XCTAssertEqual(try f.store.getTaskDetail("task").task.stageId, "backlog")
-        XCTAssertTrue(try f.store.getSnapshot().schedulerFlags.contains(.projectUnavailable(project.id, .noPipeline, detail: "Нет закоммиченного пайплайна.")))
+        XCTAssertTrue(try f.store.getSnapshot().schedulerFlags.contains(.projectUnavailable(project.id, .noPipeline, detail: "В корне проекта нет .kaban/pipeline.yaml.")))
         XCTAssertThrowsError(try f.store.apply(.start("real-run"), taskId: "task", commandId: UUID(), at: at))
         let bad = try fixture()
         try FileManager.default.createDirectory(at: bad.repo.appendingPathComponent(".kaban"), withIntermediateDirectories: false)
@@ -133,10 +133,9 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertEqual(try refusal(send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store)).code, CommandError.baseBranchMissingCode)
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
         _ = try git(f.repo, ["branch", "main"])
-        XCTAssertEqual(try refusal(send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store)).code, "template_checkout_required")
+        XCTAssertEqual(try send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store).result, .ok)
         XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
-        _ = try add(f)
-        XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban/pipeline.yaml"))
     }
     func testSelectedBaseBranchCreatesTemplateAndSurvivesRestart() throws {
         let f = try fixture()
@@ -150,9 +149,9 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertEqual(project.baseBranch, "master")
         XCTAssertEqual(try KabanStore(path: f.database).getSnapshot().projects.first?.baseBranch, "master")
         XCTAssertEqual(text(try git(f.repo, ["branch", "--show-current"])), "master")
-        XCTAssertFalse(text(try git(f.repo, ["show", "master:.kaban/pipeline.yaml"])).isEmpty)
-        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", "master"])), "2")
-        XCTAssertEqual(text(try git(f.repo, ["status", "--porcelain"])), "")
+        XCTAssertFalse(try String(contentsOf: f.repo.appendingPathComponent(".kaban/pipeline.yaml"), encoding: .utf8).isEmpty)
+        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", "master"])), "1")
+        XCTAssertEqual(text(try git(f.repo, ["status", "--porcelain"])), "?? .kaban/")
     }
     func testMissingBaseRefusesBeforeTemplateAndReplaysWithExactBranch() throws {
         let f = try fixture()
@@ -172,7 +171,7 @@ final class ProjectLifecycleTests: XCTestCase {
         let project = try add(f)
         XCTAssertEqual(project.baseBranch, "main")
     }
-    func testTemplateDetectsCommittedGatesBeforeSingleCommitAndReplays() throws {
+    func testTemplateDetectsGatesWithoutCommitAndReplays() throws {
         let f = try fixture()
         try "// swift-tools-version: 6.1\n".write(to: f.repo.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
         _ = try git(f.repo, ["add", "Package.swift"])
@@ -182,15 +181,14 @@ final class ProjectLifecycleTests: XCTestCase {
         let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity, baseBranch: "develop"))
         let reply = try f.store.execute(envelope)
         XCTAssertEqual(reply.result, .ok)
-        let yaml = text(try git(f.repo, ["show", "develop:.kaban/pipeline.yaml"]))
+        let yaml = try String(contentsOf: f.repo.appendingPathComponent(".kaban/pipeline.yaml"), encoding: .utf8)
         let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
         for stage in config.stages {
             XCTAssertEqual(stage.gates, ["dev", "merge"].contains(stage.id) ? ["swift build", "swift test"] : [])
         }
-        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", before + "..HEAD"])), "1")
-        let paths = text(try git(f.repo, ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])).split(separator: "\n")
-        XCTAssertEqual(paths.count, 4)
-        XCTAssertTrue(paths.allSatisfy { $0.hasPrefix(".kaban/") })
+        XCTAssertEqual(text(try git(f.repo, ["rev-list", "--count", before + "..HEAD"])), "0")
+        XCTAssertTrue(try git(f.repo, ["ls-files", "--", ".kaban"]).isEmpty)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: f.repo.path + "/.kaban/skills").count, 3)
         let head = try git(f.repo, ["rev-parse", "HEAD"])
         XCTAssertEqual(try KabanStore(path: f.database).execute(envelope), reply)
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), head)
@@ -199,7 +197,7 @@ final class ProjectLifecycleTests: XCTestCase {
     func testUndetectedGatesLeaveTemplateWithoutGates() throws {
         let f = try fixture()
         XCTAssertEqual(try send(.addProject(path: f.repo.path, createTemplate: true, identity: identity), f.store).result, .ok)
-        let yaml = text(try git(f.repo, ["show", "HEAD:.kaban/pipeline.yaml"]))
+        let yaml = try String(contentsOf: f.repo.appendingPathComponent(".kaban/pipeline.yaml"), encoding: .utf8)
         let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
         XCTAssertEqual(config.stages.count, 7)
         XCTAssertTrue(config.stages.allSatisfy { $0.gates.isEmpty })
@@ -222,7 +220,7 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban"))
         XCTAssertEqual(try send(.addProject(path: f.repo.path, createTemplate: true, identity: identity, gates: ["echo 'quoted': value"]), f.store).result, .ok)
-        let yaml = text(try git(f.repo, ["show", "HEAD:.kaban/pipeline.yaml"]))
+        let yaml = try String(contentsOf: f.repo.appendingPathComponent(".kaban/pipeline.yaml"), encoding: .utf8)
         let config = try XCTUnwrap(PipelineValidator.validate(yaml: yaml).config)
         XCTAssertEqual(config.stages.first { $0.id == "dev" }?.gates, ["echo 'quoted': value"])
         XCTAssertEqual(config.stages.first { $0.id == "merge" }?.gates, ["echo 'quoted': value"])
@@ -302,7 +300,7 @@ final class ProjectLifecycleTests: XCTestCase {
         for event in try f.store.events(after: before.seq).filter({ $0.seq <= removed.seq }) { _ = projection.apply(event) }
         assertProjection(projection, removed)
     }
-    func testDatabaseFailureAfterGitCommitRecoversWithoutDuplicateOrOverwritingEdits() throws {
+    func testDatabaseFailureAfterTemplateWriteRecoversWithoutDuplicateOrOverwritingEdits() throws {
         let f = try fixture()
         try f.store.database.write { db in try db.execute(sql: "CREATE TRIGGER fail_project_reply BEFORE INSERT ON wire_command BEGIN SELECT RAISE(ABORT, 'injected'); END") }
         let envelope = CommandEnvelope(command: .addProject(path: f.repo.path, createTemplate: true, identity: identity))
@@ -333,7 +331,7 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: outside.path).isEmpty)
         XCTAssertTrue(try f.store.getSnapshot().projects.isEmpty)
     }
-    func testValidCommittedPipelineIsReadFromMainAndCannotUseFakeExecutor() throws {
+    func testWorkingPipelineOnFeatureIsAuthoritativeAndCannotUseFakeExecutor() throws {
         let f = try fixture()
         let yaml = PipelineTemplate.defaultYAML.replacingOccurrences(of: "model:            #", with: "model: explicit-model #").replacingOccurrences(of: "model:\n", with: "model: explicit-model\n")
         XCTAssertTrue(PipelineValidator.validate(yaml: yaml).isValid)
@@ -352,12 +350,13 @@ final class ProjectLifecycleTests: XCTestCase {
         let initial = try f.store.getSnapshot(), p = try add(f, template: true)
         XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
         let snapshot = try f.store.getSnapshot(), pipeline = try XCTUnwrap(snapshot.pipelines.first)
-        XCTAssertTrue(pipeline.isValid); XCTAssertTrue(pipeline.hasUncommittedEdits)
-        XCTAssertEqual(pipeline.versionHash, try LocalGitRepository(path: f.repo.path).pipelineSource().versionHash())
-        XCTAssertTrue(snapshot.schedulerFlags.isEmpty)
+        XCTAssertFalse(pipeline.isValid); XCTAssertFalse(pipeline.hasUncommittedEdits)
+        XCTAssertNil(pipeline.versionHash)
+        XCTAssertEqual(pipeline.sourceHash, try LocalGitRepository(path: f.repo.path).pipelineSource().versionHash())
+        XCTAssertTrue(snapshot.schedulerFlags.contains { if case .projectUnavailable(p.id, .pipelineInvalid, _) = $0 { true } else { false } })
         try create(f.store, project: p.id)
         XCTAssertThrowsError(try f.store.createTask(card: .init(id: "unmanaged", projectId: p.id, title: "Must use wire", stageId: "backlog", state: .queued(nil), updatedAt: at), pipeline: XCTUnwrap(PipelineValidator.validate(yaml: yaml).config), commandId: UUID(), at: at))
-        XCTAssertEqual(try refusal(send(.moveTask(taskId: "task", stage: "dev"), f.store)).code, "scheduler_blocked")
+        XCTAssertEqual(try refusal(send(.moveTask(taskId: "task", stage: "dev"), f.store)).code, "invalid_state")
         var projection = BoardProjection(snapshot: initial)
         for event in try f.store.events(after: initial.seq).filter({ $0.seq <= snapshot.seq }) { _ = projection.apply(event) }
         assertProjection(projection, snapshot)
@@ -391,15 +390,15 @@ final class ProjectLifecycleTests: XCTestCase {
         XCTAssertEqual(try reopened.getTaskDetail("task"), detail)
         XCTAssertThrowsError(try reopened.registerProject(.init(id: "fake", name: "Fake", path: "/never-read", mascotSeed: "fake"), pipeline: pipeline, commandId: UUID(), at: at))
     }
-    func testTemplateCompareAndSwapDoesNotOverwriteConcurrentMain() throws {
+    func testTemplateDoesNotTouchConcurrentMain() throws {
         let f = try fixture(), repository = try LocalGitRepository(path: f.repo.path)
         let plan = try repository.prepareTemplate(identity: identity, commandId: UUID())
         try "new user change".write(to: f.repo.appendingPathComponent("tracked.txt"), atomically: true, encoding: .utf8)
         _ = try git(f.repo, ["add", "tracked.txt"]); _ = try git(f.repo, ["commit", "-m", "Concurrent commit"])
         let head = try git(f.repo, ["rev-parse", "HEAD"])
-        XCTAssertThrowsError(try repository.finishTemplate(plan)) { XCTAssertEqual(($0 as? CommandError)?.code, "git_race") }
+        try repository.finishTemplate(plan)
         XCTAssertEqual(try git(f.repo, ["rev-parse", "HEAD"]), head)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: f.repo.path + "/.kaban/pipeline.yaml"))
     }
     func testProjectRecheckReceiptAndAvailabilityRollBackTogether() throws {
         let f = try fixture(), p = try add(f), before = try f.store.getSnapshot()

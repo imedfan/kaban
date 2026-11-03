@@ -52,6 +52,7 @@ public enum CursorLaunch {
         if !parts.grants.isEmpty {
             sections.append("git_grants:\n" + parts.grants.joined(separator: "\n"))
         }
+        sections.append("Call get_task_context before working to read the task and the frozen stage rules for this run.")
         sections.append("Call report_progress at least once every few minutes, including while waiting for git permissions.")
         sections.append("Finish only with a final MCP call: complete_stage, return_to_stage, or request_human. A process exit is not completion.")
         return sections.joined(separator: "\n\n")

@@ -92,8 +92,7 @@ final class GitGrantTests: XCTestCase {
         XCTAssertFalse(escaped.allow)
         XCTAssertEqual(escaped.rule, "config")
         let kaban = try check(server, hardToken, ["git", "add", ".kaban/pipeline.yaml"])
-        XCTAssertFalse(kaban.allow)
-        XCTAssertEqual(kaban.rule, "kaban_dir")
+        XCTAssertTrue(kaban.allow)
         XCTAssertEqual(try task(f, "hard").machine.state, .running)
         XCTAssertEqual(try task(f, "hard").machine.attemptsUsed, 0)
     }

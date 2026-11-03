@@ -19,6 +19,9 @@ struct BoardToolResponse: Codable, Equatable {
     var title: String
     var body: String?
     var state: String
+    var pipelineVersion: String?
+    var stage: StageConfig?
+    var gitPolicy: EffectiveGitPolicy?
 }
 
 extension KabanStore {
@@ -311,7 +314,10 @@ extension KabanStore {
 
     private static func response(_ task: DurableTask, runId: String, message: String, notices: [String], db: Database) throws -> BoardToolResponse {
         let detail = try detail(task.card.id, db: db)
-        return BoardToolResponse(message: message, notices: notices, taskId: task.card.id.rawValue, projectId: task.card.projectId.rawValue, stageId: task.machine.stageId.rawValue, runId: runId, title: task.card.title, body: detail.body, state: task.machine.state.status.rawValue)
+        let spec = try Data.fetchOne(db, sql: "SELECT payload FROM run_spec WHERE run_id = ?", arguments: [runId])
+            .map { try decode(RunSpec.self, $0) }
+        return BoardToolResponse(message: message, notices: notices, taskId: task.card.id.rawValue, projectId: task.card.projectId.rawValue, stageId: task.machine.stageId.rawValue, runId: runId, title: task.card.title, body: detail.body, state: task.machine.state.status.rawValue,
+                                 pipelineVersion: spec?.pipelineVersion, stage: spec.flatMap { $0.pipeline.stage($0.stageId) }, gitPolicy: spec?.gitPolicy)
     }
 
     private static func bounded(_ value: String?, field: String) throws -> String {

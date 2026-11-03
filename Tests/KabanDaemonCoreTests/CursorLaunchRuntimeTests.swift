@@ -70,7 +70,7 @@ extension ProcessControlTests {
             try db.execute(sql: "UPDATE task SET payload = ? WHERE id = ?", arguments: [try KabanStore.encode(task), "cursor"])
         }
         _ = try f.store.tick(tickId: UUID(), runId: "cursor-run", at: at)
-        // Change the working skill after reservation; the launch must use its pipeline snapshot.
+        // Changing a skill after reservation keeps the frozen launch metadata and absolute path.
         try "WRONG mutable skill".write(toFile: f.origin + "/.kaban/dev.md", atomically: true, encoding: .utf8)
         try f.store.queueGitGrantNotice(taskId: "cursor", argv: ["rebase", "HEAD~1"], at: at)
         _ = try f.store.runClonePass(owner: "test", at: at, workspaceRoot: f.workspace)
@@ -78,7 +78,7 @@ extension ProcessControlTests {
         let args = try capturedArguments(f)
         XCTAssertEqual(Array(args.dropLast()), ["-p", "--output-format", "stream-json", "--model", "override-model", "--trust", "--approve-mcps", "--force"])
         let prompt = try XCTUnwrap(args.last)
-        for input in ["Skill:\nskill", "Frozen title", "Exact criterion", "Previous handoff", "feature.swift | 7 +++++++", "Earlier gates passed", "Fix failing gate", "Human note", "Return issue", "git_grants:\nrebase HEAD~1 разрешена один раз", "report_progress", "complete_stage"] {
+        for input in [f.origin + "/.kaban/dev.md", "Frozen title", "Exact criterion", "Previous handoff", "feature.swift | 7 +++++++", "Earlier gates passed", "Fix failing gate", "Human note", "Return issue", "git_grants:\nrebase HEAD~1 разрешена один раз", "report_progress", "complete_stage"] {
             XCTAssertTrue(prompt.contains(input), "Missing input: \(input)")
         }
         XCTAssertFalse(prompt.contains("WRONG mutable skill"))

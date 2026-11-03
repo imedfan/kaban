@@ -28,6 +28,10 @@ extension ProcessControlTests {
             /usr/bin/git add seatbelt-feature.txt
             git commit -m 'Agent Seatbelt commit' > .be28/commit 2> .be28/commit.err
             echo $? > .be28/commit.exit
+            cat '\(f.origin)/.kaban/dev.md' > .be28/skill
+            printf '%s' "$*" > .be28/prompt
+            printf ordinary > .kaban/ordinary.md
+            echo $? > .be28/clone-config.exit
             printf changed > '\(f.origin)/.kaban/dev.md' 2> .be28/main.err
             echo $? > .be28/main.exit
             printf changed > .git/config 2> .be28/config.err
@@ -67,6 +71,10 @@ extension ProcessControlTests {
             XCTAssertEqual(try f.store.getTaskDetail("confined").feed.last { $0.kind == "progress" }?.text, "Seatbelt progress")
             XCTAssertNotEqual(try read("other.exit"), "0")
             XCTAssertNotEqual(try read("main.exit"), "0")
+            XCTAssertEqual(try read("skill"), "skill")
+            XCTAssertEqual(try read("clone-config.exit"), "0")
+            XCTAssertEqual(try String(contentsOfFile: clone + "/.kaban/ordinary.md", encoding: .utf8), "ordinary")
+            XCTAssertTrue(try read("prompt").contains(f.origin + "/.kaban/dev.md"))
             XCTAssertNotEqual(try read("config.exit"), "0")
             XCTAssertEqual(try String(contentsOfFile: f.origin + "/.kaban/dev.md", encoding: .utf8), "skill")
             let temp = try read("tmpdir")

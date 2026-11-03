@@ -3,7 +3,7 @@ import KabanKit
 import KabanProtocol
 
 extension KabanStore {
-    /// Query only: observe current Git outside SQLite; no refresh/journal/receipt.
+    /// Query current root files; cache their identity without changing projection/journal/receipt.
     func readPipelineSource(_ envelope: CommandEnvelope, projectId: ProjectID) throws -> CommandReply {
         do {
             guard envelope.protocolVersion == KabanCoding.protocolVersion else {
@@ -17,7 +17,7 @@ extension KabanStore {
             guard repository.repositoryID == record.production?.repositoryID else {
                 throw CommandError(code: "repository_changed", message: "По сохранённому пути находится другой репозиторий.")
             }
-            let committed = try repository.pipelineSource(), working = try repository.workingPipelineSource()
+            let committed = try repository.pipelineSource()
             func text(_ file: PipelineSource.File?) throws -> String? {
                 guard let file else { return nil }
                 guard file.data.count <= DaemonWire.maxPipelineBytes, let value = String(data: file.data, encoding: .utf8) else {
@@ -27,10 +27,11 @@ extension KabanStore {
             }
             let valid = try database.read { try Self.sourceValidation(committed, projectId: projectId, db: $0).isValid }
             let hash = try committed.versionHash()
+            try database.write { try Self.rememberPipelineSource(committed, hash: hash, projectId: projectId, db: $0) }
             let value = PipelineSourceContent(projectId: projectId, path: record.summary.path + "/.kaban/pipeline.yaml",
                 baseVersionHash: valid ? hash : nil, baseSourceHash: hash,
-                committedContent: try text(committed.files[".kaban/pipeline.yaml"]), workingContent: try text(repository.workingPipelineFile()),
-                worktreeSourceHash: try working.versionHash())
+                committedContent: try text(committed.files[".kaban/pipeline.yaml"]), workingContent: try text(committed.files[".kaban/pipeline.yaml"]),
+                worktreeSourceHash: hash)
             return .init(commandId: envelope.commandId, seq: nil, result: .pipelineSource(value))
         } catch let error as CommandError { return .init(commandId: envelope.commandId, seq: nil, result: .error(error)) }
         catch let error as StoreError { return Self.failure(error, commandId: envelope.commandId) }

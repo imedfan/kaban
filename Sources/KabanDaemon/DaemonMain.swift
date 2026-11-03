@@ -183,9 +183,22 @@ struct DaemonMain {
             }
             defer { scheduler.stop() }
             let service = DaemonService(store: store, wakeScheduler: { scheduler.wake() })
+            #if os(macOS)
+            let pipelineObserver = ProjectPipelineObserver {
+                try? store.refreshPipelines()
+                scheduler.wake()
+            }
+            pipelineObserver.watch(projectPaths: try store.registeredProjectPaths())
+            defer { pipelineObserver.stop() }
+            #endif
             let observer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "app.kaban.project-observer"))
             observer.schedule(deadline: .now() + 2, repeating: 2)
             observer.setEventHandler { @Sendable in
+                #if os(macOS)
+                if let paths = try? store.registeredProjectPaths() {
+                    pipelineObserver.watch(projectPaths: paths)
+                }
+                #endif
                 try? store.refreshProjectLocations()
                 try? store.refreshPipelines()
                 scheduler.wake()

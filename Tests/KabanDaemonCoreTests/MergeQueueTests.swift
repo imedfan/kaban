@@ -50,6 +50,23 @@ final class MergeQueueTests: XCTestCase {
         }
     }
 
+    func testCommittedCloneConfigurationChangesMergeAsOrdinaryFiles() throws {
+        let f = try fixture()
+        let original = try XCTUnwrap(f.store.getSnapshot().pipelines.first?.versionHash)
+        let clone = try enqueue(f, "config-edit", ".kaban/dev.md", "agent's ordinary git edit\n")
+        XCTAssertEqual(try text(clone.clonePath, ".kaban/dev.md"), "agent's ordinary git edit\n")
+        try f.store.refreshPipelines()
+        XCTAssertEqual(try f.store.getSnapshot().pipelines.first?.versionHash, original)
+        try approve(f, "config-edit"); _ = try tick(f, "config-merge")
+        _ = try f.store.runMergePass(owner: "test", at: at, workspaceRoot: f.workspace)
+        XCTAssertEqual(try task(f, "config-edit").machine.state, .done)
+        XCTAssertEqual(try text(f.origin, ".kaban/dev.md"), "agent's ordinary git edit\n")
+        XCTAssertEqual(try gitText(f, ["show", "main:.kaban/dev.md"]), "agent's ordinary git edit\n")
+        // Only after the merged file reaches the project root can it become the next source.
+        try f.store.refreshPipelines()
+        XCTAssertNotEqual(try f.store.getSnapshot().pipelines.first?.versionHash, original)
+    }
+
     func testTwoApprovedTasksDoNotWriteMainTogether() throws {
         let f = try fixture()
         let first = try enqueue(f, "alpha", "a.txt", "alpha\n")

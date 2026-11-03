@@ -48,8 +48,10 @@ extension KabanStore {
         // v1 tasks may have no detail row; retain that unknown legacy surface.
         let detail = try Data.fetchOne(db, sql: "SELECT payload FROM task_detail WHERE task_id = ?", arguments: [task.card.id.rawValue])
             .map { try decode(StoredDetail.self, $0) }
-        let skill = stage.agent?.skill.flatMap { path in
-            (source?.files[path] ?? source?.referencedSkills[path]).flatMap { String(data: $0.data, encoding: .utf8) }
+        let skill = stage.agent?.skill.flatMap { relative -> String? in
+            guard let root = record?.summary.path else { return nil }
+            let path = URL(fileURLWithPath: root).appendingPathComponent(relative).path
+            return "Read the stage skill at this absolute path: " + path
         } ?? ""
         let summary = detail?.artifacts.last { $0.kind == "summary" }
         let handoff = summary.map { summary in

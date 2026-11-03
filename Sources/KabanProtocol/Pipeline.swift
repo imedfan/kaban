@@ -155,9 +155,9 @@ public enum HardInvariant {
     public static let force = "force"
     /// Любые refs вне ветки задачи: `main`, чужие ветки, `update-ref`, `symbolic-ref`, `branch -d/-D/-f/-m/-M/-C`, `checkout -B`, `switch -C`, `filter-branch`, `reflog expire`.
     public static let foreignRefs = "foreign_refs"
-    /// Запись в `.kaban/`; не git-команда, держат `/git/check` и Seatbelt, здесь — для показа.
+    /// Legacy id accepted from older daemons; root configuration is protected by Seatbelt.
     public static let kabanDir = "kaban_dir"
-    public static let all = [push, remote, config, tag, force, foreignRefs, kabanDir]
+    public static let all = [push, remote, config, tag, force, foreignRefs]
 }
 
 /// Условное расширение политики стадии. `returnReason` — сырое значение (`merge_conflict`, `returned`, …), неизвестное UI показывает как есть.

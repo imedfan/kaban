@@ -1,7 +1,9 @@
 import Foundation
 
 /// nil content means the file is absent, never an empty file. Hashes identify the
-/// full committed asset snapshot; content is exact UTF-8 including CRLF/comments.
+/// full root asset snapshot; content is exact UTF-8 including CRLF/comments.
+/// Legacy wire names committedContent/workingContent both carry the current root YAML.
+/// Their presence and decoding remain compatible with older clients and fixtures.
 public struct PipelineSourceContent: Codable, Hashable, Sendable {
     public var projectId: ProjectID
     public var path: String

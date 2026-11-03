@@ -37,12 +37,11 @@ public enum GitCheck {
         return Array(args.dropFirst(index))
     }
 
-    /// Hard invariant id for a normalized command, including `.kaban/` writes and call-time
+    /// Hard invariant id for a normalized command, including call-time
     /// `notes` / `fetch` / `worktree` targets that name the project base (and legacy `main`).
     public static func blocked(_ words: [String], baseBranch: String = "main") -> String? {
         let command = words.joined(separator: " ")
         if let id = GitPolicyResolver.hardInvariant(for: command, baseBranch: baseBranch) { return id }
-        if writesKaban(words) { return HardInvariant.kabanDir }
         if let cmd = words.first, ["notes", "fetch", "worktree"].contains(cmd),
            words.dropFirst().contains(where: { GitPolicyResolver.namesBranch($0, branch: "main") || GitPolicyResolver.namesBranch($0, branch: baseBranch) }) {
             return HardInvariant.foreignRefs
@@ -71,13 +70,4 @@ public enum GitCheck {
         return false
     }
 
-    private static func writesKaban(_ words: [String]) -> Bool {
-        guard let cmd = words.first, !GitPolicyResolver.readCommands.contains(cmd) else { return false }
-        return words.dropFirst().contains(where: pathHasKaban)
-    }
-
-    private static func pathHasKaban(_ word: String) -> Bool {
-        if word == "--" || word.hasPrefix("-") { return false }
-        return word.split(separator: "/", omittingEmptySubsequences: false).contains { $0 == ".kaban" }
-    }
 }
