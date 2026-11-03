@@ -80,8 +80,19 @@ extension KabanStore {
                 catch let error as GitIdentityRequired { throw error.commandError }
                 let yaml: String?
                 let sourceError: CommandError?
-                do { yaml = try repository.pipeline(); sourceError = nil }
-                catch let error as CommandError where ["pipeline_invalid", "git_operation_limit"].contains(error.code) { yaml = nil; sourceError = error }
+                do {
+                    let file = try repository.workingPipelineFile()
+                    guard file == nil || (file!.data.count <= DaemonWire.maxPipelineBytes && String(data: file!.data, encoding: .utf8) != nil) else {
+                        throw CommandError(code: "pipeline_invalid", message: "pipeline.yaml должен быть UTF-8 размером не более 1 МиБ.")
+                    }
+                    yaml = file.flatMap { String(data: $0.data, encoding: .utf8) }; sourceError = nil
+                }
+                catch let error as CommandError {
+                    if createTemplate && error.code == "pipeline_worktree_conflict" {
+                        throw CommandError(code: "template_conflict", message: "Существующие файлы .kaban/ нельзя перезаписать.")
+                    }
+                    yaml = nil; sourceError = error
+                }
                 let gates = yaml == nil && sourceError == nil && createTemplate ? try (requestedGates ?? repository.gates()) : []
                 let template = yaml == nil && sourceError == nil && createTemplate ? try repository.prepareTemplate(identity: identity, commandId: envelope.commandId, gates: gates) : nil
                 let id = ProjectID(rawValue: UUID().uuidString.lowercased())
@@ -179,7 +190,7 @@ extension KabanStore {
         // A readable entry queue stores Backlog even while other stages are invalid. Malformed/missing
         // YAML has an explicitly invalid Backlog-only storage projection, never a fake executable pipeline.
         let pipeline = validation?.config.flatMap { $0.entryStage == nil ? nil : $0 } ?? PipelineConfig(stages: [StageConfig(id: "backlog", name: "Backlog", kind: .queue)])
-        let issues = validation?.issues ?? [.init(path: ".kaban/pipeline.yaml", code: "pipeline_missing", message: "Нет закоммиченного пайплайна.", severity: .error)]
+        let issues = validation?.issues ?? [.init(path: ".kaban/pipeline.yaml", code: "pipeline_missing", message: "В корне проекта нет .kaban/pipeline.yaml.", severity: .error)]
         let hash = yaml.map(PipelineContentHash.sha256)
         let projected = pipeline.summary(projectId: summary.id, versionHash: validation?.isValid == true ? hash : nil, issues: issues)
         return ProjectRecord(summary: summary, pipeline: pipeline, version: hash ?? "",
@@ -284,6 +295,10 @@ extension KabanStore {
         var directory: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &directory)
         return exists && directory.boolValue && FileManager.default.fileExists(atPath: path + "/.git") ? .available : .missing
+    }
+    /// Only durable local registrations need filesystem watches; no task snapshot is loaded.
+    public func registeredProjectPaths() throws -> [String] {
+        try database.read { try String.fetchAll($0, sql: "SELECT path FROM project_path ORDER BY path") }
     }
     /// Bounded host observer: filesystem checks outside SQLite, unchanged observations emit no events.
     public func refreshProjectLocations(at: Date = Date(), commandId: CommandID = UUID(), only: ProjectID? = nil) throws {

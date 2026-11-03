@@ -423,57 +423,16 @@ public enum TaskClone {
         return byPath.values.sorted { $0.file.path < $1.file.path }
     }
 
-    /// Tracked, untracked, symlink, or directory replacement under `.kaban/`.
-    public static func kabanChanged(clone: String, base: String, identity: GitIdentity?) throws -> Bool {
-        if !base.isEmpty {
-            let spec = "\(base)...HEAD"
-            let committed = try output(["diff", "--name-only", spec, "--", ".kaban"], in: clone, identity: identity, ok: [0, 1, 128])
-            let names: String
-            if committed.status == 128 {
-                // An orphan commit has no merge base, so the three-dot diff is undefined. Compare the trees;
-                // a matching tree is foreign_base, not a .kaban edit.
-                names = try output(["diff", "--name-only", base, "HEAD", "--", ".kaban"], in: clone, identity: identity, ok: [0, 1]).text
-            } else {
-                names = committed.text
-            }
-            if !names.isEmpty { return true }
-        }
-        let dirty = try text(["status", "--porcelain", "--untracked-files=all", "--", ".kaban"], in: clone, identity: identity)
-        if !dirty.isEmpty { return true }
-        let path = clone + "/.kaban"
-        guard isSymlink(path) else { return false }
-        let listed = try text(["ls-tree", base, "--", ".kaban"], in: clone, identity: identity)
-        return !listed.contains("120000")
-    }
-
     public static func foreignBase(clone: String, base: String, identity: GitIdentity?) throws -> Bool {
         guard !base.isEmpty else { return false }
         return try output(["merge-base", "--is-ancestor", base, "HEAD"], in: clone, identity: identity, ok: [0, 1]).status != 0
     }
 
-    /// Drops task-branch commits that are not the recorded base, then removes untracked `.kaban` residue.
+    /// Roll back an invalid task-branch ancestry. Configuration files follow ordinary Git rules.
     public static func rollbackBranch(clone: String, base: String, identity: GitIdentity?) throws -> [String] {
-        var restored: [String] = []
-        let root = clone + "/.kaban"
-        if isSymlink(root) {
-            try FileManager.default.removeItem(atPath: root)
-            restored.append(".kaban")
-        }
-        if !base.isEmpty {
-            try run(["reset", "--hard", base], in: clone, identity: identity)
-            restored.append(base)
-        }
-        let dirty = try text(["status", "--porcelain", "--untracked-files=all", "--", ".kaban"], in: clone, identity: identity)
-        for line in dirty.split(separator: "\n") {
-            let text = String(line)
-            guard text.hasPrefix("?? ") else { continue }
-            let relative = String(text.dropFirst(3))
-            let full = clone + "/" + relative
-            guard FileManager.default.fileExists(atPath: full) || isSymlink(full) else { continue }
-            try FileManager.default.removeItem(atPath: full)
-            restored.append(relative)
-        }
-        return restored
+        guard !base.isEmpty else { return [] }
+        try run(["reset", "--hard", base], in: clone, identity: identity)
+        return [base]
     }
 
     public static func wipRef(_ runId: RunID) throws -> String {

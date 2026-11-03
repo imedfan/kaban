@@ -156,7 +156,7 @@ final class GitPolicyTests: XCTestCase {
         let p = GitPolicyResolver.resolve(project: ProjectGitPolicy(preset: .standard, allow: ["remote", "tag"]),
                                           stage: Self.stage(StageGitOverride(extend: ["rebase"], when: GitOverrideCondition(returnReason: .mergeConflict))))
         // v0.11.12 §8.2: always the seven stable ids, in the canonical order (= spec §1.5), for every stage.
-        XCTAssertEqual(p.hardInvariants, ["push", "remote", "config", "tag", "force", "foreign_refs", "kaban_dir"])
+        XCTAssertEqual(p.hardInvariants, ["push", "remote", "config", "tag", "force", "foreign_refs"])
         XCTAssertEqual(p.hardInvariants, HardInvariant.all)
         XCTAssertFalse(GitRuleSource.allCases.map(\.rawValue).contains("hard"))
         // A project allow of a hard invariant never shows up as allowed.
@@ -209,8 +209,8 @@ final class GitPolicyTests: XCTestCase {
             ("notes add -m x", nil), ("fetch origin", nil), ("worktree add ../x", nil), ("cherry-pick -f", nil),
         ]
         for (rule, id) in cases { XCTAssertEqual(GitPolicyResolver.hardInvariant(for: rule), id, rule) }
-        // Every id has a matcher except `kaban_dir` (blocked by /git/check and Seatbelt).
-        XCTAssertEqual(GitPolicyResolver.hardInvariantMatchers.map(\.id), HardInvariant.all.filter { $0 != HardInvariant.kabanDir })
+        // Every active invariant has a matcher.
+        XCTAssertEqual(GitPolicyResolver.hardInvariantMatchers.map(\.id), HardInvariant.all)
         // Hard-invariant-only commands are not in the catalog.
         for c in ["push", "remote", "config", "tag", "update-ref", "symbolic-ref", "filter-branch"] {
             XCTAssertFalse(GitPolicyResolver.gitCommandCatalog.contains(c), c)

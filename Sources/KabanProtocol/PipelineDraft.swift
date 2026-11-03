@@ -9,7 +9,7 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
     public var contentHash: String
     public var content: String
     /// New editors have written exact bytes before apply. Legacy nil keeps BE-03
-    /// behavior; true rejects any different working file before preparing a commit.
+    /// behavior; true rejects any different working file before accepting a snapshot.
     public var requiresExactWorkingContent: Bool?
     public init(projectId: ProjectID, baseVersionHash: String?, content: String, baseSourceHash: String? = nil) {
         self.projectId = projectId; self.baseVersionHash = baseVersionHash
@@ -21,7 +21,7 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         projectId = try c.decode(ProjectID.self, forKey: .projectId)
         // Unlike a legacy command without draft, a new draft must bind an explicit base,
-        // including explicit null when the project has no committed pipeline yet.
+        // including explicit null when the project has no valid pipeline yet.
         baseVersionHash = try c.decode(String?.self, forKey: .baseVersionHash)
         baseSourceHash = try c.decodeIfPresent(String.self, forKey: .baseSourceHash)
         contentHash = try c.decode(String.self, forKey: .contentHash)
@@ -40,7 +40,7 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
         // A valid version's asset identity also binds old drafts. An invalid nonempty source
         // needs the new field; explicit null version alone cannot identify it.
         guard let expected = baseSourceHash ?? baseVersionHash ?? emptySourceHash else {
-            throw CommandError(code: "pipeline_source_required", message: "Передайте baseSourceHash текущего committed .kaban/ для исправления невалидного пайплайна.")
+            throw CommandError(code: "pipeline_source_required", message: "Передайте baseSourceHash текущей корневой .kaban/ для исправления невалидного пайплайна.")
         }
         guard expected == currentSourceHash else {
             throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Содержимое .kaban/ изменилось после начала редактирования.")
@@ -52,6 +52,13 @@ public struct PipelineDraft: Codable, Hashable, Sendable {
     public func checkBinding(projectId: ProjectID, currentVersionHash: String?, requestedHash: String) throws {
         guard self.projectId == projectId, baseVersionHash == currentVersionHash else {
             throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Черновик относится к другому проекту или версии пайплайна.")
+        }
+        try checkContent(projectId: projectId, requestedHash: requestedHash)
+    }
+    /// Verify the exact transported content before observing mutable root files.
+    public func checkContent(projectId: ProjectID, requestedHash: String) throws {
+        guard self.projectId == projectId else {
+            throw CommandError(code: CommandError.stalePipelineDraftCode, message: "Черновик относится к другому проекту.")
         }
         guard content.utf8.count <= DaemonWire.maxPipelineBytes else {
             throw CommandError(code: "invalid_request", message: "Черновик пайплайна превышает лимит размера.")

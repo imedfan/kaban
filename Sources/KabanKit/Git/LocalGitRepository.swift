@@ -46,27 +46,9 @@ public struct LocalGitRepository: Sendable {
     }
     public func baseCommit() throws -> String { try git(["rev-parse", "--verify", baseRef + "^{commit}"]).text }
     public func branches() throws -> [String] { try git(["for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/"]).text.split(separator: "\n").map(String.init).sorted() }
-    public func pipeline() throws -> String? {
-        let object = baseRef + ":.kaban/pipeline.yaml"
-        let exists = try git(["cat-file", "-e", object], allowedFailure: true)
-        guard exists.status == 0 else { return nil }
-        let data = try git(["show", object], maxBytes: DaemonWire.maxPipelineBytes).data
-        guard let yaml = String(data: data, encoding: .utf8) else { throw Self.error("pipeline_invalid", "pipeline.yaml должен быть UTF-8.") }
-        return yaml
-    }
-    /// Compare the working .kaban tree with its committed base source without executing user
-    /// conversion filters. Differences committed only on another branch are still unapplied in the base branch.
-    public func hasConfigurationEdits() throws -> Bool {
-        let keys = try git(["config", "--name-only", "--get-regexp", "^filter\\..*\\.(clean|smudge|process|required)$"], allowedFailure: true).text.split(separator: "\n").map(String.init)
-        let configuration = keys.map { $0 + ($0.hasSuffix(".required") ? "=false" : "=") }
-        let diff = try git(["diff", "--quiet", "--no-ext-diff", "--no-textconv", baseRef, "--", ".kaban"], allowedFailure: true, configuration: configuration)
-        guard diff.status == 0 || diff.status == 1 else { throw Self.error("git_operation_failed", "Не удалось проверить правки .kaban/.") }
-        if diff.status == 1 { return true }
-        let staged = try git(["diff", "--cached", "--quiet", "--no-ext-diff", "--no-textconv", baseRef, "--", ".kaban"], allowedFailure: true, configuration: configuration)
-        guard staged.status == 0 || staged.status == 1 else { throw Self.error("git_operation_failed", "Не удалось проверить staged правки .kaban/.") }
-        if staged.status == 1 { return true }
-        return try !git(["ls-files", "--others", "--exclude-standard", "-z", "--", ".kaban"]).data.isEmpty
-    }
+    public func pipeline() throws -> String? { try pipelineSource().yaml }
+    /// Root files are immediately authoritative; there is no separate unapplied Git version.
+    public func hasConfigurationEdits() throws -> Bool { false }
     public func gates() throws -> [String] {
         // Suggestions from committed build descriptors, never execute package scripts or inspect secrets.
         let files = Set(try git(["ls-tree", "--name-only", baseRef]).text.split(separator: "\n").map(String.init))
@@ -79,65 +61,30 @@ public struct LocalGitRepository: Sendable {
         return []
     }
 
+    // Retain the legacy fields to recover persisted pre-BE-42 intents without publishing refs.
     public struct TemplateCommit: Codable, Sendable {
         public let base: String
         public let commit: String
         public let blobs: [String: String]
+        public var files: [String: String]?
     }
-    /// Prepares objects only. The user's index, working files and refs are unchanged.
+    /// A durable file plan only: no checkout, index, refs, hooks or Git objects change.
     public func prepareTemplate(identity: GitIdentity, commandId: CommandID, gates: [String] = []) throws -> TemplateCommit {
-        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else {
-            throw Self.error("template_checkout_required", "Для создания шаблона откройте \(baseBranch) или добавьте проект без шаблона.", ["baseBranch": baseBranch])
-        }
-        guard (try? FileManager.default.attributesOfItem(atPath: path + "/.kaban")) == nil, try git(["ls-files", "--", ".kaban"]).data.isEmpty else {
+        guard (try? FileManager.default.attributesOfItem(atPath: path + "/.kaban")) == nil,
+              try git(["ls-files", "--", ".kaban"]).data.isEmpty else {
             throw Self.error("template_conflict", "Существующие правки .kaban/ нельзя перезаписать; сохраните их или добавьте проект без шаблона.")
         }
-        let base = try baseCommit()
-        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: scratch) }
-        let index = scratch.appendingPathComponent("index").path
-        _ = try git(["read-tree", base], index: index)
-        var blobs: [String: String] = [:]
-        let files = PipelineTemplate.files(gates: gates)
-        for name in files.keys.sorted() {
-            let blob = try git(["hash-object", "-w", "--no-filters", "--stdin"], input: Data(files[name]!.utf8)).text
-            blobs[name] = blob
-            _ = try git(["update-index", "--add", "--cacheinfo", "100644", blob, name], index: index)
-        }
-        let tree = try git(["write-tree"], index: index).text
-        let commit = try git(["commit-tree", tree, "-p", base], identity: identity,
-                             input: Data("Add Kaban template\n\nKaban-Command: \(commandId.uuidString.lowercased())\n".utf8)).text
-        return TemplateCommit(base: base, commit: commit, blobs: blobs)
+        return TemplateCommit(base: "", commit: "", blobs: [:], files: PipelineTemplate.files(gates: gates))
     }
-    /// Reconciles facts after a lost response/crash. CAS never overwrites a concurrent base update.
-    /// Existing working files are never overwritten, including edits made during recovery.
+    /// Exclusive file installation is replayable and preserves later editor saves.
     public func finishTemplate(_ plan: TemplateCommit) throws {
-        let current = try baseCommit()
-        if current == plan.base {
-            guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef,
-                  (try? FileManager.default.attributesOfItem(atPath: path + "/.kaban")) == nil else {
-                throw Self.error("template_conflict", "Checkout изменился до создания шаблона.")
+        if let files = plan.files {
+            for name in files.keys.sorted() { try installTemplateFile(name, data: Data(files[name]!.utf8)) }
+        } else {
+            for name in plan.blobs.keys.sorted() {
+                try installTemplateFile(name, data: git(["cat-file", "blob", plan.blobs[name]!]).data)
             }
-            _ = try git(["update-ref", "-m", "Kaban template", baseRef, plan.commit, plan.base])
-        } else if current != plan.commit {
-            guard try git(["merge-base", "--is-ancestor", plan.commit, current], allowedFailure: true).status == 0 else {
-                throw Self.error("git_race", "Базовая ветка изменилась; повторите добавление новой командой.")
-            }
-            // Our commit is already in history; do not reset a newer user commit/index/worktree.
-            return
         }
-        guard try git(["symbolic-ref", "--quiet", "HEAD"], allowedFailure: true).text == baseRef else { return }
-        for name in plan.blobs.keys.sorted() {
-            let data = try git(["cat-file", "blob", plan.blobs[name]!]).data
-            try installTemplateFile(name, data: data)
-        }
-        // Only missing index entries from the committed template are added. Preserve a user's
-        // concurrently edited/staged .kaban file as well as every unrelated staged entry.
-        let indexed = try git(["ls-files", "-z", "--", ".kaban"]).data
-        let names = Set(String(decoding: indexed, as: UTF8.self).split(separator: "\0").map(String.init))
-        let records = plan.blobs.keys.sorted().filter { !names.contains($0) }.map { "100644 \(plan.blobs[$0]!)\t\($0)\n" }.joined()
-        if !records.isEmpty { _ = try git(["update-index", "--index-info"], input: Data(records.utf8)) }
     }
     /// Anchor every lookup to directory descriptors. O_NOFOLLOW and an exclusive link prevent
     /// a concurrent symlink replacement from redirecting a template write outside the repository.

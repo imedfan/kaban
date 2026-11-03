@@ -134,9 +134,9 @@ final class MCPIsolationTests: XCTestCase {
         let deniedGit = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/git", "-C", clone.path, "config", "user.email", "other@example.com"])
         XCTAssertNotEqual(deniedGit.status, 0, deniedGit.error)
         XCTAssertEqual(try Data(contentsOf: config), before)
-        let deniedWrite = sandbox(clone: clone, scratch: scratch, home: home, ["/bin/sh", "-c", "printf x > \"$1\"", "sh", pipeline.path])
-        XCTAssertNotEqual(deniedWrite.status, 0, deniedWrite.error)
-        XCTAssertEqual(try String(contentsOf: pipeline, encoding: .utf8), "marker\n")
+        let cloneWrite = sandbox(clone: clone, scratch: scratch, home: home, ["/bin/sh", "-c", "printf x > \"$1\"", "sh", pipeline.path])
+        XCTAssertEqual(cloneWrite.status, 0, cloneWrite.error)
+        XCTAssertEqual(try String(contentsOf: pipeline, encoding: .utf8), "x")
         let outside = root.appendingPathComponent("forbidden")
         let deniedOutside = sandbox(clone: clone, scratch: scratch, home: home, ["/usr/bin/touch", outside.path])
         XCTAssertNotEqual(deniedOutside.status, 0, deniedOutside.error)
@@ -151,7 +151,7 @@ final class MCPIsolationTests: XCTestCase {
             XCTAssertEqual(result.status, 0, result.error)
         }
         XCTAssertEqual(try git(["log", "-1", "--format=%s"], clone).trimmingCharacters(in: .newlines), "Seatbelt commit")
-        for path in [".git/config", ".git/hooks/x", ".git/info/exclude", ".kaban/x"] {
+        for path in [".git/config", ".git/hooks/x", ".git/info/exclude"] {
             let denied = sandbox(clone: clone, scratch: scratch, home: home,
                                  ["/usr/bin/touch", clone.appendingPathComponent(path).path])
             XCTAssertNotEqual(denied.status, 0, path)

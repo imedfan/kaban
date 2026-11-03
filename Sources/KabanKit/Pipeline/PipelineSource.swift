@@ -1,8 +1,8 @@
 import Foundation
 import KabanProtocol
 
-/// Exact committed configuration assets, independent of the user's checkout and mutable refs.
-/// Keep the commit for files outside .kaban needed by a later execution workspace.
+/// Immutable snapshot of the project's root .kaban directory. Git tracking is irrelevant.
+/// commit/referencedSkills remain decodable for existing run snapshots.
 public struct PipelineSource: Codable, Hashable, Sendable {
     public struct File: Codable, Hashable, Sendable {
         public var mode: String
@@ -11,8 +11,7 @@ public struct PipelineSource: Codable, Hashable, Sendable {
     }
     public let commit: String
     public var files: [String: File]
-    /// Skills referenced outside .kaban are still pinned to the same commit. They are read-only
-    /// version assets; applying the pipeline never adds their working copies to its commit.
+    /// Legacy assets retained for decoding old runs; new sources use only root .kaban/.
     public var referencedSkills: [String: File]
     public init(commit: String, files: [String: File], referencedSkills: [String: File] = [:]) {
         self.commit = commit; self.files = files; self.referencedSkills = referencedSkills
@@ -30,53 +29,18 @@ public extension LocalGitRepository {
     static var maxConfigurationBytes: Int { 16 * 1024 * 1024 }
     static var maxConfigurationFiles: Int { 1024 }
 
-    /// Resolve the base once: every blob is then addressed by immutable object id.
-    func pipelineSource() throws -> PipelineSource {
-        let commit = try baseCommit()
-        let entries = try git(["ls-tree", "-rz", commit, "--", ".kaban"]).data.split(separator: 0)
-        guard entries.count <= Self.maxConfigurationFiles else { throw Self.error("pipeline_invalid", "В .kaban/ слишком много файлов.") }
-        var files: [String: PipelineSource.File] = [:], total = 0
-        for entry in entries {
-            guard let tab = entry.firstIndex(of: 9), let name = String(data: entry[entry.index(after: tab)...], encoding: .utf8) else {
-                throw Self.error("pipeline_invalid", "Пути .kaban/ должны быть UTF-8.")
-            }
-            let header = String(decoding: entry[..<tab], as: UTF8.self).split(separator: " ")
-            guard header.count == 3, header[1] == "blob", ["100644", "100755"].contains(String(header[0])) else {
-                throw Self.error("pipeline_invalid", ".kaban/ содержит ссылку или вложенный репозиторий.", ["path": name])
-            }
-            let data = try git(["cat-file", "blob", String(header[2])], maxBytes: Self.maxConfigurationBytes).data
-            total += data.count
-            guard total <= Self.maxConfigurationBytes else { throw Self.error("pipeline_invalid", "Содержимое .kaban/ превышает лимит размера.") }
-            files[name] = .init(mode: String(header[0]), data: data)
-        }
-        return try resolvePipelineSkills(PipelineSource(commit: commit, files: files))
-    }
+    /// Registration, recheck, observer and editor all read the same working directory.
+    func pipelineSource() throws -> PipelineSource { try resolvePipelineSkills(workingPipelineSource()) }
 
     func resolvePipelineSkills(_ source: PipelineSource) throws -> PipelineSource {
-        var source = source
-        source.referencedSkills = [:]
         guard let yaml = source.yaml, yaml.utf8.count <= DaemonWire.maxPipelineBytes,
               let config = PipelineValidator.validate(yaml: yaml).config else { return source }
-        var total = source.files.values.reduce(0) { $0 + $1.data.count }
-        let skills = Set(config.stages.compactMap { $0.agent?.skill })
-        for name in skills.sorted() where source.files[name] == nil {
+        for name in Set(config.stages.compactMap { $0.agent?.skill }) {
             let components = name.split(separator: "/", omittingEmptySubsequences: false)
-            guard !name.hasPrefix("/"), !name.contains("\0"), !components.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else {
-                throw Self.error("pipeline_invalid", "Скилл должен ссылаться на файл внутри репозитория.", ["path": name])
+            guard components.first == ".kaban", components.count >= 2,
+                  !name.contains("\0"), !components.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else {
+                throw Self.error("pipeline_invalid", "Скилл должен ссылаться на файл внутри корневой .kaban/.", ["path": name])
             }
-            let entry = try git(["ls-tree", "-z", source.commit, "--", ":(literal)" + name]).data
-            if entry.isEmpty { continue } // The existing validator permits absent/optional skills.
-            guard let tab = entry.firstIndex(of: 9) else { throw Self.error("pipeline_invalid", "Не удалось прочитать скилл.") }
-            let header = String(decoding: entry[..<tab], as: UTF8.self).split(separator: " ")
-            guard header.count == 3, header[1] == "blob", ["100644", "100755"].contains(String(header[0])) else {
-                throw Self.error("pipeline_invalid", "Скилл не может быть ссылкой или каталогом.", ["path": name])
-            }
-            let data = try git(["cat-file", "blob", String(header[2])], maxBytes: Self.maxConfigurationBytes).data
-            total += data.count
-            guard total <= Self.maxConfigurationBytes, source.files.count + source.referencedSkills.count < Self.maxConfigurationFiles else {
-                throw Self.error("pipeline_invalid", "Снимок пайплайна со скиллами превышает лимит размера.")
-            }
-            source.referencedSkills[name] = .init(mode: String(header[0]), data: data)
         }
         return source
     }

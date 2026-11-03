@@ -47,15 +47,21 @@ final class Team2GitPolicyCorpusTests: XCTestCase {
         }
     }
 
-    func testCorpusHasUniqueCommandsRationalesAndAllSevenInvariantIds() throws {
+    func testLegacyCorpusHasUniqueCommandsAndCoversAllActiveInvariantIds() throws {
         let deny = try rows("git-deny.json"), allow = try rows("git-allow.json")
         let all = deny + allow
         XCTAssertEqual(Set(all.map(\.command)).count, all.count)
         XCTAssertTrue(all.allSatisfy { !$0.command.isEmpty && !$0.why.isEmpty })
-        XCTAssertEqual(Set(deny.compactMap(\.invariant)), Set(HardInvariant.all))
+        XCTAssertEqual(Set(deny.compactMap(\.invariant).filter { $0 != HardInvariant.kabanDir }), Set(HardInvariant.all))
         XCTAssertTrue(Set(allow.map(\.command)).isDisjoint(with: deny.map(\.command)))
         for row in deny where ["shim", "question"].contains(row.scope) {
-            XCTAssertTrue(HardInvariant.all.contains(try XCTUnwrap(row.invariant)))
+            if row.invariant == HardInvariant.kabanDir {
+                // BE-42: historical .kaban writes in a task clone now follow ordinary policy.
+                XCTAssertNil(GitCheck.blocked(row.command.split(separator: " ").map(String.init)))
+                XCTAssertTrue(broadPolicy().allows(row.command))
+            } else {
+                XCTAssertTrue(HardInvariant.all.contains(try XCTUnwrap(row.invariant)))
+            }
             XCTAssertEqual(GitPolicyResolver.normalize(row.command), row.command)
         }
     }

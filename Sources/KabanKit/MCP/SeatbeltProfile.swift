@@ -38,8 +38,7 @@ public enum SeatbeltProfile {
       (literal (string-append (param "REAL_HOME") "/.gitconfig"))
       (subpath (string-append (param "CLONE") "/.git/config"))
       (subpath (string-append (param "CLONE") "/.git/hooks"))
-      (subpath (string-append (param "CLONE") "/.git/info"))
-      (subpath (string-append (param "CLONE") "/.kaban")))
+      (subpath (string-append (param "CLONE") "/.git/info")))
     ; Do not allow replacing the protected git directory as a whole.
     (deny file-write-unlink (literal (string-append (param "CLONE") "/.git")))
     (deny file-read*

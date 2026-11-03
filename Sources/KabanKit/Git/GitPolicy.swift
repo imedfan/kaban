@@ -43,7 +43,7 @@ public enum GitPolicyResolver {
 
     // MARK: Hard invariants (arch. v0.11.10 §8.2, spec v0.8.10 §1.5)
 
-    /// Ids on the wire, in `HardInvariant.all` order; always all seven, for every stage.
+    /// Ids on the wire, in `HardInvariant.all` order; all current invariants, for every stage.
     public static let hardInvariants: [String] = HardInvariant.all
 
     /// Matcher of one hard-invariant id. Patterns live only here (the protocol carries ids).
@@ -61,7 +61,7 @@ public enum GitPolicyResolver {
 
     /// Checked in the canonical order `HardInvariant.all`; the first match names the id (arch. v0.11.13 §8.2):
     /// `push --force` → `push`, `checkout -f main` → `force`, `branch -f x` → `foreign_refs` (no short force for `branch`).
-    /// `kaban_dir` has no git matcher: writes to `.kaban/` are blocked by `/git/check` and Seatbelt. `notes`, `fetch` and
+    /// `notes`, `fetch` and
     /// `worktree` targets have no static pattern either; `/git/check` checks them at call time.
     public static let hardInvariantMatchers: [HardInvariantMatcher] = [
         .init(id: HardInvariant.push, patterns: ["push …"]) { $0.first == "push" },

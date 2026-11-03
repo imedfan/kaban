@@ -269,10 +269,6 @@ extension KabanStore {
                 return (.incident(drift, rolledBack: restored), "incident")
             }
         }
-        if try TaskClone.kabanChanged(clone: clone.clonePath, base: base, identity: identity) {
-            let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
-            return (.incident(.kabanDirChanged, rolledBack: restored), "incident")
-        }
         if try TaskClone.foreignBase(clone: clone.clonePath, base: base, identity: identity) {
             let restored = try TaskClone.rollbackBranch(clone: clone.clonePath, base: base, identity: identity)
             return (.incident(.foreignBase, rolledBack: restored), "incident")

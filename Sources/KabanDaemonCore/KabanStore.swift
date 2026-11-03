@@ -60,6 +60,9 @@ public final class KabanStore: Sendable {
         migrator.registerMigration("run_stream_v25") { db in
             try db.execute(sql: "CREATE TABLE run_stream (run_id TEXT PRIMARY KEY NOT NULL, init_seen INTEGER NOT NULL, tool_seen INTEGER NOT NULL, failures TEXT NOT NULL)")
         }
+        migrator.registerMigration("root_pipeline_source_v26") { db in
+            try db.execute(sql: "CREATE TABLE pipeline_source_snapshot (project_id TEXT NOT NULL REFERENCES project(id), hash TEXT NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(project_id, hash))")
+        }
         try migrator.migrate(database)
     }
 

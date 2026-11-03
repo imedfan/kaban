@@ -10,7 +10,7 @@ final class GitCheckTests: XCTestCase {
         XCTAssertEqual(GitCheck.normalize(argv: ["git", "--git-dir=/tmp/other", "status"]), ["config"])
         XCTAssertEqual(GitCheck.blocked(["config"]), "config")
         XCTAssertEqual(GitCheck.blocked(["push", "origin", "main"]), "push")
-        XCTAssertEqual(GitCheck.blocked(["add", ".kaban/pipeline.yaml"]), "kaban_dir")
+        XCTAssertNil(GitCheck.blocked(["add", ".kaban/pipeline.yaml"]))
         XCTAssertNil(GitCheck.blocked(["status", ".kaban/pipeline.yaml"]))
         XCTAssertFalse(GitCheck.sameCommand(["rebase"], ["rebase", "main"]))
         XCTAssertTrue(GitCheck.sameCommand(["git", "rebase", "feature"], ["rebase", "feature"]))

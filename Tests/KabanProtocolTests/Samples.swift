@@ -7,7 +7,8 @@ enum Samples {
     static let cmd = UUID(uuidString: "6F1C2B9E-6C1A-4C2E-9E0B-7A2F7B0C1D01")!
     static let project: ProjectID = "p-kaban"
 
-    static let hard: [String] = HardInvariant.all
+    // Historical fixtures keep their original invariant list, including the legacy id.
+    static let hard: [String] = ["push", "remote", "config", "tag", "force", "foreign_refs", "kaban_dir"]
 
     static let stages: [StageSummary] = [
         StageSummary(id: "backlog", name: "Backlog", kind: .queue, display: StageDisplay(icon: "tray", order: 0)),
