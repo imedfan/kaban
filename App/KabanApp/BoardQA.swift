@@ -392,7 +392,7 @@ import Darwin
         guard let reopened = runtime.store, reopened.projection?.projects[id]?.baseBranch == "master" else { throw failure("Master lost on daemon restart") }
         store = reopened; store.selectedProjectID = id; store.screen = .project(id)
         try await capture("settings")
-        return ["actual native sheet in WindowGroup; master explicitly chosen without main", "draft retains selection on reopen", "real missing branch race shows params.branch inline and retains path/template", "correlated projectAdded or covered receipt applies master", "template committed on master; daemon restart retains base; project settings show read-only branch"]
+        return ["actual native sheet in WindowGroup; master explicitly chosen without main", "draft retains selection on reopen", "real missing branch race shows params.branch inline and retains path/template", "correlated projectAdded or covered receipt applies master", "template created in project folder; daemon restart retains base; project settings show read-only branch"]
     }
     private static func gateResultSmoke(_ store: BoardStore) async throws -> [String] {
         guard !store.usesFixture, let path = AppArguments.value("--project-smoke-repository"), path.hasPrefix("/tmp/kaban-fe26-"),

@@ -105,9 +105,9 @@ struct ProjectLifecycleSheet: View {
                 branchField
                 row("Шаблон") {
                     VStack(alignment: .leading, spacing: 6) {
-                        Toggle("Создать шаблон .kaban/ и закоммитить", isOn: Binding(get: { model.draft.createTemplate }, set: { model.setCreateTemplate($0) }))
+                        Toggle("Создать шаблон .kaban/", isOn: Binding(get: { model.draft.createTemplate }, set: { model.setCreateTemplate($0) }))
                             .toggleStyle(.checkbox).font(.system(size: 12))
-                        note("Если пайплайна нет, служба создаст шаблон и закоммитит только .kaban/. Модели настраиваются в пайплайне.")
+                        note("Если пайплайна нет, служба создаст шаблон .kaban/ в папке проекта. Коммитить его не обязательно.")
                     }
                 }
                 if model.draft.showsIdentity {
